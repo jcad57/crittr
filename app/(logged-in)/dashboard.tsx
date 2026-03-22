@@ -10,20 +10,50 @@ import {
   MOCK_ALERT,
   MOCK_DAILY_PROGRESS,
   MOCK_MEDICATIONS,
-  MOCK_PETS,
   MOCK_VET_VISITS,
+  type Pet as MockPet,
 } from "@/data/mockDashboard";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { usePetStore } from "@/stores/petStore";
+import { useEffect, useMemo } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
-  const activePet = MOCK_PETS[0];
+  const { pets: dbPets, activePetId, isLoading, fetchPets, setActivePet } =
+    usePetStore();
+
+  useEffect(() => {
+    fetchPets();
+  }, [fetchPets]);
+
+  const pets: MockPet[] = useMemo(
+    () =>
+      dbPets.map((p) => ({
+        id: p.id,
+        name: p.name,
+        breed: p.breed ?? "",
+        imageUrl: p.avatar_url,
+      })),
+    [dbPets],
+  );
+
+  if (isLoading && pets.length === 0) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.headerPad}>
-        <DashboardHeader pet={activePet} />
+        <DashboardHeader
+          pets={pets}
+          activePetId={activePetId}
+          onSwitchPet={setActivePet}
+        />
       </View>
 
       <ScrollView
@@ -52,7 +82,7 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.section}>
-          <PetManagement pets={MOCK_PETS} />
+          <PetManagement pets={pets} />
         </View>
       </ScrollView>
     </View>
@@ -63,6 +93,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  centered: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerPad: {
     paddingHorizontal: 20,

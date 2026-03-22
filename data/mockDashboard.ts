@@ -93,6 +93,7 @@ export type VetVisit = {
 
 export const MOCK_PETS: Pet[] = [
   { id: "1", name: "Bart", breed: "Great Pyrenees", imageUrl: null },
+  { id: "2", name: "Rusty", breed: "Irish Setter", imageUrl: null },
 ];
 
 export const MOCK_ALERT: AlertData = {
@@ -263,5 +264,52 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
     },
     medications: MOCK_MEDICATIONS,
     vetVisits: MOCK_VET_VISITS,
+  },
+  "2": {
+    id: "2",
+    name: "Rusty",
+    breed: "Irish Setter",
+    imageUrl: null,
+    age: 2,
+    weightLbs: 62,
+    sex: "male",
+    color: "Mahogany",
+    about:
+      "Rusty is an energetic and affectionate Irish Setter who never met a stranger. He thrives on outdoor adventures, loves to run, and is happiest when he has a job to do. A true people-pleaser with boundless enthusiasm.",
+    feeding: {
+      mealsPerDay: 2,
+      portionSize: "2.5 cups",
+      foodBrand: "Purina Pro Plan",
+      feedingTimes: ["8:00 AM", "5:30 PM"],
+      notes: "Active breed — monitor weight closely. No food 1hr before exercise.",
+    },
+    exercise: {
+      walksPerDay: 2,
+      walkDurationMinutes: 45,
+      activities: ["Trail running", "Frisbee", "Agility training"],
+    },
+    medications: [
+      {
+        id: "med-r1",
+        name: "Simparica Trio",
+        frequency: "Monthly",
+        condition: "Flea & Tick Prevention",
+        dosageDesc: "1 chewable · With meal",
+        current: 1,
+        total: 1,
+        lastTaken: "10/01/2025",
+        iconBg: Colors.successLight,
+        iconColor: Colors.success,
+      },
+    ],
+    vetVisits: [
+      {
+        id: "vet-r1",
+        title: "Wellness Exam",
+        date: "November 5, 2025",
+        time: "10am - 11am",
+        accentColor: Colors.lavender,
+      },
+    ],
   },
 };

@@ -39,7 +39,14 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Crittr to access your photos to set profile and pet avatars."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,7 +1,8 @@
 import { Colors } from "@/constants/colors";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-import Svg, { Circle, Ellipse, G, Path } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Ellipse } from "react-native-svg";
 
 type PetHeroPlaceholderProps = {
   onBack: () => void;
@@ -14,6 +15,7 @@ export default function PetHeroPlaceholder({
   onBack,
   onOptions,
 }: PetHeroPlaceholderProps) {
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.hero}>
       {/* Warm gradient-style background layers */}
@@ -28,14 +30,50 @@ export default function PetHeroPlaceholder({
       <View style={styles.pawContainer}>
         <Svg width={160} height={160} viewBox="0 0 100 100">
           {/* Main pad */}
-          <Ellipse cx="50" cy="62" rx="22" ry="18" fill="rgba(255,255,255,0.35)" />
+          <Ellipse
+            cx="50"
+            cy="62"
+            rx="22"
+            ry="18"
+            fill="rgba(255,255,255,0.35)"
+          />
           {/* Toe pads */}
-          <Ellipse cx="28" cy="44" rx="9" ry="11" fill="rgba(255,255,255,0.3)" />
-          <Ellipse cx="41" cy="36" rx="9" ry="11" fill="rgba(255,255,255,0.3)" />
-          <Ellipse cx="59" cy="36" rx="9" ry="11" fill="rgba(255,255,255,0.3)" />
-          <Ellipse cx="72" cy="44" rx="9" ry="11" fill="rgba(255,255,255,0.3)" />
+          <Ellipse
+            cx="28"
+            cy="44"
+            rx="9"
+            ry="11"
+            fill="rgba(255,255,255,0.3)"
+          />
+          <Ellipse
+            cx="41"
+            cy="36"
+            rx="9"
+            ry="11"
+            fill="rgba(255,255,255,0.3)"
+          />
+          <Ellipse
+            cx="59"
+            cy="36"
+            rx="9"
+            ry="11"
+            fill="rgba(255,255,255,0.3)"
+          />
+          <Ellipse
+            cx="72"
+            cy="44"
+            rx="9"
+            ry="11"
+            fill="rgba(255,255,255,0.3)"
+          />
           {/* Inner pad details */}
-          <Ellipse cx="50" cy="62" rx="12" ry="10" fill="rgba(255,255,255,0.2)" />
+          <Ellipse
+            cx="50"
+            cy="62"
+            rx="12"
+            ry="10"
+            fill="rgba(255,255,255,0.2)"
+          />
         </Svg>
       </View>
 
@@ -60,12 +98,24 @@ export default function PetHeroPlaceholder({
       </View>
 
       {/* Nav controls */}
-      <View style={styles.navBar}>
+      <View style={[styles.navBar, { paddingTop: insets.top }]}>
         <TouchableOpacity style={styles.navButton} onPress={onBack} hitSlop={8}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.white} />
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={22}
+            color={Colors.white}
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navButton} onPress={onOptions} hitSlop={8}>
-          <MaterialCommunityIcons name="dots-vertical" size={22} color={Colors.white} />
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={onOptions}
+          hitSlop={8}
+        >
+          <MaterialCommunityIcons
+            name="dots-vertical"
+            size={22}
+            color={Colors.white}
+          />
         </TouchableOpacity>
       </View>
     </View>

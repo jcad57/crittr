@@ -1,9 +1,11 @@
 import { Colors } from "@/constants/colors";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import OrangeButton from "../buttons/OrangeButton";
 
 export default function WelcomeContent() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <Text style={styles.headline}>Co-care for your best friend</Text>
@@ -11,7 +13,11 @@ export default function WelcomeContent() {
         Crittr is a platform that helps you track your pet's health and
         activities.
       </Text>
-      <OrangeButton>Create Account</OrangeButton>
+      <OrangeButton
+        onPress={() => router.push("/(auth)/(onboarding)")}
+      >
+        Create Account
+      </OrangeButton>
       <Link href="/(auth)/sign-in" asChild>
         <Text style={styles.signInLink}>
           I already have an account!{" "}

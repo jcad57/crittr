@@ -1,0 +1,75 @@
+import { Colors } from "@/constants/colors";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type OnboardingCardProps = {
+  children: React.ReactNode;
+};
+
+export default function OnboardingCard({ children }: OnboardingCardProps) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.screen}>
+      <LinearGradient
+        colors={["#FDB97E", "#F4845F", "#F27059"]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.gradient}
+      />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.card, { paddingBottom: insets.bottom + 24 }]}>
+            {children}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    marginBottom: 16,
+  },
+});

@@ -13,7 +13,6 @@ import {
 import ActivityItem from "./ActivityItem";
 import SectionHeader from "./SectionHeader";
 
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const PREVIEW_COUNT = 4;
@@ -92,11 +91,6 @@ export default function ActivityFeed({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
-    borderWidth: 2,
-    borderColor: Colors.sky,
-    borderRadius: 16,
-    padding: 10,
-    backgroundColor: Colors.skyLight,
   },
   viewAllButton: {
     marginTop: 10,
