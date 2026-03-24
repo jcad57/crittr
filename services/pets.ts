@@ -25,21 +25,28 @@ export async function createPet(
     avatarUrl = publicUrl;
   }
 
+  const parsedDob = petData.dateOfBirth.trim() || null;
+
   const { data: pet, error: petError } = await supabase
     .from("pets")
     .insert({
       owner_id: ownerId,
+      pet_type: petData.petType || null,
       name: petData.name,
       breed: petData.breed || null,
-      age: petData.age ? parseInt(petData.age, 10) : null,
-      weight_lbs: petData.weightLbs ? parseFloat(petData.weightLbs) : null,
+      age: petData.ageYears ? parseInt(petData.ageYears, 10) : null,
+      age_months: petData.ageMonths ? parseInt(petData.ageMonths, 10) : null,
+      date_of_birth: parsedDob,
+      weight_lbs: petData.weight ? parseFloat(petData.weight) : null,
+      weight_unit: petData.weightUnit,
       sex: petData.sex || null,
       color: petData.color || null,
       about: petData.about || null,
       energy_level: petData.energyLevel || null,
-      allergies: petData.allergies
-        ? petData.allergies.split(",").map((a) => a.trim())
-        : [],
+      exercises_per_day: petData.exercisesPerDay
+        ? parseInt(petData.exercisesPerDay, 10)
+        : null,
+      allergies: petData.allergies,
       avatar_url: avatarUrl,
       is_active: isFirst,
     })
@@ -70,8 +77,11 @@ export async function createPet(
     const medRows = petData.medications.map((m) => ({
       pet_id: pet.id,
       name: m.name,
-      dosage: m.dosage || null,
-      frequency: m.frequency || null,
+      dosage: [m.dosageAmount, m.dosageType].filter(Boolean).join(" ") || null,
+      frequency:
+        (m.frequency === "Custom" && m.customFrequency
+          ? m.customFrequency
+          : m.frequency) || null,
       condition: m.condition || null,
     }));
 

@@ -9,6 +9,7 @@ import { create } from "zustand";
 export const ONBOARDING_STEPS = [
   "signup",
   "profile",
+  "pet-type",
   "pet-info",
   "pet-care",
   "finish",
@@ -79,7 +80,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       return {
         pets,
         currentPetIndex: pets.length - 1,
-        currentStep: ONBOARDING_STEPS.indexOf("pet-info"),
+        currentStep: ONBOARDING_STEPS.indexOf("pet-type"),
       };
     }),
 

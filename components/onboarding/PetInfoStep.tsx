@@ -1,11 +1,17 @@
+import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
+import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useReferenceStore } from "@/stores/referenceStore";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,12 +21,67 @@ import {
 
 const ENERGY_OPTIONS = ["low", "medium", "high"] as const;
 
+const BREED_LABELS: Record<string, string> = {
+  dog: "Breed",
+  cat: "Breed",
+  fish: "Species",
+  bird: "Species",
+  reptile: "Species",
+  other: "Type / Breed",
+};
+
+const EXERCISE_PET_TYPES = new Set(["dog", "other"]);
+
 export default function PetInfoStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore();
   const pet = pets[currentPetIndex];
+  const [attempted, setAttempted] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const canContinue = pet.name.trim().length > 0;
+  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
+  const breeds = useReferenceStore((s) => s.breeds[pet.petType] ?? []);
+  const allergySuggestions = useReferenceStore(
+    (s) => s.allergies[pet.petType] ?? [],
+  );
+
+  useEffect(() => {
+    if (pet.petType) fetchForPetType(pet.petType);
+  }, [pet.petType, fetchForPetType]);
+
+  const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
+  const allergyNames = useMemo(
+    () => allergySuggestions.map((a) => a.name),
+    [allergySuggestions],
+  );
+
+  const breedLabel = BREED_LABELS[pet.petType] ?? "Breed / Species";
+  const showExercise = EXERCISE_PET_TYPES.has(pet.petType);
+
+  const missing = useMemo(() => {
+    const m = {
+      name: !pet.name.trim(),
+      breed: !pet.breed.trim(),
+      ageYears: !pet.ageYears.trim(),
+      weight: !pet.weight.trim(),
+      sex: pet.sex === "",
+      energyLevel: pet.energyLevel === "",
+      exercisesPerDay: showExercise && !pet.exercisesPerDay.trim(),
+    };
+    return m;
+  }, [pet, showExercise]);
+
+  const isValid = !Object.values(missing).some(Boolean);
+
+  const handleContinue = useCallback(() => {
+    if (!isValid) {
+      setAttempted(true);
+      return;
+    }
+    nextStep();
+  }, [isValid, nextStep]);
+
+  const err = (field: keyof typeof missing) => attempted && missing[field];
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -42,10 +103,7 @@ export default function PetInfoStep() {
       <View style={styles.avatarSection}>
         <TouchableOpacity style={styles.avatarCircle} onPress={pickImage}>
           {pet.avatarUri ? (
-            <Image
-              source={{ uri: pet.avatarUri }}
-              style={styles.avatarImage}
-            />
+            <Image source={{ uri: pet.avatarUri }} style={styles.avatarImage} />
           ) : (
             <MaterialCommunityIcons
               name="paw"
@@ -64,43 +122,160 @@ export default function PetInfoStep() {
       <Text style={styles.sectionTitle}>Basic Info</Text>
 
       <FormInput
-        placeholder="Pet's Name"
+        placeholder="Pet's Name *"
         value={pet.name}
         onChangeText={(v) => updateCurrentPet({ name: v })}
         autoCapitalize="words"
         containerStyle={styles.inputSpacing}
+        error={!!err("name")}
       />
 
-      <FormInput
-        placeholder="Pet's Breed"
+      {/* Breed / Species autocomplete */}
+      <AutocompleteInput
+        placeholder={`${breedLabel} *`}
         value={pet.breed}
         onChangeText={(v) => updateCurrentPet({ breed: v })}
-        autoCapitalize="words"
+        onSelect={(v) => updateCurrentPet({ breed: v })}
+        suggestions={breedNames}
         containerStyle={styles.inputSpacing}
+        error={!!err("breed")}
       />
 
+      {/* Age: Years + Months */}
+      <Text style={[styles.fieldLabel, err("ageYears") && styles.fieldLabelError]}>
+        Age *
+      </Text>
       <View style={styles.row}>
         <FormInput
-          placeholder="Age"
-          value={pet.age}
-          onChangeText={(v) => updateCurrentPet({ age: v })}
+          placeholder="Years"
+          value={pet.ageYears}
+          onChangeText={(v) => updateCurrentPet({ ageYears: v })}
           keyboardType="numeric"
           containerStyle={styles.halfInput}
+          error={!!err("ageYears")}
         />
         <FormInput
-          placeholder="Weight"
-          value={pet.weightLbs}
-          onChangeText={(v) => updateCurrentPet({ weightLbs: v })}
+          placeholder="Months"
+          value={pet.ageMonths}
+          onChangeText={(v) => updateCurrentPet({ ageMonths: v })}
           keyboardType="numeric"
           containerStyle={styles.halfInput}
         />
       </View>
 
+      {/* Date of Birth (optional) */}
+      <TouchableOpacity
+        style={styles.datePickerButton}
+        onPress={() => setShowDatePicker(true)}
+        activeOpacity={0.7}
+      >
+        <MaterialCommunityIcons
+          name="calendar"
+          size={20}
+          color={Colors.gray400}
+          style={{ marginRight: 10 }}
+        />
+        <Text
+          style={[
+            styles.datePickerText,
+            !pet.dateOfBirth && styles.datePickerPlaceholder,
+          ]}
+        >
+          {pet.dateOfBirth
+            ? new Date(pet.dateOfBirth).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "Date of Birth - Optional"}
+        </Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={pet.dateOfBirth ? new Date(pet.dateOfBirth) : new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          maximumDate={new Date()}
+          onChange={(_event, selectedDate) => {
+            setShowDatePicker(Platform.OS === "ios");
+            if (selectedDate) {
+              updateCurrentPet({
+                dateOfBirth: selectedDate.toISOString().split("T")[0],
+              });
+            }
+          }}
+        />
+      )}
+      {pet.dateOfBirth && (
+        <TouchableOpacity
+          onPress={() => updateCurrentPet({ dateOfBirth: "" })}
+          style={styles.clearDateButton}
+        >
+          <Text style={styles.clearDateText}>Clear date</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Weight + Unit Toggle */}
+      <Text style={[styles.fieldLabel, err("weight") && styles.fieldLabelError]}>
+        Weight *
+      </Text>
+      <View style={styles.row}>
+        <FormInput
+          placeholder="Weight"
+          value={pet.weight}
+          onChangeText={(v) => updateCurrentPet({ weight: v })}
+          keyboardType="numeric"
+          containerStyle={{ flex: 1 }}
+          error={!!err("weight")}
+        />
+        <View style={styles.unitToggleRow}>
+          <Pressable
+            style={[
+              styles.unitToggle,
+              styles.unitToggleLeft,
+              pet.weightUnit === "lbs" && styles.unitToggleActive,
+            ]}
+            onPress={() => updateCurrentPet({ weightUnit: "lbs" })}
+          >
+            <Text
+              style={[
+                styles.unitToggleText,
+                pet.weightUnit === "lbs" && styles.unitToggleTextActive,
+              ]}
+            >
+              lbs
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.unitToggle,
+              styles.unitToggleRight,
+              pet.weightUnit === "kg" && styles.unitToggleActive,
+            ]}
+            onPress={() => updateCurrentPet({ weightUnit: "kg" })}
+          >
+            <Text
+              style={[
+                styles.unitToggleText,
+                pet.weightUnit === "kg" && styles.unitToggleTextActive,
+              ]}
+            >
+              kg
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Sex */}
+      <Text style={[styles.fieldLabel, err("sex") && styles.fieldLabelError]}>
+        Sex *
+      </Text>
       <View style={[styles.row, styles.inputSpacing]}>
         <Pressable
           style={[
             styles.toggleOption,
             pet.sex === "male" && styles.toggleActive,
+            err("sex") && styles.toggleError,
           ]}
           onPress={() => updateCurrentPet({ sex: "male" })}
         >
@@ -117,6 +292,7 @@ export default function PetInfoStep() {
           style={[
             styles.toggleOption,
             pet.sex === "female" && styles.toggleActive,
+            err("sex") && styles.toggleError,
           ]}
           onPress={() => updateCurrentPet({ sex: "female" })}
         >
@@ -131,15 +307,15 @@ export default function PetInfoStep() {
         </Pressable>
       </View>
 
-      <FormInput
-        placeholder="Allergies (comma separated)"
-        value={pet.allergies}
-        onChangeText={(v) => updateCurrentPet({ allergies: v })}
-        containerStyle={styles.inputSpacing}
-      />
-
       {/* Energy level */}
-      <Text style={styles.sectionTitle}>Energy Level</Text>
+      <Text
+        style={[
+          styles.sectionTitle,
+          err("energyLevel") && styles.sectionTitleError,
+        ]}
+      >
+        Energy Level *
+      </Text>
       <View style={styles.row}>
         {ENERGY_OPTIONS.map((level) => (
           <Pressable
@@ -147,6 +323,7 @@ export default function PetInfoStep() {
             style={[
               styles.toggleOption,
               pet.energyLevel === level && styles.toggleActive,
+              err("energyLevel") && styles.toggleError,
             ]}
             onPress={() => updateCurrentPet({ energyLevel: level })}
           >
@@ -162,8 +339,37 @@ export default function PetInfoStep() {
         ))}
       </View>
 
+      {/* Exercises per day — only for dogs and "other" */}
+      {showExercise && (
+        <FormInput
+          placeholder="Exercises per day *"
+          value={pet.exercisesPerDay}
+          onChangeText={(v) => updateCurrentPet({ exercisesPerDay: v })}
+          keyboardType="numeric"
+          containerStyle={styles.inputSpacing}
+          error={!!err("exercisesPerDay")}
+        />
+      )}
+
+      {/* Allergies with tag input */}
+      <Text style={styles.sectionTitle}>Allergies</Text>
+      <TagInput
+        placeholder="Search or type an allergy…"
+        tags={pet.allergies}
+        onAddTag={(tag) =>
+          updateCurrentPet({ allergies: [...pet.allergies, tag] })
+        }
+        onRemoveTag={(tag) =>
+          updateCurrentPet({
+            allergies: pet.allergies.filter((a) => a !== tag),
+          })
+        }
+        suggestions={allergyNames}
+        containerStyle={styles.inputSpacing}
+      />
+
       {/* Co-carer invite */}
-      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+      <Text style={[styles.sectionTitle, { marginTop: 8 }]}>
         Does anyone else help you care for this pet?
       </Text>
       <View style={styles.inviteRow}>
@@ -183,11 +389,13 @@ export default function PetInfoStep() {
 
       <View style={styles.spacer} />
 
-      <OrangeButton
-        onPress={nextStep}
-        disabled={!canContinue}
-        style={styles.cta}
-      >
+      {attempted && !isValid && (
+        <Text style={styles.errorHint}>
+          Please fill in all required fields above
+        </Text>
+      )}
+
+      <OrangeButton onPress={handleContinue} style={styles.cta}>
         Continue
       </OrangeButton>
 
@@ -253,6 +461,47 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
+  sectionTitleError: {
+    color: Colors.error,
+  },
+  fieldLabel: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
+  datePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: 12,
+    height: 50,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  datePickerText: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  datePickerPlaceholder: {
+    color: Colors.gray400,
+  },
+  clearDateButton: {
+    alignSelf: "flex-end",
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  clearDateText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
   inputSpacing: {
     marginBottom: 12,
   },
@@ -263,6 +512,36 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+  },
+  unitToggleRow: {
+    flexDirection: "row",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  unitToggle: {
+    paddingHorizontal: 16,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unitToggleLeft: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.gray200,
+  },
+  unitToggleRight: {},
+  unitToggleActive: {
+    backgroundColor: Colors.orangeLight,
+  },
+  unitToggleText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  unitToggleTextActive: {
+    fontFamily: "InstrumentSans-Bold",
+    color: Colors.orange,
   },
   toggleOption: {
     flex: 1,
@@ -276,6 +555,9 @@ const styles = StyleSheet.create({
   toggleActive: {
     backgroundColor: Colors.orangeLight,
     borderColor: Colors.orange,
+  },
+  toggleError: {
+    borderColor: Colors.error,
   },
   toggleText: {
     fontFamily: "InstrumentSans-Regular",
@@ -310,6 +592,13 @@ const styles = StyleSheet.create({
   spacer: {
     flex: 1,
     minHeight: 24,
+  },
+  errorHint: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 13,
+    color: Colors.error,
+    textAlign: "center",
+    marginBottom: 8,
   },
   cta: {
     marginTop: 12,

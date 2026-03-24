@@ -1,5 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRef } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,10 +12,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type OnboardingCardProps = {
   children: React.ReactNode;
+  scrollKey?: number | string;
 };
 
-export default function OnboardingCard({ children }: OnboardingCardProps) {
+export default function OnboardingCard({
+  children,
+  scrollKey,
+}: OnboardingCardProps) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  const prevKeyRef = useRef(scrollKey);
+
+  if (prevKeyRef.current !== scrollKey) {
+    prevKeyRef.current = scrollKey;
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+  }
 
   return (
     <View style={styles.screen}>
@@ -30,6 +42,7 @@ export default function OnboardingCard({ children }: OnboardingCardProps) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={[
             styles.scrollContent,

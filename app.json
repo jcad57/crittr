@@ -46,7 +46,8 @@
         {
           "photosPermission": "Allow Crittr to access your photos to set profile and pet avatars."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

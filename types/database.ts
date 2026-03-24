@@ -1,3 +1,21 @@
+// ─── Pet type ────────────────────────────────────────────────────────────────
+
+export type PetType = "dog" | "cat" | "fish" | "bird" | "reptile" | "other";
+
+// ─── Reference data rows ────────────────────────────────────────────────────
+
+export type Breed = {
+  id: string;
+  pet_type: string;
+  name: string;
+};
+
+export type CommonAllergy = {
+  id: string;
+  pet_type: string;
+  name: string;
+};
+
 // ─── Row types (mirror Supabase tables) ─────────────────────────────────────
 
 export type Profile = {
@@ -15,14 +33,19 @@ export type Profile = {
 export type Pet = {
   id: string;
   owner_id: string;
+  pet_type: PetType | null;
   name: string;
   breed: string | null;
   age: number | null;
+  age_months: number | null;
+  date_of_birth: string | null;
   weight_lbs: number | null;
+  weight_unit: "lbs" | "kg" | null;
   sex: "male" | "female" | null;
   color: string | null;
   about: string | null;
   energy_level: "low" | "medium" | "high" | null;
+  exercises_per_day: number | null;
   allergies: string[];
   avatar_url: string | null;
   is_active: boolean;
@@ -105,21 +128,28 @@ export type FoodFormEntry = {
 export type MedicationFormEntry = {
   localId: string;
   name: string;
-  dosage: string;
+  dosageAmount: string;
+  dosageType: string;
   frequency: string;
+  customFrequency: string;
   condition: string;
 };
 
 export type PetFormData = {
+  petType: PetType | "";
   name: string;
   breed: string;
-  age: string;
-  weightLbs: string;
+  ageYears: string;
+  ageMonths: string;
+  dateOfBirth: string;
+  weight: string;
+  weightUnit: "lbs" | "kg";
   sex: "male" | "female" | "";
   color: string;
   about: string;
   energyLevel: "low" | "medium" | "high" | "";
-  allergies: string;
+  exercisesPerDay: string;
+  allergies: string[];
   avatarUri: string | null;
   foods: FoodFormEntry[];
   medications: MedicationFormEntry[];
@@ -127,15 +157,20 @@ export type PetFormData = {
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
+  petType: "",
   name: "",
   breed: "",
-  age: "",
-  weightLbs: "",
+  ageYears: "",
+  ageMonths: "",
+  dateOfBirth: "",
+  weight: "",
+  weightUnit: "lbs",
   sex: "",
   color: "",
   about: "",
   energyLevel: "",
-  allergies: "",
+  exercisesPerDay: "",
+  allergies: [],
   avatarUri: null,
   foods: [],
   medications: [],

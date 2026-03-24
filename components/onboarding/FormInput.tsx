@@ -12,27 +12,29 @@ import {
 type FormInputProps = TextInputProps & {
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   containerStyle?: StyleProp<ViewStyle>;
+  error?: boolean;
 };
 
 export default function FormInput({
   icon,
   containerStyle,
   style,
+  error,
   ...rest
 }: FormInputProps) {
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, error && styles.containerError, containerStyle]}>
       {icon && (
         <MaterialCommunityIcons
           name={icon}
           size={20}
-          color={Colors.gray400}
+          color={error ? Colors.error : Colors.gray400}
           style={styles.icon}
         />
       )}
       <TextInput
         style={[styles.input, icon && styles.inputWithIcon, style]}
-        placeholderTextColor={Colors.gray400}
+        placeholderTextColor={error ? Colors.error : Colors.gray400}
         {...rest}
       />
     </View>
@@ -48,6 +50,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 50,
     paddingHorizontal: 16,
+  },
+  containerError: {
+    borderColor: Colors.error,
   },
   icon: {
     marginRight: 10,

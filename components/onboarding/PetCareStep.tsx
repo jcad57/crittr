@@ -1,10 +1,11 @@
+import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { FoodFormEntry, MedicationFormEntry } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -13,22 +14,38 @@ import {
   View,
 } from "react-native";
 
+const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
+const DOSAGE_TYPES = ["Tablet", "Injection", "Liquid", "Topical", "Chewable", "Other"];
+const FREQ_OPTIONS = ["Daily", "Weekly", "Monthly", "Custom"];
+
 export default function PetCareStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore();
   const pet = pets[currentPetIndex];
+  const [attempted, setAttempted] = useState(false);
 
-  // Local state for the "add food" form
+  // Food form local state
   const [foodBrand, setFoodBrand] = useState("");
   const [foodPortion, setFoodPortion] = useState("");
-  const [foodUnit, setFoodUnit] = useState("Cups");
-  const [foodFreq, setFoodFreq] = useState("Per day");
+  const [foodUnit, setFoodUnit] = useState<string>("Cups");
 
-  // Local state for the "add medication" form
+  // Medication form local state
   const [medName, setMedName] = useState("");
-  const [medDosage, setMedDosage] = useState("");
+  const [medDosageAmt, setMedDosageAmt] = useState("");
+  const [medDosageType, setMedDosageType] = useState("");
   const [medFreq, setMedFreq] = useState("");
+  const [medCustomFreq, setMedCustomFreq] = useState("");
   const [medCondition, setMedCondition] = useState("");
+
+  const isValid = pet.foods.length > 0;
+
+  const handleContinue = useCallback(() => {
+    if (!isValid) {
+      setAttempted(true);
+      return;
+    }
+    nextStep();
+  }, [isValid, nextStep]);
 
   const addFood = () => {
     if (!foodBrand.trim()) return;
@@ -37,16 +54,19 @@ export default function PetCareStep() {
       brand: foodBrand.trim(),
       portionSize: foodPortion,
       portionUnit: foodUnit,
-      mealsPerDay: foodFreq,
+      mealsPerDay: "",
       isTreat: false,
     };
     updateCurrentPet({ foods: [...pet.foods, entry] });
     setFoodBrand("");
     setFoodPortion("");
+    setFoodUnit("Cups");
   };
 
   const removeFood = (localId: string) => {
-    updateCurrentPet({ foods: pet.foods.filter((f) => f.localId !== localId) });
+    updateCurrentPet({
+      foods: pet.foods.filter((f) => f.localId !== localId),
+    });
   };
 
   const addMedication = () => {
@@ -54,14 +74,18 @@ export default function PetCareStep() {
     const entry: MedicationFormEntry = {
       localId: Date.now().toString(),
       name: medName.trim(),
-      dosage: medDosage,
+      dosageAmount: medDosageAmt,
+      dosageType: medDosageType,
       frequency: medFreq,
+      customFrequency: medFreq === "Custom" ? medCustomFreq : "",
       condition: medCondition,
     };
     updateCurrentPet({ medications: [...pet.medications, entry] });
     setMedName("");
-    setMedDosage("");
+    setMedDosageAmt("");
+    setMedDosageType("");
     setMedFreq("");
+    setMedCustomFreq("");
     setMedCondition("");
   };
 
@@ -69,6 +93,15 @@ export default function PetCareStep() {
     updateCurrentPet({
       medications: pet.medications.filter((m) => m.localId !== localId),
     });
+  };
+
+  const formatMedSummary = (m: MedicationFormEntry) => {
+    const dosage = [m.dosageAmount, m.dosageType].filter(Boolean).join(" ");
+    const freq =
+      m.frequency === "Custom" && m.customFrequency
+        ? m.customFrequency
+        : m.frequency;
+    return [dosage, freq].filter(Boolean).join(" · ");
   };
 
   return (
@@ -86,7 +119,14 @@ export default function PetCareStep() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Meals & Treats</Text>
+      <Text
+        style={[
+          styles.sectionTitle,
+          attempted && !isValid && styles.sectionTitleError,
+        ]}
+      >
+        Meals & Treats Per Day *
+      </Text>
 
       <FormInput
         placeholder="Purina, Blue, etc."
@@ -97,27 +137,40 @@ export default function PetCareStep() {
 
       <View style={styles.row3}>
         <FormInput
-          placeholder="2"
+          placeholder="Amt"
           value={foodPortion}
           onChangeText={setFoodPortion}
           keyboardType="numeric"
           containerStyle={styles.smallInput}
         />
-        <FormInput
-          placeholder="Cups"
-          value={foodUnit}
-          onChangeText={setFoodUnit}
-          containerStyle={styles.medInput}
-        />
-        <FormInput
-          placeholder="Per day"
-          value={foodFreq}
-          onChangeText={setFoodFreq}
-          containerStyle={styles.medInput}
-        />
+        <View style={styles.portionToggleRow}>
+          {PORTION_UNITS.map((unit, i) => (
+            <Pressable
+              key={unit}
+              style={[
+                styles.portionToggle,
+                i < PORTION_UNITS.length - 1 && styles.portionToggleBorder,
+                foodUnit === unit && styles.portionToggleActive,
+              ]}
+              onPress={() => setFoodUnit(unit)}
+            >
+              <Text
+                style={[
+                  styles.portionToggleText,
+                  foodUnit === unit && styles.portionToggleTextActive,
+                ]}
+              >
+                {unit}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {/* Added foods list */}
+      <Pressable style={styles.addButton} onPress={addFood}>
+        <Text style={styles.addButtonText}>+ Add food</Text>
+      </Pressable>
+
       {pet.foods.length > 0 && (
         <View style={styles.listCard}>
           {pet.foods.map((f) => (
@@ -125,7 +178,7 @@ export default function PetCareStep() {
               <View style={styles.listRowText}>
                 <Text style={styles.listItemBold}>{f.brand}</Text>
                 <Text style={styles.listItemSub}>
-                  {f.portionSize} {f.portionUnit} {f.mealsPerDay}
+                  {f.portionSize} {f.portionUnit} Per Day
                 </Text>
               </View>
               <TouchableOpacity onPress={() => removeFood(f.localId)}>
@@ -140,10 +193,6 @@ export default function PetCareStep() {
         </View>
       )}
 
-      <Pressable style={styles.addButton} onPress={addFood}>
-        <Text style={styles.addButtonText}>+ Add another food</Text>
-      </Pressable>
-
       <View style={styles.divider} />
 
       {/* ── Medications ──────────────────────────────────────── */}
@@ -156,20 +205,44 @@ export default function PetCareStep() {
         containerStyle={styles.inputSpacing}
       />
 
-      <View style={styles.row3}>
+      {/* Dosage: amount + type dropdown */}
+      <Text style={styles.fieldLabel}>Dosage</Text>
+      <View style={[styles.row3, { zIndex: 60 }]}>
         <FormInput
-          placeholder="Dosage"
-          value={medDosage}
-          onChangeText={setMedDosage}
-          containerStyle={styles.medInput}
+          placeholder="Amt"
+          value={medDosageAmt}
+          onChangeText={setMedDosageAmt}
+          keyboardType="numeric"
+          containerStyle={styles.smallInput}
         />
-        <FormInput
-          placeholder="Frequency"
-          value={medFreq}
-          onChangeText={setMedFreq}
-          containerStyle={styles.medInput}
+        <DropdownSelect
+          placeholder="Select type"
+          value={medDosageType}
+          options={DOSAGE_TYPES}
+          onSelect={setMedDosageType}
+          containerStyle={{ flex: 1 }}
         />
       </View>
+
+      {/* Frequency: dropdown only, with custom fallback */}
+      <Text style={styles.fieldLabel}>Frequency</Text>
+      <View style={{ zIndex: 55 }}>
+        <DropdownSelect
+          placeholder="Select frequency"
+          value={medFreq}
+          options={FREQ_OPTIONS}
+          onSelect={setMedFreq}
+          containerStyle={styles.inputSpacing}
+        />
+      </View>
+      {medFreq === "Custom" && (
+        <FormInput
+          placeholder="Enter custom frequency"
+          value={medCustomFreq}
+          onChangeText={setMedCustomFreq}
+          containerStyle={styles.inputSpacing}
+        />
+      )}
 
       <FormInput
         placeholder="Condition (e.g. Allergies)"
@@ -178,6 +251,10 @@ export default function PetCareStep() {
         containerStyle={styles.inputSpacing}
       />
 
+      <Pressable style={styles.addButton} onPress={addMedication}>
+        <Text style={styles.addButtonText}>+ Add medication</Text>
+      </Pressable>
+
       {pet.medications.length > 0 && (
         <View style={styles.listCard}>
           {pet.medications.map((m) => (
@@ -185,7 +262,7 @@ export default function PetCareStep() {
               <View style={styles.listRowText}>
                 <Text style={styles.listItemBold}>{m.name}</Text>
                 <Text style={styles.listItemSub}>
-                  {m.dosage} &middot; {m.frequency}
+                  {formatMedSummary(m)}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => removeMed(m.localId)}>
@@ -200,13 +277,13 @@ export default function PetCareStep() {
         </View>
       )}
 
-      <Pressable style={styles.addButton} onPress={addMedication}>
-        <Text style={styles.addButtonText}>+ Add medication</Text>
-      </Pressable>
-
       <View style={styles.spacer} />
 
-      <OrangeButton onPress={nextStep} style={styles.cta}>
+      {attempted && !isValid && (
+        <Text style={styles.errorHint}>Add at least one food to continue</Text>
+      )}
+
+      <OrangeButton onPress={handleContinue} style={styles.cta}>
         Continue
       </OrangeButton>
 
@@ -238,6 +315,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
+  sectionTitleError: {
+    color: Colors.error,
+  },
+  fieldLabel: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
   inputSpacing: {
     marginBottom: 12,
   },
@@ -245,19 +331,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 12,
+    alignItems: "flex-start",
   },
   smallInput: {
-    width: 60,
+    width: 70,
   },
-  medInput: {
+
+  /* ── Food portion toggle ─────────────────────────────── */
+  portionToggleRow: {
+    flexDirection: "row",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    height: 50,
     flex: 1,
   },
+  portionToggle: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portionToggleBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.gray200,
+  },
+  portionToggleActive: {
+    backgroundColor: Colors.orangeLight,
+  },
+  portionToggleText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  portionToggleTextActive: {
+    fontFamily: "InstrumentSans-Bold",
+    color: Colors.orange,
+  },
+
+  /* ── Shared list styles ──────────────────────────────── */
   listCard: {
     borderWidth: 1,
     borderColor: Colors.gray200,
     borderRadius: 12,
     padding: 14,
     gap: 10,
+    marginTop: 12,
     marginBottom: 12,
   },
   listRow: {
@@ -286,7 +405,6 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
   },
   addButtonText: {
     fontFamily: "InstrumentSans-Bold",
@@ -304,6 +422,13 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: 12,
+  },
+  errorHint: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 13,
+    color: Colors.error,
+    textAlign: "center",
+    marginBottom: 8,
   },
   backButton: {
     alignSelf: "center",
