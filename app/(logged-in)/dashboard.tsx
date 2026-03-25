@@ -14,14 +14,21 @@ import {
   type Pet as MockPet,
 } from "@/data/mockDashboard";
 import { usePetStore } from "@/stores/petStore";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
-  const { pets: dbPets, activePetId, isLoading, fetchPets, setActivePet } =
-    usePetStore();
+  const {
+    pets: dbPets,
+    activePetId,
+    isLoading,
+    fetchPets,
+    setActivePet,
+  } = usePetStore();
+  const router = useRouter();
 
   useEffect(() => {
     fetchPets();
@@ -40,7 +47,9 @@ export default function Dashboard() {
 
   if (isLoading && pets.length === 0) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -53,6 +62,7 @@ export default function Dashboard() {
           pets={pets}
           activePetId={activePetId}
           onSwitchPet={setActivePet}
+          onProfilePress={() => router.push("/(tabs)/profile")}
         />
       </View>
 

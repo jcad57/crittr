@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Link, useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import OrangeButton from "../buttons/OrangeButton";
 
 export default function WelcomeContent() {
@@ -13,16 +13,14 @@ export default function WelcomeContent() {
         Crittr is a platform that helps you track your pet's health and
         activities.
       </Text>
-      <OrangeButton
-        onPress={() => router.push("/(auth)/(onboarding)")}
-      >
+      <OrangeButton onPress={() => router.push("/(auth)/(onboarding)")}>
         Create Account
       </OrangeButton>
       <Link href="/(auth)/sign-in" asChild>
-        <Text style={styles.signInLink}>
-          I already have an account!{" "}
+        <Pressable>
+          <Text style={styles.signInLink}>I already have an account! </Text>
           <Text style={styles.signInLinkBold}>Sign In</Text>
-        </Text>
+        </Pressable>
       </Link>
     </View>
   );

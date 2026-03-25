@@ -51,7 +51,7 @@ export default function OnboardingCard({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.card, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={[styles.card, { paddingBottom: insets.bottom }]}>
             {children}
           </View>
         </ScrollView>
@@ -63,6 +63,7 @@ export default function OnboardingCard({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    justifyContent: "center",
   },
   flex: {
     flex: 1,
@@ -71,7 +72,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: 16,
   },
   card: {
