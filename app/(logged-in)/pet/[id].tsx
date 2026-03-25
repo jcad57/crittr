@@ -1,19 +1,13 @@
-import Divider from "@/components/ui/Divider";
-import PetAboutSection from "@/components/ui/pet/PetAboutSection";
 import PetAttributeChips from "@/components/ui/pet/PetAttributeChips";
-import PetExerciseSection from "@/components/ui/pet/PetExerciseSection";
-import PetFeedingSection from "@/components/ui/pet/PetFeedingSection";
-import PetHero, { HERO_HEIGHT } from "@/components/ui/pet/PetHero";
-import PetMedicationsSection from "@/components/ui/pet/PetMedicationsSection";
+import PetHero, { AVATAR_OVERLAP } from "@/components/ui/pet/PetHero";
 import { Colors } from "@/constants/colors";
 import type {
-  ExerciseRequirements,
   FeedingSchedule,
   Medication,
   PetProfile,
 } from "@/data/mockDashboard";
 import { usePetStore } from "@/stores/petStore";
-import type { PetWithDetails } from "@/types/database";
+import type { PetFood, PetWithDetails } from "@/types/database";
 import {
   formatDateOfBirth,
   formatEnergyLabel,
@@ -27,38 +21,33 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
+  ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const CARD_OVERLAP = 32;
-/** Max extra height when pulling past the top (rubber-band / overscroll). */
-const HERO_STRETCH_MAX = 220;
+// ─── Data mapping ────────────────────────────────────────────────────────────
 
-function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
-  const primary = details.foods.find((f) => !f.is_treat);
-  return {
-    mealsPerDay: primary?.meals_per_day ?? 2,
-    portionSize: primary?.portion_size ?? "",
-    foodBrand: primary?.brand ?? "",
-    feedingTimes: [],
-    notes: "",
-  };
+function formatPortionLabel(f: PetFood): string {
+  const size = f.portion_size?.trim() ?? "";
+  const unit = f.portion_unit?.trim() ?? "";
+  return [size, unit].filter(Boolean).join(" ") || "—";
 }
 
-function toExerciseRequirements(details: PetWithDetails): ExerciseRequirements {
+function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
+  const sorted = [...details.foods].sort((a, b) =>
+    a.is_treat === b.is_treat ? 0 : a.is_treat ? 1 : -1,
+  );
   return {
-    walksPerDay: details.exercise?.walks_per_day ?? 0,
-    walkDurationMinutes: details.exercise?.walk_duration_minutes ?? 0,
-    activities: details.exercise?.activities ?? [],
+    items: sorted.map((f) => ({
+      brand: f.brand?.trim() || "Food",
+      portionLabel: formatPortionLabel(f),
+      isTreat: f.is_treat,
+    })),
+    notes: "",
   };
 }
 
@@ -108,11 +97,61 @@ function toProfile(details: PetWithDetails): PetProfile {
     exercisesPerDay: details.exercises_per_day,
     about: details.about ?? "",
     feeding: toFeedingSchedule(details),
-    exercise: toExerciseRequirements(details),
     medications: toMedications(details),
     vetVisits: [],
   };
 }
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+type InfoRowProps = { label: string; value: string };
+
+function InfoRow({ label, value }: InfoRowProps) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={2}>
+        {value || "—"}
+      </Text>
+    </View>
+  );
+}
+
+type MenuItemProps = {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  label: string;
+  onPress?: () => void;
+  iconBg?: string;
+  iconColor?: string;
+};
+
+function MenuItem({
+  icon,
+  label,
+  onPress,
+  iconBg = Colors.orangeLight,
+  iconColor = Colors.orange,
+}: MenuItemProps) {
+  return (
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
+      <View style={[styles.menuIcon, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+      </View>
+      <Text style={styles.menuLabel}>{label}</Text>
+      <MaterialCommunityIcons
+        name="chevron-right"
+        size={22}
+        color={Colors.gray400}
+      />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function PetProfilePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -121,22 +160,6 @@ export default function PetProfilePage() {
   const fetchPetProfile = usePetStore((s) => s.fetchPetProfile);
   const [details, setDetails] = useState<PetWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const scrollY = useSharedValue(0);
-
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-
-  const heroStretchStyle = useAnimatedStyle(() => {
-    const y = scrollY.value;
-    const extra = y < 0 ? Math.min(-y, HERO_STRETCH_MAX) : 0;
-    return {
-      height: HERO_HEIGHT + extra,
-      overflow: "hidden",
-    };
-  });
 
   useEffect(() => {
     if (!id) return;
@@ -153,7 +176,7 @@ export default function PetProfilePage() {
 
   if (loading) {
     return (
-      <View style={[styles.notFound]}>
+      <View style={styles.centered}>
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -161,7 +184,7 @@ export default function PetProfilePage() {
 
   if (!profile) {
     return (
-      <View style={styles.notFound}>
+      <View style={styles.centered}>
         <Text style={styles.notFoundText}>Pet not found.</Text>
       </View>
     );
@@ -169,84 +192,134 @@ export default function PetProfilePage() {
 
   return (
     <View style={styles.screen}>
-      <Animated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={1}
+      {/* ── Fixed nav bar ──────────────────────────────────── */}
+      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.navButton}
+          hitSlop={8}
+        >
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={22}
+            color={Colors.black}
+          />
+        </TouchableOpacity>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          {profile.name}
+        </Text>
+        <TouchableOpacity style={styles.navButton} hitSlop={8}>
+          <MaterialCommunityIcons
+            name="cog-outline"
+            size={22}
+            color={Colors.black}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Scrollable content ─────────────────────────────── */}
+      <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
         bounces
-        alwaysBounceVertical
-        contentInsetAdjustmentBehavior={
-          Platform.OS === "ios" ? "never" : undefined
-        }
-        overScrollMode={Platform.OS === "android" ? "always" : undefined}
       >
-        <Animated.View style={heroStretchStyle}>
-          <PetHero
-            imageUrl={profile.imageUrl}
-            onBack={() => router.back()}
-            onOptions={() => {}}
-            style={styles.heroFill}
-          />
-        </Animated.View>
+        <PetHero imageUrl={profile.imageUrl} />
 
-        <View style={styles.card}>
-          <View style={styles.identity}>
-            <View style={styles.nameRow}>
-              <Text style={styles.petName} numberOfLines={1}>
-                {profile.name}
-              </Text>
-              <View style={styles.microchippedBlock}>
-                {profile.isMicrochipped ? (
-                  <>
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={16}
-                      color={Colors.success}
-                    />
-                    <Text style={styles.microchippedText}>Microchipped</Text>
-                  </>
-                ) : null}
-              </View>
-            </View>
-            <Text style={styles.breed}>
-              {profile.petType ? `${profile.petTypeLabel} · ` : ""}
-              {profile.breed}
-            </Text>
-          </View>
+        {/* Card pulls up to avatar midline; lower z-index so avatar paints on top */}
+        <View
+          style={[
+            styles.card,
+            { marginTop: -AVATAR_OVERLAP, paddingTop: AVATAR_OVERLAP + 12 },
+          ]}
+        >
           <PetAttributeChips profile={profile} />
-          <Divider />
-          <PetAboutSection about={profile.about} />
-          <Divider />
 
-          <Text style={styles.sectionGroupTitle}>Care Requirements</Text>
-          <View style={styles.careCards}>
-            <PetFeedingSection feeding={profile.feeding} />
-            <PetExerciseSection exercise={profile.exercise} />
+          {/* ── Info section ─────────────────────────────── */}
+          <View style={styles.infoSection}>
+            <View style={styles.infoHeader}>
+              <Text style={styles.infoTitle}>{profile.name}'s Information</Text>
+              <TouchableOpacity hitSlop={8}>
+                <Text style={styles.editBtn}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.infoRows}>
+              <InfoRow label="Breed" value={profile.breed} />
+              <InfoRow
+                label="Sex"
+                value={profile.sex === "male" ? "Male" : "Female"}
+              />
+              {profile.dateOfBirthFormatted && (
+                <InfoRow
+                  label="Date of birth"
+                  value={`${profile.dateOfBirthFormatted} (${profile.ageDisplay})`}
+                />
+              )}
+              {!profile.dateOfBirthFormatted && (
+                <InfoRow label="Age" value={profile.ageDisplay} />
+              )}
+              <InfoRow label="Weight" value={profile.weightDisplay} />
+              <InfoRow label="Energy level" value={profile.energyLevelLabel} />
+              {profile.allergies.length > 0 && (
+                <InfoRow
+                  label="Allergies"
+                  value={profile.allergies.join(", ")}
+                />
+              )}
+            </View>
           </View>
 
-          <Divider />
-          <PetMedicationsSection medications={profile.medications} />
+          {/* ── Menu items ───────────────────────────────── */}
+          <View style={styles.menuSection}>
+            <MenuItem
+              icon="note-text-outline"
+              label="About"
+              iconBg={Colors.lavenderLight}
+              iconColor={Colors.lavenderDark}
+            />
+            <MenuItem
+              icon="food-variant"
+              label="Care"
+              iconBg={Colors.amberLight}
+              iconColor={Colors.amberDark}
+            />
+            <MenuItem
+              icon="pill"
+              label="Medications"
+              iconBg={Colors.successLight}
+              iconColor={Colors.successDark}
+            />
+            <MenuItem
+              icon="file-document-outline"
+              label="Medical Records"
+              iconBg={Colors.coralLight}
+              iconColor={Colors.coral}
+            />
+            <MenuItem
+              icon="shield-check-outline"
+              label="Insurance"
+              iconBg={Colors.skyLight}
+              iconColor={Colors.skyDark}
+            />
+          </View>
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
     </View>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.white,
   },
-  scroll: {
-    flex: 1,
-  },
-  /** Fills stretch wrapper; avoids `height: "100%"` which often fails with Reanimated layouts on iOS. */
-  heroFill: {
-    flex: 1,
-  },
-  notFound: {
+  centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -257,61 +330,120 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  card: {
-    marginTop: -CARD_OVERLAP,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 24,
-    gap: 20,
-  },
-  identity: {
-    gap: 4,
-    marginTop: 4,
-  },
-  nameRow: {
+
+  /* ── Nav bar ─────────────────────────────────────── */
+  navBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: Colors.white,
+    zIndex: 10,
   },
-  petName: {
-    flex: 1,
-    flexShrink: 1,
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 32,
-    color: Colors.textPrimary,
-    minWidth: 0,
-  },
-  microchippedBlock: {
-    backgroundColor: Colors.successLight,
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.success,
-    flexDirection: "row",
+  navButton: {
+    width: 36,
+    height: 36,
     alignItems: "center",
-    gap: 6,
-    flexShrink: 0,
+    justifyContent: "center",
   },
-  microchippedText: {
-    fontFamily: "InstrumentSans-Medium",
-    fontSize: 11,
-    color: Colors.success,
+  navTitle: {
+    flex: 1,
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 20,
+    color: Colors.black,
+    textAlign: "center",
+    marginHorizontal: 12,
   },
-  breed: {
+
+  /* ── Scroll ──────────────────────────────────────── */
+  scroll: {
+    flex: 1,
+    overflow: "visible",
+  },
+  scrollContent: {
+    overflow: "visible",
+    flexGrow: 1,
+  },
+
+  /* ── Card body ───────────────────────────────────── */
+  card: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    gap: 20,
+    zIndex: 1,
+  },
+
+  /* ── Info section ────────────────────────────────── */
+  infoSection: {
+    gap: 14,
+  },
+  infoHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  infoTitle: {
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 16,
+    color: Colors.textPrimary,
+  },
+  editBtn: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.orange,
+  },
+  infoRows: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray100,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  infoLabel: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  infoValue: {
     fontFamily: "InstrumentSans-Regular",
     fontSize: 15,
     color: Colors.textSecondary,
+    textAlign: "right",
+    maxWidth: "55%",
   },
-  sectionGroupTitle: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 18,
+
+  /* ── Menu section ────────────────────────────────── */
+  menuSection: {
+    gap: 0,
+    marginTop: 4,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+    gap: 14,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuLabel: {
+    flex: 1,
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 15,
     color: Colors.textPrimary,
-    marginBottom: -8,
-  },
-  careCards: {
-    gap: 12,
   },
 });

@@ -9,18 +9,17 @@ export type Pet = {
   imageUrl: string | null;
 };
 
-export type FeedingSchedule = {
-  mealsPerDay: number;
-  portionSize: string;
-  foodBrand: string;
-  feedingTimes: string[];
-  notes: string;
+/** Foods as stored in Supabase / shown on profile (no feeding-times UI). */
+export type FeedingFoodItem = {
+  brand: string;
+  /** e.g. "2 Cups", "1.5 Ounces" */
+  portionLabel: string;
+  isTreat: boolean;
 };
 
-export type ExerciseRequirements = {
-  walksPerDay: number;
-  walkDurationMinutes: number;
-  activities: string[];
+export type FeedingSchedule = {
+  items: FeedingFoodItem[];
+  notes: string;
 };
 
 export type PetProfile = Pet & {
@@ -47,7 +46,6 @@ export type PetProfile = Pet & {
   exercisesPerDay: number | null;
   about: string;
   feeding: FeedingSchedule;
-  exercise: ExerciseRequirements;
   medications: Medication[];
   vetVisits: VetVisit[];
 };
@@ -282,16 +280,14 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
     about:
       "Bart is a gentle giant with a heart of gold. He loves long walks in the park, belly rubs, and keeping a watchful eye over the family. Despite his size, he's incredibly gentle with kids and other animals.",
     feeding: {
-      mealsPerDay: 2,
-      portionSize: "3 cups",
-      foodBrand: "Blue Buffalo",
-      feedingTimes: ["7:00 AM", "6:00 PM"],
+      items: [
+        {
+          brand: "Blue Buffalo",
+          portionLabel: "3 Cups",
+          isTreat: false,
+        },
+      ],
       notes: "Prefers food at room temperature. Use slow-feeder bowl.",
-    },
-    exercise: {
-      walksPerDay: 2,
-      walkDurationMinutes: 30,
-      activities: ["Fetch in backyard", "Off-leash play", "Swimming"],
     },
     medications: MOCK_MEDICATIONS,
     vetVisits: MOCK_VET_VISITS,
@@ -322,16 +318,14 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
     about:
       "Rusty is an energetic and affectionate Irish Setter who never met a stranger. He thrives on outdoor adventures, loves to run, and is happiest when he has a job to do. A true people-pleaser with boundless enthusiasm.",
     feeding: {
-      mealsPerDay: 2,
-      portionSize: "2.5 cups",
-      foodBrand: "Purina Pro Plan",
-      feedingTimes: ["8:00 AM", "5:30 PM"],
+      items: [
+        {
+          brand: "Purina Pro Plan",
+          portionLabel: "2.5 Cups",
+          isTreat: false,
+        },
+      ],
       notes: "Active breed — monitor weight closely. No food 1hr before exercise.",
-    },
-    exercise: {
-      walksPerDay: 2,
-      walkDurationMinutes: 45,
-      activities: ["Trail running", "Frisbee", "Agility training"],
     },
     medications: [
       {

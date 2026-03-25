@@ -71,7 +71,14 @@ export const usePetStore = create<PetState>((set, get) => ({
 
       const pets = data ?? [];
       const active = pets.find((p) => p.is_active) ?? pets[0];
-      set({ pets, activePetId: active?.id ?? null });
+      const activePetId = active?.id ?? null;
+
+      let activePetDetails: PetWithDetails | null = null;
+      if (activePetId) {
+        activePetDetails = await loadPetDetails(activePetId);
+      }
+
+      set({ pets, activePetId, activePetDetails });
     } catch (error) {
       console.error("Failed to fetch pets:", error);
     } finally {
@@ -80,11 +87,12 @@ export const usePetStore = create<PetState>((set, get) => ({
   },
 
   fetchActivePetDetails: async () => {
-    const { activePetId } = get();
+    const { activePetId, activePetDetails } = get();
     if (!activePetId) {
       set({ activePetDetails: null });
       return;
     }
+    if (activePetDetails?.id === activePetId) return;
     const details = await loadPetDetails(activePetId);
     set({ activePetDetails: details });
   },

@@ -1,6 +1,7 @@
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import DailyProgress from "@/components/ui/dashboard/DailyProgress";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
+import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
 import { Colors } from "@/constants/colors";
@@ -12,7 +13,7 @@ import type {
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
@@ -136,14 +137,8 @@ export default function Dashboard() {
     [setActivePet],
   );
 
-  if (isLoading && pets.length === 0) {
-    return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
-      >
-        <ActivityIndicator size="large" color={Colors.orange} />
-      </View>
-    );
+  if (isLoading) {
+    return <DashboardLoading />;
   }
 
   return (
@@ -189,10 +184,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  centered: {
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerPad: {
     paddingHorizontal: 20,

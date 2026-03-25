@@ -1,167 +1,103 @@
 import { Colors } from "@/constants/colors";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import type { StyleProp, ViewStyle } from "react-native";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, View } from "react-native";
 import Svg, { Ellipse } from "react-native-svg";
 
 type PetHeroProps = {
-  onBack: () => void;
-  onOptions: () => void;
-  /** When set, fills the hero area (same height as the illustrated placeholder). */
   imageUrl?: string | null;
-  /** Merged after base hero styles; use e.g. `{ flex: 1 }` inside a stretch header with explicit height. */
-  style?: StyleProp<ViewStyle>;
 };
 
-export const HERO_HEIGHT = 300;
+/** Short gradient band only — keeps vertical space tight. */
+export const GRADIENT_HEIGHT = 72;
+export const AVATAR_SIZE = 104;
+/** Half the avatar sits below the gradient; use for card overlap + padding. */
+export const AVATAR_OVERLAP = AVATAR_SIZE / 2;
 
-export default function PetHero({
-  onBack,
-  onOptions,
-  imageUrl,
-  style,
-}: PetHeroProps) {
-  const insets = useSafeAreaInsets();
+export default function PetHero({ imageUrl }: PetHeroProps) {
   const uri = imageUrl?.trim() || null;
 
+  /** Total block height = gradient + lower half of avatar (for overlap into card). */
+  const blockHeight = GRADIENT_HEIGHT + AVATAR_OVERLAP;
+
   return (
-    <View style={[styles.hero, style]}>
-      {uri ? (
-        <>
-          <Image
-            source={{ uri }}
-            style={styles.heroImage}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={200}
-          />
-          <View style={styles.heroImageDim} pointerEvents="none" />
-        </>
-      ) : (
-        <>
-          {/* Warm gradient-style background layers */}
-          <View style={styles.bgOuter} />
-          <View style={styles.bgInner} />
+    <View style={[styles.wrapper, { height: blockHeight }]}>
+      <View style={[styles.gradient, { height: GRADIENT_HEIGHT }]}>
+        <View style={styles.bgOuter} />
+        <View style={styles.bgInner} />
+        <View style={[styles.deco, styles.decoTopRight]} />
+        <View style={[styles.deco, styles.decoBottomLeft]} />
+      </View>
 
-          {/* Decorative ambient circles */}
-          <View style={[styles.deco, styles.decoTopRight]} />
-          <View style={[styles.deco, styles.decoBottomLeft]} />
-
-          {/* Paw SVG centrepiece */}
-          <View style={styles.pawContainer}>
-            <Svg width={160} height={160} viewBox="0 0 100 100">
-              <Ellipse
-                cx="50"
-                cy="62"
-                rx="22"
-                ry="18"
-                fill="rgba(255,255,255,0.35)"
-              />
-              <Ellipse
-                cx="28"
-                cy="44"
-                rx="9"
-                ry="11"
-                fill="rgba(255,255,255,0.3)"
-              />
-              <Ellipse
-                cx="41"
-                cy="36"
-                rx="9"
-                ry="11"
-                fill="rgba(255,255,255,0.3)"
-              />
-              <Ellipse
-                cx="59"
-                cy="36"
-                rx="9"
-                ry="11"
-                fill="rgba(255,255,255,0.3)"
-              />
-              <Ellipse
-                cx="72"
-                cy="44"
-                rx="9"
-                ry="11"
-                fill="rgba(255,255,255,0.3)"
-              />
-              <Ellipse
-                cx="50"
-                cy="62"
-                rx="12"
-                ry="10"
-                fill="rgba(255,255,255,0.2)"
-              />
-            </Svg>
-          </View>
-
-          {/* Subtle watermark paws */}
-          <View style={styles.watermarkTopLeft} pointerEvents="none">
-            <Svg width={48} height={48} viewBox="0 0 100 100" opacity={0.12}>
-              <Ellipse cx="50" cy="62" rx="22" ry="18" fill="white" />
-              <Ellipse cx="28" cy="44" rx="9" ry="11" fill="white" />
-              <Ellipse cx="41" cy="36" rx="9" ry="11" fill="white" />
-              <Ellipse cx="59" cy="36" rx="9" ry="11" fill="white" />
-              <Ellipse cx="72" cy="44" rx="9" ry="11" fill="white" />
-            </Svg>
-          </View>
-          <View style={styles.watermarkBottomRight} pointerEvents="none">
-            <Svg width={64} height={64} viewBox="0 0 100 100" opacity={0.1}>
-              <Ellipse cx="50" cy="62" rx="22" ry="18" fill="white" />
-              <Ellipse cx="28" cy="44" rx="9" ry="11" fill="white" />
-              <Ellipse cx="41" cy="36" rx="9" ry="11" fill="white" />
-              <Ellipse cx="59" cy="36" rx="9" ry="11" fill="white" />
-              <Ellipse cx="72" cy="44" rx="9" ry="11" fill="white" />
-            </Svg>
-          </View>
-        </>
-      )}
-
-      {/* Nav controls */}
-      <View style={[styles.navBar, { paddingTop: insets.top }]}>
-        <TouchableOpacity style={styles.navButton} onPress={onBack} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={22}
-            color={Colors.white}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={onOptions}
-          hitSlop={8}
-        >
-          <MaterialCommunityIcons
-            name="dots-vertical"
-            size={22}
-            color={Colors.white}
-          />
-        </TouchableOpacity>
+      <View
+        style={[styles.avatarContainer, { bottom: 0 }]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.avatarRing}>
+          {uri ? (
+            <Image
+              source={{ uri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Svg width={48} height={48} viewBox="0 0 100 100">
+                <Ellipse
+                  cx="50"
+                  cy="62"
+                  rx="22"
+                  ry="18"
+                  fill="rgba(252,141,44,0.4)"
+                />
+                <Ellipse
+                  cx="28"
+                  cy="44"
+                  rx="9"
+                  ry="11"
+                  fill="rgba(252,141,44,0.3)"
+                />
+                <Ellipse
+                  cx="41"
+                  cy="36"
+                  rx="9"
+                  ry="11"
+                  fill="rgba(252,141,44,0.3)"
+                />
+                <Ellipse
+                  cx="59"
+                  cy="36"
+                  rx="9"
+                  ry="11"
+                  fill="rgba(252,141,44,0.3)"
+                />
+                <Ellipse
+                  cx="72"
+                  cy="44"
+                  rx="9"
+                  ry="11"
+                  fill="rgba(252,141,44,0.3)"
+                />
+              </Svg>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    minHeight: HERO_HEIGHT,
+  wrapper: {
+    width: "100%",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  gradient: {
     width: "100%",
     backgroundColor: Colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
     overflow: "hidden",
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
-  },
-  /** Slight dim so white icons stay readable on light fur/sky. */
-  heroImageDim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.12)",
   },
   bgOuter: {
     ...StyleSheet.absoluteFillObject,
@@ -170,11 +106,11 @@ const styles = StyleSheet.create({
   },
   bgInner: {
     position: "absolute",
-    bottom: -60,
-    left: -60,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
+    bottom: -50,
+    left: -50,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: Colors.orangeDark,
     opacity: 0.2,
   },
@@ -184,52 +120,45 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.12)",
   },
   decoTopRight: {
-    width: 120,
-    height: 120,
-    top: -40,
-    right: -30,
+    width: 90,
+    height: 90,
+    top: -28,
+    right: -24,
   },
   decoBottomLeft: {
-    width: 80,
-    height: 80,
-    bottom: 20,
-    left: -20,
+    width: 64,
+    height: 64,
+    bottom: 8,
+    left: -16,
   },
-  pawContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  watermarkTopLeft: {
+  avatarContainer: {
     position: "absolute",
-    top: 60,
-    left: 24,
-    transform: [{ rotate: "-20deg" }],
-  },
-  watermarkBottomRight: {
-    position: "absolute",
-    bottom: 50,
-    right: 24,
-    transform: [{ rotate: "15deg" }],
-  },
-  navBar: {
-    position: "absolute",
-    top: 16,
     left: 0,
     right: 0,
-    zIndex: 2,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+    alignItems: "center",
   },
-  navButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: Colors.black,
+  avatarRing: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    borderWidth: 4,
+    borderColor: Colors.white,
+    backgroundColor: Colors.orangeLight,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: `2px 2px 0 0 rgba(0, 0, 0, 1)`,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

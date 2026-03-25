@@ -1,6 +1,7 @@
+import ScreenWrapper from "@/components/ui/ScreenWrapper";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text } from "react-native";
 
 export default function Profile() {
   const { signOut } = useAuthStore();
@@ -12,11 +13,11 @@ export default function Profile() {
   };
 
   return (
-    <View>
+    <ScreenWrapper>
       <Text>Profile</Text>
       <Pressable onPress={handleSignOut}>
         <Text>Sign Out</Text>
       </Pressable>
-    </View>
+    </ScreenWrapper>
   );
 }

@@ -1,6 +1,12 @@
 import { Colors } from "@/constants/colors";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type PetAboutSectionProps = {
   about: string;
@@ -66,6 +72,7 @@ export default function PetAboutSection({ about }: PetAboutSectionProps) {
 
 const styles = StyleSheet.create({
   container: {
+    marginVertical: 4,
     gap: 8,
   },
   header: {

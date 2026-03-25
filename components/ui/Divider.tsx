@@ -1,10 +1,12 @@
 import { Colors } from "@/constants/colors";
 import { StyleSheet, View } from "react-native";
 
-export default function Divider() {
+export default function Divider({ spacing }: { spacing?: number }) {
   return (
     <View style={styles.divider}>
-      <View style={styles.dividerLine} />
+      <View
+        style={[styles.dividerLine, { marginVertical: spacing ? spacing : 24 }]}
+      />
     </View>
   );
 }
@@ -14,7 +16,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    // marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
