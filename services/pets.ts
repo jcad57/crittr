@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { PetFormData } from "@/types/database";
-import { uploadAvatar } from "./profiles";
+import {
+  extensionForContentType,
+  inferImageContentType,
+  readLocalImageUriAsArrayBuffer,
+} from "./localImageUpload";
 
 export async function createPet(
   ownerId: string,
@@ -9,13 +13,13 @@ export async function createPet(
 ) {
   let avatarUrl: string | null = null;
   if (petData.avatarUri) {
-    const fileName = `pets/${ownerId}/${Date.now()}.jpg`;
-    const response = await fetch(petData.avatarUri);
-    const blob = await response.blob();
+    const contentType = inferImageContentType(petData.avatarUri);
+    const fileName = `pets/${ownerId}/${Date.now()}.${extensionForContentType(contentType)}`;
+    const buffer = await readLocalImageUriAsArrayBuffer(petData.avatarUri);
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(fileName, blob, { contentType: "image/jpeg", upsert: true });
+      .upload(fileName, buffer, { contentType, upsert: true });
 
     if (uploadError) throw uploadError;
 
@@ -48,6 +52,7 @@ export async function createPet(
         : null,
       allergies: petData.allergies,
       avatar_url: avatarUrl,
+      is_microchipped: petData.isMicrochipped,
       is_active: isFirst,
     })
     .select()

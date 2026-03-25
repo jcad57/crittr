@@ -1,6 +1,6 @@
+import MedicationCard from "@/components/ui/dashboard/MedicationCard";
 import { Colors } from "@/constants/colors";
 import type { Medication } from "@/data/mockDashboard";
-import MedicationCard from "@/components/ui/dashboard/MedicationCard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -17,9 +17,6 @@ export default function PetMedicationsSection({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="pill" size={18} color={Colors.gold} />
-          </View>
           <Text style={styles.title}>Medications</Text>
         </View>
         <TouchableOpacity

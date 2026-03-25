@@ -23,7 +23,9 @@ export default function FormInput({
   ...rest
 }: FormInputProps) {
   return (
-    <View style={[styles.container, error && styles.containerError, containerStyle]}>
+    <View
+      style={[styles.container, error && styles.containerError, containerStyle]}
+    >
       {icon && (
         <MaterialCommunityIcons
           name={icon}

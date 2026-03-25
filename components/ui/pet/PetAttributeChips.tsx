@@ -4,11 +4,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 type ChipData = {
+  key: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  label: string;
   value: string;
-  bg: string;
-  tint: string;
+  iconColor: string;
 };
 
 type PetAttributeChipsProps = {
@@ -16,46 +15,56 @@ type PetAttributeChipsProps = {
 };
 
 export default function PetAttributeChips({ profile }: PetAttributeChipsProps) {
+  const microchipValue =
+    profile.isMicrochipped === null
+      ? "—"
+      : profile.microchipLabel || (profile.isMicrochipped ? "Yes" : "No");
+
   const chips: ChipData[] = [
     {
+      key: "age",
       icon: "cake-variant-outline",
-      label: "Age",
-      value: `${profile.age} yr`,
-      bg: Colors.coralLight,
-      tint: Colors.coral,
+      value: profile.ageDisplay || "—",
+      iconColor: Colors.orange,
     },
     {
-      icon: "scale-bathroom",
-      label: "Weight",
-      value: `${profile.weightLbs} lb`,
-      bg: Colors.lavenderLight,
-      tint: Colors.lavender,
-    },
-    {
+      key: "sex",
       icon: profile.sex === "male" ? "gender-male" : "gender-female",
-      label: "Sex",
       value: profile.sex === "male" ? "Male" : "Female",
-      bg: Colors.skyLight,
-      tint: Colors.sky,
+      iconColor: Colors.skyDark,
     },
     {
-      icon: "palette-outline",
-      label: "Color",
-      value: profile.color,
-      bg: Colors.goldLight,
-      tint: Colors.gold,
+      key: "chip",
+      icon: "shield-check-outline",
+      value: microchipValue,
+      iconColor: Colors.amberDark,
+    },
+    {
+      key: "weight",
+      icon: "scale-bathroom",
+      value: profile.weightDisplay,
+      iconColor: Colors.successDark,
     },
   ];
 
   return (
-    <View style={styles.row}>
+    <View style={styles.card} accessibilityRole="summary">
       {chips.map((chip) => (
-        <View key={chip.label} style={[styles.chip, { backgroundColor: chip.bg }]}>
-          <View style={[styles.iconCircle, { backgroundColor: chip.tint + "33" }]}>
-            <MaterialCommunityIcons name={chip.icon} size={18} color={chip.tint} />
+        <View
+          key={chip.key}
+          style={styles.cell}
+          accessibilityLabel={`${chip.key}, ${chip.value}`}
+        >
+          <View style={styles.iconCircle}>
+            <MaterialCommunityIcons
+              name={chip.icon}
+              size={20}
+              color={chip.iconColor}
+            />
           </View>
-          <Text style={[styles.value, { color: chip.tint }]}>{chip.value}</Text>
-          <Text style={styles.label}>{chip.label}</Text>
+          <Text style={styles.value} numberOfLines={2}>
+            {chip.value}
+          </Text>
         </View>
       ))}
     </View>
@@ -63,34 +72,43 @@ export default function PetAttributeChips({ profile }: PetAttributeChipsProps) {
 }
 
 const styles = StyleSheet.create({
-  row: {
+  card: {
     flexDirection: "row",
+    alignItems: "stretch",
     justifyContent: "space-between",
-    gap: 10,
+    backgroundColor: Colors.orangeLight,
+    borderRadius: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "rgba(252, 141, 44, 0.14)",
   },
-  chip: {
+  cell: {
     flex: 1,
+    minWidth: 0,
     alignItems: "center",
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    gap: 4,
+    justifyContent: "flex-start",
+    paddingHorizontal: 2,
+    gap: 8,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.white,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 2,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 2,
   },
   value: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 13,
-  },
-  label: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 12,
+    lineHeight: 15,
+    textAlign: "center",
+    color: Colors.textPrimary,
   },
 });

@@ -1,23 +1,29 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import Divider from "@/components/ui/Divider";
 import { Colors } from "@/constants/colors";
-import { signInWithGoogle } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text } from "react-native";
 
 export default function SignIn() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
   const { signInWithEmail } = useAuthStore();
 
   const handleSignIn = async () => {
     try {
       await signInWithEmail(email, password);
+      const { needsOnboarding } = useAuthStore.getState();
+      if (needsOnboarding) {
+        router.replace("/(auth)/(onboarding)");
+      } else {
+        router.replace("/(logged-in)/dashboard");
+      }
     } catch (error: any) {
       Alert.alert("Sign In Failed", error.message ?? "Something went wrong.");
     }
@@ -28,36 +34,10 @@ export default function SignIn() {
       {/* Title */}
       <Text style={styles.title}>Welcome Back!</Text>
 
-      {/* Social auth */}
       <Text style={styles.socialLabel}>Sign in with</Text>
-      <View style={styles.socialRow}>
-        <TouchableOpacity
-          style={styles.socialCircle}
-          onPress={signInWithGoogle}
-        >
-          <MaterialCommunityIcons
-            name="google"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialCircle} disabled>
-          <MaterialCommunityIcons
-            name="apple"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialCircle} disabled>
-          <MaterialCommunityIcons
-            name="facebook"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-      </View>
+      <SocialAuthContainer />
 
-      <View style={styles.divider} />
+      <Divider />
 
       {/* Email */}
       <FormInput
@@ -80,23 +60,31 @@ export default function SignIn() {
         containerStyle={styles.inputSpacing}
       />
 
-      {/* Terms */}
-      <Text style={styles.terms}>
-        I agree to the <Text style={styles.termsLink}>Terms & Conditions</Text>
-      </Text>
-
-      {/* Create Account */}
+      {/* Sign In */}
       <OrangeButton
         onPress={handleSignIn}
         disabled={!email || !password}
         style={styles.cta}
       >
-        "Sign In"
+        Sign In
       </OrangeButton>
+      <Link href="/(auth)/(onboarding)" asChild>
+        <Pressable
+          style={{
+            marginTop: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            justifyContent: "center",
+          }}
+        >
+          <Text style={styles.signInLink}>Don't have an account? </Text>
+          <Text style={styles.signInLinkBold}>Sign Up</Text>
+        </Pressable>
+      </Link>
     </OnboardingCard>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -120,27 +108,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     marginBottom: 12,
-  },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    // marginBottom: 20,
-  },
-  socialCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.gray50,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.gray200,
-    marginVertical: 20,
   },
   nameRow: {
     flexDirection: "row",
@@ -187,5 +154,14 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-Bold",
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  signInLink: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 16,
+    color: Colors.textPrimary,
+  },
+  signInLinkBold: {
+    fontFamily: "InstrumentSans-Bold",
+    color: Colors.orange,
   },
 });

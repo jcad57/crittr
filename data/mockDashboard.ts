@@ -25,9 +25,26 @@ export type ExerciseRequirements = {
 
 export type PetProfile = Pet & {
   age: number;
+  /** Months portion of age (0–11), optional */
+  ageMonths: number | null;
+  /** Pre-formatted for chips, e.g. "3 yr" or "2 yr 4 mo" */
+  ageDisplay: string;
   weightLbs: number;
+  weightUnit: "lbs" | "kg" | null;
+  /** Pre-formatted, e.g. "22 lb" or "10 kg" */
+  weightDisplay: string;
   sex: "male" | "female";
   color: string;
+  petType: string | null;
+  petTypeLabel: string;
+  dateOfBirth: string | null;
+  dateOfBirthFormatted: string | null;
+  energyLevel: "low" | "medium" | "high" | null;
+  energyLevelLabel: string;
+  allergies: string[];
+  isMicrochipped: boolean | null;
+  microchipLabel: string;
+  exercisesPerDay: number | null;
   about: string;
   feeding: FeedingSchedule;
   exercise: ExerciseRequirements;
@@ -245,9 +262,23 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
     breed: "Great Pyrenees",
     imageUrl: null,
     age: 3,
+    ageMonths: null,
+    ageDisplay: "3 yr",
     weightLbs: 85,
+    weightUnit: "lbs",
+    weightDisplay: "85 lb",
     sex: "male",
     color: "White",
+    petType: "dog",
+    petTypeLabel: "Dog",
+    dateOfBirth: null,
+    dateOfBirthFormatted: null,
+    energyLevel: "medium",
+    energyLevelLabel: "Medium",
+    allergies: [],
+    isMicrochipped: true,
+    microchipLabel: "Yes",
+    exercisesPerDay: 2,
     about:
       "Bart is a gentle giant with a heart of gold. He loves long walks in the park, belly rubs, and keeping a watchful eye over the family. Despite his size, he's incredibly gentle with kids and other animals.",
     feeding: {
@@ -271,9 +302,23 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
     breed: "Irish Setter",
     imageUrl: null,
     age: 2,
+    ageMonths: 3,
+    ageDisplay: "2 yr 3 mo",
     weightLbs: 62,
+    weightUnit: "lbs",
+    weightDisplay: "62 lb",
     sex: "male",
     color: "Mahogany",
+    petType: "dog",
+    petTypeLabel: "Dog",
+    dateOfBirth: null,
+    dateOfBirthFormatted: null,
+    energyLevel: "high",
+    energyLevelLabel: "High",
+    allergies: ["Chicken"],
+    isMicrochipped: true,
+    microchipLabel: "Yes",
+    exercisesPerDay: 3,
     about:
       "Rusty is an energetic and affectionate Irish Setter who never met a stranger. He thrives on outdoor adventures, loves to run, and is happiest when he has a job to do. A true people-pleaser with boundless enthusiasm.",
     feeding: {

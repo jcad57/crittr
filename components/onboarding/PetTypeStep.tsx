@@ -4,7 +4,14 @@ import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
 import type { PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const PET_TYPES: {
   id: PetType;
@@ -28,6 +35,17 @@ export default function PetTypeStep() {
   const handleSelect = (type: PetType) => {
     updateCurrentPet({ petType: type });
     fetchForPetType(type);
+  };
+
+  const handleContinue = () => {
+    if (!pet.petType) {
+      Alert.alert(
+        "Select a pet type",
+        "Please choose a pet type before you can continue.",
+      );
+      return;
+    }
+    nextStep();
   };
 
   return (
@@ -68,11 +86,7 @@ export default function PetTypeStep() {
 
       <View style={styles.spacer} />
 
-      <OrangeButton
-        onPress={nextStep}
-        disabled={!pet.petType}
-        style={styles.cta}
-      >
+      <OrangeButton onPress={handleContinue} style={styles.cta}>
         Continue
       </OrangeButton>
 

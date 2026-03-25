@@ -1,13 +1,7 @@
 import { Colors } from "@/constants/colors";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRef } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { useEffect, useRef } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type OnboardingCardProps = {
@@ -21,12 +15,10 @@ export default function OnboardingCard({
 }: OnboardingCardProps) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const prevKeyRef = useRef(scrollKey);
 
-  if (prevKeyRef.current !== scrollKey) {
-    prevKeyRef.current = scrollKey;
-    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
-  }
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollKey]);
 
   return (
     <View style={styles.screen}>
@@ -37,25 +29,27 @@ export default function OnboardingCard({
         style={styles.gradient}
       />
 
-      <KeyboardAvoidingView
+      <ScrollView
+        ref={scrollRef}
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + 16,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
       >
-        <ScrollView
-          ref={scrollRef}
-          style={styles.flex}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: insets.top + 24 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={[styles.card, { paddingBottom: insets.bottom }]}>
-            {children}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <View style={[styles.card, { paddingBottom: insets.bottom }]}>
+          {children}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -63,7 +57,6 @@ export default function OnboardingCard({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    justifyContent: "center",
   },
   flex: {
     flex: 1,
@@ -75,14 +68,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    flex: 1,
     backgroundColor: Colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingTop: 16,
     marginBottom: 16,
   },
 });

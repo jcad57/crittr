@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
+import {
+  extensionForContentType,
+  inferImageContentType,
+  readLocalImageUriAsArrayBuffer,
+} from "./localImageUpload";
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -44,14 +49,14 @@ export async function uploadAvatar(
   userId: string,
   uri: string,
 ): Promise<string> {
-  const fileName = `${userId}/avatar-${Date.now()}.jpg`;
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  const contentType = inferImageContentType(uri);
+  const fileName = `${userId}/avatar-${Date.now()}.${extensionForContentType(contentType)}`;
+  const buffer = await readLocalImageUriAsArrayBuffer(uri);
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")
-    .upload(fileName, blob, {
-      contentType: "image/jpeg",
+    .upload(fileName, buffer, {
+      contentType,
       upsert: true,
     });
 

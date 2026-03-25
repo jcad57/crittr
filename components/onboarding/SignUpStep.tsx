@@ -1,10 +1,12 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { signInWithGoogle } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
-import { useOnboardingStore } from "@/stores/onboardingStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  ONBOARDING_STEPS,
+  useOnboardingStore,
+} from "@/stores/onboardingStore";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,13 +15,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
+import Divider from "../ui/Divider";
+import SocialAuthContainer from "./SocialAuthContainer";
 
 export default function SignUpStep() {
   const router = useRouter();
-  const { accountData, setAccountData, nextStep } = useOnboardingStore();
+  const { accountData, setAccountData, goToStep } = useOnboardingStore();
   const signUp = useAuthStore((s) => s.signUp);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +42,7 @@ export default function SignUpStep() {
         accountData.firstName.trim(),
         accountData.lastName.trim(),
       );
-      nextStep();
+      goToStep(ONBOARDING_STEPS.indexOf("profile"));
     } catch (error: any) {
       Alert.alert("Sign Up Failed", error.message ?? "Something went wrong.");
     } finally {
@@ -54,45 +57,24 @@ export default function SignUpStep() {
 
       {/* Animal icons */}
       <View style={styles.iconRow}>
-        <MaterialCommunityIcons name="cat" size={26} color={Colors.gray800} />
-        <MaterialCommunityIcons name="dog" size={26} color={Colors.gray800} />
-        <MaterialCommunityIcons
-          name="rabbit"
-          size={26}
-          color={Colors.gray800}
+        <Image
+          source={require("@/assets/icons/cat-icon.png")}
+          style={styles.icon}
+        />
+        <Image
+          source={require("@/assets/icons/dog-icon.png")}
+          style={styles.icon}
+        />
+        <Image
+          source={require("@/assets/icons/fishbowl-icon.png")}
+          style={styles.icon}
         />
       </View>
 
-      {/* Social auth */}
       <Text style={styles.socialLabel}>Sign up with</Text>
-      <View style={styles.socialRow}>
-        <TouchableOpacity
-          style={styles.socialCircle}
-          onPress={signInWithGoogle}
-        >
-          <MaterialCommunityIcons
-            name="google"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialCircle} disabled>
-          <MaterialCommunityIcons
-            name="apple"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialCircle} disabled>
-          <MaterialCommunityIcons
-            name="facebook"
-            size={22}
-            color={Colors.gray500}
-          />
-        </TouchableOpacity>
-      </View>
+      <SocialAuthContainer />
 
-      <View style={styles.divider} />
+      <Divider />
 
       {/* Name row */}
       <View style={styles.nameRow}>
@@ -151,7 +133,7 @@ export default function SignUpStep() {
         )}
       </OrangeButton>
 
-      <View style={styles.divider} />
+      <Divider />
 
       {/* Sign In link */}
       <Text style={styles.signInLabel}>Already have an account?</Text>
@@ -176,39 +158,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
+  socialLabel: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 16,
+  },
   iconRow: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 16,
     marginBottom: 20,
   },
-  socialLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    marginBottom: 20,
-  },
-  socialCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.gray50,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.gray200,
-    marginVertical: 20,
+  icon: {
+    width: 24,
+    height: 24,
   },
   nameRow: {
     flexDirection: "row",

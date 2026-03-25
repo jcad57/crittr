@@ -44,4 +44,10 @@ export const Colors = {
   mintLight: "#D1FAE5",
   sky: "#C0E3E5",
   skyLight: "#DBEAFE",
+
+  /** Darker tints for icons on light accent backgrounds (e.g. pet attribute chips) */
+  lavenderDark: "#5D4A6B",
+  skyDark: "#256A6E",
+  amberDark: "#B45309",
+  successDark: "#15803D",
 } as const;

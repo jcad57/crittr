@@ -5,17 +5,52 @@ import { create } from "zustand";
 type PetState = {
   pets: Pet[];
   activePetId: string | null;
+  activePetDetails: PetWithDetails | null;
   isLoading: boolean;
 
   fetchPets: () => Promise<void>;
+  fetchActivePetDetails: () => Promise<void>;
   fetchPetProfile: (id: string) => Promise<PetWithDetails | null>;
   setActivePet: (id: string) => void;
   clear: () => void;
 };
 
+async function loadPetDetails(id: string): Promise<PetWithDetails | null> {
+  try {
+    const { data: pet, error: petError } = await supabase
+      .from("pets")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (petError || !pet) return null;
+
+    const [foodsRes, medsRes, exerciseRes] = await Promise.all([
+      supabase.from("pet_foods").select("*").eq("pet_id", id),
+      supabase.from("pet_medications").select("*").eq("pet_id", id),
+      supabase
+        .from("pet_exercises")
+        .select("*")
+        .eq("pet_id", id)
+        .maybeSingle(),
+    ]);
+
+    return {
+      ...pet,
+      foods: foodsRes.data ?? [],
+      medications: medsRes.data ?? [],
+      exercise: exerciseRes.data ?? null,
+    } as PetWithDetails;
+  } catch (error) {
+    console.error("Failed to fetch pet details:", error);
+    return null;
+  }
+}
+
 export const usePetStore = create<PetState>((set, get) => ({
   pets: [],
   activePetId: null,
+  activePetDetails: null,
   isLoading: false,
 
   fetchPets: async () => {
@@ -44,35 +79,19 @@ export const usePetStore = create<PetState>((set, get) => ({
     }
   },
 
-  fetchPetProfile: async (id) => {
-    try {
-      const { data: pet, error: petError } = await supabase
-        .from("pets")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (petError || !pet) return null;
-
-      const [foodsRes, medsRes, exerciseRes] = await Promise.all([
-        supabase.from("pet_foods").select("*").eq("pet_id", id),
-        supabase.from("pet_medications").select("*").eq("pet_id", id),
-        supabase.from("pet_exercises").select("*").eq("pet_id", id).single(),
-      ]);
-
-      return {
-        ...pet,
-        foods: foodsRes.data ?? [],
-        medications: medsRes.data ?? [],
-        exercise: exerciseRes.data ?? null,
-      } as PetWithDetails;
-    } catch (error) {
-      console.error("Failed to fetch pet profile:", error);
-      return null;
+  fetchActivePetDetails: async () => {
+    const { activePetId } = get();
+    if (!activePetId) {
+      set({ activePetDetails: null });
+      return;
     }
+    const details = await loadPetDetails(activePetId);
+    set({ activePetDetails: details });
   },
 
-  setActivePet: (id) => set({ activePetId: id }),
+  fetchPetProfile: async (id) => loadPetDetails(id),
 
-  clear: () => set({ pets: [], activePetId: null }),
+  setActivePet: (id) => set({ activePetId: id, activePetDetails: null }),
+
+  clear: () => set({ pets: [], activePetId: null, activePetDetails: null }),
 }));

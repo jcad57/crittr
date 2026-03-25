@@ -1,5 +1,6 @@
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
+import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -15,7 +16,14 @@ import {
 } from "react-native";
 
 const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
-const DOSAGE_TYPES = ["Tablet", "Injection", "Liquid", "Topical", "Chewable", "Other"];
+const DOSAGE_TYPES = [
+  "Tablet",
+  "Injection",
+  "Liquid",
+  "Topical",
+  "Chewable",
+  "Other",
+];
 const FREQ_OPTIONS = ["Daily", "Weekly", "Monthly", "Custom"];
 
 export default function PetCareStep() {
@@ -168,7 +176,7 @@ export default function PetCareStep() {
       </View>
 
       <Pressable style={styles.addButton} onPress={addFood}>
-        <Text style={styles.addButtonText}>+ Add food</Text>
+        <Text style={styles.addButtonText}>Add food</Text>
       </Pressable>
 
       {pet.foods.length > 0 && (
@@ -193,7 +201,7 @@ export default function PetCareStep() {
         </View>
       )}
 
-      <View style={styles.divider} />
+      <Divider />
 
       {/* ── Medications ──────────────────────────────────────── */}
       <Text style={styles.sectionTitle}>Medications</Text>
@@ -252,7 +260,7 @@ export default function PetCareStep() {
       />
 
       <Pressable style={styles.addButton} onPress={addMedication}>
-        <Text style={styles.addButtonText}>+ Add medication</Text>
+        <Text style={styles.addButtonText}>Add medication</Text>
       </Pressable>
 
       {pet.medications.length > 0 && (
@@ -261,9 +269,7 @@ export default function PetCareStep() {
             <View key={m.localId} style={styles.listRow}>
               <View style={styles.listRowText}>
                 <Text style={styles.listItemBold}>{m.name}</Text>
-                <Text style={styles.listItemSub}>
-                  {formatMedSummary(m)}
-                </Text>
+                <Text style={styles.listItemSub}>{formatMedSummary(m)}</Text>
               </View>
               <TouchableOpacity onPress={() => removeMed(m.localId)}>
                 <MaterialCommunityIcons
@@ -410,11 +416,6 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-Bold",
     fontSize: 15,
     color: Colors.textPrimary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.gray200,
-    marginVertical: 20,
   },
   spacer: {
     flex: 1,

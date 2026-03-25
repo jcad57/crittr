@@ -2,8 +2,8 @@ import { Colors } from "@/constants/colors";
 import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import SectionHeader from "./SectionHeader";
 import PetCard from "./PetCard";
+import SectionHeader from "./SectionHeader";
 
 type PetManagementProps = {
   pets: Pet[];
@@ -42,11 +42,13 @@ export default function PetManagement({
   );
 }
 
+const AVATAR_SIZE = 80;
 const ADD_SIZE = 56;
+const ADD_TOP_OFFSET = (AVATAR_SIZE - ADD_SIZE) / 2;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    marginBottom: 0,
   },
   row: {
     flexDirection: "row",
@@ -55,13 +57,7 @@ const styles = StyleSheet.create({
   },
   addCard: {
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.gray300,
-    borderStyle: "dashed",
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    marginTop: ADD_TOP_OFFSET,
   },
   addCircle: {
     width: ADD_SIZE,

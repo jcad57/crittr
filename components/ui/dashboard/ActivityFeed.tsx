@@ -48,6 +48,24 @@ export default function ActivityFeed({
     setExpanded((prev) => !prev);
   }
 
+  if (activities.length === 0) {
+    return (
+      <View style={styles.container}>
+        <SectionHeader
+          title="Activity"
+          subtitle={date}
+          onMorePress={onMorePress}
+        />
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No activities logged today</Text>
+          <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
+            <Text style={styles.addButtonText}>+ Add An Activity</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <SectionHeader
@@ -106,5 +124,27 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 14,
     color: Colors.black,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 16,
+  },
+  emptyText: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  addButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: Colors.orange,
+  },
+  addButtonText: {
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 15,
+    color: Colors.orange,
   },
 });

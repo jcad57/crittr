@@ -1,7 +1,8 @@
 import FormInput from "@/components/onboarding/FormInput";
+import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { uploadAvatar, updateProfile } from "@/services/profiles";
+import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -9,7 +10,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -89,10 +89,10 @@ export default function ProfileStep() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.divider} />
+      <Divider />
 
       <FormInput
-        placeholder="Display Name"
+        placeholder="Display Name *"
         value={profileData.displayName}
         onChangeText={(v) => setProfileData({ displayName: v })}
         autoCapitalize="words"
@@ -100,11 +100,13 @@ export default function ProfileStep() {
       />
 
       <FormInput
-        placeholder="Short bio (optional)"
+        placeholder="Short bio *"
         value={profileData.bio}
         onChangeText={(v) => setProfileData({ bio: v })}
-        multiline
         containerStyle={[styles.inputSpacing, styles.bioInput]}
+        multiline={true}
+        numberOfLines={4}
+        textAlignVertical="top"
       />
 
       <View style={styles.spacer} />
@@ -114,11 +116,7 @@ export default function ProfileStep() {
         disabled={isSubmitting}
         style={styles.cta}
       >
-        {isSubmitting ? (
-          <ActivityIndicator color={Colors.white} />
-        ) : (
-          "Continue"
-        )}
+        {isSubmitting ? <ActivityIndicator color={Colors.white} /> : "Continue"}
       </OrangeButton>
 
       <TouchableOpacity onPress={prevStep} style={styles.backButton}>
@@ -172,11 +170,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.gray200,
-    marginVertical: 20,
-  },
   inputSpacing: {
     marginBottom: 12,
   },
@@ -184,6 +177,7 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: "flex-start",
     paddingTop: 12,
+    textAlignVertical: "top",
   },
   spacer: {
     flex: 1,

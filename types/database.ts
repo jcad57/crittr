@@ -48,6 +48,7 @@ export type Pet = {
   exercises_per_day: number | null;
   allergies: string[];
   avatar_url: string | null;
+  is_microchipped: boolean | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -154,6 +155,8 @@ export type PetFormData = {
   foods: FoodFormEntry[];
   medications: MedicationFormEntry[];
   coCarerEmail: string;
+  /** null = prefer not to say */
+  isMicrochipped: boolean | null;
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
@@ -175,4 +178,5 @@ export const EMPTY_PET_FORM: PetFormData = {
   foods: [],
   medications: [],
   coCarerEmail: "",
+  isMicrochipped: null,
 };

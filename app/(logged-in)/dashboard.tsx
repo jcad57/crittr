@@ -1,21 +1,17 @@
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
-import AlertBanner from "@/components/ui/dashboard/AlertBanner";
 import DailyProgress from "@/components/ui/dashboard/DailyProgress";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
 import { Colors } from "@/constants/colors";
-import {
-  MOCK_ACTIVITIES,
-  MOCK_ALERT,
-  MOCK_DAILY_PROGRESS,
-  MOCK_MEDICATIONS,
-  MOCK_VET_VISITS,
-  type Pet as MockPet,
+import type {
+  DailyProgressCategory,
+  Medication,
+  Pet,
 } from "@/data/mockDashboard";
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,8 +20,10 @@ export default function Dashboard() {
   const {
     pets: dbPets,
     activePetId,
+    activePetDetails,
     isLoading,
     fetchPets,
+    fetchActivePetDetails,
     setActivePet,
   } = usePetStore();
   const router = useRouter();
@@ -34,7 +32,11 @@ export default function Dashboard() {
     fetchPets();
   }, [fetchPets]);
 
-  const pets: MockPet[] = useMemo(
+  useEffect(() => {
+    if (activePetId) fetchActivePetDetails();
+  }, [activePetId, fetchActivePetDetails]);
+
+  const pets: Pet[] = useMemo(
     () =>
       dbPets.map((p) => ({
         id: p.id,
@@ -43,6 +45,95 @@ export default function Dashboard() {
         imageUrl: p.avatar_url,
       })),
     [dbPets],
+  );
+
+  const activePetName = useMemo(() => {
+    const pet = dbPets.find((p) => p.id === activePetId);
+    return pet?.name ?? "your pet";
+  }, [dbPets, activePetId]);
+
+  const dailyProgress: DailyProgressCategory[] = useMemo(() => {
+    const details = activePetDetails;
+    const totalMeals = details
+      ? details.foods
+          .filter((f) => !f.is_treat)
+          .reduce((sum, f) => sum + (f.meals_per_day ?? 1), 0)
+      : 0;
+    const totalTreats = details
+      ? details.foods.filter((f) => f.is_treat).length || 1
+      : 0;
+    const totalExercise = details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
+    const totalMeds = details ? details.medications.length : 0;
+    const hasMeds = totalMeds > 0;
+
+    return [
+      {
+        id: "exercise",
+        label: "Exercise",
+        icon: "run",
+        current: 0,
+        total: totalExercise,
+        ringColor: Colors.coral,
+        trackColor: Colors.coralLight,
+      },
+      {
+        id: "meals",
+        label: "Meals",
+        icon: "food-drumstick",
+        current: 0,
+        total: totalMeals,
+        ringColor: Colors.lavender,
+        trackColor: Colors.lavenderLight,
+      },
+      {
+        id: "treats",
+        label: "Treats",
+        icon: "bone",
+        current: 0,
+        total: totalTreats,
+        ringColor: Colors.sky,
+        trackColor: Colors.skyLight,
+      },
+      {
+        id: "meds",
+        label: "Meds",
+        icon: "pill",
+        current: 0,
+        total: hasMeds ? totalMeds : 0,
+        ringColor: hasMeds ? Colors.gold : Colors.gray300,
+        trackColor: hasMeds ? Colors.goldLight : Colors.gray100,
+      },
+    ];
+  }, [activePetDetails]);
+
+  const medications: Medication[] = useMemo(() => {
+    if (!activePetDetails) return [];
+    return activePetDetails.medications.map((m) => ({
+      id: m.id,
+      name: m.name,
+      frequency: m.frequency ?? "Daily",
+      condition: m.condition ?? "",
+      dosageDesc: m.dosage ?? "",
+      current: 0,
+      total: 1,
+      iconBg: Colors.gray100,
+      iconColor: Colors.gray500,
+    }));
+  }, [activePetDetails]);
+
+  const todayStr = useMemo(() => {
+    return new Date().toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, []);
+
+  const handleSwitchPet = useCallback(
+    (id: string) => {
+      setActivePet(id);
+    },
+    [setActivePet],
   );
 
   if (isLoading && pets.length === 0) {
@@ -61,7 +152,7 @@ export default function Dashboard() {
         <DashboardHeader
           pets={pets}
           activePetId={activePetId}
-          onSwitchPet={setActivePet}
+          onSwitchPet={handleSwitchPet}
           onProfilePress={() => router.push("/(tabs)/profile")}
         />
       </View>
@@ -74,21 +165,16 @@ export default function Dashboard() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <AlertBanner alert={MOCK_ALERT} />
-
         <View style={styles.section}>
-          <DailyProgress categories={MOCK_DAILY_PROGRESS} />
+          <DailyProgress categories={dailyProgress} />
         </View>
 
         <View style={styles.section}>
-          <ActivityFeed activities={MOCK_ACTIVITIES} date="October 16, 2025" />
+          <ActivityFeed activities={[]} date={todayStr} />
         </View>
 
         <View style={styles.section}>
-          <HealthSection
-            medications={MOCK_MEDICATIONS}
-            vetVisits={MOCK_VET_VISITS}
-          />
+          <HealthSection medications={medications} vetVisits={[]} />
         </View>
 
         <View style={styles.section}>

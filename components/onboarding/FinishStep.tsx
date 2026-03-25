@@ -18,7 +18,8 @@ import {
 
 export default function FinishStep() {
   const router = useRouter();
-  const { pets, addAnotherPet, prevStep, reset } = useOnboardingStore();
+  const { pets, addAnotherPet, editPetAtIndex, prevStep, reset } =
+    useOnboardingStore();
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const fetchPets = usePetStore((s) => s.fetchPets);
@@ -60,15 +61,29 @@ export default function FinishStep() {
       <View style={styles.chipContainer}>
         {pets.map((p, i) => (
           <View key={i} style={styles.chip}>
-            <MaterialCommunityIcons
-              name="paw"
-              size={16}
-              color={Colors.orange}
-            />
-            <Text style={styles.chipName}>{p.name || `Pet ${i + 1}`}</Text>
-            {p.breed ? (
-              <Text style={styles.chipBreed}>{p.breed}</Text>
-            ) : null}
+            <View style={styles.chipLeft}>
+              <View style={styles.chipTitleRow}>
+                <MaterialCommunityIcons
+                  name="paw"
+                  size={16}
+                  color={Colors.orange}
+                />
+                <Text style={styles.chipName}>{p.name || `Pet ${i + 1}`}</Text>
+              </View>
+              {p.breed ? (
+                <Text style={styles.chipBreed}>{p.breed}</Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => editPetAtIndex(i)}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.editHit,
+                pressed && styles.editHitPressed,
+              ]}
+            >
+              <Text style={styles.editLabel}>Edit</Text>
+            </Pressable>
           </View>
         ))}
       </View>
@@ -130,7 +145,8 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderWidth: 1,
@@ -138,15 +154,39 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: Colors.gray50,
   },
+  chipLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  chipTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   chipName: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 16,
     color: Colors.textPrimary,
+    flexShrink: 1,
   },
   chipBreed: {
     fontFamily: "InstrumentSans-Regular",
     fontSize: 13,
     color: Colors.textSecondary,
+    marginTop: 4,
+    marginLeft: 26,
+  },
+  editHit: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  editHitPressed: {
+    opacity: 0.65,
+  },
+  editLabel: {
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 15,
+    color: Colors.orange,
   },
   spacer: {
     flex: 1,

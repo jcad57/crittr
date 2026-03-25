@@ -32,6 +32,8 @@ type OnboardingState = {
   updateCurrentPet: (data: Partial<PetFormData>) => void;
   finishCurrentPet: () => void;
   addAnotherPet: () => void;
+  /** Jump to pet-type step for an existing pet (data stays in `pets[index]`). */
+  editPetAtIndex: (index: number) => void;
   reset: () => void;
 };
 
@@ -83,6 +85,15 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         currentStep: ONBOARDING_STEPS.indexOf("pet-type"),
       };
     }),
+
+  editPetAtIndex: (index) => {
+    const s = get();
+    if (index < 0 || index >= s.pets.length) return;
+    set({
+      currentPetIndex: index,
+      currentStep: ONBOARDING_STEPS.indexOf("pet-type"),
+    });
+  },
 
   reset: () =>
     set({

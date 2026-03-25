@@ -3,7 +3,6 @@ import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,22 +28,7 @@ export default function DashboardHeader({
   const router = useRouter();
 
   const handlePetPress = (pet: Pet) => {
-    if (pet.id === activePetId) {
-      router.push(`/(logged-in)/pet/${pet.id}`);
-      return;
-    }
-
-    Alert.alert(pet.name, `What would you like to do?`, [
-      {
-        text: "Switch Dashboard",
-        onPress: () => onSwitchPet(pet.id),
-      },
-      {
-        text: "View Profile",
-        onPress: () => router.push(`/(logged-in)/pet/${pet.id}`),
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    console.log(pet);
   };
 
   return (
@@ -63,9 +47,7 @@ export default function DashboardHeader({
               activeOpacity={0.75}
               onPress={() => handlePetPress(pet)}
             >
-              <View
-                style={[styles.avatar, !isActive && styles.avatarInactive]}
-              >
+              <View style={[styles.avatar, !isActive && styles.avatarInactive]}>
                 <Text
                   style={[
                     styles.avatarText,
