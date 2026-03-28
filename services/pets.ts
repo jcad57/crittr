@@ -1,5 +1,6 @@
+import { isTreatFood } from "@/lib/petFood";
 import { supabase } from "@/lib/supabase";
-import type { PetFormData } from "@/types/database";
+import type { Pet, PetFormData, PetWithDetails } from "@/types/database";
 import {
   extensionForContentType,
   inferImageContentType,
@@ -30,6 +31,11 @@ export async function createPet(
   }
 
   const parsedDob = petData.dateOfBirth.trim() || null;
+  const chipNum = petData.microchipNumber.trim();
+  const insured =
+    petData.isInsured === true && petData.insuranceProvider.trim()
+      ? petData.insuranceProvider.trim()
+      : null;
 
   const { data: pet, error: petError } = await supabase
     .from("pets")
@@ -53,6 +59,13 @@ export async function createPet(
       allergies: petData.allergies,
       avatar_url: avatarUrl,
       is_microchipped: petData.isMicrochipped,
+      microchip_number:
+        petData.isMicrochipped === true && chipNum ? chipNum : null,
+      is_sterilized: petData.isSterilized,
+      primary_vet_clinic: petData.primaryVetClinic.trim() || null,
+      primary_vet_address: petData.primaryVetAddress.trim() || null,
+      is_insured: petData.isInsured,
+      insurance_provider: insured,
       is_active: isFirst,
     })
     .select()
@@ -68,7 +81,10 @@ export async function createPet(
       portion_size: f.portionSize || null,
       portion_unit: f.portionUnit || null,
       meals_per_day: f.mealsPerDay ? parseInt(f.mealsPerDay, 10) : null,
-      is_treat: f.isTreat,
+      is_treat: isTreatFood({
+        is_treat: f.isTreat,
+        portion_unit: f.portionUnit || null,
+      }),
     }));
 
     const { error: foodError } = await supabase
@@ -108,7 +124,7 @@ export async function createPet(
   return pet;
 }
 
-export async function fetchUserPets(ownerId: string) {
+export async function fetchUserPets(ownerId: string): Promise<Pet[]> {
   const { data, error } = await supabase
     .from("pets")
     .select("*")
@@ -119,7 +135,9 @@ export async function fetchUserPets(ownerId: string) {
   return data ?? [];
 }
 
-export async function fetchPetProfile(petId: string) {
+export async function fetchPetProfile(
+  petId: string,
+): Promise<PetWithDetails | null> {
   const { data: pet, error: petError } = await supabase
     .from("pets")
     .select("*")
@@ -144,4 +162,24 @@ export async function fetchPetProfile(petId: string) {
     medications: medsRes.data ?? [],
     exercise: exerciseRes.data ?? null,
   };
+}
+
+export type PetMicrochipUpdate = {
+  is_microchipped: boolean | null;
+  microchip_number: string | null;
+};
+
+export async function updatePetMicrochip(
+  petId: string,
+  fields: PetMicrochipUpdate,
+): Promise<void> {
+  const { error } = await supabase
+    .from("pets")
+    .update({
+      is_microchipped: fields.is_microchipped,
+      microchip_number: fields.microchip_number,
+    })
+    .eq("id", petId);
+
+  if (error) throw error;
 }

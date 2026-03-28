@@ -1,6 +1,8 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type { ActivityEntry } from "@/data/mockDashboard";
 import { detectUse12Hour, formatHour } from "@/utils/formatting";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   FlatList,
@@ -11,9 +13,7 @@ import {
   View,
 } from "react-native";
 import ActivityItem from "./ActivityItem";
-import SectionHeader from "./SectionHeader";
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import SectionLabel from "./SectionLabel";
 
 const PREVIEW_COUNT = 4;
 const GAP = 8;
@@ -21,18 +21,17 @@ const GAP = 8;
 type ActivityFeedProps = {
   activities: ActivityEntry[];
   date: string;
-  onMorePress?: () => void;
+  onLogActivityPress?: () => void;
 };
 
 export default function ActivityFeed({
   activities,
   date,
-  onMorePress,
+  onLogActivityPress,
 }: ActivityFeedProps) {
   const [expanded, setExpanded] = useState(false);
   const use12h = detectUse12Hour();
 
-  // Always sort most-recent first
   const sorted = [...activities].sort((a, b) => b.hour - a.hour);
   const hasMore = sorted.length > PREVIEW_COUNT;
   const visible = expanded ? sorted : sorted.slice(0, PREVIEW_COUNT);
@@ -51,28 +50,37 @@ export default function ActivityFeed({
   if (activities.length === 0) {
     return (
       <View style={styles.container}>
-        <SectionHeader
-          title="Activity"
-          subtitle={date}
-          onMorePress={onMorePress}
-        />
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No activities logged today</Text>
-          <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
-            <Text style={styles.addButtonText}>+ Add An Activity</Text>
-          </TouchableOpacity>
+        <View style={styles.listHeader}>
+          <SectionLabel>Activity</SectionLabel>
+          <Text style={styles.dateHint}>{date}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.ctaCard}
+          activeOpacity={0.9}
+          onPress={onLogActivityPress}
+        >
+          <View style={styles.ctaTextBlock}>
+            <Text style={styles.ctaTitle}>Log an activity</Text>
+            <Text style={styles.ctaSubtitle}>No activities yet today</Text>
+          </View>
+          <View style={styles.ctaCircle}>
+            <MaterialCommunityIcons
+              name="plus"
+              size={28}
+              color={Colors.orange}
+            />
+          </View>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <SectionHeader
-        title="Activity"
-        subtitle={date}
-        onMorePress={onMorePress}
-      />
+      <View style={styles.listHeader}>
+        <SectionLabel>Activity</SectionLabel>
+        <Text style={styles.dateHint}>{date}</Text>
+      </View>
 
       <FlatList
         data={visible}
@@ -104,11 +112,51 @@ export default function ActivityFeed({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
+  },
+  listHeader: {
+    marginBottom: 8,
+  },
+  dateHint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: -4,
+  },
+  ctaCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.orange,
+    borderRadius: 28,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  ctaTextBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  ctaTitle: {
+    fontFamily: Font.displayBold,
+    fontSize: 22,
+    color: Colors.white,
+    letterSpacing: -0.3,
+  },
+  ctaSubtitle: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.92)",
+  },
+  ctaCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
   },
   viewAllButton: {
     marginTop: 10,
@@ -121,30 +169,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   viewAllText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.black,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 16,
-  },
-  emptyText: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  addButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: Colors.orange,
-  },
-  addButtonText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.orange,
   },
 });

@@ -4,6 +4,13 @@ export const Colors = {
   orangeLight: "#FFF0E5",
   orangeDark: "#c2540a",
 
+  /** Pet hero quick-glance pills when the fact is true (dark teal-forest on orange) */
+  petHeroTagActive: "#124E46",
+
+  /** Dashboard / marketing cream (replaces full-screen orange gradient) */
+  cream: "#FDF8F3",
+  creamDark: "#EDE4D8",
+
   // Neutrals
   white: "#ffffff",
   black: "#000000",
@@ -44,6 +51,29 @@ export const Colors = {
   mintLight: "#D1FAE5",
   sky: "#C0E3E5",
   skyLight: "#DBEAFE",
+
+  /** Progress rings — distinct category hues */
+  progressExercise: "#FC8D2C",
+  progressExerciseTrack: "#FFF0E5",
+  progressMeals: "#8B5CF6",
+  progressMealsTrack: "#EDE9FE",
+  progressTreats: "#22C55E",
+  progressTreatsTrack: "#DCFCE7",
+  progressMeds: "#F59E0B",
+  progressMedsTrack: "#FEF3C7",
+
+  /** Dark “feature” cards (e.g. upcoming visit hero) */
+  featureDark: "#2A2624",
+  featureDarkElevated: "#3D3835",
+
+  /** User profile hero (matches reference / visit card tone) */
+  profileHeroDark: "#1a1208",
+
+  /** Sign out — text & icon tint */
+  signOutCoral: "#C73E2D",
+  signOutCoralIconBg: "#FFEAE8",
+
+  sectionLabel: "#A18B7A",
 
   /** Darker tints for icons on light accent backgrounds (e.g. pet attribute chips) */
   lavenderDark: "#5D4A6B",

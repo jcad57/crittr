@@ -4,42 +4,40 @@ import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
+import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import { Colors } from "@/constants/colors";
 import type {
   DailyProgressCategory,
   Medication,
   Pet,
 } from "@/data/mockDashboard";
+import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { isTreatFood, treatDailyTarget } from "@/lib/petFood";
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
-  const {
-    pets: dbPets,
-    activePetId,
-    activePetDetails,
-    isLoading,
-    fetchPets,
-    fetchActivePetDetails,
-    setActivePet,
-  } = usePetStore();
+  const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
 
-  useEffect(() => {
-    fetchPets();
-  }, [fetchPets]);
+  const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
+  const { activePetId, setActivePet, initActivePetFromList } = usePetStore();
 
   useEffect(() => {
-    if (activePetId) fetchActivePetDetails();
-  }, [activePetId, fetchActivePetDetails]);
+    if (dbPets?.length) initActivePetFromList(dbPets);
+  }, [dbPets, initActivePetFromList]);
+
+  const { data: activePetDetails, isLoading: isDetailsLoading } =
+    usePetDetailsQuery(activePetId);
 
   const pets: Pet[] = useMemo(
     () =>
-      dbPets.map((p) => ({
+      (dbPets ?? []).map((p) => ({
         id: p.id,
         name: p.name,
         breed: p.breed ?? "",
@@ -48,22 +46,18 @@ export default function Dashboard() {
     [dbPets],
   );
 
-  const activePetName = useMemo(() => {
-    const pet = dbPets.find((p) => p.id === activePetId);
-    return pet?.name ?? "your pet";
-  }, [dbPets, activePetId]);
-
   const dailyProgress: DailyProgressCategory[] = useMemo(() => {
-    const details = activePetDetails;
+    const details = activePetDetails ?? null;
     const totalMeals = details
       ? details.foods
-          .filter((f) => !f.is_treat)
+          .filter((f) => !isTreatFood(f))
           .reduce((sum, f) => sum + (f.meals_per_day ?? 1), 0)
       : 0;
     const totalTreats = details
-      ? details.foods.filter((f) => f.is_treat).length || 1
+      ? details.foods.reduce((sum, f) => sum + treatDailyTarget(f), 0)
       : 0;
-    const totalExercise = details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
+    const totalExercise =
+      details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
     const totalMeds = details ? details.medications.length : 0;
     const hasMeds = totalMeds > 0;
 
@@ -74,8 +68,8 @@ export default function Dashboard() {
         icon: "run",
         current: 0,
         total: totalExercise,
-        ringColor: Colors.coral,
-        trackColor: Colors.coralLight,
+        ringColor: Colors.progressExercise,
+        trackColor: Colors.progressExerciseTrack,
       },
       {
         id: "meals",
@@ -83,8 +77,8 @@ export default function Dashboard() {
         icon: "food-drumstick",
         current: 0,
         total: totalMeals,
-        ringColor: Colors.lavender,
-        trackColor: Colors.lavenderLight,
+        ringColor: Colors.progressMeals,
+        trackColor: Colors.progressMealsTrack,
       },
       {
         id: "treats",
@@ -92,8 +86,8 @@ export default function Dashboard() {
         icon: "bone",
         current: 0,
         total: totalTreats,
-        ringColor: Colors.sky,
-        trackColor: Colors.skyLight,
+        ringColor: Colors.progressTreats,
+        trackColor: Colors.progressTreatsTrack,
       },
       {
         id: "meds",
@@ -101,8 +95,8 @@ export default function Dashboard() {
         icon: "pill",
         current: 0,
         total: hasMeds ? totalMeds : 0,
-        ringColor: hasMeds ? Colors.gold : Colors.gray300,
-        trackColor: hasMeds ? Colors.goldLight : Colors.gray100,
+        ringColor: Colors.progressMeds,
+        trackColor: Colors.progressMedsTrack,
       },
     ];
   }, [activePetDetails]);
@@ -117,16 +111,16 @@ export default function Dashboard() {
       dosageDesc: m.dosage ?? "",
       current: 0,
       total: 1,
-      iconBg: Colors.gray100,
-      iconColor: Colors.gray500,
+      iconBg: Colors.amberLight,
+      iconColor: Colors.amberDark,
     }));
   }, [activePetDetails]);
 
   const todayStr = useMemo(() => {
     return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
       month: "long",
       day: "numeric",
-      year: "numeric",
     });
   }, []);
 
@@ -137,65 +131,131 @@ export default function Dashboard() {
     [setActivePet],
   );
 
-  if (isLoading) {
+  const showDetailsLoader = isDetailsLoading && !activePetDetails;
+
+  if (isPetsLoading && !dbPets) {
     return <DashboardLoading />;
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.headerPad}>
-        <DashboardHeader
-          pets={pets}
-          activePetId={activePetId}
-          onSwitchPet={handleSwitchPet}
-          onProfilePress={() => router.push("/(tabs)/profile")}
-        />
+    <View style={styles.root}>
+      <View style={styles.screen}>
+        <View style={[styles.headerBar, { paddingTop: insets.top }]}>
+          <View style={styles.headerInner}>
+            <DashboardHeader
+              pets={pets}
+              activePetId={activePetId}
+              onSwitchPet={handleSwitchPet}
+              onAddPet={() => router.push("/(logged-in)/add-pet")}
+              onNotificationsPress={() => {}}
+              onProfilePress={() => router.push("/(logged-in)/(tabs)/profile")}
+            />
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: scrollInsetBottom },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.petDataBlock}>
+            {showDetailsLoader ? (
+              <View style={styles.sectionBlock}>
+                <SectionLabel style={styles.sectionLabelFlush}>
+                  Daily Progress
+                </SectionLabel>
+                <View style={styles.progressCard}>
+                  <View style={styles.petDetailsLoading}>
+                    <ActivityIndicator size="large" color={Colors.orange} />
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={styles.sectionBlock}>
+                  <SectionLabel style={styles.sectionLabelFlush}>
+                    Daily Progress
+                  </SectionLabel>
+                  <View style={styles.progressCard}>
+                    <DailyProgress categories={dailyProgress} />
+                  </View>
+                </View>
+
+                <ActivityFeed
+                  activities={[]}
+                  date={todayStr}
+                  onLogActivityPress={() => {}}
+                />
+
+                <HealthSection
+                  medications={medications}
+                  vetVisits={[]}
+                  onScheduleVisitPress={() => {}}
+                />
+              </>
+            )}
+          </View>
+
+          <PetManagement
+            pets={pets}
+            onAddPet={() => router.push("/(logged-in)/add-pet")}
+          />
+        </ScrollView>
       </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.section}>
-          <DailyProgress categories={dailyProgress} />
-        </View>
-
-        <View style={styles.section}>
-          <ActivityFeed activities={[]} date={todayStr} />
-        </View>
-
-        <View style={styles.section}>
-          <HealthSection medications={medications} vetVisits={[]} />
-        </View>
-
-        <View style={styles.section}>
-          <PetManagement pets={pets} />
-        </View>
-      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
   screen: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.cream,
   },
-  headerPad: {
+  headerBar: {
+    backgroundColor: Colors.cream,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.creamDark,
+  },
+  headerInner: {
     paddingHorizontal: 20,
   },
   scroll: {
-    paddingTop: 10,
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 20,
   },
-  section: {
-    marginTop: 20,
+  /** Label + card for daily progress only */
+  sectionBlock: {
+    gap: 10,
+  },
+  sectionLabelFlush: {
+    marginBottom: 0,
+  },
+  progressCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  petDataBlock: {
+    gap: 20,
+  },
+  petDetailsLoading: {
+    minHeight: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
   },
 });

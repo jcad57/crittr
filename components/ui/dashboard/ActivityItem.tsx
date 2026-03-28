@@ -15,26 +15,26 @@ type CategoryConfig = {
 const CATEGORY_CONFIG: Record<ActivityCategory, CategoryConfig> = {
   exercise: {
     icon: require("@/assets/icons/walk-dog-icon.png"),
-    iconBg: Colors.coralLight,
-    iconTint: Colors.coral,
+    iconBg: Colors.progressExerciseTrack,
+    iconTint: Colors.progressExercise,
     label: "Exercise",
   },
   meals: {
     icon: require("@/assets/icons/food-icon.png"),
-    iconBg: Colors.lavenderLight,
-    iconTint: Colors.lavender,
+    iconBg: Colors.progressMealsTrack,
+    iconTint: Colors.progressMeals,
     label: "Meal",
   },
   treats: {
     icon: require("@/assets/icons/dog-bone-icon.png"),
-    iconBg: Colors.skyLight,
-    iconTint: Colors.sky,
+    iconBg: Colors.progressTreatsTrack,
+    iconTint: Colors.progressTreats,
     label: "Treat",
   },
   meds: {
     icon: require("@/assets/icons/medicine-icon.png"),
-    iconBg: Colors.goldLight,
-    iconTint: Colors.gold,
+    iconBg: Colors.progressMedsTrack,
+    iconTint: Colors.progressMeds,
     label: "Medication",
   },
 };
@@ -61,11 +61,13 @@ export default function ActivityItem({
   return (
     <View style={styles.card}>
       {/* Category icon */}
-      <View style={[styles.iconCircle]}>
+      <View
+        style={[styles.iconCircle, { backgroundColor: config.iconBg }]}
+      >
         <Image
           source={config.icon}
           style={styles.icon}
-          tintColor={Colors.black}
+          tintColor={config.iconTint}
         />
       </View>
 

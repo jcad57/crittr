@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.amberLight,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.orange,
+    borderWidth: 4,
+    borderColor: Colors.white,
     overflow: "hidden",
   },
   avatarImage: {

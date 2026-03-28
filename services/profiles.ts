@@ -29,6 +29,8 @@ export async function updateProfile(
       | "last_name"
       | "display_name"
       | "bio"
+      | "home_address"
+      | "phone_number"
       | "avatar_url"
       | "onboarding_complete"
     >

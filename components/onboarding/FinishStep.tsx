@@ -1,9 +1,10 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { createPet } from "@/services/pets";
+import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
+import { queryClient } from "@/lib/queryClient";
+import { createPet, fetchUserPets } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -18,27 +19,55 @@ import {
 
 export default function FinishStep() {
   const router = useRouter();
-  const { pets, addAnotherPet, editPetAtIndex, prevStep, reset } =
+  const { pets, addAnotherPet, editPetAtIndex, prevStep, reset, petFlowMode } =
     useOnboardingStore();
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
-  const fetchPets = usePetStore((s) => s.fetchPets);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFinish = async () => {
     if (!session) return;
     setIsSubmitting(true);
     try {
+      const existingPets = await fetchUserPets(session.user.id);
+      const createdIds: string[] = [];
+
       for (let i = 0; i < pets.length; i++) {
-        await createPet(session.user.id, pets[i], i === 0);
+        const isFirstInAccount = existingPets.length === 0 && i === 0;
+        const pet = await createPet(
+          session.user.id,
+          pets[i],
+          isFirstInAccount,
+        );
+        createdIds.push(pet.id);
       }
 
-      await completeOnboarding();
-      await fetchPets();
+      if (petFlowMode === "onboarding") {
+        await completeOnboarding();
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: petsQueryKey(session.user.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: healthSnapshotKey(session.user.id),
+      });
       reset();
-      router.replace("/(logged-in)/dashboard");
+
+      if (petFlowMode === "add-pet" && createdIds.length > 0) {
+        const lastId = createdIds[createdIds.length - 1];
+        router.replace(`/(logged-in)/pet/${lastId}`);
+      } else {
+        router.replace("/(logged-in)/dashboard");
+      }
     } catch (error: any) {
-      Alert.alert("Error", error.message ?? "Failed to complete onboarding.");
+      Alert.alert(
+        "Error",
+        error.message ??
+          (petFlowMode === "add-pet"
+            ? "Failed to add your pet."
+            : "Failed to complete onboarding."),
+      );
     } finally {
       setIsSubmitting(false);
     }

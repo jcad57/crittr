@@ -2,6 +2,8 @@ import FormInput from "@/components/onboarding/FormInput";
 import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { profileQueryKey } from "@/hooks/queries";
+import { queryClient } from "@/lib/queryClient";
 import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -48,16 +50,27 @@ export default function ProfileStep() {
 
       try {
         const updated = await updateProfile(session.user.id, {
-          display_name: profileData.displayName.trim() || null,
           bio: profileData.bio.trim() || null,
+          home_address: profileData.homeAddress.trim() || null,
+          phone_number: profileData.phoneNumber.trim() || null,
           ...(avatarUrl && { avatar_url: avatarUrl }),
         });
-        if (updated) setProfile(updated);
-      } catch (profileError: any) {
-        console.warn("Profile update deferred:", profileError.message);
+        if (updated) {
+          setProfile(updated);
+          queryClient.invalidateQueries({
+            queryKey: profileQueryKey(session.user.id),
+          });
+        }
+      } catch (profileError: unknown) {
+        const msg =
+          profileError instanceof Error
+            ? profileError.message
+            : String(profileError);
+        console.warn("Profile update deferred:", msg);
       }
-    } catch (error: any) {
-      console.warn("Profile step error:", error.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn("Profile step error:", msg);
     } finally {
       setIsSubmitting(false);
       nextStep();
@@ -92,21 +105,36 @@ export default function ProfileStep() {
       <Divider />
 
       <FormInput
-        placeholder="Display Name *"
-        value={profileData.displayName}
-        onChangeText={(v) => setProfileData({ displayName: v })}
+        placeholder="Home address *"
+        value={profileData.homeAddress}
+        onChangeText={(v) => setProfileData({ homeAddress: v })}
         autoCapitalize="words"
         containerStyle={styles.inputSpacing}
+        multiline
+        numberOfLines={2}
+        icon="map-marker-outline"
       />
 
       <FormInput
-        placeholder="Short bio *"
+        placeholder="Phone number *"
+        value={profileData.phoneNumber}
+        onChangeText={(v) => setProfileData({ phoneNumber: v })}
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        textContentType="telephoneNumber"
+        containerStyle={styles.inputSpacing}
+        icon="phone-outline"
+      />
+
+      <FormInput
+        placeholder="Short bio (optional)"
         value={profileData.bio}
         onChangeText={(v) => setProfileData({ bio: v })}
-        containerStyle={[styles.inputSpacing, styles.bioInput]}
-        multiline={true}
+        containerStyle={[styles.inputSpacing, styles.bioInputContainer]}
+        multiline
         numberOfLines={4}
-        textAlignVertical="top"
+        icon="text-box-outline"
+        style={styles.bioTextInput}
       />
 
       <View style={styles.spacer} />
@@ -173,11 +201,11 @@ const styles = StyleSheet.create({
   inputSpacing: {
     marginBottom: 12,
   },
-  bioInput: {
-    height: 80,
-    alignItems: "flex-start",
-    paddingTop: 12,
-    textAlignVertical: "top",
+  bioInputContainer: {
+    minHeight: 112,
+  },
+  bioTextInput: {
+    minHeight: 88,
   },
   spacer: {
     flex: 1,

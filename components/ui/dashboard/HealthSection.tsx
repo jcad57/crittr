@@ -1,34 +1,31 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type { Medication, VetVisit } from "@/data/mockDashboard";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MedicationCard from "./MedicationCard";
-import SectionHeader from "./SectionHeader";
+import SectionLabel from "./SectionLabel";
+import UpcomingVisitFeatureCard from "./UpcomingVisitFeatureCard";
 import VetVisitCard from "./VetVisitCard";
 
 type HealthSectionProps = {
   medications: Medication[];
   vetVisits: VetVisit[];
-  onMorePress?: () => void;
+  onScheduleVisitPress?: () => void;
 };
 
 export default function HealthSection({
   medications,
   vetVisits,
-  onMorePress,
+  onScheduleVisitPress,
 }: HealthSectionProps) {
   const hasMeds = medications.length > 0;
   const hasVisits = vetVisits.length > 0;
+  const [primaryVisit, ...otherVisits] = vetVisits;
 
   return (
     <View style={styles.container}>
-      <SectionHeader title="Health" onMorePress={onMorePress} />
+      <SectionLabel>Health</SectionLabel>
 
-      <Text style={styles.subHeading}>Medications</Text>
       {hasMeds ? (
         medications.map((med) => (
           <MedicationCard key={med.id} medication={med} />
@@ -36,23 +33,25 @@ export default function HealthSection({
       ) : (
         <View style={styles.emptyBlock}>
           <Text style={styles.emptyText}>No medications added yet</Text>
+          <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
+            <Text style={styles.addButtonText}>+ Add a medication</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      <Text style={[styles.subHeading, styles.vetHeading]}>
-        Upcoming Vet Visits
-      </Text>
-      {hasVisits ? (
-        vetVisits.map((visit) => (
-          <VetVisitCard key={visit.id} visit={visit} />
-        ))
+      <SectionLabel style={styles.visitsLabel}>Upcoming visits</SectionLabel>
+      {hasVisits && primaryVisit ? (
+        <>
+          <UpcomingVisitFeatureCard visit={primaryVisit} />
+          {otherVisits.map((visit) => (
+            <VetVisitCard key={visit.id} visit={visit} />
+          ))}
+        </>
       ) : (
-        <View style={styles.emptyBlock}>
-          <Text style={styles.emptyText}>No upcoming visits</Text>
-          <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
-            <Text style={styles.addButtonText}>+ Add a Vet Visit</Text>
-          </TouchableOpacity>
-        </View>
+        <UpcomingVisitFeatureCard
+          empty
+          onPress={onScheduleVisitPress}
+        />
       )}
     </View>
   );
@@ -62,14 +61,8 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
   },
-  subHeading: {
-    fontFamily: "InstrumentSans-SemiBold",
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginBottom: 10,
-  },
-  vetHeading: {
-    marginTop: 24,
+  visitsLabel: {
+    marginTop: 20,
   },
   emptyBlock: {
     alignItems: "center",
@@ -77,12 +70,12 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,
-    borderRadius: 14,
-    backgroundColor: Colors.gray50,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
     marginBottom: 10,
   },
   emptyText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
   },
@@ -94,7 +87,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.orange,
   },
   addButtonText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 14,
     color: Colors.orange,
   },

@@ -5,8 +5,10 @@ import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetCoCarerInviteRow from "@/components/onboarding/petInfo/PetCoCarerInviteRow";
 import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
-import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
+import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
+import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
+import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -146,6 +148,19 @@ export default function PetInfoStep() {
         error={!!err("sex")}
       />
 
+      <PetSterilizationToggle
+        value={pet.isSterilized}
+        onChange={(v) => updateCurrentPet({ isSterilized: v })}
+      />
+
+      <FormInput
+        placeholder="Coat color (optional)"
+        value={pet.color}
+        onChangeText={(v) => updateCurrentPet({ color: v })}
+        autoCapitalize="words"
+        containerStyle={styles.inputSpacing}
+      />
+
       <PetEnergyLevelToggle
         energyLevel={pet.energyLevel}
         onChange={(level) => updateCurrentPet({ energyLevel: level })}
@@ -160,6 +175,66 @@ export default function PetInfoStep() {
           keyboardType="numeric"
           containerStyle={styles.inputSpacing}
           error={!!err("exercisesPerDay")}
+        />
+      ) : null}
+
+      <Divider />
+
+      <Text style={styles.sectionTitle}>Health & identification</Text>
+
+      <FormInput
+        placeholder="Primary vet clinic (optional)"
+        value={pet.primaryVetClinic}
+        onChangeText={(v) => updateCurrentPet({ primaryVetClinic: v })}
+        autoCapitalize="words"
+        containerStyle={styles.inputSpacing}
+      />
+
+      <FormInput
+        placeholder="Vet clinic address (optional)"
+        value={pet.primaryVetAddress}
+        onChangeText={(v) => updateCurrentPet({ primaryVetAddress: v })}
+        autoCapitalize="words"
+        containerStyle={styles.inputSpacing}
+      />
+
+      <PetMicrochipToggle
+        value={pet.isMicrochipped}
+        onChange={(v) =>
+          updateCurrentPet({
+            isMicrochipped: v,
+            microchipNumber: v === true ? pet.microchipNumber : "",
+          })
+        }
+      />
+
+      {pet.isMicrochipped === true ? (
+        <FormInput
+          placeholder="Microchip number (optional)"
+          value={pet.microchipNumber}
+          onChangeText={(v) => updateCurrentPet({ microchipNumber: v })}
+          keyboardType="number-pad"
+          containerStyle={styles.inputSpacing}
+        />
+      ) : null}
+
+      <PetInsuranceToggle
+        value={pet.isInsured}
+        onChange={(v) =>
+          updateCurrentPet({
+            isInsured: v,
+            insuranceProvider: v === true ? pet.insuranceProvider : "",
+          })
+        }
+      />
+
+      {pet.isInsured === true ? (
+        <FormInput
+          placeholder="Insurance provider (optional)"
+          value={pet.insuranceProvider}
+          onChangeText={(v) => updateCurrentPet({ insuranceProvider: v })}
+          autoCapitalize="words"
+          containerStyle={styles.inputSpacing}
         />
       ) : null}
 
@@ -182,7 +257,9 @@ export default function PetInfoStep() {
       <Divider />
 
       <Text style={styles.sectionTitle}>About</Text>
-      <Text style={styles.aboutHint}>Short bio (optional, max 320 characters)</Text>
+      <Text style={styles.aboutHint}>
+        Short bio (optional, max 320 characters)
+      </Text>
       <View style={[styles.aboutBox, styles.inputSpacing]}>
         <TextInput
           style={styles.aboutInput}
@@ -195,11 +272,6 @@ export default function PetInfoStep() {
           textAlignVertical="top"
         />
       </View>
-
-      <PetMicrochipToggle
-        value={pet.isMicrochipped}
-        onChange={(v) => updateCurrentPet({ isMicrochipped: v })}
-      />
 
       <PetCoCarerInviteRow
         coCarerEmail={pet.coCarerEmail}

@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type { VetVisit } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -9,70 +10,125 @@ type VetVisitCardProps = {
   onAddToCalendar?: () => void;
 };
 
+function badgeFromVisit(visit: VetVisit): string {
+  if (visit.badgeLabel) return visit.badgeLabel;
+  const t = Date.parse(visit.date);
+  if (Number.isNaN(t)) return "";
+  return new Date(t).toLocaleDateString("en-US", { month: "short" });
+}
+
 export default function VetVisitCard({
   visit,
   onPress,
   onAddToCalendar,
 }: VetVisitCardProps) {
+  const badge = badgeFromVisit(visit);
+  const sub =
+    visit.subtitle ?? `${visit.date} · ${visit.time}`;
+
   return (
     <TouchableOpacity
-      style={[styles.card, { borderLeftColor: visit.accentColor }]}
+      style={styles.card}
       activeOpacity={0.7}
       onPress={onPress}
     >
+      <View style={styles.iconSquare}>
+        <MaterialCommunityIcons
+          name="stethoscope"
+          size={20}
+          color={visit.accentColor}
+        />
+      </View>
       <View style={styles.content}>
         <Text style={styles.title}>{visit.title}</Text>
-        <Text style={[styles.date, { color: visit.accentColor }]}>
-          {visit.date}
+        <Text style={styles.subtitle} numberOfLines={2}>
+          {sub}
         </Text>
-        <Text style={styles.time}>{visit.time}</Text>
       </View>
-      <TouchableOpacity
-        style={styles.calendarButton}
-        onPress={onAddToCalendar}
-        hitSlop={10}
-      >
+      <View style={styles.right}>
+        {badge ? (
+          <View
+            style={[styles.badge, { backgroundColor: Colors.orangeLight }]}
+          >
+            <Text style={[styles.badgeText, { color: Colors.orangeDark }]}>
+              {badge}
+            </Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={styles.calendarButton}
+          onPress={onAddToCalendar}
+          hitSlop={10}
+        >
+          <MaterialCommunityIcons
+            name="calendar-plus"
+            size={20}
+            color={Colors.gray500}
+          />
+        </TouchableOpacity>
         <MaterialCommunityIcons
-          name="calendar-plus"
+          name="chevron-right"
           size={22}
-          color={Colors.gray500}
+          color={Colors.gray400}
         />
-      </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
+
+const ICON = 44;
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    borderLeftWidth: 5,
+    borderRadius: 20,
     padding: 14,
-    marginBottom: 10,
+    gap: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,
+    marginBottom: 10,
+  },
+  iconSquare: {
+    width: ICON,
+    height: ICON,
+    borderRadius: 14,
+    backgroundColor: Colors.amberLight,
+    alignItems: "center",
+    justifyContent: "center",
+    borderLeftWidth: 0,
   },
   content: {
     flex: 1,
     gap: 2,
   },
   title: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textPrimary,
   },
-  date: {
-    fontFamily: "InstrumentSans-SemiBold",
-    fontSize: 14,
-  },
-  time: {
-    fontFamily: "InstrumentSans-Regular",
+  subtitle: {
+    fontFamily: Font.uiRegular,
     fontSize: 13,
     color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  right: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  badgeText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
   },
   calendarButton: {
-    padding: 8,
+    padding: 6,
   },
 });

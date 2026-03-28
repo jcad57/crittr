@@ -24,6 +24,8 @@ export type Profile = {
   last_name: string | null;
   display_name: string | null;
   bio: string | null;
+  home_address: string | null;
+  phone_number: string | null;
   avatar_url: string | null;
   onboarding_complete: boolean;
   created_at: string;
@@ -49,6 +51,13 @@ export type Pet = {
   allergies: string[];
   avatar_url: string | null;
   is_microchipped: boolean | null;
+  microchip_number?: string | null;
+  primary_vet_clinic?: string | null;
+  primary_vet_address?: string | null;
+  primary_vet_name?: string | null;
+  is_insured?: boolean | null;
+  insurance_provider?: string | null;
+  is_sterilized?: boolean | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -73,6 +82,36 @@ export type PetMedication = {
   frequency: string | null;
   condition: string | null;
   notes: string | null;
+  /** When set, drives due badges on the Health hub. */
+  next_due_date?: string | null;
+  created_at: string;
+};
+
+export type PetVaccination = {
+  id: string;
+  pet_id: string;
+  name: string;
+  expires_on: string | null;
+  frequency_label: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PetVetVisit = {
+  id: string;
+  pet_id: string;
+  title: string;
+  visit_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PetWeightEntry = {
+  id: string;
+  pet_id: string;
+  recorded_at: string;
+  weight_lbs: number;
+  weight_unit: "lbs" | "kg";
   created_at: string;
 };
 
@@ -112,8 +151,9 @@ export type AccountFormData = {
 };
 
 export type ProfileFormData = {
-  displayName: string;
   bio: string;
+  homeAddress: string;
+  phoneNumber: string;
   avatarUri: string | null;
 };
 
@@ -157,6 +197,15 @@ export type PetFormData = {
   coCarerEmail: string;
   /** null = prefer not to say */
   isMicrochipped: boolean | null;
+  /** ISO / registry number when known */
+  microchipNumber: string;
+  /** null = unknown; true = spayed/neutered; false = intact */
+  isSterilized: boolean | null;
+  primaryVetClinic: string;
+  primaryVetAddress: string;
+  /** null = unknown; true = insured; false = not insured */
+  isInsured: boolean | null;
+  insuranceProvider: string;
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
@@ -179,4 +228,10 @@ export const EMPTY_PET_FORM: PetFormData = {
   medications: [],
   coCarerEmail: "",
   isMicrochipped: null,
+  microchipNumber: "",
+  isSterilized: null,
+  primaryVetClinic: "",
+  primaryVetAddress: "",
+  isInsured: null,
+  insuranceProvider: "",
 };

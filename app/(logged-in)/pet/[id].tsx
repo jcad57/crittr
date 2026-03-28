@@ -1,14 +1,28 @@
-import PetAttributeChips from "@/components/ui/pet/PetAttributeChips";
-import PetHero, { AVATAR_OVERLAP } from "@/components/ui/pet/PetHero";
+import SectionLabel from "@/components/ui/dashboard/SectionLabel";
+import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
+import PetMedicationProfileCard from "@/components/ui/pet/PetMedicationProfileCard";
+import PetProfileHero, {
+  type PetHeroTag,
+} from "@/components/ui/pet/PetProfileHero";
+import PetStatChips, {
+  type StatChipItem,
+} from "@/components/ui/pet/PetStatChips";
+import RecordsNavCard, {
+  type RecordsNavItem,
+} from "@/components/ui/pet/RecordsNavCard";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type {
   FeedingSchedule,
   Medication,
   PetProfile,
 } from "@/data/mockDashboard";
-import { usePetStore } from "@/stores/petStore";
+import { usePetDetailsQuery } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { PetFood, PetWithDetails } from "@/types/database";
+import { isTreatFood } from "@/lib/petFood";
 import {
+  formatBirthdayChip,
   formatDateOfBirth,
   formatEnergyLabel,
   formatMicrochipLabel,
@@ -16,9 +30,8 @@ import {
   formatPetTypeLabel,
   formatPetWeightDisplay,
 } from "@/utils/petDisplay";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -38,21 +51,23 @@ function formatPortionLabel(f: PetFood): string {
 }
 
 function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
-  const sorted = [...details.foods].sort((a, b) =>
-    a.is_treat === b.is_treat ? 0 : a.is_treat ? 1 : -1,
-  );
+  const sorted = [...details.foods].sort((a, b) => {
+    const ta = isTreatFood(a);
+    const tb = isTreatFood(b);
+    return ta === tb ? 0 : ta ? 1 : -1;
+  });
   return {
     items: sorted.map((f) => ({
       brand: f.brand?.trim() || "Food",
       portionLabel: formatPortionLabel(f),
-      isTreat: f.is_treat,
+      isTreat: isTreatFood(f),
     })),
     notes: "",
   };
 }
 
 function toMedications(details: PetWithDetails): Medication[] {
-  return details.medications.map((m) => ({
+  return details.medications.map((m, i) => ({
     id: m.id,
     name: m.name,
     frequency: m.frequency ?? "",
@@ -62,7 +77,39 @@ function toMedications(details: PetWithDetails): Medication[] {
     total: 0,
     iconBg: Colors.successLight,
     iconColor: Colors.success,
+    profileStatus: i % 2 === 0 ? "due_today" : "up_to_date",
   }));
+}
+
+function buildQuickTags(profile: PetProfile): PetHeroTag[] {
+  const t1: PetHeroTag =
+    profile.isSterilized === false
+      ? { label: "Intact", muted: true }
+      : {
+          label: profile.sex === "female" ? "Spayed" : "Neutered",
+          muted: false,
+        };
+
+  const t2: PetHeroTag =
+    profile.isMicrochipped === true
+      ? { label: "Microchipped", muted: false }
+      : profile.isMicrochipped === false
+        ? { label: "Not chipped", muted: true }
+        : { label: "Microchip", muted: true };
+
+  const t3: PetHeroTag =
+    profile.isInsured === true
+      ? { label: "Insured", muted: false }
+      : profile.isInsured === false
+        ? { label: "No insurance", muted: true }
+        : { label: "Insurance", muted: true };
+
+  return [t1, t2, t3];
+}
+
+function profileSubline(profile: PetProfile): string {
+  const breed = profile.breed.trim() || "—";
+  return `${breed} · ${profile.ageDisplay}`;
 }
 
 function toProfile(details: PetWithDetails): PetProfile {
@@ -94,6 +141,13 @@ function toProfile(details: PetWithDetails): PetProfile {
     allergies: details.allergies ?? [],
     isMicrochipped: details.is_microchipped ?? null,
     microchipLabel: formatMicrochipLabel(details.is_microchipped ?? null),
+    microchipNumber: details.microchip_number ?? null,
+    primaryVetClinic: details.primary_vet_clinic ?? null,
+    primaryVetAddress: details.primary_vet_address ?? null,
+    primaryVetName: details.primary_vet_name ?? null,
+    isInsured: details.is_insured,
+    insuranceProvider: details.insurance_provider ?? null,
+    isSterilized: details.is_sterilized ?? null,
     exercisesPerDay: details.exercises_per_day,
     about: details.about ?? "",
     feeding: toFeedingSchedule(details),
@@ -104,11 +158,11 @@ function toProfile(details: PetWithDetails): PetProfile {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-type InfoRowProps = { label: string; value: string };
+type InfoRowProps = { label: string; value: string; isLast?: boolean };
 
-function InfoRow({ label, value }: InfoRowProps) {
+function InfoRow({ label, value, isLast }: InfoRowProps) {
   return (
-    <View style={styles.infoRow}>
+    <View style={[styles.infoRow, isLast && styles.infoRowLast]}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue} numberOfLines={2}>
         {value || "—"}
@@ -117,38 +171,11 @@ function InfoRow({ label, value }: InfoRowProps) {
   );
 }
 
-type MenuItemProps = {
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  label: string;
-  onPress?: () => void;
-  iconBg?: string;
-  iconColor?: string;
-};
-
-function MenuItem({
-  icon,
-  label,
-  onPress,
-  iconBg = Colors.orangeLight,
-  iconColor = Colors.orange,
-}: MenuItemProps) {
-  return (
-    <TouchableOpacity
-      style={styles.menuItem}
-      onPress={onPress}
-      activeOpacity={0.6}
-    >
-      <View style={[styles.menuIcon, { backgroundColor: iconBg }]}>
-        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
-      </View>
-      <Text style={styles.menuLabel}>{label}</Text>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={22}
-        color={Colors.gray400}
-      />
-    </TouchableOpacity>
+function medicationSubline(m: Medication): string {
+  const parts = [m.frequency, m.condition, m.dosageDesc].filter(
+    (s) => s && String(s).trim(),
   );
+  return parts.length ? parts.join(" · ") : "—";
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -157,24 +184,99 @@ export default function PetProfilePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const fetchPetProfile = usePetStore((s) => s.fetchPetProfile);
-  const [details, setDetails] = useState<PetWithDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+  const scrollInsetBottom = useFloatingNavScrollInset();
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    fetchPetProfile(id)
-      .then((data) => setDetails(data))
-      .finally(() => setLoading(false));
-  }, [id, fetchPetProfile]);
+  const { data: details, isLoading } = usePetDetailsQuery(id);
 
   const profile = useMemo(
     () => (details ? toProfile(details) : null),
     [details],
   );
 
-  if (loading) {
+  const statItems = useMemo((): StatChipItem[] => {
+    if (!profile) return [];
+    const dob = profile.dateOfBirth;
+    const birthday =
+      dob != null && String(dob).trim()
+        ? formatBirthdayChip(typeof dob === "string" ? dob : String(dob))
+        : "—";
+    const gender = profile.sex === "female" ? "Female" : "Male";
+    return [
+      {
+        label: "Weight",
+        value: profile.weightDisplay,
+        icon: "scale-bathroom",
+      },
+      {
+        label: "Birthday",
+        value: birthday,
+        icon: "calendar-month-outline",
+      },
+      {
+        label: "Gender",
+        value: gender,
+        icon: "gender-male-female",
+      },
+    ];
+  }, [profile]);
+
+  const recordsItems = useMemo((): RecordsNavItem[] => {
+    if (!profile) return [];
+    const insSub =
+      profile.isInsured && profile.insuranceProvider?.trim()
+        ? `${profile.insuranceProvider.trim()} · Active`
+        : profile.isInsured
+          ? "Active"
+          : "Not set";
+    const chipSub = profile.microchipNumber?.trim()
+      ? `${profile.microchipNumber.trim()} · on file`
+      : "Add microchip number and registry info";
+    return [
+      {
+        id: "medical",
+        title: "Medical records",
+        subtitle: "Visits, vaccinations, labs",
+        icon: "clipboard-check-outline",
+        iconBg: Colors.orangeLight,
+        iconColor: Colors.orange,
+      },
+      {
+        id: "vaccinations",
+        title: "Vaccinations",
+        subtitle: "Rabies due Apr 2027",
+        icon: "calendar-month",
+        iconBg: Colors.mintLight,
+        iconColor: Colors.successDark,
+      },
+      {
+        id: "microchip",
+        title: "Microchip details",
+        subtitle: chipSub,
+        icon: "cellphone-nfc",
+        iconBg: Colors.skyLight,
+        iconColor: Colors.skyDark,
+        onPress: () => router.push(`/pet/${profile.id}/microchip`),
+      },
+      {
+        id: "insurance",
+        title: "Insurance",
+        subtitle: insSub,
+        icon: "shield-check",
+        iconBg: Colors.lavenderLight,
+        iconColor: Colors.lavenderDark,
+      },
+      {
+        id: "activity",
+        title: "Activity history",
+        subtitle: "Walks, meals, treats",
+        icon: "clock-outline",
+        iconBg: Colors.amberLight,
+        iconColor: Colors.amberDark,
+      },
+    ];
+  }, [profile, router]);
+
+  if (isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={Colors.orange} />
@@ -190,123 +292,111 @@ export default function PetProfilePage() {
     );
   }
 
+  const tags = buildQuickTags(profile);
+
   return (
     <View style={styles.screen}>
-      {/* ── Fixed nav bar ──────────────────────────────────── */}
       <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.navButton}
+          style={styles.navBack}
           hitSlop={8}
         >
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={22}
-            color={Colors.black}
-          />
+          <Text style={styles.navBackText}>&lt; Back</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>
           {profile.name}
         </Text>
-        <TouchableOpacity style={styles.navButton} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="cog-outline"
-            size={22}
-            color={Colors.black}
-          />
+        <TouchableOpacity style={styles.navEdit} hitSlop={8}>
+          <Text style={styles.navEditText}>Edit</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── Scrollable content ─────────────────────────────── */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 24 },
+          { paddingBottom: scrollInsetBottom },
         ]}
         showsVerticalScrollIndicator={false}
         bounces
       >
-        <PetHero imageUrl={profile.imageUrl} />
+        <PetProfileHero
+          name={profile.name}
+          subline={profileSubline(profile)}
+          imageUrl={profile.imageUrl}
+          tags={tags}
+        />
 
-        {/* Card pulls up to avatar midline; lower z-index so avatar paints on top */}
-        <View
-          style={[
-            styles.card,
-            { marginTop: -AVATAR_OVERLAP, paddingTop: AVATAR_OVERLAP + 12 },
-          ]}
-        >
-          <PetAttributeChips profile={profile} />
+        <PetStatChips items={statItems} />
 
-          {/* ── Info section ─────────────────────────────── */}
-          <View style={styles.infoSection}>
-            <View style={styles.infoHeader}>
-              <Text style={styles.infoTitle}>{profile.name}'s Information</Text>
-              <TouchableOpacity hitSlop={8}>
-                <Text style={styles.editBtn}>Edit</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.infoRows}>
-              <InfoRow label="Breed" value={profile.breed} />
-              <InfoRow
-                label="Sex"
-                value={profile.sex === "male" ? "Male" : "Female"}
-              />
-              {profile.dateOfBirthFormatted && (
-                <InfoRow
-                  label="Date of birth"
-                  value={`${profile.dateOfBirthFormatted} (${profile.ageDisplay})`}
-                />
-              )}
-              {!profile.dateOfBirthFormatted && (
-                <InfoRow label="Age" value={profile.ageDisplay} />
-              )}
-              <InfoRow label="Weight" value={profile.weightDisplay} />
-              <InfoRow label="Energy level" value={profile.energyLevelLabel} />
-              {profile.allergies.length > 0 && (
-                <InfoRow
-                  label="Allergies"
-                  value={profile.allergies.join(", ")}
-                />
-              )}
-            </View>
-          </View>
-
-          {/* ── Menu items ───────────────────────────────── */}
-          <View style={styles.menuSection}>
-            <MenuItem
-              icon="note-text-outline"
-              label="About"
-              iconBg={Colors.lavenderLight}
-              iconColor={Colors.lavenderDark}
-            />
-            <MenuItem
-              icon="food-variant"
-              label="Care"
-              iconBg={Colors.amberLight}
-              iconColor={Colors.amberDark}
-            />
-            <MenuItem
-              icon="pill"
-              label="Medications"
-              iconBg={Colors.successLight}
-              iconColor={Colors.successDark}
-            />
-            <MenuItem
-              icon="file-document-outline"
-              label="Medical Records"
-              iconBg={Colors.coralLight}
-              iconColor={Colors.coral}
-            />
-            <MenuItem
-              icon="shield-check-outline"
-              label="Insurance"
-              iconBg={Colors.skyLight}
-              iconColor={Colors.skyDark}
-            />
-          </View>
+        <SectionLabel style={styles.sectionFlush}>Details</SectionLabel>
+        <View style={styles.detailsCard}>
+          <InfoRow label="Breed" value={profile.breed} />
+          <InfoRow label="Color" value={profile.color} />
+          <InfoRow
+            label="Vet clinic"
+            value={profile.primaryVetClinic?.trim() || "—"}
+          />
+          <InfoRow
+            label="Vet address"
+            value={profile.primaryVetAddress?.trim() || "—"}
+            isLast
+          />
         </View>
+
+        <View style={styles.sectionHeaderRow}>
+          <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
+          <TouchableOpacity
+            onPress={() => router.push(`/pet/${profile.id}/food`)}
+            hitSlop={8}
+          >
+            <Text style={styles.sectionEditLink}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+        {profile.feeding.items.length > 0 ? (
+          <View style={styles.medList}>
+            {profile.feeding.items.map((item, index) => (
+              <PetFoodProfileCard
+                key={`food-${index}-${item.brand}`}
+                name={item.brand}
+                subline={item.portionLabel.trim() || "—"}
+                isTreat={item.isTreat}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyMed}>No foods recorded.</Text>
+        )}
+
+        <View style={styles.sectionHeaderRow}>
+          <SectionLabel style={styles.sectionLabelInline}>
+            Active medications
+          </SectionLabel>
+          <TouchableOpacity
+            onPress={() => router.push(`/pet/${profile.id}/medications`)}
+            hitSlop={8}
+          >
+            <Text style={styles.sectionEditLink}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+        {profile.medications.length > 0 ? (
+          <View style={styles.medList}>
+            {profile.medications.map((m) => (
+              <PetMedicationProfileCard
+                key={m.id}
+                name={m.name}
+                subline={medicationSubline(m)}
+                status={m.profileStatus ?? "up_to_date"}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyMed}>No medications recorded.</Text>
+        )}
+
+        <SectionLabel style={styles.sectionFlush}>Records</SectionLabel>
+        <RecordsNavCard items={recordsItems} />
       </ScrollView>
     </View>
   );
@@ -317,133 +407,128 @@ export default function PetProfilePage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cream,
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.cream,
   },
   notFoundText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 16,
     color: Colors.textSecondary,
   },
 
-  /* ── Nav bar ─────────────────────────────────────── */
   navBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 10,
-    backgroundColor: Colors.white,
-    zIndex: 10,
+    paddingBottom: 12,
+    backgroundColor: Colors.cream,
   },
-  navButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
+  navBack: {
+    minWidth: 72,
+  },
+  navBackText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.orange,
   },
   navTitle: {
     flex: 1,
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.displayBold,
     fontSize: 20,
-    color: Colors.black,
+    color: Colors.textPrimary,
     textAlign: "center",
-    marginHorizontal: 12,
+    marginHorizontal: 8,
+  },
+  navEdit: {
+    minWidth: 72,
+    alignItems: "flex-end",
+  },
+  navEditText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.orange,
   },
 
-  /* ── Scroll ──────────────────────────────────────── */
   scroll: {
     flex: 1,
-    overflow: "visible",
   },
   scrollContent: {
-    overflow: "visible",
     flexGrow: 1,
-  },
-
-  /* ── Card body ───────────────────────────────────── */
-  card: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    gap: 20,
-    zIndex: 1,
+    gap: 16,
+    paddingTop: 4,
   },
-
-  /* ── Info section ────────────────────────────────── */
-  infoSection: {
-    gap: 14,
+  sectionFlush: {
+    marginBottom: 0,
+    marginTop: 4,
   },
-  infoHeader: {
+  sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 4,
+    marginBottom: 0,
+    width: "100%",
   },
-  infoTitle: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
+  sectionLabelInline: {
+    marginBottom: 0,
+    flexShrink: 1,
   },
-  editBtn: {
-    fontFamily: "InstrumentSans-SemiBold",
+  sectionEditLink: {
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.orange,
   },
-  infoRows: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+
+  detailsCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 14,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.gray100,
+  },
+  infoRowLast: {
+    borderBottomWidth: 0,
   },
   infoLabel: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: Colors.sectionLabel,
   },
   infoValue: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: "right",
-    maxWidth: "55%",
-  },
-
-  /* ── Menu section ────────────────────────────────── */
-  menuSection: {
-    gap: 0,
-    marginTop: 4,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
-    gap: 14,
-  },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  menuLabel: {
-    flex: 1,
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiMedium,
     fontSize: 15,
     color: Colors.textPrimary,
+    textAlign: "right",
+    maxWidth: "58%",
+  },
+
+  medList: {
+    gap: 10,
+  },
+  emptyMed: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    textAlign: "center",
+    color: Colors.gray500,
+    paddingVertical: 4,
   },
 });

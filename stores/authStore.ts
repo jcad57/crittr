@@ -1,3 +1,5 @@
+import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { ONBOARDING_STEPS } from "@/stores/onboardingStore";
 import type { Profile } from "@/types/database";
@@ -7,11 +9,13 @@ import { create } from "zustand";
 const PROFILE_STEP = ONBOARDING_STEPS.indexOf("profile");
 const PET_TYPE_STEP = ONBOARDING_STEPS.indexOf("pet-type");
 
-function hasDisplayNameAndBio(profile: Profile | null): boolean {
+/** Profile onboarding step: home address and phone required; bio is optional. */
+function isProfileStepComplete(profile: Profile | null): boolean {
   if (!profile) return false;
-  const nameOk = Boolean(profile.display_name?.trim());
-  const bioOk = Boolean(profile.bio?.trim());
-  return nameOk && bioOk;
+  return (
+    Boolean(profile.home_address?.trim()) &&
+    Boolean(profile.phone_number?.trim())
+  );
 }
 
 export type ResolvedOnboarding = {
@@ -41,7 +45,7 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
   const count = petError ? 0 : petsCountRes.count ?? 0;
   const hasPets = count > 0;
 
-  if (profile?.onboarding_complete && hasDisplayNameAndBio(profile) && hasPets) {
+  if (profile?.onboarding_complete && isProfileStepComplete(profile) && hasPets) {
     return {
       profile,
       needsOnboarding: false,
@@ -50,7 +54,7 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
     };
   }
 
-  const profileComplete = hasDisplayNameAndBio(profile);
+  const profileComplete = isProfileStepComplete(profile);
 
   if (profileComplete && hasPets) {
     if (profile && !profile.onboarding_complete) {
@@ -85,6 +89,11 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
     hasPets,
     onboardingResumeStep: PET_TYPE_STEP,
   };
+}
+
+function syncProfileRowToQuery(profile: Profile | null) {
+  if (!profile) return;
+  queryClient.setQueryData(profileQueryKey(profile.id), profile);
 }
 
 type AuthState = {
@@ -136,6 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoggedIn: true,
           needsOnboarding: resolved.needsOnboarding,
         });
+        syncProfileRowToQuery(resolved.profile);
       }
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -149,7 +159,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isLoggedIn: true,
             needsOnboarding: resolved.needsOnboarding,
           });
+          syncProfileRowToQuery(resolved.profile);
         } else {
+          queryClient.clear();
           set({
             session: null,
             profile: null,
@@ -198,12 +210,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoggedIn: true,
         needsOnboarding: resolved.needsOnboarding,
       });
+      syncProfileRowToQuery(resolved.profile);
     }
   },
 
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    queryClient.clear();
     set({
       session: null,
       profile: null,
@@ -223,7 +237,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           onboardingResumeStep: null,
         };
       }
-      const profileComplete = hasDisplayNameAndBio(profile);
+      const profileComplete = isProfileStepComplete(profile);
       const done = profileComplete && s.hasPets;
       return {
         profile,
@@ -235,6 +249,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             : PET_TYPE_STEP,
       };
     });
+    queryClient.setQueryData(profileQueryKey(profile.id), profile);
   },
 
   completeOnboarding: async () => {
@@ -255,5 +270,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       hasPets: true,
       onboardingResumeStep: null,
     });
+    if (data) {
+      queryClient.setQueryData(profileQueryKey(data.id), data);
+    }
   },
 }));

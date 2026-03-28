@@ -1,6 +1,8 @@
 import type { Pet } from "@/types/database";
 
-export function formatPetAgeDisplay(pet: Pick<Pet, "age" | "age_months">): string {
+export function formatPetAgeDisplay(
+  pet: Pick<Pet, "age" | "age_months">,
+): string {
   const y = pet.age ?? 0;
   const m = pet.age_months;
   if (m != null && m > 0) return `${y} yr ${m} mo`;
@@ -44,4 +46,14 @@ export function formatDateOfBirth(iso: string | null): string | null {
     day: "numeric",
     year: "numeric",
   });
+}
+
+/** Short label for stat chips, e.g. "Apr '21". */
+export function formatBirthdayChip(iso: string | null): string {
+  if (!iso?.trim()) return "—";
+  const d = new Date(`${iso.trim()}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "—";
+  const mon = d.toLocaleDateString("en-US", { month: "short" });
+  const yr = String(d.getFullYear()).slice(-2);
+  return `${mon} '${yr}`;
 }

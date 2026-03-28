@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type { Medication } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -13,6 +14,13 @@ export default function MedicationCard({
   onPress,
 }: MedicationCardProps) {
   const isComplete = medication.current >= medication.total;
+  const subline = [
+    medication.frequency,
+    medication.condition,
+    medication.dosageDesc,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <TouchableOpacity
@@ -21,29 +29,23 @@ export default function MedicationCard({
       onPress={onPress}
     >
       <View
-        style={[
-          styles.iconCircle,
-          { backgroundColor: medication.iconBg },
-        ]}
+        style={[styles.iconSquare, { backgroundColor: medication.iconBg }]}
       >
         <MaterialCommunityIcons
           name="pill"
-          size={20}
+          size={22}
           color={medication.iconColor}
         />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.name}>
-          {medication.name}{" "}
-          <Text style={styles.frequency}>({medication.frequency})</Text>
-        </Text>
-        <Text style={styles.details}>
-          {medication.condition} · {medication.dosageDesc}
+        <Text style={styles.name}>{medication.name}</Text>
+        <Text style={styles.details} numberOfLines={2}>
+          {subline}
         </Text>
         {medication.lastTaken && (
           <Text style={styles.lastTaken}>
-            (Last taken on {medication.lastTaken})
+            Last taken {medication.lastTaken}
           </Text>
         )}
       </View>
@@ -66,15 +68,15 @@ export default function MedicationCard({
   );
 }
 
-const ICON_SIZE = 38;
+const ICON = 44;
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 20,
+    padding: 14,
     gap: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,
@@ -84,10 +86,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.successLight,
     borderColor: Colors.successLight,
   },
-  iconCircle: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: ICON_SIZE / 2,
+  iconSquare: {
+    width: ICON,
+    height: ICON,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -96,21 +98,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   name: {
-    fontFamily: "InstrumentSans-SemiBold",
-    fontSize: 15,
+    fontFamily: Font.uiBold,
+    fontSize: 16,
     color: Colors.textPrimary,
   },
-  frequency: {
-    fontFamily: "InstrumentSans-Regular",
-    color: Colors.textSecondary,
-  },
   details: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 12,
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
     color: Colors.textSecondary,
+    lineHeight: 18,
   },
   lastTaken: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 11,
     color: Colors.gray400,
     marginTop: 2,
@@ -121,18 +120,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   badge: {
-    backgroundColor: Colors.gray100,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: Colors.orangeLight,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   badgeComplete: {
     backgroundColor: Colors.success,
   },
   badgeText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 13,
-    color: Colors.textPrimary,
+    color: Colors.orangeDark,
   },
   badgeTextComplete: {
     color: Colors.white,

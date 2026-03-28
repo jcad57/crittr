@@ -1,5 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
 import type { PetType } from "@/types/database";
@@ -27,8 +28,9 @@ const PET_TYPES: {
 ];
 
 export default function PetTypeStep() {
-  const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
+  const { pets, currentPetIndex, updateCurrentPet, nextStep } =
     useOnboardingStore();
+  const handleBack = usePetFlowExitOnBack();
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const pet = pets[currentPetIndex];
 
@@ -90,7 +92,7 @@ export default function PetTypeStep() {
         Continue
       </OrangeButton>
 
-      <TouchableOpacity onPress={prevStep} style={styles.backButton}>
+      <TouchableOpacity onPress={handleBack} style={styles.backButton}>
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
     </View>

@@ -1,105 +1,54 @@
 import { supabase } from "@/lib/supabase";
-import type { Pet, PetWithDetails } from "@/types/database";
+import type { Pet } from "@/types/database";
 import { create } from "zustand";
 
 type PetState = {
-  pets: Pet[];
   activePetId: string | null;
-  activePetDetails: PetWithDetails | null;
-  isLoading: boolean;
 
-  fetchPets: () => Promise<void>;
-  fetchActivePetDetails: () => Promise<void>;
-  fetchPetProfile: (id: string) => Promise<PetWithDetails | null>;
+  /** Set active pet locally and persist to Supabase. */
   setActivePet: (id: string) => void;
+  /** Derive the active pet id from a fresh pets list (e.g. after query loads). */
+  initActivePetFromList: (pets: Pet[]) => void;
   clear: () => void;
 };
 
-async function loadPetDetails(id: string): Promise<PetWithDetails | null> {
-  try {
-    const { data: pet, error: petError } = await supabase
-      .from("pets")
-      .select("*")
-      .eq("id", id)
-      .single();
+async function persistActivePetInDb(petId: string): Promise<void> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
 
-    if (petError || !pet) return null;
-
-    const [foodsRes, medsRes, exerciseRes] = await Promise.all([
-      supabase.from("pet_foods").select("*").eq("pet_id", id),
-      supabase.from("pet_medications").select("*").eq("pet_id", id),
-      supabase
-        .from("pet_exercises")
-        .select("*")
-        .eq("pet_id", id)
-        .maybeSingle(),
-    ]);
-
-    return {
-      ...pet,
-      foods: foodsRes.data ?? [],
-      medications: medsRes.data ?? [],
-      exercise: exerciseRes.data ?? null,
-    } as PetWithDetails;
-  } catch (error) {
-    console.error("Failed to fetch pet details:", error);
-    return null;
+  const ownerId = session.user.id;
+  const { error: clearErr } = await supabase
+    .from("pets")
+    .update({ is_active: false })
+    .eq("owner_id", ownerId);
+  if (clearErr) {
+    console.warn("persistActivePetInDb (clear):", clearErr.message);
+    return;
   }
+  const { error: setErr } = await supabase
+    .from("pets")
+    .update({ is_active: true })
+    .eq("id", petId)
+    .eq("owner_id", ownerId);
+  if (setErr) console.warn("persistActivePetInDb (set):", setErr.message);
 }
 
 export const usePetStore = create<PetState>((set, get) => ({
-  pets: [],
   activePetId: null,
-  activePetDetails: null,
-  isLoading: false,
 
-  fetchPets: async () => {
-    set({ isLoading: true });
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data, error } = await supabase
-        .from("pets")
-        .select("*")
-        .eq("owner_id", session.user.id)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-
-      const pets = data ?? [];
-      const active = pets.find((p) => p.is_active) ?? pets[0];
-      const activePetId = active?.id ?? null;
-
-      let activePetDetails: PetWithDetails | null = null;
-      if (activePetId) {
-        activePetDetails = await loadPetDetails(activePetId);
-      }
-
-      set({ pets, activePetId, activePetDetails });
-    } catch (error) {
-      console.error("Failed to fetch pets:", error);
-    } finally {
-      set({ isLoading: false });
-    }
+  setActivePet: (id) => {
+    set({ activePetId: id });
+    void persistActivePetInDb(id);
   },
 
-  fetchActivePetDetails: async () => {
-    const { activePetId, activePetDetails } = get();
-    if (!activePetId) {
-      set({ activePetDetails: null });
-      return;
-    }
-    if (activePetDetails?.id === activePetId) return;
-    const details = await loadPetDetails(activePetId);
-    set({ activePetDetails: details });
+  initActivePetFromList: (pets) => {
+    const { activePetId } = get();
+    if (activePetId && pets.some((p) => p.id === activePetId)) return;
+    const active = pets.find((p) => p.is_active) ?? pets[0];
+    set({ activePetId: active?.id ?? null });
   },
 
-  fetchPetProfile: async (id) => loadPetDetails(id),
-
-  setActivePet: (id) => set({ activePetId: id, activePetDetails: null }),
-
-  clear: () => set({ pets: [], activePetId: null, activePetDetails: null }),
+  clear: () => set({ activePetId: null }),
 }));

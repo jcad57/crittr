@@ -1,19 +1,22 @@
+import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+function greetingLine(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 type DashboardHeaderProps = {
   pets: Pet[];
   activePetId: string | null;
   onSwitchPet: (id: string) => void;
+  onAddPet?: () => void;
   onNotificationsPress?: () => void;
   onProfilePress?: () => void;
 };
@@ -22,141 +25,139 @@ export default function DashboardHeader({
   pets,
   activePetId,
   onSwitchPet,
+  onAddPet,
   onNotificationsPress,
   onProfilePress,
 }: DashboardHeaderProps) {
-  const router = useRouter();
-
-  const handlePetPress = (pet: Pet) => {
-    console.log(pet);
-  };
+  const { greeting, dateLine } = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const dateLine = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return { greeting: greetingLine(hour), dateLine };
+  }, []);
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.avatarRow}
-      >
-        {pets.map((pet) => {
-          const isActive = pet.id === activePetId;
-          return (
-            <TouchableOpacity
-              key={pet.id}
-              style={styles.avatarWrapper}
-              activeOpacity={0.75}
-              onPress={() => handlePetPress(pet)}
-            >
-              <View style={[styles.avatar, !isActive && styles.avatarInactive]}>
-                <Text
-                  style={[
-                    styles.avatarText,
-                    !isActive && styles.avatarTextInactive,
-                  ]}
-                >
-                  {pet.name[0]}
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.avatarLabel,
-                  isActive && styles.avatarLabelActive,
-                ]}
-                numberOfLines={1}
-              >
-                {pet.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.topRow}>
+        <View style={styles.greetingColumn}>
+          <View style={styles.greetingTitleRow}>
+            <Text style={styles.greeting}>{greeting}</Text>
+          </View>
+          <Text style={styles.date}>{dateLine}</Text>
+        </View>
+        <View style={styles.rightIcons}>
+          <TouchableOpacity
+            style={styles.circleButton}
+            onPress={onNotificationsPress}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name="bell-outline"
+              size={22}
+              color={Colors.gray800}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.circleButton}
+            onPress={onProfilePress}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name="account-circle-outline"
+              size={24}
+              color={Colors.gray800}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-      <View style={styles.rightIcons}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={onNotificationsPress}
-          hitSlop={8}
-        >
-          <MaterialCommunityIcons
-            name="bell-outline"
-            size={24}
-            color={Colors.gray800}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={onProfilePress}
-          hitSlop={8}
-        >
-          <MaterialCommunityIcons
-            name="account-circle-outline"
-            size={26}
-            color={Colors.gray800}
-          />
-        </TouchableOpacity>
+      <View style={styles.pillBlock}>
+        <PetPillSwitcher
+          pets={pets}
+          activePetId={activePetId}
+          onSwitchPet={onSwitchPet}
+        />
       </View>
     </View>
   );
 }
 
-const AVATAR_SIZE = 46;
-
 const styles = StyleSheet.create({
   container: {
+    paddingBottom: 14,
+  },
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
+    alignItems: "flex-start",
   },
-  avatarRow: {
+  /** Greeting + date stacked tight; avoids row height following the 40px icon buttons. */
+  greetingColumn: {
+    flex: 1,
+    paddingRight: 8,
+    gap: 2,
+  },
+  greetingTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingRight: 8,
-  },
-  avatarWrapper: {
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: 4,
   },
-  avatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: Colors.amberLight,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.orange,
+  greeting: {
+    fontFamily: Font.displayBold,
+    fontSize: 26,
+    lineHeight: 30,
+    color: Colors.textPrimary,
+    letterSpacing: -0.3,
   },
-  avatarInactive: {
-    backgroundColor: Colors.gray100,
-    borderColor: Colors.gray300,
-    opacity: 0.55,
+  pawIcon: {
+    marginRight: -2,
   },
-  avatarText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 20,
-    color: Colors.orange,
-  },
-  avatarTextInactive: {
-    color: Colors.gray400,
-  },
-  avatarLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 11,
+  date: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    lineHeight: 18,
     color: Colors.textSecondary,
-    maxWidth: AVATAR_SIZE + 8,
-  },
-  avatarLabelActive: {
-    fontFamily: "InstrumentSans-Bold",
-    color: Colors.orange,
+    marginTop: 0,
+    marginBottom: 10,
   },
   rightIcons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 10,
   },
-  iconButton: {
-    padding: 4,
+  circleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillBlock: {
+    marginTop: 8,
+  },
+  addPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: Colors.gray300,
+    backgroundColor: "transparent",
+  },
+  addPillText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.gray500,
   },
 });

@@ -23,13 +23,14 @@ export default function WelcomeContent() {
             Crittr is a platform that helps you track your pet's health and
             activities.
           </Text>
-          <OrangeButton onPress={() => router.push("/(auth)/(onboarding)")}>
+          <OrangeButton
+            style={styles.ctaButton}
+            onPress={() => router.push("/(auth)/(onboarding)")}
+          >
             Create Account
           </OrangeButton>
           <Link href="/(auth)/sign-in" asChild>
-            <Pressable
-              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-            >
+            <Pressable style={styles.signInRow}>
               <Text style={styles.signInLink}>I already have an account! </Text>
               <Text style={styles.signInLinkBold}>Sign In</Text>
             </Pressable>
@@ -45,10 +46,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "center",
-    gap: 16,
     width: "100%",
-    paddingBottom: 16,
     paddingHorizontal: 8,
+    paddingBottom: 32,
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
@@ -58,12 +58,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
     textAlign: "center",
     color: Colors.textPrimary,
+    marginBottom: 8,
   },
   subheadline: {
     fontFamily: "InstrumentSans-Regular",
     fontSize: 18,
     textAlign: "center",
     color: Colors.textSecondary,
+    marginBottom: 40,
+  },
+  ctaButton: {
+    marginBottom: 22,
+  },
+  signInRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   signInLink: {
     fontFamily: "InstrumentSans-Regular",

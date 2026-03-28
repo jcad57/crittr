@@ -20,23 +20,37 @@ export default function FormInput({
   containerStyle,
   style,
   error,
+  multiline,
   ...rest
 }: FormInputProps) {
+  const isMultiline = Boolean(multiline);
+
   return (
     <View
-      style={[styles.container, error && styles.containerError, containerStyle]}
+      style={[
+        styles.container,
+        isMultiline && styles.containerMultiline,
+        error && styles.containerError,
+        containerStyle,
+      ]}
     >
       {icon && (
         <MaterialCommunityIcons
           name={icon}
           size={20}
           color={error ? Colors.error : Colors.gray400}
-          style={styles.icon}
+          style={[styles.icon, isMultiline && styles.iconMultiline]}
         />
       )}
       <TextInput
-        style={[styles.input, icon && styles.inputWithIcon, style]}
+        style={[
+          styles.input,
+          icon && styles.inputWithIcon,
+          isMultiline && styles.inputMultiline,
+          style,
+        ]}
         placeholderTextColor={error ? Colors.error : Colors.gray400}
+        multiline={multiline}
         {...rest}
       />
     </View>
@@ -53,11 +67,22 @@ const styles = StyleSheet.create({
     height: 50,
     paddingHorizontal: 16,
   },
+  /** Taller field with icon pinned to top so placeholder/text align with phone row. */
+  containerMultiline: {
+    minHeight: 88,
+    height: undefined,
+    alignItems: "flex-start",
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   containerError: {
     borderColor: Colors.error,
   },
   icon: {
     marginRight: 10,
+  },
+  iconMultiline: {
+    marginTop: 2,
   },
   input: {
     flex: 1,
@@ -68,5 +93,12 @@ const styles = StyleSheet.create({
   },
   inputWithIcon: {
     paddingLeft: 0,
+  },
+  inputMultiline: {
+    minHeight: 64,
+    height: undefined,
+    paddingTop: 0,
+    paddingBottom: 0,
+    textAlignVertical: "top",
   },
 });

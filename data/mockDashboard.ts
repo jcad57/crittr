@@ -43,6 +43,13 @@ export type PetProfile = Pet & {
   allergies: string[];
   isMicrochipped: boolean | null;
   microchipLabel: string;
+  microchipNumber?: string | null;
+  primaryVetClinic?: string | null;
+  primaryVetAddress?: string | null;
+  primaryVetName?: string | null;
+  isInsured?: boolean | null;
+  insuranceProvider?: string | null;
+  isSterilized?: boolean | null;
   exercisesPerDay: number | null;
   about: string;
   feeding: FeedingSchedule;
@@ -94,6 +101,8 @@ export type Medication = {
   lastTaken?: string;
   iconBg: string;
   iconColor: string;
+  /** Profile card badge (mock when not from server) */
+  profileStatus?: "due_today" | "up_to_date";
 };
 
 export type VetVisit = {
@@ -102,6 +111,10 @@ export type VetVisit = {
   date: string;
   time: string;
   accentColor: string;
+  /** Secondary line, e.g. “Annual exam due soon” */
+  subtitle?: string;
+  /** Short status chip, e.g. “Apr” or “0/1” */
+  badgeLabel?: string;
 };
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
@@ -238,10 +251,12 @@ export const MOCK_MEDICATIONS: Medication[] = [
 export const MOCK_VET_VISITS: VetVisit[] = [
   {
     id: "vet-1",
-    title: "Annual Checkup",
-    date: "October 22, 2025",
-    time: "1pm - 2pm",
+    title: "Vet Check-up",
+    date: "April 12, 2026",
+    time: "10:00 AM",
     accentColor: Colors.orange,
+    subtitle: "Annual exam due soon",
+    badgeLabel: "Apr",
   },
   {
     id: "vet-2",
@@ -249,6 +264,8 @@ export const MOCK_VET_VISITS: VetVisit[] = [
     date: "October 28, 2025",
     time: "1pm - 2pm",
     accentColor: Colors.coral,
+    subtitle: "Follow-up",
+    badgeLabel: "Oct",
   },
 ];
 
@@ -325,7 +342,8 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
           isTreat: false,
         },
       ],
-      notes: "Active breed — monitor weight closely. No food 1hr before exercise.",
+      notes:
+        "Active breed — monitor weight closely. No food 1hr before exercise.",
     },
     medications: [
       {

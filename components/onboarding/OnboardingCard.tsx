@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -14,6 +15,7 @@ export default function OnboardingCard({
   scrollKey,
 }: OnboardingCardProps) {
   const insets = useSafeAreaInsets();
+  const scrollInsetBottom = useFloatingNavScrollInset();
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function OnboardingCard({
             flexGrow: 1,
             justifyContent: "center",
             paddingTop: insets.top + 16,
-            paddingBottom: insets.bottom + 16,
+            paddingBottom: scrollInsetBottom,
           },
         ]}
         showsVerticalScrollIndicator={false}

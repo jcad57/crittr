@@ -63,7 +63,7 @@ export default function PetCareStep() {
       portionSize: foodPortion,
       portionUnit: foodUnit,
       mealsPerDay: "",
-      isTreat: false,
+      isTreat: foodUnit === "Piece(s)",
     };
     updateCurrentPet({ foods: [...pet.foods, entry] });
     setFoodBrand("");

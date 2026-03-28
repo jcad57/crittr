@@ -17,8 +17,16 @@ export const ONBOARDING_STEPS = [
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
+/** `onboarding` = full signup flow; `add-pet` = logged-in user adding a pet (reuses pet steps). */
+export type PetFlowMode = "onboarding" | "add-pet";
+
+/** Index of `"pet-type"` in `ONBOARDING_STEPS` (shared by add-pet flow). */
+export const PET_TYPE_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-type");
+
 type OnboardingState = {
   currentStep: number;
+  /** When `add-pet`, only pet-type → finish steps are used; signup/profile are skipped. */
+  petFlowMode: PetFlowMode;
   accountData: AccountFormData;
   profileData: ProfileFormData;
   pets: PetFormData[];
@@ -27,6 +35,8 @@ type OnboardingState = {
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (step: number) => void;
+  /** Begin add-pet flow: fresh pet form, jump to pet type step. */
+  startAddPetFlow: () => void;
   setAccountData: (data: Partial<AccountFormData>) => void;
   setProfileData: (data: Partial<ProfileFormData>) => void;
   updateCurrentPet: (data: Partial<PetFormData>) => void;
@@ -45,13 +55,15 @@ const INITIAL_ACCOUNT: AccountFormData = {
 };
 
 const INITIAL_PROFILE: ProfileFormData = {
-  displayName: "",
   bio: "",
+  homeAddress: "",
+  phoneNumber: "",
   avatarUri: null,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   currentStep: 0,
+  petFlowMode: "onboarding",
   accountData: { ...INITIAL_ACCOUNT },
   profileData: { ...INITIAL_PROFILE },
   pets: [{ ...EMPTY_PET_FORM }],
@@ -60,6 +72,14 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   nextStep: () => set((s) => ({ currentStep: s.currentStep + 1 })),
   prevStep: () => set((s) => ({ currentStep: Math.max(0, s.currentStep - 1) })),
   goToStep: (step) => set({ currentStep: step }),
+
+  startAddPetFlow: () =>
+    set({
+      petFlowMode: "add-pet",
+      currentStep: PET_TYPE_STEP_INDEX,
+      pets: [{ ...EMPTY_PET_FORM }],
+      currentPetIndex: 0,
+    }),
 
   setAccountData: (data) =>
     set((s) => ({ accountData: { ...s.accountData, ...data } })),
@@ -98,6 +118,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   reset: () =>
     set({
       currentStep: 0,
+      petFlowMode: "onboarding",
       accountData: { ...INITIAL_ACCOUNT },
       profileData: { ...INITIAL_PROFILE },
       pets: [{ ...EMPTY_PET_FORM }],

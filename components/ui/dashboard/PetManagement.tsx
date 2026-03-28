@@ -3,22 +3,17 @@ import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import PetCard from "./PetCard";
-import SectionHeader from "./SectionHeader";
+import SectionLabel from "./SectionLabel";
 
 type PetManagementProps = {
   pets: Pet[];
-  onMorePress?: () => void;
   onAddPet?: () => void;
 };
 
-export default function PetManagement({
-  pets,
-  onMorePress,
-  onAddPet,
-}: PetManagementProps) {
+export default function PetManagement({ pets, onAddPet }: PetManagementProps) {
   return (
     <View style={styles.container}>
-      <SectionHeader title="Pets" onMorePress={onMorePress} />
+      <SectionLabel>My pets</SectionLabel>
       <View style={styles.row}>
         {pets.map((pet) => (
           <PetCard key={pet.id} pet={pet} />
