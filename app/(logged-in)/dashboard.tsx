@@ -11,9 +11,17 @@ import type {
   Medication,
   Pet,
 } from "@/data/mockDashboard";
-import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
+import {
+  usePetDetailsQuery,
+  usePetsQuery,
+  useTodayActivitiesQuery,
+} from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { isTreatFood, treatDailyTarget } from "@/lib/petFood";
+import {
+  buildMedicationDosageProgress,
+  sumMedicationDoseProgress,
+} from "@/lib/medicationDosageProgress";
+import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
@@ -26,14 +34,15 @@ export default function Dashboard() {
   const router = useRouter();
 
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
-  const { activePetId, setActivePet, initActivePetFromList } = usePetStore();
+  const { activePetId, setActivePet } = usePetStore();
 
   useEffect(() => {
-    if (dbPets?.length) initActivePetFromList(dbPets);
-  }, [dbPets, initActivePetFromList]);
+    if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
+  }, [dbPets]);
 
   const { data: activePetDetails, isLoading: isDetailsLoading } =
     usePetDetailsQuery(activePetId);
+  const { data: todayActivities } = useTodayActivitiesQuery(activePetId);
 
   const pets: Pet[] = useMemo(
     () =>
@@ -48,25 +57,45 @@ export default function Dashboard() {
 
   const dailyProgress: DailyProgressCategory[] = useMemo(() => {
     const details = activePetDetails ?? null;
+    const acts = todayActivities ?? [];
+
     const totalMeals = details
       ? details.foods
           .filter((f) => !isTreatFood(f))
-          .reduce((sum, f) => sum + (f.meals_per_day ?? 1), 0)
+          .reduce((sum, f) => sum + feedingTimesPerDayTarget(f), 0)
       : 0;
     const totalTreats = details
-      ? details.foods.reduce((sum, f) => sum + treatDailyTarget(f), 0)
+      ? details.foods
+          .filter((f) => isTreatFood(f))
+          .reduce((sum, f) => sum + feedingTimesPerDayTarget(f), 0)
       : 0;
     const totalExercise =
       details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
-    const totalMeds = details ? details.medications.length : 0;
-    const hasMeds = totalMeds > 0;
+    const medPetId = activePetDetails?.id ?? activePetId ?? "";
+    const medProgress =
+      details && medPetId
+        ? sumMedicationDoseProgress(details.medications, acts, medPetId)
+        : { fulfilled: 0, expected: 0 };
+    const currentMeds = medProgress.fulfilled;
+    const totalMedsRing = medProgress.expected;
+    const hasMeds = (details?.medications.length ?? 0) > 0;
+
+    const currentExercise = acts.filter(
+      (a) => a.activity_type === "exercise",
+    ).length;
+    const currentMeals = acts.filter(
+      (a) => a.activity_type === "food" && !a.is_treat,
+    ).length;
+    const currentTreats = acts.filter(
+      (a) => a.activity_type === "food" && a.is_treat,
+    ).length;
 
     return [
       {
         id: "exercise",
         label: "Exercise",
         icon: "run",
-        current: 0,
+        current: currentExercise,
         total: totalExercise,
         ringColor: Colors.progressExercise,
         trackColor: Colors.progressExerciseTrack,
@@ -75,7 +104,7 @@ export default function Dashboard() {
         id: "meals",
         label: "Meals",
         icon: "food-drumstick",
-        current: 0,
+        current: currentMeals,
         total: totalMeals,
         ringColor: Colors.progressMeals,
         trackColor: Colors.progressMealsTrack,
@@ -84,7 +113,7 @@ export default function Dashboard() {
         id: "treats",
         label: "Treats",
         icon: "bone",
-        current: 0,
+        current: currentTreats,
         total: totalTreats,
         ringColor: Colors.progressTreats,
         trackColor: Colors.progressTreatsTrack,
@@ -93,36 +122,41 @@ export default function Dashboard() {
         id: "meds",
         label: "Meds",
         icon: "pill",
-        current: 0,
-        total: hasMeds ? totalMeds : 0,
+        current: currentMeds,
+        total: hasMeds ? totalMedsRing : 0,
         ringColor: Colors.progressMeds,
         trackColor: Colors.progressMedsTrack,
       },
     ];
-  }, [activePetDetails]);
+  }, [activePetDetails, todayActivities, activePetId]);
 
   const medications: Medication[] = useMemo(() => {
-    if (!activePetDetails) return [];
-    return activePetDetails.medications.map((m) => ({
-      id: m.id,
-      name: m.name,
-      frequency: m.frequency ?? "Daily",
-      condition: m.condition ?? "",
-      dosageDesc: m.dosage ?? "",
-      current: 0,
-      total: 1,
-      iconBg: Colors.amberLight,
-      iconColor: Colors.amberDark,
-    }));
-  }, [activePetDetails]);
-
-  const todayStr = useMemo(() => {
-    return new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
+    if (!activePetDetails || !activePetId) return [];
+    const acts = todayActivities ?? [];
+    return activePetDetails.medications.map((m) => {
+      const prog = buildMedicationDosageProgress(m, acts, activePetId);
+      return {
+        id: m.id,
+        name: m.name,
+        frequency: m.frequency ?? "Daily",
+        condition: m.condition ?? "",
+        dosageDesc: m.dosage ?? "",
+        current: prog.current,
+        total: prog.total,
+        lastTaken: prog.lastTaken,
+        iconBg: Colors.amberLight,
+        iconColor: Colors.amberDark,
+      };
     });
-  }, []);
+  }, [activePetDetails, activePetId, todayActivities]);
+
+  const navigateToAddActivity = useCallback(() => {
+    router.push("/(logged-in)/add-activity");
+  }, [router]);
+
+  const navigateToActivity = useCallback(() => {
+    router.push("/(logged-in)/activity");
+  }, [router]);
 
   const handleSwitchPet = useCallback(
     (id: string) => {
@@ -146,9 +180,8 @@ export default function Dashboard() {
               pets={pets}
               activePetId={activePetId}
               onSwitchPet={handleSwitchPet}
-              onAddPet={() => router.push("/(logged-in)/add-pet")}
               onNotificationsPress={() => {}}
-              onProfilePress={() => router.push("/(logged-in)/(tabs)/profile")}
+              onProfilePress={() => router.push("/(logged-in)/profile")}
             />
           </View>
         </View>
@@ -185,9 +218,9 @@ export default function Dashboard() {
                 </View>
 
                 <ActivityFeed
-                  activities={[]}
-                  date={todayStr}
-                  onLogActivityPress={() => {}}
+                  activities={todayActivities ?? []}
+                  onLogActivityPress={navigateToAddActivity}
+                  onSeeAllPress={navigateToActivity}
                 />
 
                 <HealthSection

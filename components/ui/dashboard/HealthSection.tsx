@@ -24,7 +24,7 @@ export default function HealthSection({
 
   return (
     <View style={styles.container}>
-      <SectionLabel>Health</SectionLabel>
+      <SectionLabel>Current Medications</SectionLabel>
 
       {hasMeds ? (
         medications.map((med) => (
@@ -39,7 +39,9 @@ export default function HealthSection({
         </View>
       )}
 
-      <SectionLabel style={styles.visitsLabel}>Upcoming visits</SectionLabel>
+      <SectionLabel style={styles.visitsLabel}>
+        Upcoming vet visits
+      </SectionLabel>
       {hasVisits && primaryVisit ? (
         <>
           <UpcomingVisitFeatureCard visit={primaryVisit} />
@@ -48,10 +50,7 @@ export default function HealthSection({
           ))}
         </>
       ) : (
-        <UpcomingVisitFeatureCard
-          empty
-          onPress={onScheduleVisitPress}
-        />
+        <UpcomingVisitFeatureCard empty onPress={onScheduleVisitPress} />
       )}
     </View>
   );

@@ -7,7 +7,7 @@ import { Colors } from "@/constants/colors";
 import { useAuthStore } from "@/stores/authStore";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { Alert, Keyboard, Pressable, StyleSheet, Text } from "react-native";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -16,6 +16,7 @@ export default function SignIn() {
   const { signInWithEmail } = useAuthStore();
 
   const handleSignIn = async () => {
+    Keyboard.dismiss();
     try {
       await signInWithEmail(email, password);
       const { needsOnboarding } = useAuthStore.getState();

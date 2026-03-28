@@ -1,44 +1,21 @@
+import {
+  ACTIVITY_ROW_ICON_BOX,
+  ACTIVITY_ROW_ICON_IMG,
+  ACTIVITY_ROW_ICONS,
+} from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { ActivityCategory } from "@/data/mockDashboard";
 import type { ActivityHistoryEntry } from "@/data/activityHistory";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
-
-const ICONS: Record<
-  ActivityCategory,
-  { source: number; ring: string; track: string }
-> = {
-  exercise: {
-    source: require("@/assets/icons/walk-dog-icon.png"),
-    ring: Colors.progressExercise,
-    track: Colors.progressExerciseTrack,
-  },
-  meals: {
-    source: require("@/assets/icons/food-icon.png"),
-    ring: Colors.progressMeals,
-    track: Colors.progressMealsTrack,
-  },
-  treats: {
-    source: require("@/assets/icons/dog-bone-icon.png"),
-    ring: Colors.progressTreats,
-    track: Colors.progressTreatsTrack,
-  },
-  meds: {
-    source: require("@/assets/icons/medicine-icon.png"),
-    ring: Colors.progressMeds,
-    track: Colors.progressMedsTrack,
-  },
-};
 
 type Props = {
   entry: ActivityHistoryEntry;
 };
 
-const ICON_BOX = 48;
-
 export default function ActivityHistoryRow({ entry }: Props) {
-  const cfg = ICONS[entry.category];
+  const cfg = ACTIVITY_ROW_ICONS[entry.category];
 
   return (
     <View style={styles.card}>
@@ -51,24 +28,30 @@ export default function ActivityHistoryRow({ entry }: Props) {
       </View>
 
       <View style={styles.mid}>
-        <Text style={styles.title} numberOfLines={2}>
-          {entry.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={2}>
+            {entry.title}
+          </Text>
+          {entry.hasNotes ? (
+            <MaterialCommunityIcons
+              name="note-text-outline"
+              size={14}
+              color={Colors.gray400}
+              style={styles.noteIcon}
+              accessibilityLabel="Has notes"
+            />
+          ) : null}
+        </View>
         <Text style={styles.detail} numberOfLines={2}>
-          {entry.detailLine}
+          {entry.loggedByLine}
         </Text>
       </View>
 
       <View style={styles.right}>
-        <Text style={styles.primaryStat}>{entry.primaryStat}</Text>
-        <View style={styles.timeRow}>
-          <Text style={styles.time}>{entry.timeLabel}</Text>
-          {entry.medDone ? (
-            <View style={styles.donePill}>
-              <Text style={styles.doneText}>Done</Text>
-            </View>
-          ) : null}
-        </View>
+        {entry.primaryStat ? (
+          <Text style={styles.primaryStat}>{entry.primaryStat}</Text>
+        ) : null}
+        <Text style={styles.time}>{entry.timeLabel}</Text>
       </View>
     </View>
   );
@@ -92,25 +75,36 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   iconBox: {
-    width: ICON_BOX,
-    height: ICON_BOX,
+    width: ACTIVITY_ROW_ICON_BOX,
+    height: ACTIVITY_ROW_ICON_BOX,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   iconImg: {
-    width: 26,
-    height: 26,
+    width: ACTIVITY_ROW_ICON_IMG,
+    height: ACTIVITY_ROW_ICON_IMG,
   },
   mid: {
     flex: 1,
     minWidth: 0,
     gap: 4,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
   title: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: Font.uiSemiBold,
     fontSize: 15,
     color: Colors.textPrimary,
+  },
+  noteIcon: {
+    marginTop: 2,
+    flexShrink: 0,
   },
   detail: {
     fontFamily: Font.uiRegular,
@@ -128,25 +122,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textPrimary,
   },
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
   time: {
     fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.gray500,
-  },
-  donePill: {
-    backgroundColor: Colors.successLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  doneText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 10,
-    color: Colors.successDark,
   },
 });

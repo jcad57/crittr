@@ -1,5 +1,4 @@
 import { Colors } from "@/constants/colors";
-import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
@@ -15,6 +14,7 @@ type PetDateOfBirthFieldProps = {
   dateOfBirth: string;
   onChangeDate: (isoDate: string) => void;
   onClearDate: () => void;
+  error?: boolean;
 };
 
 /** YYYY-MM-DD in local calendar (avoids UTC shift from toISOString). */
@@ -29,6 +29,7 @@ export default function PetDateOfBirthField({
   dateOfBirth,
   onChangeDate,
   onClearDate,
+  error,
 }: PetDateOfBirthFieldProps) {
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -50,22 +51,23 @@ export default function PetDateOfBirthField({
   };
 
   return (
-    <View style={{ marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM }}>
+    <View>
       <TouchableOpacity
-        style={styles.datePickerButton}
+        style={[styles.datePickerButton, error && styles.datePickerButtonError]}
         onPress={() => setPickerVisible(true)}
         activeOpacity={0.7}
       >
         <MaterialCommunityIcons
           name="calendar"
           size={20}
-          color={Colors.gray400}
+          color={error ? Colors.error : Colors.gray400}
           style={styles.calendarIcon}
         />
         <Text
           style={[
             styles.datePickerText,
             !dateOfBirth && styles.datePickerPlaceholder,
+            error && !dateOfBirth && styles.datePickerPlaceholderError,
           ]}
         >
           {dateOfBirth
@@ -76,7 +78,7 @@ export default function PetDateOfBirthField({
                 day: "numeric",
                 year: "numeric",
               })
-            : "Date of Birth - Optional"}
+            : "Date of birth"}
         </Text>
       </TouchableOpacity>
 
@@ -113,6 +115,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 4,
   },
+  datePickerButtonError: {
+    borderColor: Colors.error,
+  },
   calendarIcon: {
     marginRight: 10,
   },
@@ -123,6 +128,9 @@ const styles = StyleSheet.create({
   },
   datePickerPlaceholder: {
     color: Colors.gray400,
+  },
+  datePickerPlaceholderError: {
+    color: Colors.error,
   },
   clearDateButton: {
     alignSelf: "flex-end",

@@ -15,7 +15,6 @@ export default function PetSterilizationToggle({
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>Spayed or neutered?</Text>
-      <Text style={styles.hint}>Optional</Text>
       <View style={styles.row}>
         <Pressable
           style={[styles.option, value === true && styles.optionActive]}
@@ -69,7 +68,7 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   hint: {
     fontFamily: "InstrumentSans-Regular",

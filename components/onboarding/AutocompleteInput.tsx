@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Keyboard,
   Platform,
@@ -24,6 +24,8 @@ type AutocompleteInputProps = {
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   containerStyle?: StyleProp<ViewStyle>;
   error?: boolean;
+  label?: string;
+  required?: boolean;
 };
 
 /**
@@ -40,9 +42,15 @@ export default function AutocompleteInput({
   icon,
   containerStyle,
   error,
+  label,
+  required,
 }: AutocompleteInputProps) {
   const [query, setQuery] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
 
   const filtered =
     query.trim().length > 0
@@ -76,13 +84,8 @@ export default function AutocompleteInput({
     [onChangeText, isOpen],
   );
 
-  return (
-    <View style={[styles.wrapper, containerStyle]}>
-      {showDropdown && (
-        <Pressable style={styles.backdrop} onPress={dismiss} />
-      )}
-
-      <View style={styles.inner}>
+  const inner = (
+    <View style={styles.inner}>
         <View
           style={[
             styles.inputContainer,
@@ -130,11 +133,42 @@ export default function AutocompleteInput({
           </View>
         )}
       </View>
+  );
+
+  const body = (
+    <View style={[styles.wrapper, !label && containerStyle]}>
+      {showDropdown && (
+        <Pressable style={styles.backdrop} onPress={dismiss} />
+      )}
+      {inner}
     </View>
   );
+
+  if (label) {
+    return (
+      <View style={containerStyle}>
+        <Text style={[styles.fieldLabel, error && styles.fieldLabelError]}>
+          {label}
+          {required ? " *" : ""}
+        </Text>
+        {body}
+      </View>
+    );
+  }
+
+  return body;
 }
 
 const styles = StyleSheet.create({
+  fieldLabel: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   wrapper: {
     position: "relative",
     zIndex: 100,

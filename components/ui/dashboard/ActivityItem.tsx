@@ -1,164 +1,181 @@
+import {
+  ACTIVITY_ROW_ICON_BOX,
+  ACTIVITY_ROW_ICON_IMG,
+  ACTIVITY_ROW_ICONS,
+} from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
-import type { ActivityCategory, TextSegment } from "@/data/mockDashboard";
-import { Image, ImageSource } from "expo-image";
-import { StyleSheet, Text, View } from "react-native";
+import { Font } from "@/constants/typography";
+import { displayCategory } from "@/data/activityHistory";
+import { formatMedicationDosageDisplay } from "@/lib/medicationDosageDisplay";
+import type { PetActivity } from "@/types/database";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-// ─── Category config (mirrors DailyProgress mapping) ─────────────────────────
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
-type CategoryConfig = {
-  icon: ImageSource;
-  iconBg: string;
-  iconTint: string;
-  label: string;
+function buildRightValue(a: PetActivity): string {
+  switch (a.activity_type) {
+    case "exercise": {
+      const h = a.duration_hours ?? 0;
+      const m = a.duration_minutes ?? 0;
+      if (h > 0 && m > 0) return `${h}h ${m} min`;
+      if (h > 0) return `${h}h`;
+      if (m > 0) return `${m} min`;
+      return "";
+    }
+    case "food":
+      return a.food_amount && a.food_unit
+        ? `${a.food_amount} ${a.food_unit.toLowerCase()}`
+        : "";
+    case "medication":
+      return formatMedicationDosageDisplay(a.med_amount, a.med_unit);
+    case "vet_visit":
+      return "";
+    default:
+      return "";
+  }
+}
+
+type Props = {
+  activity: PetActivity;
+  /** Resolved display name / "You" / "Unknown"; shown under the title. */
+  loggerName: string;
+  onPress?: () => void;
 };
 
-const CATEGORY_CONFIG: Record<ActivityCategory, CategoryConfig> = {
-  exercise: {
-    icon: require("@/assets/icons/walk-dog-icon.png"),
-    iconBg: Colors.progressExerciseTrack,
-    iconTint: Colors.progressExercise,
-    label: "Exercise",
-  },
-  meals: {
-    icon: require("@/assets/icons/food-icon.png"),
-    iconBg: Colors.progressMealsTrack,
-    iconTint: Colors.progressMeals,
-    label: "Meal",
-  },
-  treats: {
-    icon: require("@/assets/icons/dog-bone-icon.png"),
-    iconBg: Colors.progressTreatsTrack,
-    iconTint: Colors.progressTreats,
-    label: "Treat",
-  },
-  meds: {
-    icon: require("@/assets/icons/medicine-icon.png"),
-    iconBg: Colors.progressMedsTrack,
-    iconTint: Colors.progressMeds,
-    label: "Medication",
-  },
-};
+export default function ActivityItem({ activity, loggerName, onPress }: Props) {
+  const iconCfg = ACTIVITY_ROW_ICONS[displayCategory(activity)];
+  const rightVal = buildRightValue(activity);
+  const time = formatTime(activity.logged_at);
+  const hasNotes = !!activity.notes?.trim();
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-type ActivityItemProps = {
-  category: ActivityCategory;
-  segments: TextSegment[];
-  timeLabel: string;
-  loggedBy: string;
-};
-
-const ICON_SIZE = 44;
-
-export default function ActivityItem({
-  category,
-  segments,
-  timeLabel,
-  loggedBy,
-}: ActivityItemProps) {
-  const config = CATEGORY_CONFIG[category];
-
-  return (
-    <View style={styles.card}>
-      {/* Category icon */}
-      <View
-        style={[styles.iconCircle, { backgroundColor: config.iconBg }]}
-      >
+  const row = (
+    <>
+      <View style={[styles.iconBox, { backgroundColor: iconCfg.track }]}>
         <Image
-          source={config.icon}
-          style={styles.icon}
-          tintColor={config.iconTint}
+          source={iconCfg.source}
+          style={styles.iconImg}
+          tintColor={iconCfg.ring}
         />
       </View>
 
-      {/* Text block */}
       <View style={styles.body}>
-        <Text style={styles.description} numberOfLines={2}>
-          {loggedBy}{" "}
-          {segments.map((seg, i) => (
-            <Text key={i} style={seg.bold ? styles.bold : undefined}>
-              {seg.text}
-            </Text>
-          ))}
-        </Text>
-        <View style={styles.meta}>
-          <Text style={styles.metaText}>{config.label}</Text>
-          <Text style={styles.metaDivider}>·</Text>
-          <Text style={styles.metaText}>{timeLabel}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.label} numberOfLines={1}>
+            {activity.label}
+          </Text>
+          {hasNotes && (
+            <MaterialCommunityIcons
+              name="note-text-outline"
+              size={14}
+              color={Colors.gray400}
+              style={styles.noteIcon}
+            />
+          )}
         </View>
+        {loggerName ? (
+          <Text style={styles.subline} numberOfLines={1}>
+            {loggerName}
+          </Text>
+        ) : null}
       </View>
-    </View>
-  );
-}
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+      <View style={styles.right}>
+        {rightVal ? (
+          <Text style={styles.rightValue}>{rightVal}</Text>
+        ) : null}
+        <Text style={styles.timeLabel}>{time}</Text>
+      </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${activity.label}, edit activity`}
+      >
+        {row}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.card}>{row}</View>;
+}
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     backgroundColor: Colors.white,
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Colors.gray100,
-    // Subtle drop shadow
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
-  iconCircle: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: ICON_SIZE / 2,
+  cardPressed: {
+    opacity: 0.92,
+  },
+  iconBox: {
+    width: ACTIVITY_ROW_ICON_BOX,
+    height: ACTIVITY_ROW_ICON_BOX,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
-  icon: {
-    width: 24,
-    height: 24,
+  iconImg: {
+    width: ACTIVITY_ROW_ICON_IMG,
+    height: ACTIVITY_ROW_ICON_IMG,
   },
   body: {
     flex: 1,
-    gap: 4,
+    gap: 2,
+    minWidth: 0,
   },
-  description: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 19,
-  },
-  bold: {
-    fontFamily: "InstrumentSans-Bold",
-  },
-  meta: {
+  titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
   },
-  categoryDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+  label: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    flexShrink: 1,
   },
-  metaText: {
-    fontFamily: "InstrumentSans-Regular",
+  noteIcon: {
+    marginTop: 1,
+  },
+  subline: {
+    fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  metaDivider: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 12,
-    color: Colors.gray300,
+  right: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+    gap: 2,
   },
-  loggedBy: {
-    fontFamily: "InstrumentSans-SemiBold",
+  rightValue: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  timeLabel: {
+    fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.textSecondary,
   },

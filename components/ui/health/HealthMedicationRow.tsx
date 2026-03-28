@@ -10,6 +10,10 @@ type Props = {
   item: MedicationWithPet;
   isLast?: boolean;
   onPress: () => void;
+  /** Today's dose progress, e.g. "2/2". When set, badge reflects completion vs traffic. */
+  dosageLabel?: string;
+  /** True when today's required doses are logged (only with dosageLabel). */
+  dosageComplete?: boolean;
 };
 
 function formatSubline(m: MedicationWithPet): string {
@@ -23,8 +27,20 @@ export default function HealthMedicationRow({
   item,
   isLast,
   onPress,
+  dosageLabel,
+  dosageComplete,
 }: Props) {
   const t = medicationTraffic(item);
+  const useDosageBadge =
+    dosageLabel != null &&
+    dosageLabel.length > 0 &&
+    dosageComplete !== undefined;
+  const badgeKind = useDosageBadge
+    ? dosageComplete
+      ? ("current" as const)
+      : ("due_today" as const)
+    : t.kind;
+  const badgeLabel = useDosageBadge ? dosageLabel : t.label;
   return (
     <Pressable
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -41,7 +57,7 @@ export default function HealthMedicationRow({
           {formatSubline(item)}
         </Text>
       </View>
-      <HealthTrafficBadge kind={t.kind} label={t.label} />
+      <HealthTrafficBadge kind={badgeKind} label={badgeLabel} />
       <MaterialCommunityIcons
         name="chevron-right"
         size={22}

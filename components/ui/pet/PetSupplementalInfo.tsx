@@ -6,7 +6,9 @@ type PetSupplementalInfoProps = {
   profile: PetProfile;
 };
 
-export default function PetSupplementalInfo({ profile }: PetSupplementalInfoProps) {
+export default function PetSupplementalInfo({
+  profile,
+}: PetSupplementalInfoProps) {
   const rows: { label: string; value: string }[] = [];
 
   if (profile.dateOfBirthFormatted) {
@@ -18,7 +20,7 @@ export default function PetSupplementalInfo({ profile }: PetSupplementalInfoProp
 
   if (profile.exercisesPerDay != null) {
     rows.push({
-      label: "Exercises per day",
+      label: "Activities per day",
       value: String(profile.exercisesPerDay),
     });
   }

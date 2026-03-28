@@ -1,27 +1,34 @@
 import FormInput from "@/components/onboarding/FormInput";
+import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
 import { Colors } from "@/constants/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { StyleSheet, Text, View } from "react-native";
 
-type PetAgeFieldsProps = {
+type PetAgeOrDobSectionProps = {
   ageYears: string;
   ageMonths: string;
+  dateOfBirth: string;
   onAgeYearsChange: (v: string) => void;
   onAgeMonthsChange: (v: string) => void;
-  ageYearsError: boolean;
+  onChangeDate: (iso: string) => void;
+  onClearDate: () => void;
+  ageOrDobError: boolean;
 };
 
-export default function PetAgeFields({
+export default function PetAgeOrDobSection({
   ageYears,
   ageMonths,
+  dateOfBirth,
   onAgeYearsChange,
   onAgeMonthsChange,
-  ageYearsError,
-}: PetAgeFieldsProps) {
+  onChangeDate,
+  onClearDate,
+  ageOrDobError,
+}: PetAgeOrDobSectionProps) {
   return (
-    <>
+    <View style={styles.section}>
       <Text
-        style={[styles.fieldLabel, ageYearsError && styles.fieldLabelError]}
+        style={[styles.fieldLabel, ageOrDobError && styles.fieldLabelError]}
       >
         Age *
       </Text>
@@ -32,21 +39,33 @@ export default function PetAgeFields({
           onChangeText={onAgeYearsChange}
           keyboardType="numeric"
           containerStyle={styles.halfInput}
-          error={ageYearsError}
+          error={ageOrDobError}
         />
+
         <FormInput
           placeholder="Months"
           value={ageMonths}
           onChangeText={onAgeMonthsChange}
           keyboardType="numeric"
           containerStyle={styles.halfInput}
+          error={ageOrDobError}
         />
       </View>
-    </>
+      <Text style={styles.orText}>or</Text>
+      <PetDateOfBirthField
+        dateOfBirth={dateOfBirth}
+        onChangeDate={onChangeDate}
+        onClearDate={onClearDate}
+        error={ageOrDobError}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  section: {
+    marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
+  },
   fieldLabel: {
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 14,
@@ -59,9 +78,15 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
   halfInput: {
     flex: 1,
+  },
+  orText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginVertical: 10,
   },
 });

@@ -71,6 +71,8 @@ export type PetFood = {
   portion_unit: string | null;
   meals_per_day: number | null;
   is_treat: boolean;
+  /** Optional feeding notes (e.g. portion split across meals). */
+  notes?: string | null;
   created_at: string;
 };
 
@@ -133,6 +135,86 @@ export type CoCarerInvite = {
   created_at: string;
 };
 
+// ─── Pet Activity (unified activity log) ────────────────────────────────────
+
+export type ActivityType = "exercise" | "food" | "medication" | "vet_visit";
+
+export type PetActivity = {
+  id: string;
+  pet_id: string;
+  logged_by: string | null;
+  activity_type: ActivityType;
+  label: string;
+  logged_at: string;
+
+  exercise_type: string | null;
+  duration_hours: number | null;
+  duration_minutes: number | null;
+  distance_miles: number | null;
+  location: string | null;
+
+  is_treat: boolean | null;
+  food_id: string | null;
+  /** When food_id is null, ad-hoc food/treat name from the user. */
+  food_custom_name?: string | null;
+  food_amount: number | null;
+  food_unit: string | null;
+
+  medication_id: string | null;
+  med_amount: number | null;
+  med_unit: string | null;
+
+  vet_location: string | null;
+  other_pet_ids: string[] | null;
+
+  notes: string | null;
+  created_at: string;
+};
+
+// ─── Activity form data (for the add-activity flow) ─────────────────────────
+
+export type ExerciseFormData = {
+  label: string;
+  exerciseType: string;
+  customExerciseType: string;
+  durationHours: string;
+  durationMinutes: string;
+  distanceMiles: string;
+  location: string;
+  notes: string;
+};
+
+/** Sentinel for Food activity: user chose a food not in their pet profile. */
+export const FOOD_ACTIVITY_OTHER_ID = "__other__" as const;
+
+export type FoodActivityFormData = {
+  label: string;
+  isTreat: boolean;
+  /** Pet food row id, or `FOOD_ACTIVITY_OTHER_ID` for a custom name. */
+  foodId: string;
+  /** Profile food brand label, or custom name when `foodId` is other. */
+  foodBrand: string;
+  amount: string;
+  unit: string;
+  notes: string;
+};
+
+export type MedicationActivityFormData = {
+  medicationId: string;
+  medicationName: string;
+  amount: string;
+  unit: string;
+  notes: string;
+};
+
+export type VetVisitActivityFormData = {
+  label: string;
+  vetLocation: string;
+  customVetLocation: string;
+  otherPetIds: string[];
+  notes: string;
+};
+
 // ─── Composite types (used by UI) ───────────────────────────────────────────
 
 export type PetWithDetails = Pet & {
@@ -162,8 +244,10 @@ export type FoodFormEntry = {
   brand: string;
   portionSize: string;
   portionUnit: string;
+  /** Times per day to serve this meal or treat (drives daily progress 0/N). */
   mealsPerDay: string;
   isTreat: boolean;
+  notes: string;
 };
 
 export type MedicationFormEntry = {

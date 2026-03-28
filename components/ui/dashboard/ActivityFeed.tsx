@@ -1,17 +1,26 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { ActivityEntry } from "@/data/mockDashboard";
-import { detectUse12Hour, formatHour } from "@/utils/formatting";
+import { useProfilesByIdsQuery } from "@/hooks/queries";
+import {
+  buildActivityLoggerNameMap,
+  resolveActivityLoggerLabel,
+} from "@/lib/profileDisplay";
+import type { PetActivity } from "@/types/database";
+import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import type { Href } from "expo-router";
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
 import {
   FlatList,
   LayoutAnimation,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import OrangeButton from "../buttons/OrangeButton";
 import ActivityItem from "./ActivityItem";
 import SectionLabel from "./SectionLabel";
 
@@ -19,20 +28,44 @@ const PREVIEW_COUNT = 4;
 const GAP = 8;
 
 type ActivityFeedProps = {
-  activities: ActivityEntry[];
-  date: string;
+  activities: PetActivity[];
   onLogActivityPress?: () => void;
+  onSeeAllPress?: () => void;
 };
 
 export default function ActivityFeed({
   activities,
-  date,
   onLogActivityPress,
+  onSeeAllPress,
 }: ActivityFeedProps) {
+  const router = useRouter();
+  const currentUserId = useAuthStore((s) => s.session?.user?.id);
   const [expanded, setExpanded] = useState(false);
-  const use12h = detectUse12Hour();
 
-  const sorted = [...activities].sort((a, b) => b.hour - a.hour);
+  const loggerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const a of activities) {
+      if (a.logged_by) ids.add(a.logged_by);
+    }
+    return [...ids];
+  }, [activities]);
+
+  const { data: loggerProfiles, isSuccess: loggerProfilesReady } =
+    useProfilesByIdsQuery(loggerIds);
+
+  const nameByUserId = useMemo(
+    () =>
+      buildActivityLoggerNameMap(
+        loggerProfiles,
+        loggerIds,
+        loggerProfilesReady,
+      ),
+    [loggerProfiles, loggerIds, loggerProfilesReady],
+  );
+
+  const sorted = [...activities].sort(
+    (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
+  );
   const hasMore = sorted.length > PREVIEW_COUNT;
   const visible = expanded ? sorted : sorted.slice(0, PREVIEW_COUNT);
 
@@ -51,8 +84,7 @@ export default function ActivityFeed({
     return (
       <View style={styles.container}>
         <View style={styles.listHeader}>
-          <SectionLabel>Activity</SectionLabel>
-          <Text style={styles.dateHint}>{date}</Text>
+          <SectionLabel>Today's Activity</SectionLabel>
         </View>
         <TouchableOpacity
           style={styles.ctaCard}
@@ -78,8 +110,16 @@ export default function ActivityFeed({
   return (
     <View style={styles.container}>
       <View style={styles.listHeader}>
-        <SectionLabel>Activity</SectionLabel>
-        <Text style={styles.dateHint}>{date}</Text>
+        <SectionLabel style={styles.sectionLabelFlush}>
+          Today's Activity
+        </SectionLabel>
+        <View style={styles.headerRight}>
+          {onSeeAllPress && (
+            <Pressable onPress={onSeeAllPress} hitSlop={8}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <FlatList
@@ -89,10 +129,17 @@ export default function ActivityFeed({
         contentContainerStyle={{ gap: GAP }}
         renderItem={({ item }) => (
           <ActivityItem
-            category={item.category}
-            segments={item.segments}
-            timeLabel={formatHour(item.hour, use12h)}
-            loggedBy={item.loggedBy}
+            activity={item}
+            loggerName={resolveActivityLoggerLabel(
+              item.logged_by,
+              nameByUserId,
+              currentUserId,
+            )}
+            onPress={() =>
+              router.push(
+                `/(logged-in)/manage-activity-item/${item.id}` as Href,
+              )
+            }
           />
         )}
       />
@@ -108,6 +155,13 @@ export default function ActivityFeed({
           </Text>
         </TouchableOpacity>
       )}
+
+      <OrangeButton
+        style={styles.logAnotherCta}
+        onPress={onLogActivityPress}
+      >
+        Log another activity
+      </OrangeButton>
     </View>
   );
 }
@@ -117,13 +171,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   listHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
-  dateHint: {
-    fontFamily: Font.uiRegular,
+  sectionLabelFlush: {
+    marginBottom: 0,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  seeAllText: {
+    fontFamily: Font.uiSemiBold,
     fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: -4,
+    color: Colors.orange,
+  },
+  plusCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
   },
   ctaCard: {
     flexDirection: "row",
@@ -164,13 +236,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.black,
-    backgroundColor: Colors.skyLight,
+    borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     alignItems: "center",
   },
   viewAllText: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
-    color: Colors.black,
+    color: Colors.textPrimary,
+  },
+  logAnotherCta: {
+    marginTop: 10,
   },
 });

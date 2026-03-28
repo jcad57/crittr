@@ -6,12 +6,15 @@ type PetMedicationProfileCardProps = {
   name: string;
   subline: string;
   status: "due_today" | "up_to_date";
+  /** e.g. "2/2" for today's doses */
+  progressLabel?: string;
 };
 
 export default function PetMedicationProfileCard({
   name,
   subline,
   status,
+  progressLabel,
 }: PetMedicationProfileCardProps) {
   const isDue = status === "due_today";
 
@@ -37,7 +40,7 @@ export default function PetMedicationProfileCard({
         <Text
           style={[styles.badgeText, isDue ? styles.badgeTextDue : styles.badgeTextOk]}
         >
-          {isDue ? "Due today" : "Up to date"}
+          {progressLabel ?? (isDue ? "Due today" : "Up to date")}
         </Text>
       </View>
     </View>

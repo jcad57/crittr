@@ -15,6 +15,8 @@ export type FeedingFoodItem = {
   /** e.g. "2 Cups", "1.5 Ounces" */
   portionLabel: string;
   isTreat: boolean;
+  /** Optional per-food notes from the database */
+  notes?: string;
 };
 
 export type FeedingSchedule = {
@@ -137,8 +139,8 @@ export const MOCK_DAILY_PROGRESS: DailyProgressCategory[] = [
     icon: "run",
     current: 1,
     total: 2,
-    ringColor: Colors.coral,
-    trackColor: Colors.coralLight,
+    ringColor: Colors.progressExercise,
+    trackColor: Colors.progressExerciseTrack,
   },
   {
     id: "meals",
@@ -146,8 +148,8 @@ export const MOCK_DAILY_PROGRESS: DailyProgressCategory[] = [
     icon: "food-drumstick",
     current: 2,
     total: 2,
-    ringColor: Colors.lavender,
-    trackColor: Colors.lavenderLight,
+    ringColor: Colors.progressMeals,
+    trackColor: Colors.progressMealsTrack,
   },
   {
     id: "treats",
@@ -155,8 +157,8 @@ export const MOCK_DAILY_PROGRESS: DailyProgressCategory[] = [
     icon: "bone",
     current: 3,
     total: 4,
-    ringColor: Colors.sky,
-    trackColor: Colors.skyLight,
+    ringColor: Colors.progressTreats,
+    trackColor: Colors.progressTreatsTrack,
   },
   {
     id: "meds",
@@ -164,8 +166,8 @@ export const MOCK_DAILY_PROGRESS: DailyProgressCategory[] = [
     icon: "pill",
     current: 1,
     total: 1,
-    ringColor: Colors.gold,
-    trackColor: Colors.goldLight,
+    ringColor: Colors.progressMeds,
+    trackColor: Colors.progressMedsTrack,
   },
 ];
 

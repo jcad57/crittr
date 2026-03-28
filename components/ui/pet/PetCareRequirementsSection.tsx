@@ -16,7 +16,7 @@ type PetCareRequirementsSectionProps = {
   petType: string | null;
 };
 
-/** Pet types that collect “exercises per day” during onboarding. */
+/** Pet types that collect “activities per day” during onboarding. */
 const EXERCISE_ONBOARDING_TYPES = new Set(["dog", "other"]);
 
 function cloneFeeding(f: FeedingSchedule): FeedingSchedule {
@@ -150,9 +150,18 @@ export default function PetCareRequirementsSection({
                       <View style={styles.treatBadge}>
                         <Text style={styles.treatBadgeText}>Treat</Text>
                       </View>
-                    ) : null}
+                    ) : (
+                      <View style={styles.mealBadge}>
+                        <Text style={styles.mealBadgeText}>Meal</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.foodPortion}>{item.portionLabel}</Text>
+                  {item.notes?.trim() ? (
+                    <Text style={styles.foodItemNotes} numberOfLines={4}>
+                      {item.notes.trim()}
+                    </Text>
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -347,6 +356,24 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 10,
     color: Colors.skyDark,
+  },
+  mealBadge: {
+    backgroundColor: Colors.orangeLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  mealBadgeText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 10,
+    color: Colors.orange,
+  },
+  foodItemNotes: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 15,
   },
   foodPortion: {
     fontFamily: "InstrumentSans-Regular",

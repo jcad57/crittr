@@ -24,7 +24,7 @@ export default function MorePlaceholderScreen() {
         Placeholder — settings, profile, and other tools.
       </Text>
       <Pressable
-        onPress={() => router.push("/(logged-in)/(tabs)/profile")}
+        onPress={() => router.push("/(logged-in)/profile")}
         style={styles.link}
       >
         <Text style={styles.linkText}>Open profile (existing screen)</Text>

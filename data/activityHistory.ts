@@ -1,146 +1,120 @@
-import type { ActivityCategory } from "@/data/mockDashboard";
+import { formatMedicationDosageDisplay } from "@/lib/medicationDosageDisplay";
+import { resolveActivityLoggerLabel } from "@/lib/profileDisplay";
+import type { PetActivity } from "@/types/database";
 
-/** Full activity row for the Activity tab (grouped list + weekly stats). */
+export type ActivityDisplayCategory =
+  | "exercise"
+  | "meals"
+  | "treats"
+  | "meds"
+  | "vet_visit";
+
+export type ActivityFilterCategory = "all" | ActivityDisplayCategory;
+
 export type ActivityHistoryEntry = {
   id: string;
-  category: ActivityCategory;
+  category: ActivityDisplayCategory;
   title: string;
-  detailLine: string;
+  loggedByLine: string;
   primaryStat: string;
   timeLabel: string;
-  /** Local calendar day YYYY-MM-DD */
   dateKey: string;
-  /** Sort key (UTC ms) */
   timestamp: number;
-  /** Medication row: show green “Done” chip */
   medDone?: boolean;
+  hasNotes?: boolean;
 };
-
-export type ActivityFilterCategory = "all" | ActivityCategory;
 
 export type WeeklyActivitySummary = {
   walks: number;
-  /** Positive = more than prior week (shown with ↑) */
   walksDeltaVsLastWeek: number;
   meals: number;
   mealsFootnote: string;
   treats: number;
-  /** Weekly treat allowance; over → coral nudge */
   weeklyTreatLimit: number;
 };
 
-/** Design-matched sample data — replace with API later. */
-export const MOCK_WEEKLY_SUMMARY: WeeklyActivitySummary = {
-  walks: 14,
-  walksDeltaVsLastWeek: 2,
-  meals: 27,
-  mealsFootnote: "On track",
-  treats: 8,
-  weeklyTreatLimit: 5,
-};
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
 
-/** Slight variation per pet so the weekly strip reflects the active pet. */
-export function mockWeeklySummaryForPet(petId: string): WeeklyActivitySummary {
-  const h = [...petId].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function toDateKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+export function displayCategory(a: PetActivity): ActivityDisplayCategory {
+  switch (a.activity_type) {
+    case "exercise":
+      return "exercise";
+    case "food":
+      return a.is_treat ? "treats" : "meals";
+    case "medication":
+      return "meds";
+    case "vet_visit":
+      return "vet_visit";
+  }
+}
+
+function buildPrimaryStat(a: PetActivity): string {
+  switch (a.activity_type) {
+    case "exercise": {
+      const h = a.duration_hours ?? 0;
+      const m = a.duration_minutes ?? 0;
+      if (h > 0 && m > 0) return `${h}h ${m} min`;
+      if (h > 0) return `${h}h`;
+      if (m > 0) return `${m} min`;
+      return "";
+    }
+    case "food":
+      return a.food_amount && a.food_unit
+        ? `${a.food_amount} ${a.food_unit.toLowerCase()}`
+        : "";
+    case "medication":
+      return formatMedicationDosageDisplay(a.med_amount, a.med_unit);
+    case "vet_visit":
+      return "";
+  }
+}
+
+export function petActivityToHistoryEntry(
+  a: PetActivity,
+  nameByUserId: Map<string, string>,
+  currentUserId: string | null | undefined,
+): ActivityHistoryEntry {
   return {
-    walks: 8 + (h % 12),
-    walksDeltaVsLastWeek: -3 + (h % 7),
-    meals: 18 + (h % 14),
-    mealsFootnote: h % 2 === 0 ? "On track" : "Slightly under",
-    treats: 3 + (h % 8),
-    weeklyTreatLimit: 5,
+    id: a.id,
+    category: displayCategory(a),
+    title: a.label,
+    loggedByLine: resolveActivityLoggerLabel(
+      a.logged_by,
+      nameByUserId,
+      currentUserId,
+    ),
+    primaryStat: buildPrimaryStat(a),
+    timeLabel: formatTime(a.logged_at),
+    dateKey: toDateKey(a.logged_at),
+    timestamp: new Date(a.logged_at).getTime(),
+    hasNotes: !!a.notes?.trim(),
   };
 }
 
-/** Sample entries spanning “today” and “yesterday” (local dates). */
-export function buildMockActivityHistory(
-  petId: string,
-  petName: string,
-  now: Date = new Date(),
+export function convertActivities(
+  activities: PetActivity[],
+  nameByUserId: Map<string, string>,
+  currentUserId: string | null | undefined,
 ): ActivityHistoryEntry[] {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const y = now.getFullYear();
-  const mo = now.getMonth() + 1;
-  const d = now.getDate();
-  const todayKey = `${y}-${pad(mo)}-${pad(d)}`;
-  const yest = new Date(y, mo - 1, d - 1);
-  const yk = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
-
-  const t = (h: number, m: number) => {
-    const dt = new Date(y, mo - 1, d, h, m, 0, 0);
-    return dt.getTime();
-  };
-  const yt = (h: number, m: number) => {
-    const dt = new Date(yest.getFullYear(), yest.getMonth(), yest.getDate(), h, m, 0, 0);
-    return dt.getTime();
-  };
-
-  const p = petName.trim() || "Your pet";
-  const id = (suffix: string) => `${petId}-${suffix}`;
-
-  return [
-    {
-      id: id("h1"),
-      category: "exercise",
-      title: "Morning walk",
-      detailLine: `${p} · 1.4 miles · Barton Creek Trail`,
-      primaryStat: "32 min",
-      timeLabel: "7:14 AM",
-      dateKey: todayKey,
-      timestamp: t(7, 14),
-    },
-    {
-      id: id("h2"),
-      category: "meals",
-      title: "Breakfast",
-      detailLine: `${p} · 1 cup dry kibble`,
-      primaryStat: "1 cup",
-      timeLabel: "7:30 AM",
-      dateKey: todayKey,
-      timestamp: t(7, 30),
-    },
-    {
-      id: id("h3"),
-      category: "treats",
-      title: "Treat",
-      detailLine: `${p} · training reward`,
-      primaryStat: "1 treat",
-      timeLabel: "9:02 AM",
-      dateKey: todayKey,
-      timestamp: t(9, 2),
-    },
-    {
-      id: id("h4"),
-      category: "meds",
-      title: "Benadryl",
-      detailLine: `${p} · 2 tablets · with meal`,
-      primaryStat: "2 tablets",
-      timeLabel: "7:35 AM",
-      dateKey: todayKey,
-      timestamp: t(7, 35),
-      medDone: true,
-    },
-    {
-      id: id("h5"),
-      category: "exercise",
-      title: "Evening stroll",
-      detailLine: `${p} · neighborhood loop`,
-      primaryStat: "18 min",
-      timeLabel: "6:10 PM",
-      dateKey: yk,
-      timestamp: yt(18, 10),
-    },
-    {
-      id: id("h6"),
-      category: "meals",
-      title: "Dinner",
-      detailLine: `${p} · wet + dry mix`,
-      primaryStat: "1½ cups",
-      timeLabel: "5:45 PM",
-      dateKey: yk,
-      timestamp: yt(17, 45),
-    },
-  ];
+  return activities.map((a) =>
+    petActivityToHistoryEntry(a, nameByUserId, currentUserId),
+  );
 }
 
 function parseDateKey(dateKey: string): Date {
@@ -148,7 +122,6 @@ function parseDateKey(dateKey: string): Date {
   return new Date(yy, mm - 1, dd);
 }
 
-/** Section header: TODAY · MAR 27 */
 export function formatActivitySectionTitle(
   dateKey: string,
   today: Date = new Date(),
@@ -208,4 +181,54 @@ export function groupActivityHistory(
       data: sortedDay,
     };
   });
+}
+
+function getMonday(d: Date): Date {
+  const result = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = result.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  result.setDate(result.getDate() - diff);
+  return result;
+}
+
+export function computeWeeklySummary(
+  activities: PetActivity[],
+): WeeklyActivitySummary {
+  const now = new Date();
+  const thisMonday = getMonday(now);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(lastMonday.getDate() - 7);
+
+  let thisWeekWalks = 0;
+  let lastWeekWalks = 0;
+  let thisWeekMeals = 0;
+  let thisWeekTreats = 0;
+
+  for (const a of activities) {
+    const ts = new Date(a.logged_at);
+    const isThisWeek = ts >= thisMonday;
+    const isLastWeek = ts >= lastMonday && ts < thisMonday;
+
+    if (a.activity_type === "exercise") {
+      if (isThisWeek) thisWeekWalks++;
+      if (isLastWeek) lastWeekWalks++;
+    }
+    if (a.activity_type === "food" && !a.is_treat && isThisWeek) {
+      thisWeekMeals++;
+    }
+    if (a.activity_type === "food" && a.is_treat && isThisWeek) {
+      thisWeekTreats++;
+    }
+  }
+
+  const walksDelta = thisWeekWalks - lastWeekWalks;
+
+  return {
+    walks: thisWeekWalks,
+    walksDeltaVsLastWeek: walksDelta,
+    meals: thisWeekMeals,
+    mealsFootnote: "This week",
+    treats: thisWeekTreats,
+    weeklyTreatLimit: 5,
+  };
 }

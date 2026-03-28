@@ -5,6 +5,10 @@
 export const profileQueryKey = (userId: string) =>
   ["profile", userId] as const;
 
+/** Sorted ids string for stable cache keys. */
+export const profilesByIdsQueryKey = (sortedUserIds: string[]) =>
+  ["profiles", "byIds", sortedUserIds.join(",")] as const;
+
 export const petsQueryKey = (ownerId: string) => ["pets", ownerId] as const;
 
 export const petDetailsQueryKey = (petId: string) =>
@@ -15,3 +19,16 @@ export const healthSnapshotKey = (ownerId: string) =>
 
 export const petVetVisitsQueryKey = (petId: string) =>
   ["petVetVisits", petId] as const;
+
+export const todayActivitiesKey = (petId: string) =>
+  ["todayActivities", petId] as const;
+
+/** Stable key for today's activities across multiple pets (sorted ids). */
+export const todayActivitiesForPetIdsKey = (petIds: string[]) =>
+  ["todayActivities", "multi", [...petIds].sort().join(",")] as const;
+
+export const allActivitiesKey = (petId: string) =>
+  ["allActivities", petId] as const;
+
+export const petActivityQueryKey = (activityId: string) =>
+  ["petActivity", activityId] as const;

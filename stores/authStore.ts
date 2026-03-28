@@ -96,6 +96,34 @@ function syncProfileRowToQuery(profile: Profile | null) {
   queryClient.setQueryData(profileQueryKey(profile.id), profile);
 }
 
+/**
+ * `getSession()` only reads the persisted JWT. After a user is removed in Supabase,
+ * that token can still be present until expiry, which incorrectly routes to onboarding.
+ * `getUser()` validates with the Auth server; 401/403 means the session is invalid.
+ */
+async function isAuthUserStillRegistered(): Promise<boolean> {
+  const { data, error } = await supabase.auth.getUser();
+  const status = (error as { status?: number })?.status;
+
+  if (error && (status === 401 || status === 403 || status === 404)) {
+    return false;
+  }
+  if (!error && data && !data.user) {
+    return false;
+  }
+  // Network / transient errors: keep local session so offline use still works.
+  return true;
+}
+
+const loggedOutState = {
+  session: null,
+  profile: null,
+  hasPets: false,
+  onboardingResumeStep: null,
+  isLoggedIn: false,
+  needsOnboarding: false,
+} as const;
+
 type AuthState = {
   session: Session | null;
   profile: Profile | null;
@@ -136,20 +164,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } = await supabase.auth.getSession();
 
       if (session) {
-        const resolved = await resolveSession(session);
-        set({
-          session,
-          profile: resolved.profile,
-          hasPets: resolved.hasPets,
-          onboardingResumeStep: resolved.onboardingResumeStep,
-          isLoggedIn: true,
-          needsOnboarding: resolved.needsOnboarding,
-        });
-        syncProfileRowToQuery(resolved.profile);
+        const stillRegistered = await isAuthUserStillRegistered();
+        if (!stillRegistered) {
+          await supabase.auth.signOut();
+          queryClient.clear();
+          set(loggedOutState);
+        } else {
+          const resolved = await resolveSession(session);
+          set({
+            session,
+            profile: resolved.profile,
+            hasPets: resolved.hasPets,
+            onboardingResumeStep: resolved.onboardingResumeStep,
+            isLoggedIn: true,
+            needsOnboarding: resolved.needsOnboarding,
+          });
+          syncProfileRowToQuery(resolved.profile);
+        }
       }
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session) {
+          const stillRegistered = await isAuthUserStillRegistered();
+          if (!stillRegistered) {
+            await supabase.auth.signOut();
+            queryClient.clear();
+            set(loggedOutState);
+            return;
+          }
           const resolved = await resolveSession(session);
           set({
             session,

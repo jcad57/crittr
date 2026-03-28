@@ -10,7 +10,11 @@ import RecordsNavCard, {
 } from "@/components/ui/pet/RecordsNavCard";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { useHealthSnapshotQuery } from "@/hooks/queries";
+import {
+  useHealthSnapshotQuery,
+  useTodayActivitiesForPetIdsQuery,
+} from "@/hooks/queries";
+import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -45,6 +49,10 @@ export default function HealthScreen() {
 
   const pets = data?.pets ?? [];
   const medications = data?.medications ?? [];
+
+  const petIds = useMemo(() => pets.map((p) => p.id), [pets]);
+  const { data: todayActivitiesAllPets = [] } =
+    useTodayActivitiesForPetIdsQuery(petIds);
   const vaccinations = data?.vaccinations ?? [];
   const vetVisits = data?.vetVisits ?? [];
 
@@ -229,16 +237,27 @@ export default function HealthScreen() {
         />
         {filteredMeds.length > 0 ? (
           <HealthListCard>
-            {filteredMeds.map((m, i) => (
-              <HealthMedicationRow
-                key={m.id}
-                item={m}
-                isLast={i === filteredMeds.length - 1}
-                onPress={() =>
-                  router.push(`/(logged-in)/pet/${m.pet_id}/medications`)
-                }
-              />
-            ))}
+            {filteredMeds.map((m, i) => {
+              const prog = buildMedicationDosageProgress(
+                m,
+                todayActivitiesAllPets,
+                m.pet_id,
+              );
+              const dosageLabel =
+                prog.total > 0 ? `${prog.current}/${prog.total}` : undefined;
+              return (
+                <HealthMedicationRow
+                  key={m.id}
+                  item={m}
+                  isLast={i === filteredMeds.length - 1}
+                  onPress={() =>
+                    router.push(`/(logged-in)/pet/${m.pet_id}/medications`)
+                  }
+                  dosageLabel={dosageLabel}
+                  dosageComplete={dosageLabel ? prog.isComplete : undefined}
+                />
+              );
+            })}
           </HealthListCard>
         ) : (
           <View style={styles.emptyCard}>

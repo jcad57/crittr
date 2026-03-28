@@ -12,6 +12,10 @@
       "supportsTablet": true
     },
     "android": {
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#FDF8F3"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/app-icon-temp.png",

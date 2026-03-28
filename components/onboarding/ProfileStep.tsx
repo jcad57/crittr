@@ -1,5 +1,4 @@
 import FormInput from "@/components/onboarding/FormInput";
-import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { profileQueryKey } from "@/hooks/queries";
@@ -102,17 +101,18 @@ export default function ProfileStep() {
         </TouchableOpacity>
       </View>
 
-      <Divider />
-
+      {/* <Divider /> */}
+      <Text style={styles.sectionTitle}>Basic Info</Text>
       <FormInput
         placeholder="Home address *"
         value={profileData.homeAddress}
         onChangeText={(v) => setProfileData({ homeAddress: v })}
         autoCapitalize="words"
-        containerStyle={styles.inputSpacing}
+        containerStyle={[styles.inputSpacing, styles.homeAddressContainer]}
         multiline
         numberOfLines={2}
         icon="map-marker-outline"
+        style={styles.homeAddressInput}
       />
 
       <FormInput
@@ -127,12 +127,13 @@ export default function ProfileStep() {
       />
 
       <FormInput
-        placeholder="Short bio (optional)"
+        placeholder="Short bio (max 320 characters)"
         value={profileData.bio}
         onChangeText={(v) => setProfileData({ bio: v })}
         containerStyle={[styles.inputSpacing, styles.bioInputContainer]}
         multiline
         numberOfLines={4}
+        maxLength={320}
         icon="text-box-outline"
         style={styles.bioTextInput}
       />
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: "center",
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 24,
   },
   avatarCircle: {
     width: AVATAR_SIZE,
@@ -199,6 +200,22 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   inputSpacing: {
+    marginBottom: 12,
+  },
+  /** Tighter than FormInput default multiline (~3 lines) — two lines of text only. */
+  homeAddressContainer: {
+    minHeight: 68,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  homeAddressInput: {
+    minHeight: 44,
+    maxHeight: 44,
+  },
+  sectionTitle: {
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 16,
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   bioInputContainer: {

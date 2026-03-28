@@ -28,12 +28,13 @@ export default function AddPetScreen() {
   const router = useRouter();
   const currentStep = useOnboardingStore((s) => s.currentStep);
   const petFlowMode = useOnboardingStore((s) => s.petFlowMode);
-  const startAddPetFlow = useOnboardingStore((s) => s.startAddPetFlow);
   const reset = useOnboardingStore((s) => s.reset);
 
+  /** Run once on mount only. Using getState() avoids effect re-running if the store
+   * action reference changes between renders (which would cause an update loop). */
   useLayoutEffect(() => {
-    startAddPetFlow();
-  }, [startAddPetFlow]);
+    useOnboardingStore.getState().startAddPetFlow();
+  }, []);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {

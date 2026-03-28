@@ -20,6 +20,22 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
+export async function fetchProfilesByIds(userIds: string[]): Promise<Profile[]> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .in("id", unique);
+
+  if (error) {
+    console.error("Failed to fetch profiles by ids:", error);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function updateProfile(
   userId: string,
   updates: Partial<

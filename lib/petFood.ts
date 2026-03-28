@@ -1,37 +1,18 @@
 /**
- * Treats: explicit `is_treat` from the DB, or portion counted in pieces
- * (e.g. onboarding "Piece(s)") — used for daily progress and profile display.
+ * Meal vs treat is stored explicitly on `pet_foods.is_treat` (set during onboarding).
  */
-export function isTreatFood(f: {
-  is_treat: boolean;
-  portion_unit: string | null;
-}): boolean {
-  if (f.is_treat) return true;
-  const u = f.portion_unit?.trim() ?? "";
-  if (!u) return false;
-  return /piece/i.test(u);
+export function isTreatFood(f: { is_treat: boolean }): boolean {
+  return f.is_treat;
 }
 
-type TreatTargetFields = {
-  is_treat: boolean;
-  portion_size: string | null;
-  portion_unit: string | null;
-};
-
 /**
- * Daily progress ring total for treats: for piece-based treats, uses the numeric
- * portion amount (e.g. 4 + Piece(s) → 4). Non–piece treats count as 1 each.
+ * Daily progress ring: how many times per day this food/treat should be given
+ * (`pet_foods.meals_per_day`). Used for both Meals and Treats totals.
  */
-export function treatDailyTarget(f: TreatTargetFields): number {
-  if (!isTreatFood(f)) return 0;
-  const unit = f.portion_unit?.trim() ?? "";
-  const isPieceUnit = /piece/i.test(unit);
-  if (isPieceUnit) {
-    const raw = f.portion_size?.trim() ?? "";
-    if (raw === "") return 1;
-    const n = parseFloat(raw.replace(/,/g, ""));
-    if (!Number.isFinite(n) || n < 0) return 1;
-    return Math.max(0, Math.round(n));
-  }
-  return 1;
+export function feedingTimesPerDayTarget(f: {
+  meals_per_day: number | null;
+}): number {
+  const n = f.meals_per_day;
+  if (n == null || n < 1) return 1;
+  return Math.round(n);
 }

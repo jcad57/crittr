@@ -1,9 +1,8 @@
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
-import PetAgeFields from "@/components/onboarding/petInfo/PetAgeFields";
+import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSection";
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetCoCarerInviteRow from "@/components/onboarding/petInfo/PetCoCarerInviteRow";
-import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
@@ -12,7 +11,6 @@ import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSteriliza
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import Divider from "@/components/ui/Divider";
 import { Colors } from "@/constants/colors";
 import {
   getBreedLabelForPetType,
@@ -21,6 +19,7 @@ import {
 } from "@/constants/petInfo";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
+import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
   getPetInfoMissingFields,
   isPetInfoComplete,
@@ -91,18 +90,50 @@ export default function PetInfoStep() {
     }
   };
 
+  const handleDobChange = useCallback(
+    (iso: string) => {
+      const { years, months } = yearsMonthsFromBirthDate(iso);
+      updateCurrentPet({
+        dateOfBirth: iso,
+        ageYears: String(years),
+        ageMonths: String(months),
+      });
+    },
+    [updateCurrentPet],
+  );
+
+  const handleClearDob = useCallback(() => {
+    updateCurrentPet({ dateOfBirth: "", ageYears: "", ageMonths: "" });
+  }, [updateCurrentPet]);
+
+  const handleAgeYearsChange = useCallback(
+    (v: string) => {
+      updateCurrentPet({ ageYears: v, dateOfBirth: "" });
+    },
+    [updateCurrentPet],
+  );
+
+  const handleAgeMonthsChange = useCallback(
+    (v: string) => {
+      updateCurrentPet({ ageMonths: v, dateOfBirth: "" });
+    },
+    [updateCurrentPet],
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tell us about your pet!</Text>
 
       <PetAvatarSection avatarUri={pet.avatarUri} onPickImage={pickImage} />
 
-      <Divider />
+      {/* <Divider /> */}
 
       <Text style={styles.sectionTitle}>Basic Info</Text>
 
       <FormInput
-        placeholder="Pet's Name *"
+        label="Pet's name"
+        required
+        placeholder="Name"
         value={pet.name}
         onChangeText={(v) => updateCurrentPet({ name: v })}
         autoCapitalize="words"
@@ -111,7 +142,9 @@ export default function PetInfoStep() {
       />
 
       <AutocompleteInput
-        placeholder={`${breedLabel} *`}
+        label={breedLabel}
+        required
+        placeholder="Search or type a breed"
         value={pet.breed}
         onChangeText={(v) => updateCurrentPet({ breed: v })}
         onSelect={(v) => updateCurrentPet({ breed: v })}
@@ -120,18 +153,30 @@ export default function PetInfoStep() {
         error={!!err("breed")}
       />
 
-      <PetAgeFields
+      <Text style={styles.sectionTitle}>About</Text>
+      <Text style={styles.aboutHint}>Short bio (max 320 characters)</Text>
+      <View style={[styles.aboutBox, styles.inputSpacing]}>
+        <TextInput
+          style={styles.aboutInput}
+          placeholder="What makes your pet special?"
+          placeholderTextColor={Colors.gray400}
+          value={pet.about}
+          onChangeText={(v) => updateCurrentPet({ about: v })}
+          multiline
+          maxLength={320}
+          textAlignVertical="top"
+        />
+      </View>
+
+      <PetAgeOrDobSection
         ageYears={pet.ageYears}
         ageMonths={pet.ageMonths}
-        onAgeYearsChange={(v) => updateCurrentPet({ ageYears: v })}
-        onAgeMonthsChange={(v) => updateCurrentPet({ ageMonths: v })}
-        ageYearsError={!!err("ageYears")}
-      />
-
-      <PetDateOfBirthField
         dateOfBirth={pet.dateOfBirth}
-        onChangeDate={(iso) => updateCurrentPet({ dateOfBirth: iso })}
-        onClearDate={() => updateCurrentPet({ dateOfBirth: "" })}
+        onAgeYearsChange={handleAgeYearsChange}
+        onAgeMonthsChange={handleAgeMonthsChange}
+        onChangeDate={handleDobChange}
+        onClearDate={handleClearDob}
+        ageOrDobError={!!err("ageYears")}
       />
 
       <PetWeightFields
@@ -154,7 +199,8 @@ export default function PetInfoStep() {
       />
 
       <FormInput
-        placeholder="Coat color (optional)"
+        label="Coat color"
+        placeholder="e.g. Golden, tabby"
         value={pet.color}
         onChangeText={(v) => updateCurrentPet({ color: v })}
         autoCapitalize="words"
@@ -169,7 +215,9 @@ export default function PetInfoStep() {
 
       {showExercise ? (
         <FormInput
-          placeholder="Exercises per day *"
+          label="Number of activities per day"
+          required
+          placeholder="Include walks, dog park visits, etc."
           value={pet.exercisesPerDay}
           onChangeText={(v) => updateCurrentPet({ exercisesPerDay: v })}
           keyboardType="numeric"
@@ -178,12 +226,11 @@ export default function PetInfoStep() {
         />
       ) : null}
 
-      <Divider />
-
       <Text style={styles.sectionTitle}>Health & identification</Text>
 
       <FormInput
-        placeholder="Primary vet clinic (optional)"
+        label="Primary vet clinic"
+        placeholder="Clinic name"
         value={pet.primaryVetClinic}
         onChangeText={(v) => updateCurrentPet({ primaryVetClinic: v })}
         autoCapitalize="words"
@@ -191,7 +238,8 @@ export default function PetInfoStep() {
       />
 
       <FormInput
-        placeholder="Vet clinic address (optional)"
+        label="Vet clinic address"
+        placeholder="Street, city"
         value={pet.primaryVetAddress}
         onChangeText={(v) => updateCurrentPet({ primaryVetAddress: v })}
         autoCapitalize="words"
@@ -210,7 +258,8 @@ export default function PetInfoStep() {
 
       {pet.isMicrochipped === true ? (
         <FormInput
-          placeholder="Microchip number (optional)"
+          label="Microchip number"
+          placeholder="e.g. 1234567890"
           value={pet.microchipNumber}
           onChangeText={(v) => updateCurrentPet({ microchipNumber: v })}
           keyboardType="number-pad"
@@ -230,7 +279,8 @@ export default function PetInfoStep() {
 
       {pet.isInsured === true ? (
         <FormInput
-          placeholder="Insurance provider (optional)"
+          label="Insurance provider"
+          placeholder="Provider name"
           value={pet.insuranceProvider}
           onChangeText={(v) => updateCurrentPet({ insuranceProvider: v })}
           autoCapitalize="words"
@@ -253,25 +303,6 @@ export default function PetInfoStep() {
         suggestions={allergyNames}
         containerStyle={styles.inputSpacing}
       />
-
-      <Divider />
-
-      <Text style={styles.sectionTitle}>About</Text>
-      <Text style={styles.aboutHint}>
-        Short bio (optional, max 320 characters)
-      </Text>
-      <View style={[styles.aboutBox, styles.inputSpacing]}>
-        <TextInput
-          style={styles.aboutInput}
-          placeholder="What makes your pet special?"
-          placeholderTextColor={Colors.gray400}
-          value={pet.about}
-          onChangeText={(v) => updateCurrentPet({ about: v })}
-          multiline
-          maxLength={320}
-          textAlignVertical="top"
-        />
-      </View>
 
       <PetCoCarerInviteRow
         coCarerEmail={pet.coCarerEmail}
@@ -336,6 +367,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     minHeight: 88,
     lineHeight: 22,
+    paddingTop: -4,
   },
   inputSpacing: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,

@@ -6,18 +6,28 @@ import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import type { Pet } from "@/data/mockDashboard";
 import {
-  buildMockActivityHistory,
+  computeWeeklySummary,
+  convertActivities,
   groupActivityHistory,
-  mockWeeklySummaryForPet,
   type ActivityFilterCategory,
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
-import { usePetsQuery } from "@/hooks/queries";
+import {
+  useAllActivitiesQuery,
+  usePetsQuery,
+  useProfilesByIdsQuery,
+} from "@/hooks/queries";
+import {
+  buildActivityLoggerNameMap,
+} from "@/lib/profileDisplay";
+import { useAuthStore } from "@/stores/authStore";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   SectionList,
   StyleSheet,
@@ -35,12 +45,37 @@ type Section = {
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const { activePetId, setActivePet, initActivePetFromList } = usePetStore();
+  const router = useRouter();
+  const { activePetId, setActivePet } = usePetStore();
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
+  const { data: rawActivities, isLoading: isActivitiesLoading } =
+    useAllActivitiesQuery(activePetId);
+  const currentUserId = useAuthStore((s) => s.session?.user?.id);
+
+  const activityLoggerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const a of rawActivities ?? []) {
+      if (a.logged_by) ids.add(a.logged_by);
+    }
+    return [...ids];
+  }, [rawActivities]);
+
+  const { data: loggerProfiles, isSuccess: loggerProfilesReady } =
+    useProfilesByIdsQuery(activityLoggerIds);
+
+  const loggerNameByUserId = useMemo(
+    () =>
+      buildActivityLoggerNameMap(
+        loggerProfiles,
+        activityLoggerIds,
+        loggerProfilesReady,
+      ),
+    [loggerProfiles, activityLoggerIds, loggerProfilesReady],
+  );
 
   useEffect(() => {
-    if (dbPets?.length) initActivePetFromList(dbPets);
-  }, [dbPets, initActivePetFromList]);
+    if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
+  }, [dbPets]);
 
   const pets: Pet[] = useMemo(
     () =>
@@ -52,11 +87,6 @@ export default function ActivityScreen() {
       })),
     [dbPets],
   );
-
-  const activePetName = useMemo(() => {
-    const p = dbPets?.find((x) => x.id === activePetId);
-    return p?.name?.trim() || "Your pet";
-  }, [dbPets, activePetId]);
 
   const handleSwitchPet = useCallback(
     (id: string) => {
@@ -77,14 +107,19 @@ export default function ActivityScreen() {
   const [filter, setFilter] = useState<ActivityFilterCategory>("all");
   const [newestFirst, setNewestFirst] = useState(true);
 
-  const allEntries = useMemo((): ActivityHistoryEntry[] => {
-    if (!activePetId) return [];
-    return buildMockActivityHistory(activePetId, activePetName);
-  }, [activePetId, activePetName]);
+  const allEntries = useMemo(
+    () =>
+      convertActivities(
+        rawActivities ?? [],
+        loggerNameByUserId,
+        currentUserId,
+      ),
+    [rawActivities, loggerNameByUserId, currentUserId],
+  );
 
   const weeklySummary = useMemo(
-    () => (activePetId ? mockWeeklySummaryForPet(activePetId) : null),
-    [activePetId],
+    () => (rawActivities?.length ? computeWeeklySummary(rawActivities) : null),
+    [rawActivities],
   );
 
   const sections: Section[] = useMemo(
@@ -102,6 +137,10 @@ export default function ActivityScreen() {
     [sections],
   );
 
+  const handleLogActivity = useCallback(() => {
+    router.push("/(logged-in)/add-activity");
+  }, [router]);
+
   const listHeader = (
     <>
       <View style={styles.headerRow}>
@@ -111,7 +150,7 @@ export default function ActivityScreen() {
         </View>
         <Pressable
           style={styles.fab}
-          onPress={() => {}}
+          onPress={handleLogActivity}
           accessibilityRole="button"
           accessibilityLabel="Log activity"
         >
@@ -176,11 +215,15 @@ export default function ActivityScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyBlock}>
-            <Text style={styles.emptyText}>
-              {!isPetsLoading && dbPets?.length === 0
-                ? "Add a pet to see activity here."
-                : "No activities match this filter."}
-            </Text>
+            {isActivitiesLoading ? (
+              <ActivityIndicator size="large" color={Colors.orange} />
+            ) : (
+              <Text style={styles.emptyText}>
+                {!isPetsLoading && dbPets?.length === 0
+                  ? "Add a pet to see activity here."
+                  : "No activities match this filter."}
+              </Text>
+            )}
           </View>
         }
         contentContainerStyle={[

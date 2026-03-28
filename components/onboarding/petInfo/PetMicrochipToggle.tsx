@@ -14,13 +14,9 @@ export default function PetMicrochipToggle({
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>Is your pet microchipped?</Text>
-      <Text style={styles.hint}>Optional</Text>
       <View style={styles.row}>
         <Pressable
-          style={[
-            styles.option,
-            value === true && styles.optionActive,
-          ]}
+          style={[styles.option, value === true && styles.optionActive]}
           onPress={() => onChange(true)}
         >
           <Text
@@ -33,10 +29,7 @@ export default function PetMicrochipToggle({
           </Text>
         </Pressable>
         <Pressable
-          style={[
-            styles.option,
-            value === false && styles.optionActive,
-          ]}
+          style={[styles.option, value === false && styles.optionActive]}
           onPress={() => onChange(false)}
         >
           <Text

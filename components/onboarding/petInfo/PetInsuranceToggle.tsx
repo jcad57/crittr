@@ -14,7 +14,6 @@ export default function PetInsuranceToggle({
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>Pet insurance?</Text>
-      <Text style={styles.hint}>Optional</Text>
       <View style={styles.row}>
         <Pressable
           style={[styles.option, value === true && styles.optionActive]}

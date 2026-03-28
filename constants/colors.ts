@@ -52,15 +52,19 @@ export const Colors = {
   sky: "#C0E3E5",
   skyLight: "#DBEAFE",
 
-  /** Progress rings — distinct category hues */
-  progressExercise: "#FC8D2C",
-  progressExerciseTrack: "#FFF0E5",
-  progressMeals: "#8B5CF6",
-  progressMealsTrack: "#EDE9FE",
-  progressTreats: "#22C55E",
+  /**
+   * Daily progress rings — soft “light” tints aligned to lavender / sky / amber / success
+   * (see lavenderDark, skyDark, amberDark, successDark). Rings read clearly on cream;
+   * tracks are whisper-light washes of the same families.
+   */
+  progressExercise: "#4A8B8F",
+  progressExerciseTrack: "#E8F6F6",
+  progressMeals: "#8B7A9E",
+  progressMealsTrack: "#EEE8F4",
+  progressTreats: "#22A55C",
   progressTreatsTrack: "#DCFCE7",
-  progressMeds: "#F59E0B",
-  progressMedsTrack: "#FEF3C7",
+  progressMeds: "#D97706",
+  progressMedsTrack: "#FFF4E0",
 
   /** Dark “feature” cards (e.g. upcoming visit hero) */
   featureDark: "#2A2624",

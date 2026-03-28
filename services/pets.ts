@@ -1,4 +1,3 @@
-import { isTreatFood } from "@/lib/petFood";
 import { supabase } from "@/lib/supabase";
 import type { Pet, PetFormData, PetWithDetails } from "@/types/database";
 import {
@@ -44,8 +43,14 @@ export async function createPet(
       pet_type: petData.petType || null,
       name: petData.name,
       breed: petData.breed || null,
-      age: petData.ageYears ? parseInt(petData.ageYears, 10) : null,
-      age_months: petData.ageMonths ? parseInt(petData.ageMonths, 10) : null,
+      age:
+        petData.ageYears.trim() !== ""
+          ? parseInt(petData.ageYears, 10)
+          : null,
+      age_months:
+        petData.ageMonths.trim() !== ""
+          ? parseInt(petData.ageMonths, 10)
+          : null,
       date_of_birth: parsedDob,
       weight_lbs: petData.weight ? parseFloat(petData.weight) : null,
       weight_unit: petData.weightUnit,
@@ -75,17 +80,20 @@ export async function createPet(
 
   // Insert foods
   if (petData.foods.length > 0) {
-    const foodRows = petData.foods.map((f) => ({
-      pet_id: pet.id,
-      brand: f.brand,
-      portion_size: f.portionSize || null,
-      portion_unit: f.portionUnit || null,
-      meals_per_day: f.mealsPerDay ? parseInt(f.mealsPerDay, 10) : null,
-      is_treat: isTreatFood({
-        is_treat: f.isTreat,
+    const foodRows = petData.foods.map((f) => {
+      const times = parseInt(f.mealsPerDay.trim(), 10);
+      const mealsPerDay =
+        Number.isFinite(times) && times >= 1 ? times : null;
+      return {
+        pet_id: pet.id,
+        brand: f.brand,
+        portion_size: f.portionSize || null,
         portion_unit: f.portionUnit || null,
-      }),
-    }));
+        meals_per_day: mealsPerDay,
+        is_treat: f.isTreat,
+        notes: f.notes.trim() || null,
+      };
+    });
 
     const { error: foodError } = await supabase
       .from("pet_foods")
@@ -182,4 +190,34 @@ export async function updatePetMicrochip(
     .eq("id", petId);
 
   if (error) throw error;
+}
+
+export async function updatePetAvatar(
+  ownerId: string,
+  petId: string,
+  localUri: string,
+): Promise<Pet> {
+  const contentType = inferImageContentType(localUri);
+  const fileName = `pets/${ownerId}/${petId}-${Date.now()}.${extensionForContentType(contentType)}`;
+  const buffer = await readLocalImageUriAsArrayBuffer(localUri);
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(fileName, buffer, { contentType, upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(fileName);
+
+  const { data, error } = await supabase
+    .from("pets")
+    .update({ avatar_url: publicUrl })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
 }

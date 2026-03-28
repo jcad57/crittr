@@ -28,9 +28,7 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
   const tags = buildPetListTags(pet);
   const stats = petListPreviewStats(pet);
 
-  const statStripBg = isOrange
-    ? "rgba(0,0,0,0.14)"
-    : "rgba(255,255,255,0.08)";
+  const statStripBg = isOrange ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.08)";
   const tagBg = isOrange ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.12)";
   const ctaSecondaryBg = isOrange
     ? "rgba(0,0,0,0.28)"
@@ -49,15 +47,6 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
           <Text style={styles.subline} numberOfLines={2}>
             {subline}
           </Text>
-          {tags.length > 0 ? (
-            <View style={styles.tagsRow}>
-              {tags.map((t) => (
-                <View key={t} style={[styles.tag, { backgroundColor: tagBg }]}>
-                  <Text style={styles.tagText}>{t}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
         </View>
         <View style={styles.avatar}>
           {avatarUri ? (
@@ -76,17 +65,6 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
             />
           )}
         </View>
-      </View>
-
-      <View style={[styles.statStrip, { backgroundColor: statStripBg }]}>
-        <StatCell
-          value={String(stats.primaryValue)}
-          label={stats.primaryLabel}
-        />
-        <View style={styles.statDivider} />
-        <StatCell value={String(stats.meals)} label="Meals" />
-        <View style={styles.statDivider} />
-        <StatCell value={stats.weightLine} label="Weight" isWeight />
       </View>
 
       <View style={styles.ctaRow}>

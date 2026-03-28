@@ -16,6 +16,7 @@ import {
 } from "react-native";
 
 const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
+const TIMES_QUICK = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const DOSAGE_TYPES = [
   "Tablet",
   "Injection",
@@ -36,6 +37,9 @@ export default function PetCareStep() {
   const [foodBrand, setFoodBrand] = useState("");
   const [foodPortion, setFoodPortion] = useState("");
   const [foodUnit, setFoodUnit] = useState<string>("Cups");
+  const [foodIsTreat, setFoodIsTreat] = useState(false);
+  const [foodTimesPerDay, setFoodTimesPerDay] = useState("");
+  const [foodNotes, setFoodNotes] = useState("");
 
   // Medication form local state
   const [medName, setMedName] = useState("");
@@ -56,19 +60,24 @@ export default function PetCareStep() {
   }, [isValid, nextStep]);
 
   const addFood = () => {
-    if (!foodBrand.trim()) return;
+    const times = parseInt(foodTimesPerDay.trim(), 10);
+    if (!foodBrand.trim() || !Number.isFinite(times) || times < 1) return;
     const entry: FoodFormEntry = {
       localId: Date.now().toString(),
       brand: foodBrand.trim(),
       portionSize: foodPortion,
       portionUnit: foodUnit,
-      mealsPerDay: "",
-      isTreat: foodUnit === "Piece(s)",
+      mealsPerDay: String(times),
+      isTreat: foodIsTreat,
+      notes: foodNotes.trim(),
     };
     updateCurrentPet({ foods: [...pet.foods, entry] });
     setFoodBrand("");
     setFoodPortion("");
     setFoodUnit("Cups");
+    setFoodIsTreat(false);
+    setFoodTimesPerDay("");
+    setFoodNotes("");
   };
 
   const removeFood = (localId: string) => {
@@ -127,84 +136,155 @@ export default function PetCareStep() {
         />
       </View>
 
-      <Text
-        style={[
-          styles.sectionTitle,
-          attempted && !isValid && styles.sectionTitleError,
-        ]}
-      >
-        Meals & Treats Per Day *
-      </Text>
+      <View style={styles.foodSection}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            attempted && !isValid && styles.sectionTitleError,
+          ]}
+        >
+          Meals & Treats Per Day *
+        </Text>
 
-      <FormInput
-        placeholder="Purina, Blue, etc."
-        value={foodBrand}
-        onChangeText={setFoodBrand}
-        containerStyle={styles.inputSpacing}
-      />
-
-      <View style={styles.row3}>
-        <FormInput
-          placeholder="Amt"
-          value={foodPortion}
-          onChangeText={setFoodPortion}
-          keyboardType="numeric"
-          containerStyle={styles.smallInput}
-        />
-        <View style={styles.portionToggleRow}>
-          {PORTION_UNITS.map((unit, i) => (
+        <View style={styles.foodNameRow}>
+          <View style={styles.foodNameField}>
+            <FormInput
+              placeholder="Purina, Blue, etc."
+              value={foodBrand}
+              onChangeText={setFoodBrand}
+              containerStyle={styles.foodNameInput}
+            />
+          </View>
+          <View style={styles.mealTreatToggleRow}>
             <Pressable
-              key={unit}
               style={[
-                styles.portionToggle,
-                i < PORTION_UNITS.length - 1 && styles.portionToggleBorder,
-                foodUnit === unit && styles.portionToggleActive,
+                styles.mealTreatToggle,
+                styles.mealTreatToggleBorder,
+                !foodIsTreat && styles.portionToggleActive,
               ]}
-              onPress={() => setFoodUnit(unit)}
+              onPress={() => setFoodIsTreat(false)}
             >
               <Text
                 style={[
-                  styles.portionToggleText,
-                  foodUnit === unit && styles.portionToggleTextActive,
+                  styles.mealTreatToggleText,
+                  !foodIsTreat && styles.portionToggleTextActive,
                 ]}
               >
-                {unit}
+                Meal
               </Text>
             </Pressable>
-          ))}
+            <Pressable
+              style={[
+                styles.mealTreatToggle,
+                foodIsTreat && styles.portionToggleActive,
+              ]}
+              onPress={() => setFoodIsTreat(true)}
+            >
+              <Text
+                style={[
+                  styles.mealTreatToggleText,
+                  foodIsTreat && styles.portionToggleTextActive,
+                ]}
+              >
+                Treat
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      <Pressable style={styles.addButton} onPress={addFood}>
-        <Text style={styles.addButtonText}>Add food</Text>
-      </Pressable>
-
-      {pet.foods.length > 0 && (
-        <View style={styles.listCard}>
-          {pet.foods.map((f) => (
-            <View key={f.localId} style={styles.listRow}>
-              <View style={styles.listRowText}>
-                <Text style={styles.listItemBold}>{f.brand}</Text>
-                <Text style={styles.listItemSub}>
-                  {f.portionSize} {f.portionUnit} Per Day
+        <View style={styles.row3}>
+          <FormInput
+            placeholder="Amt"
+            value={foodPortion}
+            onChangeText={setFoodPortion}
+            keyboardType="numeric"
+            containerStyle={styles.smallInput}
+          />
+          <View style={styles.portionToggleRow}>
+            {PORTION_UNITS.map((unit, i) => (
+              <Pressable
+                key={unit}
+                style={[
+                  styles.portionToggle,
+                  i < PORTION_UNITS.length - 1 && styles.portionToggleBorder,
+                  foodUnit === unit && styles.portionToggleActive,
+                ]}
+                onPress={() => setFoodUnit(unit)}
+              >
+                <Text
+                  style={[
+                    styles.portionToggleText,
+                    foodUnit === unit && styles.portionToggleTextActive,
+                  ]}
+                >
+                  {unit}
                 </Text>
-              </View>
-              <TouchableOpacity onPress={() => removeFood(f.localId)}>
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={20}
-                  color={Colors.gray400}
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
+              </Pressable>
+            ))}
+          </View>
         </View>
-      )}
+
+        <Text style={styles.fieldLabel}>How many times per day?</Text>
+        <View style={[styles.row3, styles.timesRow]}>
+          <DropdownSelect
+            placeholder="Quick select"
+            value={TIMES_QUICK.includes(foodTimesPerDay) ? foodTimesPerDay : ""}
+            options={TIMES_QUICK}
+            onSelect={(v) => setFoodTimesPerDay(v)}
+            containerStyle={styles.timesDropdown}
+          />
+        </View>
+
+        <FormInput
+          label="Notes"
+          placeholder="e.g. 2 cups in the morning, 1 cup at night"
+          value={foodNotes}
+          onChangeText={setFoodNotes}
+          multiline
+          containerStyle={styles.notesField}
+          style={styles.notesMultiline}
+        />
+
+        <Pressable style={styles.addButton} onPress={addFood}>
+          <Text style={styles.addButtonText}>+ Add this food</Text>
+        </Pressable>
+
+        {pet.foods.length > 0 && (
+          <View style={styles.listCard}>
+            {pet.foods.map((f) => (
+              <View key={f.localId} style={styles.listRow}>
+                <View style={styles.listRowText}>
+                  <Text style={styles.listItemBold}>{f.brand}</Text>
+                  <Text style={styles.listItemSub}>
+                    {f.isTreat ? "Treat" : "Meal"} · {f.portionSize}{" "}
+                    {f.portionUnit} · {f.mealsPerDay}x daily
+                  </Text>
+                  {f.notes.trim() ? (
+                    <Text style={styles.listItemNotes} numberOfLines={3}>
+                      {f.notes.trim()}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity onPress={() => removeFood(f.localId)}>
+                  <MaterialCommunityIcons
+                    name="close-circle"
+                    size={20}
+                    color={Colors.gray400}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
 
       <Divider />
 
       {/* ── Medications ──────────────────────────────────────── */}
       <Text style={styles.sectionTitle}>Medications</Text>
+      <Text style={styles.helperText}>
+        List medications your pet is currently on here
+      </Text>
 
       <FormInput
         placeholder="Medication name"
@@ -260,7 +340,7 @@ export default function PetCareStep() {
       />
 
       <Pressable style={styles.addButton} onPress={addMedication}>
-        <Text style={styles.addButtonText}>Add medication</Text>
+        <Text style={styles.addButtonText}>+ Add this medication</Text>
       </Pressable>
 
       {pet.medications.length > 0 && (
@@ -330,8 +410,74 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  helperText: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    marginTop: -8,
+  },
   inputSpacing: {
     marginBottom: 12,
+  },
+  foodSection: {
+    zIndex: 120,
+    marginBottom: 4,
+  },
+  foodNameRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+    alignItems: "flex-start",
+  },
+  foodNameField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  foodNameInput: {
+    marginBottom: 0,
+  },
+  mealTreatToggleRow: {
+    flexDirection: "row",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    height: 50,
+    width: 140,
+    flexShrink: 0,
+  },
+  mealTreatToggle: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mealTreatToggleBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.gray200,
+  },
+  mealTreatToggleText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  timesRow: {
+    zIndex: 80,
+  },
+  timesDropdown: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timesNumberInput: {
+    width: 88,
+    marginBottom: 0,
+  },
+  notesField: {
+    marginBottom: 12,
+    minHeight: 100,
+  },
+  notesMultiline: {
+    minHeight: 72,
   },
   row3: {
     flexDirection: "row",
@@ -404,11 +550,18 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
+  listItemNotes: {
+    fontFamily: "InstrumentSans-Regular",
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 15,
+  },
   addButton: {
     borderWidth: 1,
-    borderColor: Colors.gray200,
-    borderRadius: 12,
-    height: 48,
+    borderColor: Colors.gray500,
+    borderRadius: 50,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },

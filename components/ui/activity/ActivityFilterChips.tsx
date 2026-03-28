@@ -15,6 +15,7 @@ const FILTERS: { id: ActivityFilterCategory; label: string }[] = [
   { id: "meals", label: "Meals" },
   { id: "treats", label: "Treats" },
   { id: "meds", label: "Meds" },
+  { id: "vet_visit", label: "Vet Visits" },
 ];
 
 type Props = {

@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   StyleProp,
   StyleSheet,
+  Text,
   TextInput,
   TextInputProps,
   View,
@@ -13,6 +14,9 @@ type FormInputProps = TextInputProps & {
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   containerStyle?: StyleProp<ViewStyle>;
   error?: boolean;
+  /** Renders above the input; use with `required` for a trailing * on the label only. */
+  label?: string;
+  required?: boolean;
 };
 
 export default function FormInput({
@@ -21,17 +25,19 @@ export default function FormInput({
   style,
   error,
   multiline,
+  label,
+  required,
   ...rest
 }: FormInputProps) {
   const isMultiline = Boolean(multiline);
 
-  return (
+  const inputRow = (
     <View
       style={[
         styles.container,
         isMultiline && styles.containerMultiline,
         error && styles.containerError,
-        containerStyle,
+        !label && containerStyle,
       ]}
     >
       {icon && (
@@ -55,9 +61,32 @@ export default function FormInput({
       />
     </View>
   );
+
+  if (label) {
+    return (
+      <View style={containerStyle}>
+        <Text style={[styles.fieldLabel, error && styles.fieldLabelError]}>
+          {label}
+          {required ? " *" : ""}
+        </Text>
+        {inputRow}
+      </View>
+    );
+  }
+
+  return inputRow;
 }
 
 const styles = StyleSheet.create({
+  fieldLabel: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   container: {
     flexDirection: "row",
     alignItems: "center",
@@ -66,6 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 50,
     paddingHorizontal: 16,
+    backgroundColor: Colors.white,
   },
   /** Taller field with icon pinned to top so placeholder/text align with phone row. */
   containerMultiline: {

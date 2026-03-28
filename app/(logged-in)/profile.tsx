@@ -1,7 +1,14 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
+import {
+  profileQueryKey,
+  usePetsQuery,
+  useProfileQuery,
+} from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { pickAvatarImage } from "@/lib/pickImage";
+import { queryClient } from "@/lib/queryClient";
+import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import type { Pet, Profile } from "@/types/database";
@@ -9,7 +16,7 @@ import { formatPetTypeLabel } from "@/utils/petDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, type ComponentProps } from "react";
+import { useCallback, useMemo, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +25,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,18 +75,11 @@ type AccountRowProps = {
   icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
   label: string;
   value: string;
-  onPress?: () => void;
 };
 
-function AccountRow({ icon, label, value, onPress }: AccountRowProps) {
+function AccountRow({ icon, label, value }: AccountRowProps) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.cardRow,
-        pressed && styles.cardRowPressed,
-      ]}
-      onPress={onPress}
-    >
+    <View style={styles.cardRow}>
       <View style={[styles.iconTile, styles.iconTileAccount]}>
         <MaterialCommunityIcons name={icon} size={22} color={Colors.orange} />
       </View>
@@ -87,12 +89,7 @@ function AccountRow({ icon, label, value, onPress }: AccountRowProps) {
           {value.trim() || "—"}
         </Text>
       </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={22}
-        color={Colors.gray400}
-      />
-    </Pressable>
+    </View>
   );
 }
 
@@ -138,7 +135,12 @@ export default function UserProfileScreen() {
   const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const activePetId = usePetStore((s) => s.activePetId);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [bioEditing, setBioEditing] = useState(false);
+  const [bioDraft, setBioDraft] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
 
   const { data: profile, isLoading: isProfileLoading } = useProfileQuery();
   const { data: pets = [] } = usePetsQuery();
@@ -163,11 +165,77 @@ export default function UserProfileScreen() {
     router.replace("/(auth)/welcome");
   };
 
+  const userId = session?.user?.id;
+
+  const handleProfileAvatarPress = useCallback(async () => {
+    if (!userId) return;
+    const uri = await pickAvatarImage();
+    if (!uri) return;
+    setAvatarUploading(true);
+    try {
+      const avatarUrl = await uploadAvatar(userId, uri);
+      const updated = await updateProfile(userId, { avatar_url: avatarUrl });
+      if (updated) {
+        setProfile(updated);
+        await queryClient.invalidateQueries({
+          queryKey: profileQueryKey(userId),
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't update photo", msg);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [userId, setProfile]);
+
+  const startBioEdit = useCallback(() => {
+    setBioDraft(profile?.bio?.trim() ?? "");
+    setBioEditing(true);
+  }, [profile?.bio]);
+
+  const cancelBioEdit = useCallback(() => {
+    setBioEditing(false);
+    setBioDraft("");
+  }, []);
+
+  const saveBio = useCallback(async () => {
+    if (!userId) return;
+    setBioSaving(true);
+    try {
+      const trimmed = bioDraft.trim();
+      const updated = await updateProfile(userId, {
+        bio: trimmed.length > 0 ? trimmed : null,
+      });
+      if (updated) {
+        setProfile(updated);
+        await queryClient.invalidateQueries({
+          queryKey: profileQueryKey(userId),
+        });
+        setBioEditing(false);
+        setBioDraft("");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't save bio", msg);
+    } finally {
+      setBioSaving(false);
+    }
+  }, [userId, bioDraft, setProfile]);
+
   const placeholder = () =>
     Alert.alert(
       "Coming soon",
       "This action will be available in a future update.",
     );
+
+  const openEditAccount = useCallback(() => {
+    router.push("/(logged-in)/edit-account");
+  }, [router]);
+
+  const openForgotPassword = useCallback(() => {
+    router.push("/(logged-in)/forgot-password");
+  }, [router]);
 
   if (isProfileLoading && !profile) {
     return (
@@ -220,18 +288,43 @@ export default function UserProfileScreen() {
         {/* ── Hero ───────────────────────────────────────── */}
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <View style={styles.heroAvatar}>
-              {profile?.avatar_url?.trim() ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  style={styles.heroAvatarImage}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <Text style={styles.heroInitials}>{initials}</Text>
-              )}
-            </View>
+            <Pressable
+              onPress={handleProfileAvatarPress}
+              disabled={avatarUploading}
+              style={({ pressed }) => [
+                styles.heroAvatarOuter,
+                pressed && styles.heroAvatarPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
+              <View style={styles.heroAvatarClip}>
+                {profile?.avatar_url?.trim() ? (
+                  <Image
+                    source={{ uri: profile.avatar_url }}
+                    style={styles.heroAvatarImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <Text style={styles.heroInitials}>{initials}</Text>
+                )}
+                {avatarUploading ? (
+                  <View style={styles.heroAvatarOverlay}>
+                    <ActivityIndicator color={Colors.white} />
+                  </View>
+                ) : null}
+              </View>
+              {!avatarUploading ? (
+                <View style={styles.heroPencilBadge} pointerEvents="none">
+                  <MaterialCommunityIcons
+                    name="pencil-outline"
+                    size={14}
+                    color={Colors.black}
+                  />
+                </View>
+              ) : null}
+            </Pressable>
             <View style={styles.heroTextCol}>
               <Text style={styles.heroName}>{titleName}</Text>
               <Text style={styles.heroEmail}>{email || "—"}</Text>
@@ -240,15 +333,6 @@ export default function UserProfileScreen() {
               ) : null}
             </View>
           </View>
-          {/* <Pressable
-            style={({ pressed }) => [
-              styles.editPill,
-              pressed && styles.editPillPressed,
-            ]}
-            onPress={placeholder}
-          >
-            <Text style={styles.editPillText}>Edit profile</Text>
-          </Pressable> */}
         </View>
 
         {/* ── Pets ───────────────────────────────────────── */}
@@ -305,49 +389,116 @@ export default function UserProfileScreen() {
           </View>
         )}
 
-        {profile?.bio?.trim() ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>About</Text>
-            </View>
-            <View style={styles.bioCard}>
-              <Text style={styles.bioText}>{profile.bio.trim()}</Text>
-            </View>
-          </>
-        ) : null}
+        <View style={styles.aboutSectionHeader}>
+          <Text style={styles.sectionLabel}>About</Text>
+          {!bioEditing ? (
+            <Pressable
+              onPress={startBioEdit}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Edit bio"
+              style={({ pressed }) => [
+                styles.bioEditHeaderBtn,
+                pressed && styles.bioEditHeaderBtnPressed,
+              ]}
+            >
+              <Text style={styles.bioEditHeaderBtnText}>Edit</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={styles.bioCard}>
+          {bioEditing ? (
+            <>
+              <TextInput
+                value={bioDraft}
+                onChangeText={setBioDraft}
+                multiline
+                placeholder="Tell others about yourself and your pets…"
+                placeholderTextColor={Colors.gray400}
+                style={styles.bioInput}
+                maxLength={500}
+                textAlignVertical="top"
+                editable={!bioSaving}
+              />
+              <View style={styles.bioEditActions}>
+                <Pressable
+                  onPress={cancelBioEdit}
+                  disabled={bioSaving}
+                  style={({ pressed }) => [
+                    styles.bioCancelBtn,
+                    pressed && !bioSaving && styles.bioCancelBtnPressed,
+                    bioSaving && styles.bioBtnDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel editing bio"
+                >
+                  <Text style={styles.bioCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={saveBio}
+                  disabled={bioSaving}
+                  style={({ pressed }) => [
+                    styles.bioSaveBtn,
+                    pressed && !bioSaving && styles.bioSaveBtnPressed,
+                    bioSaving && styles.bioBtnDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save bio"
+                >
+                  {bioSaving ? (
+                    <ActivityIndicator color={Colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.bioSaveBtnText}>Save</Text>
+                  )}
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Text
+              style={[
+                styles.bioText,
+                !profile?.bio?.trim() && styles.bioTextPlaceholder,
+              ]}
+            >
+              {profile?.bio?.trim()
+                ? profile.bio.trim()
+                : "Add a short bio to tell others about yourself."}
+            </Text>
+          )}
+        </View>
 
         {/* ── Account ───────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
+        <View style={styles.aboutSectionHeader}>
           <Text style={styles.sectionLabel}>Account</Text>
+          <Pressable
+            onPress={openEditAccount}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit account details"
+            style={({ pressed }) => [
+              styles.bioEditHeaderBtn,
+              pressed && styles.bioEditHeaderBtnPressed,
+            ]}
+          >
+            <Text style={styles.bioEditHeaderBtnText}>Edit</Text>
+          </Pressable>
         </View>
         <View style={styles.whiteCard}>
           <AccountRow
             icon="phone-outline"
             label="Phone number"
             value={profile?.phone_number?.trim() ?? ""}
-            onPress={placeholder}
           />
           <View style={styles.rowDivider} />
-          <AccountRow
-            icon="email-outline"
-            label="Email"
-            value={email}
-            onPress={placeholder}
-          />
+          <AccountRow icon="email-outline" label="Email" value={email} />
           <View style={styles.rowDivider} />
           <AccountRow
             icon="map-marker-outline"
             label="Address"
             value={profile?.home_address?.trim() ?? ""}
-            onPress={placeholder}
           />
           <View style={styles.rowDivider} />
-          <AccountRow
-            icon="lock-outline"
-            label="Password"
-            value="••••••••"
-            onPress={placeholder}
-          />
+          <AccountRow icon="lock-outline" label="Password" value="••••••••" />
         </View>
 
         {/* ── Support ─────────────────────────────────────── */}
@@ -383,12 +534,12 @@ export default function UserProfileScreen() {
         </View>
 
         {/* ── Sign out ───────────────────────────────────── */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.signOutCard,
-            pressed && styles.signOutCardPressed,
-          ]}
+        <TouchableOpacity
+          style={styles.signOutCard}
           onPress={handleSignOut}
+          activeOpacity={0.65}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
         >
           <View style={styles.signOutIconBox}>
             <MaterialCommunityIcons
@@ -403,7 +554,7 @@ export default function UserProfileScreen() {
             size={22}
             color={Colors.gray400}
           />
-        </Pressable>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -469,7 +620,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  heroAvatar: {
+  /** Room for the camera badge on the rim without clipping (see heroAvatarClip). */
+  heroAvatarOuter: {
+    width: 80,
+    height: 80,
+    position: "relative",
+  },
+  heroAvatarClip: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 72,
     height: 72,
     borderRadius: 36,
@@ -477,6 +637,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+  },
+  heroAvatarPressed: {
+    opacity: 0.9,
+  },
+  heroAvatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroPencilBadge: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    elevation: 4,
   },
   heroAvatarImage: {
     width: "100%",
@@ -508,27 +690,33 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.55)",
     marginTop: 2,
   },
-  editPill: {
-    alignSelf: "flex-start",
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.45)",
-  },
-  editPillPressed: {
-    opacity: 0.85,
-  },
-  editPillText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.95)",
-  },
 
   sectionHeader: {
     marginBottom: 10,
     marginTop: 8,
+  },
+  aboutSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  bioEditHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  bioEditHeaderBtnPressed: {
+    opacity: 0.75,
+  },
+  bioEditHeaderBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.orange,
   },
   sectionLabel: {
     fontFamily: Font.uiSemiBold,
@@ -636,6 +824,76 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 22,
   },
+  bioTextPlaceholder: {
+    color: Colors.gray400,
+    fontStyle: "italic",
+  },
+  bioInput: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    lineHeight: 22,
+    minHeight: 100,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    marginBottom: 14,
+  },
+  bioEditActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 10,
+  },
+  bioCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
+  },
+  bioCancelBtnPressed: {
+    backgroundColor: Colors.gray50,
+  },
+  bioCancelBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  bioSaveBtn: {
+    minWidth: 96,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: Colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bioSaveBtnPressed: {
+    opacity: 0.92,
+  },
+  bioSaveBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.white,
+  },
+  bioBtnDisabled: {
+    opacity: 0.65,
+  },
+
+  forgotPasswordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  forgotPasswordText: {
+    flex: 1,
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.orange,
+  },
 
   whiteCard: {
     backgroundColor: Colors.white,
@@ -715,9 +973,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.coralLight,
     gap: 12,
-  },
-  signOutCardPressed: {
-    opacity: 0.9,
   },
   signOutIconBox: {
     width: 40,

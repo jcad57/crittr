@@ -47,7 +47,9 @@ export const usePetStore = create<PetState>((set, get) => ({
     const { activePetId } = get();
     if (activePetId && pets.some((p) => p.id === activePetId)) return;
     const active = pets.find((p) => p.is_active) ?? pets[0];
-    set({ activePetId: active?.id ?? null });
+    const nextId = active?.id ?? null;
+    if (activePetId === nextId) return;
+    set({ activePetId: nextId });
   },
 
   clear: () => set({ activePetId: null }),

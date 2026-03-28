@@ -1,12 +1,101 @@
+import StepIndicator from "@/components/onboarding/StepIndicator";
 import { Colors } from "@/constants/colors";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import OrangeButton from "../buttons/OrangeButton";
 import ScreenWrapper from "../ScreenWrapper";
 
+/** Matches `ScreenWrapper` horizontal padding. */
+const SCREEN_WRAPPER_PADDING_H = 24;
+/** Matches `styles.container` horizontal padding. */
+const WELCOME_CONTAINER_PADDING_H = 8;
+
+const FEATURES = [
+  {
+    id: "1",
+    text: "Crittr is a platform that helps you track your pet's health and activities.",
+  },
+  {
+    id: "2",
+    text: "Log meals, walks, medications, and vet visits in one place—so nothing slips through the cracks.",
+  },
+  {
+    id: "3",
+    text: "Share activities with co-carers and keep everyone aligned on your pet's routine.",
+  },
+];
+
+const AUTO_ADVANCE_MS = 5400;
+
 export default function WelcomeContent() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const slideWidth =
+    windowWidth -
+    SCREEN_WRAPPER_PADDING_H * 2 -
+    WELCOME_CONTAINER_PADDING_H * 2;
+
+  const listRef = useRef<FlatList<(typeof FEATURES)[number]>>(null);
+  const [index, setIndex] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const startTimer = useCallback(() => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      setIndex((prev) => {
+        const next = (prev + 1) % FEATURES.length;
+        listRef.current?.scrollToIndex({
+          index: next,
+          animated: true,
+          viewPosition: 0,
+        });
+        return next;
+      });
+    }, AUTO_ADVANCE_MS);
+  }, [clearTimer]);
+
+  useEffect(() => {
+    startTimer();
+    return clearTimer;
+  }, [startTimer]);
+
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const i = Math.round(x / slideWidth);
+      const clamped = Math.min(Math.max(i, 0), FEATURES.length - 1);
+      setIndex(clamped);
+      startTimer();
+    },
+    [slideWidth, startTimer],
+  );
+
+  const getItemLayout = useCallback(
+    (_: unknown, i: number) => ({
+      length: slideWidth,
+      offset: slideWidth * i,
+      index: i,
+    }),
+    [slideWidth],
+  );
 
   return (
     <>
@@ -19,10 +108,26 @@ export default function WelcomeContent() {
       <ScreenWrapper>
         <View style={styles.container}>
           <Text style={styles.headline}>Co-care for your best friend</Text>
-          <Text style={styles.subheadline}>
-            Crittr is a platform that helps you track your pet's health and
-            activities.
-          </Text>
+
+          <View style={styles.carouselBlock}>
+            <FlatList
+              ref={listRef}
+              data={FEATURES}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={[styles.slide, { width: slideWidth }]}>
+                  <Text style={styles.subheadline}>{item.text}</Text>
+                </View>
+              )}
+              getItemLayout={getItemLayout}
+              onMomentumScrollEnd={onMomentumScrollEnd}
+            />
+            <StepIndicator totalSteps={FEATURES.length} currentStep={index} />
+          </View>
+
           <OrangeButton
             style={styles.ctaButton}
             onPress={() => router.push("/(auth)/(onboarding)")}
@@ -60,12 +165,20 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 8,
   },
+  carouselBlock: {
+    width: "100%",
+    marginBottom: 12,
+  },
+  slide: {
+    justifyContent: "center",
+    minHeight: 80,
+  },
   subheadline: {
     fontFamily: "InstrumentSans-Regular",
     fontSize: 18,
     textAlign: "center",
     color: Colors.textSecondary,
-    marginBottom: 40,
+    paddingHorizontal: 4,
   },
   ctaButton: {
     marginBottom: 22,

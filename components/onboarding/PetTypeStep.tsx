@@ -54,7 +54,8 @@ export default function PetTypeStep() {
     <View style={styles.container}>
       <Text style={styles.title}>What type of pet do you have?</Text>
       <Text style={styles.subtitle}>
-        This helps us tailor the experience for your pet.
+        This helps us tailor the experience for your pet. You'll be able to add
+        more pets later.
       </Text>
 
       <View style={styles.grid}>
@@ -67,10 +68,7 @@ export default function PetTypeStep() {
               onPress={() => handleSelect(pt.id)}
             >
               <View
-                style={[
-                  styles.iconCircle,
-                  isActive && styles.iconCircleActive,
-                ]}
+                style={[styles.iconCircle, isActive && styles.iconCircleActive]}
               >
                 <MaterialCommunityIcons
                   name={pt.icon}

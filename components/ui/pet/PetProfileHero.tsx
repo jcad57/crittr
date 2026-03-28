@@ -1,7 +1,14 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export type PetHeroTag = {
   label: string;
@@ -15,6 +22,9 @@ type PetProfileHeroProps = {
   subline: string;
   imageUrl?: string | null;
   tags: PetHeroTag[];
+  /** When set, the avatar becomes tappable to change the photo. */
+  onAvatarPress?: () => void;
+  avatarUploading?: boolean;
 };
 
 export default function PetProfileHero({
@@ -22,23 +32,54 @@ export default function PetProfileHero({
   subline,
   imageUrl,
   tags,
+  onAvatarPress,
+  avatarUploading,
 }: PetProfileHeroProps) {
   const uri = imageUrl?.trim() || null;
+
+  const avatarCircle = (
+    <View style={styles.avatarClip}>
+      {uri ? (
+        <Image source={{ uri }} style={styles.avatarImg} contentFit="cover" />
+      ) : (
+        <Text style={styles.avatarEmoji}>🐾</Text>
+      )}
+      {avatarUploading ? (
+        <View style={styles.avatarOverlay}>
+          <ActivityIndicator color={Colors.white} />
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <View style={styles.avatarWrap}>
-          {uri ? (
-            <Image
-              source={{ uri }}
-              style={styles.avatarImg}
-              contentFit="cover"
-            />
-          ) : (
-            <Text style={styles.avatarEmoji}>🐾</Text>
-          )}
-        </View>
+        {onAvatarPress ? (
+          <Pressable
+            onPress={onAvatarPress}
+            disabled={avatarUploading}
+            style={({ pressed }) => [
+              styles.avatarOuter,
+              pressed && styles.avatarPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Change pet photo"
+          >
+            {avatarCircle}
+            {!avatarUploading ? (
+              <View style={styles.pencilBadge} pointerEvents="none">
+                <MaterialCommunityIcons
+                  name="pencil-outline"
+                  size={14}
+                  color={Colors.orange}
+                />
+              </View>
+            ) : null}
+          </Pressable>
+        ) : (
+          <View style={styles.avatarOuter}>{avatarCircle}</View>
+        )}
         <View style={styles.textCol}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.subline} numberOfLines={2}>
@@ -74,7 +115,20 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 14,
   },
-  avatarWrap: {
+  /**
+   * Larger than the 72px circle so the pencil badge can sit on the rim without
+   * negative offsets (parent card uses overflow:hidden and would clip).
+   */
+  avatarOuter: {
+    width: 80,
+    height: 80,
+    position: "relative",
+  },
+  /** Photo/emoji only — circular mask applied here (pencil is a sibling, not clipped). */
+  avatarClip: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 72,
     height: 72,
     borderRadius: 36,
@@ -84,6 +138,28 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.95)",
+  },
+  avatarPressed: {
+    opacity: 0.92,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pencilBadge: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: Colors.white,
+    zIndex: 2,
+    elevation: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarImg: {
     width: "100%",

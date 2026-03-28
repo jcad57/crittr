@@ -17,10 +17,20 @@ import type {
   Medication,
   PetProfile,
 } from "@/data/mockDashboard";
-import { usePetDetailsQuery } from "@/hooks/queries";
+import {
+  petDetailsQueryKey,
+  petsQueryKey,
+  usePetDetailsQuery,
+  useTodayActivitiesQuery,
+} from "@/hooks/queries";
+import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import type { PetFood, PetWithDetails } from "@/types/database";
+import { pickAvatarImage } from "@/lib/pickImage";
+import { queryClient } from "@/lib/queryClient";
 import { isTreatFood } from "@/lib/petFood";
+import { updatePetAvatar } from "@/services/pets";
+import { useAuthStore } from "@/stores/authStore";
+import type { PetActivity, PetFood, PetWithDetails } from "@/types/database";
 import {
   formatBirthdayChip,
   formatDateOfBirth,
@@ -31,9 +41,10 @@ import {
   formatPetWeightDisplay,
 } from "@/utils/petDisplay";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,24 +72,32 @@ function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
       brand: f.brand?.trim() || "Food",
       portionLabel: formatPortionLabel(f),
       isTreat: isTreatFood(f),
+      notes: f.notes?.trim() || undefined,
     })),
     notes: "",
   };
 }
 
-function toMedications(details: PetWithDetails): Medication[] {
-  return details.medications.map((m, i) => ({
-    id: m.id,
-    name: m.name,
-    frequency: m.frequency ?? "",
-    condition: m.condition ?? "",
-    dosageDesc: m.dosage ?? "",
-    current: 0,
-    total: 0,
-    iconBg: Colors.successLight,
-    iconColor: Colors.success,
-    profileStatus: i % 2 === 0 ? "due_today" : "up_to_date",
-  }));
+function toMedications(
+  details: PetWithDetails,
+  todayActivities: PetActivity[],
+): Medication[] {
+  return details.medications.map((m) => {
+    const prog = buildMedicationDosageProgress(m, todayActivities, details.id);
+    return {
+      id: m.id,
+      name: m.name,
+      frequency: m.frequency ?? "",
+      condition: m.condition ?? "",
+      dosageDesc: m.dosage ?? "",
+      current: prog.current,
+      total: prog.total,
+      lastTaken: prog.lastTaken,
+      iconBg: Colors.successLight,
+      iconColor: Colors.success,
+      profileStatus: prog.isComplete ? "up_to_date" : "due_today",
+    };
+  });
 }
 
 function buildQuickTags(profile: PetProfile): PetHeroTag[] {
@@ -112,7 +131,10 @@ function profileSubline(profile: PetProfile): string {
   return `${breed} · ${profile.ageDisplay}`;
 }
 
-function toProfile(details: PetWithDetails): PetProfile {
+function toProfile(
+  details: PetWithDetails,
+  todayActivities: PetActivity[],
+): PetProfile {
   const dob = details.date_of_birth;
   const dobFormatted = formatDateOfBirth(
     typeof dob === "string" ? dob : dob != null ? String(dob) : null,
@@ -151,7 +173,7 @@ function toProfile(details: PetWithDetails): PetProfile {
     exercisesPerDay: details.exercises_per_day,
     about: details.about ?? "",
     feeding: toFeedingSchedule(details),
-    medications: toMedications(details),
+    medications: toMedications(details, todayActivities),
     vetVisits: [],
   };
 }
@@ -185,12 +207,32 @@ export default function PetProfilePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
+  const ownerId = useAuthStore((s) => s.session?.user?.id);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const { data: details, isLoading } = usePetDetailsQuery(id);
+  const { data: todayActivities = [] } = useTodayActivitiesQuery(id);
+
+  const handlePetAvatarPress = useCallback(async () => {
+    if (!ownerId || !id) return;
+    const uri = await pickAvatarImage();
+    if (!uri) return;
+    setAvatarUploading(true);
+    try {
+      await updatePetAvatar(ownerId, id, uri);
+      await queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(id) });
+      await queryClient.invalidateQueries({ queryKey: petsQueryKey(ownerId) });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't update photo", msg);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [ownerId, id]);
 
   const profile = useMemo(
-    () => (details ? toProfile(details) : null),
-    [details],
+    () => (details ? toProfile(details, todayActivities) : null),
+    [details, todayActivities],
   );
 
   const statItems = useMemo((): StatChipItem[] => {
@@ -307,9 +349,7 @@ export default function PetProfilePage() {
         <Text style={styles.navTitle} numberOfLines={1}>
           {profile.name}
         </Text>
-        <TouchableOpacity style={styles.navEdit} hitSlop={8}>
-          <Text style={styles.navEditText}>Edit</Text>
-        </TouchableOpacity>
+        <View style={styles.navSpacer} />
       </View>
 
       <ScrollView
@@ -326,11 +366,18 @@ export default function PetProfilePage() {
           subline={profileSubline(profile)}
           imageUrl={profile.imageUrl}
           tags={tags}
+          onAvatarPress={handlePetAvatarPress}
+          avatarUploading={avatarUploading}
         />
 
         <PetStatChips items={statItems} />
 
-        <SectionLabel style={styles.sectionFlush}>Details</SectionLabel>
+        <View style={styles.sectionHeaderRow}>
+          <SectionLabel style={styles.sectionLabelInline}>Details</SectionLabel>
+          <TouchableOpacity hitSlop={8} onPress={() => {}}>
+            <Text style={styles.sectionEditLink}>Edit</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.detailsCard}>
           <InfoRow label="Breed" value={profile.breed} />
           <InfoRow label="Color" value={profile.color} />
@@ -388,6 +435,9 @@ export default function PetProfilePage() {
                 name={m.name}
                 subline={medicationSubline(m)}
                 status={m.profileStatus ?? "up_to_date"}
+                progressLabel={
+                  m.total > 0 ? `${m.current}/${m.total}` : undefined
+                }
               />
             ))}
           </View>
@@ -445,14 +495,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginHorizontal: 8,
   },
-  navEdit: {
+  /** Balances the back control so the title stays centered. */
+  navSpacer: {
     minWidth: 72,
-    alignItems: "flex-end",
-  },
-  navEditText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
   },
 
   scroll: {
