@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Platform,
   StyleSheet,
@@ -32,6 +32,8 @@ export default function PetDateOfBirthField({
   error,
 }: PetDateOfBirthFieldProps) {
   const [pickerVisible, setPickerVisible] = useState(false);
+  /** Stable ref so the date picker does not receive a new `maximumDate` object every render (can contribute to update loops). */
+  const maximumDateRef = useRef(new Date());
 
   const pickerDate = useMemo(() => {
     if (!dateOfBirth) return new Date();
@@ -71,9 +73,7 @@ export default function PetDateOfBirthField({
           ]}
         >
           {dateOfBirth
-            ? new Date(
-                `${dateOfBirth}T12:00:00`,
-              ).toLocaleDateString("en-US", {
+            ? new Date(`${dateOfBirth}T12:00:00`).toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
@@ -86,7 +86,7 @@ export default function PetDateOfBirthField({
         isVisible={pickerVisible}
         mode="date"
         date={pickerDate}
-        maximumDate={new Date()}
+        maximumDate={maximumDateRef.current}
         display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
@@ -110,6 +110,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     borderRadius: 12,
     height: 50,
     paddingHorizontal: 16,

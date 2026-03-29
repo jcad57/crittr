@@ -37,11 +37,62 @@ export function formatMicrochipLabel(value: boolean | null): string {
   return "—";
 }
 
+/**
+ * Extract YYYY-MM-DD from Supabase `date` or ISO strings.
+ * Avoids parsing full timestamps with `new Date(iso)` (UTC vs local shifts the calendar day).
+ */
+export function parseDateOnlyYmd(
+  input: string | null | undefined,
+): string | null {
+  if (input == null) return null;
+  const s = String(input).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function calendarPartsFromYmd(ymd: string): { y: number; m: number; d: number } | null {
+  const parts = ymd.split("-").map(Number);
+  const y = parts[0];
+  const mo = parts[1];
+  const d = parts[2];
+  if (
+    !y ||
+    !mo ||
+    !d ||
+    mo < 1 ||
+    mo > 12 ||
+    d < 1 ||
+    d > 31
+  ) {
+    return null;
+  }
+  return { y, m: mo, d };
+}
+
 export function formatDateOfBirth(iso: string | null): string | null {
-  if (!iso?.trim()) return null;
-  const d = new Date(`${iso.trim()}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", {
+  const ymd = parseDateOnlyYmd(iso);
+  if (!ymd) return null;
+  const parts = calendarPartsFromYmd(ymd);
+  if (!parts) return null;
+  const date = new Date(parts.y, parts.m - 1, parts.d);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -50,10 +101,11 @@ export function formatDateOfBirth(iso: string | null): string | null {
 
 /** Short label for stat chips, e.g. "Apr '21". */
 export function formatBirthdayChip(iso: string | null): string {
-  if (!iso?.trim()) return "—";
-  const d = new Date(`${iso.trim()}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return "—";
-  const mon = d.toLocaleDateString("en-US", { month: "short" });
-  const yr = String(d.getFullYear()).slice(-2);
+  const ymd = parseDateOnlyYmd(iso);
+  if (!ymd) return "—";
+  const parts = calendarPartsFromYmd(ymd);
+  if (!parts) return "—";
+  const mon = MONTH_SHORT[parts.m - 1] ?? "—";
+  const yr = String(parts.y).slice(-2);
   return `${mon} '${yr}`;
 }

@@ -1,20 +1,24 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
 } from "@/hooks/queries/queryKeys";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
+import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePetsQuery } from "@/hooks/queries";
 import type { Pet } from "@/types/database";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -40,6 +44,7 @@ function startOfToday(): Date {
 
 export default function AddVetVisitScreen() {
   const insets = useSafeAreaInsets();
+  const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const { petId: petIdParam } = useLocalSearchParams<{ petId?: string }>();
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -54,10 +59,28 @@ export default function AddVetVisitScreen() {
   const [petIdOverride, setPetIdOverride] = useState<string | null>(null);
   const petId = petIdOverride ?? initialPetId;
   const [title, setTitle] = useState("Vet visit");
+  const [locationChoice, setLocationChoice] = useState("");
+  const [otherClinicText, setOtherClinicText] = useState("");
   const [notes, setNotes] = useState("");
   const [visitAt, setVisitAt] = useState(defaultVisitDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const primaryClinic = useMemo(
+    () => pets.find((p) => p.id === petId)?.primary_vet_clinic ?? null,
+    [pets, petId],
+  );
+
+  useEffect(() => {
+    const p = primaryClinic?.trim();
+    if (p) {
+      setLocationChoice(p);
+      setOtherClinicText("");
+    } else {
+      setLocationChoice("");
+      setOtherClinicText("");
+    }
+  }, [petId, primaryClinic]);
 
   const whenLabel = useMemo(
     () =>
@@ -89,10 +112,16 @@ export default function AddVetVisitScreen() {
     }
     setSubmitting(true);
     try {
+      const location = resolveVetVisitLocation(
+        locationChoice,
+        otherClinicText,
+        primaryClinic,
+      );
       await createVetVisit({
         pet_id: petId,
         title: t,
         visit_at: visitAt,
+        location,
         notes: notes.trim() || null,
       });
       await queryClient.invalidateQueries({
@@ -130,87 +159,105 @@ export default function AddVetVisitScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Schedule visit
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.body,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.label}>Pet</Text>
-        <View style={styles.petRow}>
-          {pets.map((p) => {
-            const selected = petId === p.id;
-            return (
-              <Pressable
-                key={p.id}
-                style={[styles.petChip, selected && styles.petChipOn]}
-                onPress={() => setPetIdOverride(p.id)}
-              >
-                <Text
-                  style={[styles.petChipText, selected && styles.petChipTextOn]}
-                  numberOfLines={1}
-                >
-                  {p.name}
-                </Text>
-              </Pressable>
-            );
-          })}
+    <KeyboardAvoidingView
+      style={styles.keyboardRoot}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Schedule visit
+          </Text>
+          <View style={styles.navSpacer} />
         </View>
 
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="e.g. Annual checkup"
-          placeholderTextColor={Colors.gray400}
-        />
-
-        <Text style={styles.label}>When</Text>
-        <Pressable
-          style={styles.whenBtn}
-          onPress={() => setPickerOpen(true)}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollBody}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
-          <MaterialCommunityIcons
-            name="calendar-clock"
-            size={22}
-            color={Colors.gray500}
+          <Text style={styles.label}>Pet</Text>
+          <View style={styles.petRow}>
+            {pets.map((p) => {
+              const selected = petId === p.id;
+              return (
+                <Pressable
+                  key={p.id}
+                  style={[styles.petChip, selected && styles.petChipOn]}
+                  onPress={() => setPetIdOverride(p.id)}
+                >
+                  <Text
+                    style={[styles.petChipText, selected && styles.petChipTextOn]}
+                    numberOfLines={1}
+                  >
+                    {p.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Title</Text>
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="e.g. Annual checkup"
+            placeholderTextColor={Colors.gray400}
           />
-          <Text style={styles.whenText}>{whenLabel}</Text>
-        </Pressable>
 
-        <Text style={styles.label}>Notes (optional)</Text>
-        <TextInput
-          style={[styles.input, styles.notes]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Anything to remember"
-          placeholderTextColor={Colors.gray400}
-          multiline
-          textAlignVertical="top"
-        />
+          <Text style={styles.label}>When</Text>
+          <Pressable
+            style={styles.whenBtn}
+            onPress={() => setPickerOpen(true)}
+          >
+            <MaterialCommunityIcons
+              name="calendar-clock"
+              size={22}
+              color={Colors.gray500}
+            />
+            <Text style={styles.whenText}>{whenLabel}</Text>
+          </Pressable>
 
-        <OrangeButton
-          onPress={onSave}
-          disabled={submitting || !title.trim()}
+          <VetVisitLocationFields
+            primaryVetClinic={primaryClinic}
+            choice={locationChoice}
+            otherText={otherClinicText}
+            onChoiceChange={setLocationChoice}
+            onOtherTextChange={setOtherClinicText}
+          />
+
+          <Text style={styles.label}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.notes]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Anything to remember"
+            placeholderTextColor={Colors.gray400}
+            multiline
+            textAlignVertical="top"
+          />
+        </ScrollView>
+
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: Math.max(scrollInsetBottom, 12) },
+          ]}
         >
-          {submitting ? "Saving…" : "Save visit"}
-        </OrangeButton>
-      </ScrollView>
+          <OrangeButton
+            onPress={onSave}
+            disabled={submitting || !title.trim()}
+          >
+            {submitting ? "Saving…" : "Save visit"}
+          </OrangeButton>
+        </View>
+      </View>
 
       <DateTimePickerModal
         isVisible={pickerOpen}
@@ -228,11 +275,14 @@ export default function AddVetVisitScreen() {
         cancelTextIOS="Cancel"
         buttonTextColorIOS={Colors.orange}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: {
+    flex: 1,
+  },
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
@@ -260,10 +310,19 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  body: {
+  scrollBody: {
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 16,
     gap: 8,
+    flexGrow: 1,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.gray200,
+    backgroundColor: Colors.cream,
   },
   label: {
     fontFamily: Font.uiSemiBold,

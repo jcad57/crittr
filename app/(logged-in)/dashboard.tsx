@@ -1,8 +1,11 @@
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
+import ActivityFeedSkeleton from "@/components/ui/dashboard/ActivityFeedSkeleton";
 import DailyProgress from "@/components/ui/dashboard/DailyProgress";
+import DailyProgressSkeleton from "@/components/ui/dashboard/DailyProgressSkeleton";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
+import HealthSectionSkeleton from "@/components/ui/dashboard/HealthSectionSkeleton";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import { Colors } from "@/constants/colors";
@@ -13,22 +16,28 @@ import type {
 } from "@/data/mockDashboard";
 import {
   usePetDetailsQuery,
+  usePetVetVisitsQuery,
   usePetsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { isDailyProgressComplete } from "@/lib/dailyProgressComplete";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import {
   buildMedicationDosageProgress,
   sumMedicationDoseProgress,
 } from "@/lib/medicationDosageProgress";
 import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
+import {
+  isUpcomingVetVisit,
+  mapPetVetVisitToDashboard,
+} from "@/lib/vetVisitDashboard";
 import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
@@ -43,9 +52,12 @@ export default function Dashboard() {
     if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
   }, [dbPets]);
 
-  const { data: activePetDetails, isLoading: isDetailsLoading } =
+  const { data: activePetDetails, isPending: detailsPending } =
     usePetDetailsQuery(activePetId);
-  const { data: todayActivities } = useTodayActivitiesQuery(activePetId);
+  const { data: todayActivities, isPending: todayActivitiesPending } =
+    useTodayActivitiesQuery(activePetId);
+  const { data: vetVisitRows, isPending: vetVisitsPending } =
+    usePetVetVisitsQuery(activePetId ?? undefined);
 
   const pets: Pet[] = useMemo(
     () =>
@@ -133,10 +145,26 @@ export default function Dashboard() {
     ];
   }, [activePetDetails, todayActivities, activePetId]);
 
+  const dailyProgressAllComplete = useMemo(
+    () => isDailyProgressComplete(dailyProgress),
+    [dailyProgress],
+  );
+
   const attentionVaccinations = useMemo(() => {
     if (!activePetDetails?.vaccinations?.length) return [];
     return activePetDetails.vaccinations.filter(vaccinationNeedsAttention);
   }, [activePetDetails]);
+
+  const dashboardVetVisits = useMemo(() => {
+    if (!vetVisitRows?.length) return [];
+    return vetVisitRows
+      .filter((v) => isUpcomingVetVisit(v.visit_at))
+      .sort(
+        (a, b) =>
+          new Date(a.visit_at).getTime() - new Date(b.visit_at).getTime(),
+      )
+      .map(mapPetVetVisitToDashboard);
+  }, [vetVisitRows]);
 
   const medications: Medication[] = useMemo(() => {
     if (!activePetDetails || !activePetId) return [];
@@ -191,7 +219,27 @@ export default function Dashboard() {
     );
   }, [router, activePetId]);
 
-  const showDetailsLoader = isDetailsLoading && !activePetDetails;
+  const openVetVisitEditor = useCallback(
+    (visitId: string) => {
+      if (!activePetId) return;
+      router.push(
+        `/(logged-in)/pet/${activePetId}/vet-visits/${visitId}` as Href,
+      );
+    },
+    [router, activePetId],
+  );
+
+  const scheduleVetVisit = useCallback(() => {
+    if (!activePetId) return;
+    router.push(`/(logged-in)/add-vet-visit?petId=${activePetId}` as Href);
+  }, [router, activePetId]);
+
+  const showDailyProgressSkeleton =
+    Boolean(activePetId) && (detailsPending || todayActivitiesPending);
+  const showActivitySkeleton =
+    Boolean(activePetId) && todayActivitiesPending;
+  const showHealthSkeleton =
+    Boolean(activePetId) && (detailsPending || vetVisitsPending);
 
   if (isPetsLoading && !dbPets) {
     return <DashboardLoading />;
@@ -221,46 +269,52 @@ export default function Dashboard() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.petDataBlock}>
-            {showDetailsLoader ? (
-              <View style={styles.sectionBlock}>
-                <SectionLabel style={styles.sectionLabelFlush}>
-                  Daily Progress
-                </SectionLabel>
-                <View style={styles.progressCard}>
-                  <View style={styles.petDetailsLoading}>
-                    <ActivityIndicator size="large" color={Colors.orange} />
-                  </View>
-                </View>
+            <View style={styles.sectionBlock}>
+              <SectionLabel style={styles.sectionLabelFlush}>
+                Daily Progress
+              </SectionLabel>
+              <View
+                style={[
+                  styles.progressCard,
+                  dailyProgressAllComplete && styles.progressCardComplete,
+                ]}
+              >
+                {showDailyProgressSkeleton ? (
+                  <DailyProgressSkeleton />
+                ) : (
+                  <DailyProgress
+                    categories={dailyProgress}
+                    allComplete={dailyProgressAllComplete}
+                  />
+                )}
               </View>
+            </View>
+
+            {showActivitySkeleton ? (
+              <ActivityFeedSkeleton />
             ) : (
-              <>
-                <View style={styles.sectionBlock}>
-                  <SectionLabel style={styles.sectionLabelFlush}>
-                    Daily Progress
-                  </SectionLabel>
-                  <View style={styles.progressCard}>
-                    <DailyProgress categories={dailyProgress} />
-                  </View>
-                </View>
+              <ActivityFeed
+                activities={todayActivities ?? []}
+                onLogActivityPress={navigateToAddActivity}
+                onSeeAllPress={navigateToActivity}
+              />
+            )}
 
-                <ActivityFeed
-                  activities={todayActivities ?? []}
-                  onLogActivityPress={navigateToAddActivity}
-                  onSeeAllPress={navigateToActivity}
-                />
-
-                <HealthSection
-                  medications={medications}
-                  vetVisits={[]}
-                  onScheduleVisitPress={() => {}}
-                  onMedicationPress={openMedicationEditor}
-                  onAddMedicationPress={openAddMedication}
-                  attentionVaccinations={attentionVaccinations}
-                  onVaccinationAttentionPress={() =>
-                    router.push("/(logged-in)/health" as Href)
-                  }
-                />
-              </>
+            {showHealthSkeleton ? (
+              <HealthSectionSkeleton />
+            ) : (
+              <HealthSection
+                medications={medications}
+                vetVisits={dashboardVetVisits}
+                onScheduleVisitPress={scheduleVetVisit}
+                onVetVisitPress={openVetVisitEditor}
+                onMedicationPress={openMedicationEditor}
+                onAddMedicationPress={openAddMedication}
+                attentionVaccinations={attentionVaccinations}
+                onVaccinationAttentionPress={() =>
+                  router.push("/(logged-in)/health" as Href)
+                }
+              />
             )}
           </View>
 
@@ -314,13 +368,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
   },
+  progressCardComplete: {
+    backgroundColor: Colors.successLight,
+    borderColor: "rgba(22, 163, 74, 0.22)",
+  },
   petDataBlock: {
     gap: 20,
-  },
-  petDetailsLoading: {
-    minHeight: 200,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 32,
   },
 });

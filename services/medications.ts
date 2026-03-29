@@ -10,6 +10,11 @@ export type UpdatePetMedicationInput = {
   doses_per_period: number | null;
   dose_period: MedicationDosePeriod | null;
   reminder_time: string | null;
+  /** Every N days/weeks/months when using custom interval (null for standard schedule). */
+  interval_count: number | null;
+  interval_unit: MedicationDosePeriod | null;
+  /** ISO date YYYY-MM-DD or null. */
+  last_given_on: string | null;
 };
 
 export async function insertPetMedication(
@@ -28,6 +33,8 @@ export async function insertPetMedication(
       doses_per_period: input.doses_per_period,
       dose_period: input.dose_period,
       reminder_time: input.reminder_time,
+      interval_count: input.interval_count,
+      interval_unit: input.interval_unit,
     })
     .select()
     .single();
@@ -58,6 +65,9 @@ export async function updatePetMedication(
       doses_per_period: updates.doses_per_period,
       dose_period: updates.dose_period,
       reminder_time: updates.reminder_time,
+      interval_count: updates.interval_count,
+      interval_unit: updates.interval_unit,
+      last_given_on: updates.last_given_on,
     })
     .eq("id", medicationId)
     .eq("pet_id", petId)

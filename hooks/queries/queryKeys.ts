@@ -20,11 +20,27 @@ export const healthSnapshotKey = (ownerId: string) =>
 export const petVetVisitsQueryKey = (petId: string) =>
   ["petVetVisits", petId] as const;
 
-export const todayActivitiesKey = (petId: string) =>
+/** Includes local calendar day so caches roll forward at local midnight. */
+export const todayActivitiesKey = (petId: string, localYmd: string) =>
+  ["todayActivities", petId, localYmd] as const;
+
+/** Prefix match for invalidating all today caches for a pet (any local day). */
+export const todayActivitiesPrefixKey = (petId: string) =>
   ["todayActivities", petId] as const;
 
 /** Stable key for today's activities across multiple pets (sorted ids). */
-export const todayActivitiesForPetIdsKey = (petIds: string[]) =>
+export const todayActivitiesForPetIdsKey = (
+  petIds: string[],
+  localYmd: string,
+) =>
+  [
+    "todayActivities",
+    "multi",
+    [...petIds].sort().join(","),
+    localYmd,
+  ] as const;
+
+export const todayActivitiesForPetIdsPrefixKey = (petIds: string[]) =>
   ["todayActivities", "multi", [...petIds].sort().join(",")] as const;
 
 export const allActivitiesKey = (petId: string) =>

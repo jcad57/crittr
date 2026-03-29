@@ -116,7 +116,9 @@ export default function EditPetFoodScreen() {
 
   if (isLoading && !details) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -191,10 +193,7 @@ export default function EditPetFoodScreen() {
         <Text style={styles.fieldLabel}>Type</Text>
         <View style={styles.row2}>
           <Pressable
-            style={[
-              styles.typeToggle,
-              !isTreat && styles.typeToggleActive,
-            ]}
+            style={[styles.typeToggle, !isTreat && styles.typeToggleActive]}
             onPress={() => setIsTreat(false)}
           >
             <Text
@@ -207,10 +206,7 @@ export default function EditPetFoodScreen() {
             </Text>
           </Pressable>
           <Pressable
-            style={[
-              styles.typeToggle,
-              isTreat && styles.typeToggleActiveTreat,
-            ]}
+            style={[styles.typeToggle, isTreat && styles.typeToggleActiveTreat]}
             onPress={() => setIsTreat(true)}
           >
             <Text
@@ -288,7 +284,7 @@ export default function EditPetFoodScreen() {
         </View>
 
         <FormInput
-          label="Notes (optional)"
+          label="Notes"
           value={notes}
           onChangeText={setNotes}
           placeholder="Any feeding notes"

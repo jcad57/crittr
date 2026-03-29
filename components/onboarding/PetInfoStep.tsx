@@ -18,7 +18,11 @@ import {
   shouldShowExerciseField,
 } from "@/constants/petInfo";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useReferenceStore } from "@/stores/referenceStore";
+import {
+  EMPTY_ALLERGIES,
+  EMPTY_BREEDS,
+  useReferenceStore,
+} from "@/stores/referenceStore";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
   getPetInfoMissingFields,
@@ -42,9 +46,11 @@ export default function PetInfoStep() {
   const [attempted, setAttempted] = useState(false);
 
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
-  const breeds = useReferenceStore((s) => s.breeds[pet.petType] ?? []);
+  const breeds = useReferenceStore(
+    (s) => s.breeds[pet.petType] ?? EMPTY_BREEDS,
+  );
   const allergySuggestions = useReferenceStore(
-    (s) => s.allergies[pet.petType] ?? [],
+    (s) => s.allergies[pet.petType] ?? EMPTY_ALLERGIES,
   );
 
   useEffect(() => {

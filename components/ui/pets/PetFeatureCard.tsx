@@ -6,6 +6,7 @@ import {
   formatPetListSubline,
   petListPreviewStats,
 } from "@/utils/petListHelpers";
+import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -22,6 +23,7 @@ const RADIUS = 28;
 
 export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
   const router = useRouter();
+  const setActivePet = usePetStore((s) => s.setActivePet);
   const isOrange = variant === "orange";
   const bg = isOrange ? Colors.orange : Colors.profileHeroDark;
   const subline = formatPetListSubline(pet);
@@ -78,7 +80,10 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
         </Pressable>
         <Pressable
           style={[styles.ctaSecondary, { backgroundColor: ctaSecondaryBg }]}
-          onPress={() => router.push("/(logged-in)/activity")}
+          onPress={() => {
+            setActivePet(pet.id);
+            router.push("/(logged-in)/add-activity");
+          }}
         >
           <Text style={styles.ctaSecondaryText}>Log activity</Text>
         </Pressable>

@@ -14,6 +14,8 @@ type HealthSectionProps = {
   medications: Medication[];
   vetVisits: VetVisit[];
   onScheduleVisitPress?: () => void;
+  /** Tapping a scheduled visit opens edit (same pattern as medications). */
+  onVetVisitPress?: (visitId: string) => void;
   /** When set, tapping a medication opens its edit screen. */
   onMedicationPress?: (medicationId: string) => void;
   /** When meds are empty, "+ Add a medication" calls this. */
@@ -27,6 +29,7 @@ export default function HealthSection({
   medications,
   vetVisits,
   onScheduleVisitPress,
+  onVetVisitPress,
   onMedicationPress,
   onAddMedicationPress,
   attentionVaccinations,
@@ -94,9 +97,29 @@ export default function HealthSection({
       </SectionLabel>
       {hasVisits && primaryVisit ? (
         <>
-          <UpcomingVisitFeatureCard visit={primaryVisit} />
+          <UpcomingVisitFeatureCard
+            visit={primaryVisit}
+            onPress={
+              onVetVisitPress
+                ? () => onVetVisitPress(primaryVisit.id)
+                : undefined
+            }
+          />
           {otherVisits.map((visit) => (
-            <VetVisitCard key={visit.id} visit={visit} />
+            <VetVisitCard
+              key={visit.id}
+              visit={visit}
+              onPress={
+                onVetVisitPress
+                  ? () => onVetVisitPress(visit.id)
+                  : undefined
+              }
+              onAddToCalendar={
+                onVetVisitPress
+                  ? () => onVetVisitPress(visit.id)
+                  : undefined
+              }
+            />
           ))}
         </>
       ) : (

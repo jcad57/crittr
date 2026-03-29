@@ -42,6 +42,11 @@ export default function HealthVisitRow({ item, isLast, onPress }: Props) {
         <Text style={styles.sub} numberOfLines={2}>
           {item.pet.name} · {formatWhen(item.visit_at)}
         </Text>
+        {item.location?.trim() ? (
+          <Text style={styles.location} numberOfLines={2}>
+            {item.location.trim()}
+          </Text>
+        ) : null}
       </View>
       <MaterialCommunityIcons
         name="chevron-right"
@@ -87,5 +92,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.gray500,
     lineHeight: 18,
+  },
+  location: {
+    fontFamily: Font.uiRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 17,
+    marginTop: 2,
   },
 });

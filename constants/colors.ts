@@ -66,6 +66,10 @@ export const Colors = {
   progressMeds: "#D97706",
   progressMedsTrack: "#FFF4E0",
 
+  /** Daily progress — all goals met (rings share one green family on success card) */
+  progressCompleteRing: "#16A34A",
+  progressCompleteTrack: "#B4E8C4",
+
   /** Dark “feature” cards (e.g. upcoming visit hero) */
   featureDark: "#2A2624",
   featureDarkElevated: "#3D3835",

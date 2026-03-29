@@ -2,6 +2,10 @@ import { supabase } from "@/lib/supabase";
 import type { Breed, CommonAllergy } from "@/types/database";
 import { create } from "zustand";
 
+/** Stable empty arrays — return these from selectors to avoid useSyncExternalStore infinite loops. */
+export const EMPTY_BREEDS: Breed[] = [];
+export const EMPTY_ALLERGIES: CommonAllergy[] = [];
+
 type ReferenceState = {
   breeds: Record<string, Breed[]>;
   allergies: Record<string, CommonAllergy[]>;

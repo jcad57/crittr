@@ -1,10 +1,11 @@
-import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
+import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
-import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import Divider from "@/components/ui/Divider";
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
+import { formatReminderTimeHHmm } from "@/lib/medicationSchedule";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type {
   FoodFormEntry,
@@ -12,7 +13,6 @@ import type {
   MedicationFormEntry,
   VaccinationFormEntry,
 } from "@/types/database";
-import { formatReminderTimeHHmm } from "@/lib/medicationSchedule";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -120,7 +120,7 @@ export default function PetCareStep() {
             : "";
     const dosesPerPeriodStr =
       medFreq === "Daily"
-        ? (medDosesPerDay.trim() || "1")
+        ? medDosesPerDay.trim() || "1"
         : medFreq === "Weekly" || medFreq === "Monthly"
           ? "1"
           : "";
@@ -467,7 +467,7 @@ export default function PetCareStep() {
       />
 
       <FormInput
-        placeholder="Notes (optional)"
+        placeholder="Notes"
         value={medNotes}
         onChangeText={setMedNotes}
         multiline
@@ -524,7 +524,7 @@ export default function PetCareStep() {
         onClearDate={() => setVacExpiresOn("")}
       />
       <FormInput
-        placeholder="Notes (optional)"
+        placeholder="Notes"
         value={vacNotes}
         onChangeText={setVacNotes}
         multiline

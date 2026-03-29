@@ -1,11 +1,38 @@
 import type { MedicationDosePeriod } from "@/types/database";
 
+/** Human-readable label for "every N days/weeks/months" (stored in `frequency`). */
+export function formatMedicationEveryIntervalLabel(
+  count: number,
+  unit: MedicationDosePeriod,
+): string {
+  const n = Math.floor(count);
+  if (n < 1) return "Custom";
+  if (n === 1) {
+    if (unit === "day") return "Every day";
+    if (unit === "week") return "Every week";
+    return "Every month";
+  }
+  if (unit === "day") return `Every ${n} days`;
+  if (unit === "week") return `Every ${n} weeks`;
+  return `Every ${n} months`;
+}
+
 /** Persist a human-readable `frequency` for legacy heuristics + Health UI. */
 export function buildMedicationFrequencyLabelForDb(
   dosePeriod: MedicationDosePeriod | null,
   dosesPerPeriod: number | null,
   customFrequency: string | null,
+  interval?: { count: number; unit: MedicationDosePeriod } | null,
 ): string | null {
+  if (
+    interval != null &&
+    interval.count > 0 &&
+    (interval.unit === "day" ||
+      interval.unit === "week" ||
+      interval.unit === "month")
+  ) {
+    return formatMedicationEveryIntervalLabel(interval.count, interval.unit);
+  }
   if (dosePeriod === "day" && dosesPerPeriod != null && dosesPerPeriod > 0) {
     return dosesPerPeriod === 1 ? "Daily" : `${dosesPerPeriod} times daily`;
   }

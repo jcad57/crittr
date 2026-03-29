@@ -17,12 +17,11 @@ import {
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { usePetStore } from "@/stores/petStore";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -42,6 +41,7 @@ export default function HealthScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
+  const setActivePet = usePetStore((s) => s.setActivePet);
   const { data, isLoading, isError, error } = useHealthSnapshotQuery();
 
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
@@ -51,8 +51,10 @@ export default function HealthScreen() {
   const medications = data?.medications ?? [];
 
   const petIds = useMemo(() => pets.map((p) => p.id), [pets]);
-  const { data: todayActivitiesAllPets = [] } =
-    useTodayActivitiesForPetIdsQuery(petIds);
+  const {
+    data: todayActivitiesAllPets = [],
+    isFetched: todayActivitiesFetched,
+  } = useTodayActivitiesForPetIdsQuery(petIds);
   const vaccinations = data?.vaccinations ?? [];
   const vetVisits = data?.vetVisits ?? [];
 
@@ -84,8 +86,15 @@ export default function HealthScreen() {
     [filteredMeds, todayActivitiesAllPets],
   );
 
+  /** Don’t show until today’s activity query has settled — while pending, `[]` looks like no doses logged and inflates “due today” falsely. */
+  const todayActivitiesReady =
+    petIds.length === 0 || todayActivitiesFetched;
+
   const showBanner =
-    !bannerDismissed && dueTodayMeds.length > 0 && filteredMeds.length > 0;
+    todayActivitiesReady &&
+    !bannerDismissed &&
+    dueTodayMeds.length > 0 &&
+    filteredMeds.length > 0;
 
   const bannerSubtitle = useMemo(() => {
     const m = dueTodayMeds[0];
@@ -118,14 +127,14 @@ export default function HealthScreen() {
           router.push(`/(logged-in)/pet/${defaultPetId}/microchip`),
       },
       {
-        id: "vet-records",
-        title: "Vet records",
-        subtitle: "Past and upcoming visits",
+        id: "medical-records",
+        title: "Medical Records",
+        subtitle: "Visit notes and your uploads",
         icon: "clipboard-text-outline",
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${defaultPetId}/vet-records`),
+          router.push(`/(logged-in)/pet/${defaultPetId}/medical-records`),
       },
     ];
   }, [defaultPetId, router]);
@@ -134,6 +143,16 @@ export default function HealthScreen() {
     if (!defaultPetId) return;
     router.push(`/(logged-in)/add-vet-visit?petId=${defaultPetId}`);
   };
+
+  const openAddVaccination = useCallback(() => {
+    if (pets.length === 0) return;
+    if (selectedPetId) {
+      setActivePet(selectedPetId);
+      router.push(`/(logged-in)/add-vaccination?petId=${selectedPetId}`);
+    } else {
+      router.push("/(logged-in)/select-pet-for-vaccination");
+    }
+  }, [pets.length, selectedPetId, router, setActivePet]);
 
   if (isLoading && !data) {
     return (
@@ -162,21 +181,9 @@ export default function HealthScreen() {
       <View
         style={[styles.screen, styles.noPetsScreen, { paddingTop: insets.top + 8 }]}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitles}>
-            <Text style={styles.pageTitle}>Health</Text>
-            <Text style={styles.pageSubtitle}>Add a pet to track care</Text>
-          </View>
-          <Pressable
-            style={styles.fab}
-            onPress={() => router.push("/(logged-in)/add-pet")}
-          >
-            <MaterialCommunityIcons
-              name="plus"
-              size={28}
-              color={Colors.white}
-            />
-          </Pressable>
+        <View style={styles.headerTitles}>
+          <Text style={styles.pageTitle}>Health</Text>
+          <Text style={styles.pageSubtitle}>Add a pet to track care</Text>
         </View>
         <View style={[styles.emptyCard, styles.noPetsEmpty]}>
           <Text style={styles.emptyText}>
@@ -197,23 +204,9 @@ export default function HealthScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitles}>
-            <Text style={styles.pageTitle}>Health</Text>
-            <Text style={styles.pageSubtitle}>{updatedHint}</Text>
-          </View>
-          <Pressable
-            style={styles.fab}
-            onPress={() => router.push("/(logged-in)/add-pet")}
-            accessibilityRole="button"
-            accessibilityLabel="Add"
-          >
-            <MaterialCommunityIcons
-              name="plus"
-              size={28}
-              color={Colors.white}
-            />
-          </Pressable>
+        <View style={styles.headerTitles}>
+          <Text style={styles.pageTitle}>Health</Text>
+          <Text style={styles.pageSubtitle}>{updatedHint}</Text>
         </View>
 
         {pets.length > 0 ? (
@@ -281,11 +274,7 @@ export default function HealthScreen() {
 
         <HealthSectionHeader
           title="VACCINATIONS"
-          onAddPress={
-            defaultPetId
-              ? () => router.push(`/(logged-in)/pet/${defaultPetId}`)
-              : undefined
-          }
+          onAddPress={pets.length > 0 ? openAddVaccination : undefined}
         />
         {filteredVacs.length > 0 ? (
           <HealthListCard>
@@ -317,7 +306,11 @@ export default function HealthScreen() {
                 key={v.id}
                 item={v}
                 isLast={i === filteredVisits.length - 1}
-                onPress={() => router.push(`/(logged-in)/pet/${v.pet_id}`)}
+                onPress={() =>
+                  router.push(
+                    `/(logged-in)/pet/${v.pet_id}/vet-visits/${v.id}`,
+                  )
+                }
               />
             ))}
           </HealthListCard>
@@ -361,14 +354,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 4,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
   headerTitles: {
-    flex: 1,
     minWidth: 0,
   },
   pageTitle: {
@@ -382,20 +368,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.sectionLabel,
     marginTop: 4,
-  },
-  fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
   },
   noPetsScreen: {
     paddingHorizontal: 20,

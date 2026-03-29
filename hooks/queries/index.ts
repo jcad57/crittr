@@ -7,7 +7,9 @@ export {
   profileQueryKey,
   profilesByIdsQueryKey,
   todayActivitiesForPetIdsKey,
+  todayActivitiesForPetIdsPrefixKey,
   todayActivitiesKey,
+  todayActivitiesPrefixKey,
 } from "./queryKeys";
 export {
   usePetsQuery,

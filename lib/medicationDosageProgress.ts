@@ -1,4 +1,5 @@
 import { isMedicationDueToday } from "@/lib/healthTraffic";
+import { dueSoonScheduleKind } from "@/lib/medicationDueSchedule";
 import type { PetActivity, PetMedication } from "@/types/database";
 
 export type MedicationDosageProgress = {
@@ -32,17 +33,12 @@ export function getExpectedDosesToday(m: PetMedication): number {
     return Math.min(8, Math.max(1, Math.floor(n)));
   }
 
-  const f = (m.frequency ?? "").toLowerCase();
-  const weeklyLike =
-    (f.includes("week") ||
-      f.includes("month") ||
-      f.includes("quarter") ||
-      f.includes("year")) &&
-    !f.includes("daily");
-
-  if (weeklyLike) {
+  const kind = dueSoonScheduleKind(m);
+  if (kind !== "daily") {
     return isMedicationDueToday(m) ? 1 : 0;
   }
+
+  const f = (m.frequency ?? "").toLowerCase();
 
   if (
     f.includes("twice") ||

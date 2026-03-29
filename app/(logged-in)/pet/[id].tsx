@@ -48,6 +48,7 @@ import {
   formatPetAgeDisplay,
   formatPetTypeLabel,
   formatPetWeightDisplay,
+  parseDateOnlyYmd,
 } from "@/utils/petDisplay";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -146,9 +147,10 @@ function toProfile(
   todayActivities: PetActivity[],
 ): PetProfile {
   const dob = details.date_of_birth;
-  const dobFormatted = formatDateOfBirth(
+  const dobYmd = parseDateOnlyYmd(
     typeof dob === "string" ? dob : dob != null ? String(dob) : null,
   );
+  const dobFormatted = formatDateOfBirth(dobYmd);
 
   return {
     id: details.id,
@@ -165,8 +167,7 @@ function toProfile(
     color: details.color ?? "",
     petType: details.pet_type,
     petTypeLabel: formatPetTypeLabel(details.pet_type),
-    dateOfBirth:
-      typeof dob === "string" ? dob : dob != null ? String(dob) : null,
+    dateOfBirth: dobYmd,
     dateOfBirthFormatted: dobFormatted,
     energyLevel: details.energy_level,
     energyLevelLabel: formatEnergyLabel(details.energy_level),
@@ -262,11 +263,7 @@ export default function PetProfilePage() {
 
   const statItems = useMemo((): StatChipItem[] => {
     if (!profile) return [];
-    const dob = profile.dateOfBirth;
-    const birthday =
-      dob != null && String(dob).trim()
-        ? formatBirthdayChip(typeof dob === "string" ? dob : String(dob))
-        : "—";
+    const birthday = formatBirthdayChip(profile.dateOfBirth);
     const gender = profile.sex === "female" ? "Female" : "Male";
     return [
       {

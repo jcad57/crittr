@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { Pet, PetFormData, PetWithDetails } from "@/types/database";
+import { parseDateOnlyYmd } from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
   extensionForContentType,
@@ -236,7 +237,7 @@ export async function updatePetDetails(
   petId: string,
   fields: UpdatePetDetailsInput,
 ): Promise<Pet> {
-  const dob = fields.date_of_birth?.trim() || null;
+  const dob = parseDateOnlyYmd(fields.date_of_birth ?? "") ?? null;
   let age: number | null = null;
   let age_months: number | null = null;
   if (dob) {

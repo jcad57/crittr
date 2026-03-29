@@ -6,8 +6,23 @@ import {
   type UpdatePetMedicationInput,
   updatePetMedication,
 } from "@/services/medications";
+import type { PetMedication, PetWithDetails } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 import { useMutation } from "@tanstack/react-query";
+
+function mergeMedicationIntoPetDetailsCache(
+  petId: string,
+  updater: (meds: PetMedication[]) => PetMedication[],
+) {
+  if (!petId) return;
+  queryClient.setQueryData<PetWithDetails | null>(
+    petDetailsQueryKey(petId),
+    (old) => {
+      if (!old) return old;
+      return { ...old, medications: updater(old.medications) };
+    },
+  );
+}
 
 export function useInsertMedicationMutation(petId: string) {
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -15,7 +30,8 @@ export function useInsertMedicationMutation(petId: string) {
   return useMutation({
     mutationFn: (input: UpdatePetMedicationInput) =>
       insertPetMedication(petId, input),
-    onSuccess: () => {
+    onSuccess: (newMed) => {
+      mergeMedicationIntoPetDetailsCache(petId, (meds) => [...meds, newMed]);
       void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({
@@ -37,7 +53,10 @@ export function useUpdateMedicationMutation(petId: string) {
       medicationId: string;
       updates: UpdatePetMedicationInput;
     }) => updatePetMedication(petId, medicationId, updates),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      mergeMedicationIntoPetDetailsCache(petId, (meds) =>
+        meds.map((m) => (m.id === updated.id ? updated : m)),
+      );
       void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({
@@ -54,7 +73,10 @@ export function useDeleteMedicationMutation(petId: string) {
   return useMutation({
     mutationFn: async (medicationId: string) =>
       deletePetMedication(petId, medicationId),
-    onSuccess: () => {
+    onSuccess: (_, medicationId) => {
+      mergeMedicationIntoPetDetailsCache(petId, (meds) =>
+        meds.filter((m) => m.id !== medicationId),
+      );
       void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({

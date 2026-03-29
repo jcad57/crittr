@@ -1,3 +1,4 @@
+import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import {
   fetchActivitiesForPet,
   fetchActivityById,
@@ -16,8 +17,9 @@ import {
 export function useTodayActivitiesQuery(
   petId: string | null | undefined,
 ): UseQueryResult<PetActivity[], Error> {
+  const localYmd = useLocalCalendarYmd();
   return useQuery<PetActivity[], Error>({
-    queryKey: todayActivitiesKey(petId ?? ""),
+    queryKey: todayActivitiesKey(petId ?? "", localYmd),
     queryFn: () => fetchTodayActivities(petId!),
     enabled: !!petId,
   });
@@ -46,8 +48,9 @@ export function useActivityQuery(
 export function useTodayActivitiesForPetIdsQuery(
   petIds: string[],
 ): UseQueryResult<PetActivity[], Error> {
+  const localYmd = useLocalCalendarYmd();
   return useQuery<PetActivity[], Error>({
-    queryKey: todayActivitiesForPetIdsKey(petIds),
+    queryKey: todayActivitiesForPetIdsKey(petIds, localYmd),
     queryFn: () => fetchTodayActivitiesForPetIds([...petIds]),
     enabled: petIds.length > 0,
   });

@@ -1,4 +1,5 @@
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
+import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
@@ -14,6 +15,7 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import {
   buildMedicationFrequencyLabelForDb,
+  formatMedicationEveryIntervalLabel,
   formatReminderTimeHHmm,
   parseReminderTimeHHmm,
 } from "@/lib/medicationSchedule";
@@ -42,11 +44,26 @@ const DOSAGE_TYPES = [
   "Other",
 ];
 
-const PERIOD_OPTIONS: { label: string; value: MedicationDosePeriod }[] = [
+type SchedulePeriod = MedicationDosePeriod | "custom";
+
+const SCHEDULE_PERIOD_OPTIONS: { label: string; value: SchedulePeriod }[] = [
   { label: "Per day", value: "day" },
   { label: "Per week", value: "week" },
   { label: "Per month", value: "month" },
+  { label: "Custom", value: "custom" },
 ];
+
+const INTERVAL_UNIT_OPTIONS: { label: string; value: MedicationDosePeriod }[] =
+  [
+    { label: "days", value: "day" },
+    { label: "weeks", value: "week" },
+    { label: "months", value: "month" },
+  ];
+
+function lastGivenOnFromDb(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "";
+  return raw.trim().split("T")[0].slice(0, 10);
+}
 
 function splitDosage(dosage: string | null): { amount: string; type: string } {
   if (!dosage?.trim()) return { amount: "", type: "" };
@@ -61,16 +78,43 @@ function splitDosage(dosage: string | null): { amount: string; type: string } {
 function hydrateFromMed(m: PetMedication) {
   const { amount, type } = splitDosage(m.dosage);
   const period = m.dose_period ?? null;
+  const ic = m.interval_count;
+  const iu = m.interval_unit ?? null;
+  const isCustomInterval =
+    ic != null &&
+    ic > 0 &&
+    iu != null &&
+    (iu === "day" || iu === "week" || iu === "month");
+
+  if (isCustomInterval) {
+    return {
+      name: m.name,
+      dosageAmount: amount,
+      dosageType: type,
+      dosesPerPeriod: "1",
+      schedulePeriod: "custom" as SchedulePeriod,
+      customIntervalCount: String(ic),
+      customIntervalUnit: iu,
+      condition: m.condition?.trim() ?? "",
+      notes: m.notes?.trim() ?? "",
+      reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
+      lastGivenOn: lastGivenOnFromDb(m.last_given_on),
+    };
+  }
+
   return {
     name: m.name,
     dosageAmount: amount,
     dosageType: type,
     dosesPerPeriod:
       m.doses_per_period != null ? String(m.doses_per_period) : "1",
-    dosePeriod: (period ?? "day") as MedicationDosePeriod,
+    schedulePeriod: (period ?? "day") as SchedulePeriod,
+    customIntervalCount: "1",
+    customIntervalUnit: "month" as MedicationDosePeriod,
     condition: m.condition?.trim() ?? "",
     notes: m.notes?.trim() ?? "",
     reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
+    lastGivenOn: lastGivenOnFromDb(m.last_given_on),
   };
 }
 
@@ -104,7 +148,10 @@ export default function EditPetMedicationScreen() {
   const [dosageAmount, setDosageAmount] = useState("");
   const [dosageType, setDosageType] = useState("");
   const [dosesPerPeriod, setDosesPerPeriod] = useState("1");
-  const [dosePeriod, setDosePeriod] = useState<MedicationDosePeriod>("day");
+  const [schedulePeriod, setSchedulePeriod] = useState<SchedulePeriod>("day");
+  const [customIntervalCount, setCustomIntervalCount] = useState("1");
+  const [customIntervalUnit, setCustomIntervalUnit] =
+    useState<MedicationDosePeriod>("month");
   const [condition, setCondition] = useState("");
   const [notes, setNotes] = useState("");
   const [reminderDate, setReminderDate] = useState(() => {
@@ -113,6 +160,7 @@ export default function EditPetMedicationScreen() {
     return d;
   });
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [lastGivenOn, setLastGivenOn] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
 
   useEffect(() => {
@@ -122,21 +170,72 @@ export default function EditPetMedicationScreen() {
     setDosageAmount(h.dosageAmount);
     setDosageType(h.dosageType);
     setDosesPerPeriod(h.dosesPerPeriod);
-    setDosePeriod(h.dosePeriod);
+    setSchedulePeriod(h.schedulePeriod);
+    setCustomIntervalCount(h.customIntervalCount);
+    setCustomIntervalUnit(h.customIntervalUnit);
     setCondition(h.condition);
     setNotes(h.notes);
     setReminderDate(h.reminderDate);
+    setLastGivenOn(h.lastGivenOn);
   }, [isNew, med]);
 
   const handleSave = useCallback(async () => {
     if (!petId || !medicationId) return;
     if (!isNew && !med) return;
     setValidationAttempted(true);
-    const n = dosesPerPeriod.trim();
-    const parsed = parseInt(n, 10);
     if (!name.trim()) {
       return;
     }
+
+    const dosageStr =
+      [dosageAmount.trim(), dosageType.trim()].filter(Boolean).join(" ") ||
+      null;
+
+    if (schedulePeriod === "custom") {
+      const n = customIntervalCount.trim();
+      const parsedInterval = parseInt(n, 10);
+      if (!Number.isFinite(parsedInterval) || parsedInterval < 1) {
+        return;
+      }
+
+      const freq = buildMedicationFrequencyLabelForDb(null, null, null, {
+        count: parsedInterval,
+        unit: customIntervalUnit,
+      });
+
+      const payload = {
+        name: name.trim(),
+        dosage: dosageStr,
+        frequency: freq,
+        condition: condition.trim() || null,
+        notes: notes.trim() || null,
+        doses_per_period: null,
+        dose_period: null,
+        interval_count: parsedInterval,
+        interval_unit: customIntervalUnit,
+        reminder_time: formatReminderTimeHHmm(reminderDate),
+        last_given_on: lastGivenOn.trim() || null,
+      };
+
+      try {
+        if (isNew) {
+          await insertMut.mutateAsync(payload);
+        } else {
+          await updateMut.mutateAsync({
+            medicationId,
+            updates: payload,
+          });
+        }
+        router.back();
+      } catch (e) {
+        Alert.alert("Couldn't save", getErrorMessage(e));
+      }
+      return;
+    }
+
+    const dosePeriod = schedulePeriod as MedicationDosePeriod;
+    const n = dosesPerPeriod.trim();
+    const parsed = parseInt(n, 10);
     if (dosePeriod === "day" && (!Number.isFinite(parsed) || parsed < 1)) {
       return;
     }
@@ -155,10 +254,6 @@ export default function EditPetMedicationScreen() {
           ? Math.max(1, Number.isFinite(parsed) ? parsed : 1)
           : null;
 
-    const dosageStr =
-      [dosageAmount.trim(), dosageType.trim()].filter(Boolean).join(" ") ||
-      null;
-
     const freq = buildMedicationFrequencyLabelForDb(dosePeriod, doses, null);
 
     const payload = {
@@ -169,7 +264,10 @@ export default function EditPetMedicationScreen() {
       notes: notes.trim() || null,
       doses_per_period: doses,
       dose_period: dosePeriod,
+      interval_count: null,
+      interval_unit: null,
       reminder_time: formatReminderTimeHHmm(reminderDate),
+      last_given_on: lastGivenOn.trim() || null,
     };
 
     try {
@@ -194,10 +292,13 @@ export default function EditPetMedicationScreen() {
     dosageAmount,
     dosageType,
     dosesPerPeriod,
-    dosePeriod,
+    schedulePeriod,
+    customIntervalCount,
+    customIntervalUnit,
     condition,
     notes,
     reminderDate,
+    lastGivenOn,
     insertMut,
     updateMut,
     router,
@@ -262,16 +363,25 @@ export default function EditPetMedicationScreen() {
   const deleting = deleteMut.isPending;
 
   const parsedDoses = parseInt(dosesPerPeriod.trim(), 10);
+  const parsedCustomInterval = parseInt(customIntervalCount.trim(), 10);
   const nameError = validationAttempted && !name.trim();
+  const dosePeriodStd =
+    schedulePeriod === "custom"
+      ? null
+      : (schedulePeriod as MedicationDosePeriod);
   const doseCountError =
     validationAttempted &&
-    dosePeriod === "day" &&
+    dosePeriodStd === "day" &&
     (!Number.isFinite(parsedDoses) || parsedDoses < 1);
   const doseCountErrorWeekMonth =
     validationAttempted &&
-    (dosePeriod === "week" || dosePeriod === "month") &&
+    (dosePeriodStd === "week" || dosePeriodStd === "month") &&
     dosesPerPeriod.trim() !== "" &&
     (!Number.isFinite(parsedDoses) || parsedDoses < 1);
+  const customIntervalError =
+    validationAttempted &&
+    schedulePeriod === "custom" &&
+    (!Number.isFinite(parsedCustomInterval) || parsedCustomInterval < 1);
 
   const scrollContentMinHeight = useMemo(() => {
     const topChrome = insets.top + 8 + 56 + 12;
@@ -344,36 +454,96 @@ export default function EditPetMedicationScreen() {
             <Text
               style={[
                 styles.fieldLabel,
-                (doseCountError || doseCountErrorWeekMonth) &&
+                (doseCountError ||
+                  doseCountErrorWeekMonth ||
+                  customIntervalError) &&
                   styles.fieldLabelError,
               ]}
             >
               Frequency *
             </Text>
             <View style={styles.row2}>
-              <FormInput
-                placeholder="Times"
-                value={dosesPerPeriod}
-                onChangeText={setDosesPerPeriod}
-                keyboardType="numeric"
-                containerStyle={styles.smallInput}
-                error={doseCountError || doseCountErrorWeekMonth}
-              />
+              {schedulePeriod !== "custom" ? (
+                <FormInput
+                  placeholder="Times"
+                  value={dosesPerPeriod}
+                  onChangeText={setDosesPerPeriod}
+                  keyboardType="numeric"
+                  containerStyle={styles.smallInput}
+                  error={doseCountError || doseCountErrorWeekMonth}
+                />
+              ) : (
+                <View style={styles.timesSpacer} />
+              )}
               <View style={{ flex: 1, zIndex: 35 }}>
                 <DropdownSelect
                   placeholder="Per"
                   value={
-                    PERIOD_OPTIONS.find((o) => o.value === dosePeriod)
-                      ?.label ?? ""
+                    SCHEDULE_PERIOD_OPTIONS.find(
+                      (o) => o.value === schedulePeriod,
+                    )?.label ?? ""
                   }
-                  options={PERIOD_OPTIONS.map((o) => o.label)}
+                  options={SCHEDULE_PERIOD_OPTIONS.map((o) => o.label)}
                   onSelect={(label) => {
-                    const m = PERIOD_OPTIONS.find((o) => o.label === label);
-                    if (m) setDosePeriod(m.value);
+                    const m = SCHEDULE_PERIOD_OPTIONS.find(
+                      (o) => o.label === label,
+                    );
+                    if (m) setSchedulePeriod(m.value);
                   }}
                 />
               </View>
             </View>
+
+            {schedulePeriod === "custom" ? (
+              <>
+                <Text style={styles.helperLabel}>Custom interval</Text>
+                <Text style={styles.helperExample}>
+                  Example: a dose every 3 months — enter{" "}
+                  <Text style={styles.helperStrong}>3</Text> and choose{" "}
+                  <Text style={styles.helperStrong}>months</Text>. That saves as
+                  “{formatMedicationEveryIntervalLabel(3, "month")}
+                  ”.
+                </Text>
+                <View style={styles.row2}>
+                  <FormInput
+                    placeholder="Every"
+                    value={customIntervalCount}
+                    onChangeText={setCustomIntervalCount}
+                    keyboardType="numeric"
+                    containerStyle={styles.smallInput}
+                    error={customIntervalError}
+                  />
+                  <View style={{ flex: 1, zIndex: 34 }}>
+                    <DropdownSelect
+                      placeholder="Interval"
+                      value={
+                        INTERVAL_UNIT_OPTIONS.find(
+                          (o) => o.value === customIntervalUnit,
+                        )?.label ?? ""
+                      }
+                      options={INTERVAL_UNIT_OPTIONS.map((o) => o.label)}
+                      onSelect={(label) => {
+                        const opt = INTERVAL_UNIT_OPTIONS.find(
+                          (o) => o.label === label,
+                        );
+                        if (opt) setCustomIntervalUnit(opt.value);
+                      }}
+                    />
+                  </View>
+                </View>
+                {customIntervalCount.trim() !== "" &&
+                Number.isFinite(parsedCustomInterval) &&
+                parsedCustomInterval >= 1 ? (
+                  <Text style={styles.previewLine}>
+                    Preview:{" "}
+                    {formatMedicationEveryIntervalLabel(
+                      parsedCustomInterval,
+                      customIntervalUnit,
+                    )}
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
 
             <Text style={styles.fieldLabel}>Reminder time</Text>
             <Pressable
@@ -396,15 +566,25 @@ export default function EditPetMedicationScreen() {
               onClose={() => setShowTimePicker(false)}
             />
 
+            <Text style={styles.fieldLabel}>Last given</Text>
+            <View style={styles.lastGivenWrap}>
+              <ExpiryDateField
+                value={lastGivenOn}
+                onChangeDate={setLastGivenOn}
+                onClearDate={() => setLastGivenOn("")}
+                placeholder="Select date"
+              />
+            </View>
+
             <FormInput
-              label="Condition (optional)"
+              label="Condition"
               value={condition}
               onChangeText={setCondition}
               containerStyle={styles.field}
             />
 
             <FormInput
-              label="Notes (optional)"
+              label="Notes"
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -412,7 +592,10 @@ export default function EditPetMedicationScreen() {
             />
 
             {validationAttempted &&
-            (nameError || doseCountError || doseCountErrorWeekMonth) ? (
+            (nameError ||
+              doseCountError ||
+              doseCountErrorWeekMonth ||
+              customIntervalError) ? (
               <Text style={styles.formErrorHint}>
                 Please fill in the required fields above.
               </Text>
@@ -425,11 +608,7 @@ export default function EditPetMedicationScreen() {
               disabled={saving || deleting}
               style={styles.saveBtn}
             >
-              {saving
-                ? "Saving…"
-                : isNew
-                  ? "Add medication"
-                  : "Save changes"}
+              {saving ? "Saving…" : isNew ? "Add medication" : "Save changes"}
             </OrangeButton>
 
             {!isNew ? (
@@ -518,9 +697,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: "flex-start",
   },
+  helperLabel: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+  },
+  helperExample: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.gray500,
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  helperStrong: {
+    fontFamily: Font.uiSemiBold,
+    color: Colors.textPrimary,
+  },
+  previewLine: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    marginBottom: 16,
+    marginTop: -4,
+  },
   smallInput: {
     width: 88,
     marginBottom: 0,
+  },
+  timesSpacer: {
+    width: 88,
   },
   timeBtn: {
     flexDirection: "row",
@@ -538,6 +744,9 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  lastGivenWrap: {
+    marginBottom: 12,
   },
   saveBtn: {
     marginTop: 0,

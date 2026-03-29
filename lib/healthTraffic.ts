@@ -1,3 +1,9 @@
+import {
+  daysFromTodayTo,
+  dueSoonScheduleKind,
+  dueSoonWindowForKind,
+  resolveNextDueDate,
+} from "@/lib/medicationDueSchedule";
 import type { PetMedication, PetVaccination } from "@/types/database";
 
 export type HealthTrafficKind = "due_today" | "due_soon" | "current";
@@ -21,30 +27,38 @@ function fmtShort(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** Traffic-light status for medications (badges + banner). */
+/**
+ * Traffic-light status for medications (badges + banner).
+ * Next due is derived from `last_given_on` (or `created_at`) + schedule when possible;
+ * otherwise `next_due_date`. "Due soon" uses a 3-day horizon for weekly-like schedules
+ * and 7 days for monthly-like (including custom every-N-months).
+ */
 export function medicationTraffic(
   m: PetMedication,
 ): { kind: HealthTrafficKind; label: string } {
-  const raw = m.next_due_date?.trim();
-  if (raw) {
-    const due = parseYmd(raw);
-    const diff = daysFromToday(due);
-    if (diff < 0) return { kind: "due_today", label: "Due today" };
-    if (diff === 0) return { kind: "due_today", label: "Due today" };
-    if (diff <= 7) return { kind: "due_soon", label: `Due ${fmtShort(due)}` };
-    return { kind: "current", label: `Due ${fmtShort(due)}` };
+  const scheduleKind = dueSoonScheduleKind(m);
+
+  if (scheduleKind === "daily") {
+    return { kind: "due_today", label: "Due today" };
+  }
+
+  const nextDue = resolveNextDueDate(m);
+  if (nextDue != null) {
+    const diff = daysFromTodayTo(nextDue);
+    const window = dueSoonWindowForKind(scheduleKind);
+
+    if (diff <= 0) {
+      return { kind: "due_today", label: "Due today" };
+    }
+    if (diff <= window) {
+      return { kind: "due_soon", label: `Due ${fmtShort(nextDue)}` };
+    }
+    return { kind: "current", label: `Due ${fmtShort(nextDue)}` };
   }
 
   const f = (m.frequency ?? "").toLowerCase();
-  if (f.includes("daily"))
+  if (f.includes("daily")) {
     return { kind: "due_today", label: "Due today" };
-  if (
-    f.includes("week") ||
-    f.includes("month") ||
-    f.includes("custom") ||
-    f.includes("quarter")
-  ) {
-    return { kind: "due_soon", label: "Due soon" };
   }
   return { kind: "current", label: "Up to date" };
 }

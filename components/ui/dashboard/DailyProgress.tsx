@@ -15,35 +15,60 @@ const CATEGORY_ICONS: Record<string, ImageSource> = {
 
 type DailyProgressProps = {
   categories: DailyProgressCategory[];
+  /** All categories with goals satisfied — unified green rings + celebratory styling. */
+  allComplete?: boolean;
 };
 
 const RING_SIZE = 68;
 const STROKE_WIDTH = 8;
 
 /** Progress rings only — parent supplies the section label and card chrome. */
-export default function DailyProgress({ categories }: DailyProgressProps) {
+export default function DailyProgress({
+  categories,
+  allComplete = false,
+}: DailyProgressProps) {
   return (
     <View style={styles.row}>
       {categories.map((cat) => {
         const progress = cat.total > 0 ? cat.current / cat.total : 0;
         const iconSource = CATEGORY_ICONS[cat.id];
+        const targetMet = cat.total > 0 && cat.current >= cat.total;
+        const ringColor = allComplete
+          ? Colors.progressCompleteRing
+          : cat.ringColor;
+        const trackColor = allComplete
+          ? Colors.progressCompleteTrack
+          : cat.trackColor;
         return (
           <View key={cat.id} style={styles.item}>
             <ProgressRing
               size={RING_SIZE}
               strokeWidth={STROKE_WIDTH}
               progress={progress}
-              color={cat.ringColor}
-              trackColor={cat.trackColor}
+              color={ringColor}
+              trackColor={trackColor}
             >
-              {iconSource && (
-                <Image source={iconSource} style={styles.icon} />
-              )}
+              {iconSource && <Image source={iconSource} style={styles.icon} />}
             </ProgressRing>
-            <Text style={styles.label}>{cat.label}</Text>
-            <Text style={styles.fraction}>
-              <Text style={styles.fractionCurrent}>{cat.current}</Text>/
-              {cat.total}
+            <Text
+              style={[
+                styles.label,
+                allComplete && styles.labelAllComplete,
+              ]}
+            >
+              {cat.label}
+            </Text>
+            <Text
+              style={[
+                styles.fraction,
+                allComplete
+                  ? styles.fractionAllComplete
+                  : targetMet
+                    ? styles.fractionComplete
+                    : styles.fractionIncomplete,
+              ]}
+            >
+              {cat.current}/{cat.total}
             </Text>
           </View>
         );
@@ -72,14 +97,25 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  fraction: {
-    fontFamily: Font.uiMedium,
-    fontSize: 13,
-    color: Colors.gray400,
+  labelAllComplete: {
+    color: Colors.successDark,
   },
-  fractionCurrent: {
-    fontFamily: Font.uiBold,
+  fraction: {
     fontSize: 14,
+  },
+  /** Progress still open — muted numerator/denominator. */
+  fractionIncomplete: {
+    fontFamily: Font.uiRegular,
     color: Colors.textPrimary,
+  },
+  /** Target reached (e.g. all meals logged) — emphasize the count. */
+  fractionComplete: {
+    fontFamily: Font.uiBold,
+    color: Colors.textPrimary,
+  },
+  /** Entire card completed — counts match ring green. */
+  fractionAllComplete: {
+    fontFamily: Font.uiBold,
+    color: Colors.successDark,
   },
 });

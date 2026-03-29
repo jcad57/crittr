@@ -5,7 +5,10 @@ import {
   logMedication,
   logVetVisit,
 } from "@/services/activities";
-import { allActivitiesKey, todayActivitiesKey } from "@/hooks/queries/queryKeys";
+import {
+  allActivitiesKey,
+  todayActivitiesPrefixKey,
+} from "@/hooks/queries/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   ExerciseFormData,
@@ -25,7 +28,7 @@ export function useLogExerciseMutation(petId: string | null) {
     },
     onSuccess: () => {
       if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesKey(petId) });
+        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
         queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }
@@ -43,7 +46,7 @@ export function useLogFoodMutation(petId: string | null) {
     },
     onSuccess: () => {
       if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesKey(petId) });
+        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
         queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }
@@ -61,7 +64,7 @@ export function useLogMedicationMutation(petId: string | null) {
     },
     onSuccess: () => {
       if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesKey(petId) });
+        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
         queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }
@@ -82,7 +85,7 @@ export function useLogVetVisitMutation(petId: string | null) {
     },
     onSuccess: () => {
       if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesKey(petId) });
+        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
         queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }

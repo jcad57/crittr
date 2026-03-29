@@ -83,6 +83,9 @@ export type MedicationDosePeriod = "day" | "week" | "month";
  * Schedule columns (`doses_per_period`, `dose_period`, `reminder_time`) require
  * `supabase/sql/pet_medications_schedule_columns.sql` (or migration
  * `20260328140000_ensure_pet_medications_schedule_columns.sql`) on the database.
+ * Custom interval columns (`interval_count`, `interval_unit`): migration
+ * `013_pet_medications_custom_interval.sql`.
+ * `last_given_on`: migration `014_pet_medications_last_given_on.sql`.
  */
 export type PetMedication = {
   id: string;
@@ -96,8 +99,14 @@ export type PetMedication = {
   doses_per_period?: number | null;
   /** day = per day, week = per week, month = per month. */
   dose_period?: MedicationDosePeriod | null;
+  /** Custom interval: every N units (e.g. 3 + month = every 3 months). Null for standard schedule. */
+  interval_count?: number | null;
+  /** Pairs with interval_count: day | week | month. */
+  interval_unit?: MedicationDosePeriod | null;
   /** Local time HH:mm (24h) for reminders. */
   reminder_time?: string | null;
+  /** ISO date YYYY-MM-DD — last time the medication was given. */
+  last_given_on?: string | null;
   /** When set, drives due badges on the Health hub. */
   next_due_date?: string | null;
   created_at: string;
@@ -118,6 +127,8 @@ export type PetVetVisit = {
   pet_id: string;
   title: string;
   visit_at: string;
+  /** Clinic name, address, or other place text. */
+  location?: string | null;
   notes: string | null;
   created_at: string;
 };

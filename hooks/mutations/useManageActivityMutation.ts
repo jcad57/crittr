@@ -9,7 +9,7 @@ import {
 import {
   allActivitiesKey,
   petActivityQueryKey,
-  todayActivitiesKey,
+  todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
 import type {
   ExerciseFormData,
@@ -23,7 +23,7 @@ function invalidateActivityCaches(petId: string | null, activityId: string) {
   queryClient.invalidateQueries({ queryKey: petActivityQueryKey(activityId) });
   queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
   if (petId) {
-    queryClient.invalidateQueries({ queryKey: todayActivitiesKey(petId) });
+    queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
     queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
   }
 }

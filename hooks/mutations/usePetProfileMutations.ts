@@ -11,6 +11,7 @@ import {
   updatePetFood,
 } from "@/services/petFoods";
 import { type UpdatePetDetailsInput, updatePetDetails } from "@/services/pets";
+import type { PetWithDetails } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 import { useMutation } from "@tanstack/react-query";
 
@@ -20,7 +21,21 @@ export function useUpdatePetDetailsMutation(petId: string) {
   return useMutation({
     mutationFn: (fields: UpdatePetDetailsInput) =>
       updatePetDetails(petId, fields),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PetWithDetails | null>(
+        petDetailsQueryKey(petId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...updated,
+            foods: old.foods,
+            medications: old.medications,
+            vaccinations: old.vaccinations,
+            exercise: old.exercise,
+          };
+        },
+      );
       void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });

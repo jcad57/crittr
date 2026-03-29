@@ -12,8 +12,9 @@ import {
   useUpdatePetDetailsMutation,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useReferenceStore } from "@/stores/referenceStore";
+import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import type { PetFormData } from "@/types/database";
+import { parseDateOnlyYmd } from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,7 +41,9 @@ export default function EditPetDetailsScreen() {
 
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const breedPetType = details?.pet_type ?? "dog";
-  const breeds = useReferenceStore((s) => s.breeds[breedPetType] ?? []);
+  const breeds = useReferenceStore(
+    (s) => s.breeds[breedPetType] ?? EMPTY_BREEDS,
+  );
 
   const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
 
@@ -55,12 +58,13 @@ export default function EditPetDetailsScreen() {
   const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (!details) return;
+    if (!details?.id) return;
     void fetchForPetType(details.pet_type ?? "dog");
-  }, [details, fetchForPetType]);
+  }, [details?.id, details?.pet_type, fetchForPetType]);
 
+  /** Hydrate form once per pet — depend on `details.id`, not `details` (query refetches create new object refs and caused update-depth loops). */
   useEffect(() => {
-    if (!details) return;
+    if (!details?.id) return;
     setBreed(details.breed?.trim() ?? "");
     setColor(details.color?.trim() ?? "");
     setVetClinic(details.primary_vet_clinic?.trim() ?? "");
@@ -70,10 +74,12 @@ export default function EditPetDetailsScreen() {
     setWeightUnit(details.weight_unit ?? "lbs");
     const dob = details.date_of_birth;
     setDateOfBirth(
-      typeof dob === "string" ? dob : dob != null ? String(dob) : "",
+      parseDateOnlyYmd(
+        typeof dob === "string" ? dob : dob != null ? String(dob) : "",
+      ) ?? "",
     );
     setSex(details.sex === "female" ? "female" : "male");
-  }, [details]);
+  }, [details?.id]);
 
   const breedLabel = getBreedLabelForPetType(breedPetType);
 

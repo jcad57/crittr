@@ -95,6 +95,8 @@ export type CreateVetVisitInput = {
   pet_id: string;
   title: string;
   visit_at: Date;
+  /** Clinic name, address, etc. */
+  location?: string | null;
   notes?: string | null;
 };
 
@@ -107,6 +109,7 @@ export async function createVetVisit(
       pet_id: input.pet_id,
       title: input.title.trim(),
       visit_at: input.visit_at.toISOString(),
+      location: input.location?.trim() ? input.location.trim() : null,
       notes: input.notes?.trim() ? input.notes.trim() : null,
     })
     .select()
@@ -125,4 +128,68 @@ export async function fetchPetVetVisits(petId: string): Promise<PetVetVisit[]> {
 
   if (error) throw error;
   return (data ?? []) as PetVetVisit[];
+}
+
+export type UpdateVetVisitInput = {
+  id: string;
+  title: string;
+  visit_at: Date;
+  location: string | null;
+  notes: string | null;
+};
+
+export async function updateVetVisit(
+  input: UpdateVetVisitInput,
+): Promise<PetVetVisit> {
+  const { data, error } = await supabase
+    .from("pet_vet_visits")
+    .update({
+      title: input.title.trim(),
+      visit_at: input.visit_at.toISOString(),
+      location: input.location?.trim() ? input.location.trim() : null,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    })
+    .eq("id", input.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetVetVisit;
+}
+
+export async function deleteVetVisit(id: string): Promise<void> {
+  const { error } = await supabase.from("pet_vet_visits").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type CreatePetVaccinationInput = {
+  pet_id: string;
+  name: string;
+  expires_on: string | null;
+  frequency_label: string | null;
+  notes: string | null;
+};
+
+export async function createPetVaccination(
+  input: CreatePetVaccinationInput,
+): Promise<PetVaccination> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Vaccination name is required");
+
+  const { data, error } = await supabase
+    .from("pet_vaccinations")
+    .insert({
+      pet_id: input.pet_id,
+      name,
+      expires_on: input.expires_on,
+      frequency_label: input.frequency_label?.trim()
+        ? input.frequency_label.trim()
+        : null,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetVaccination;
 }
