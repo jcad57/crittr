@@ -32,6 +32,7 @@ import {
   isUpcomingVetVisit,
   mapPetVetVisitToDashboard,
 } from "@/lib/vetVisitDashboard";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
@@ -61,12 +62,14 @@ export default function Dashboard() {
 
   const pets: Pet[] = useMemo(
     () =>
-      (dbPets ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        breed: p.breed ?? "",
-        imageUrl: p.avatar_url,
-      })),
+      (dbPets ?? [])
+        .filter(isPetActiveForDashboard)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          breed: p.breed ?? "",
+          imageUrl: p.avatar_url,
+        })),
     [dbPets],
   );
 

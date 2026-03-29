@@ -7,10 +7,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import {
-  usePetDetailsQuery,
-  useUpdatePetDetailsMutation,
-} from "@/hooks/queries";
+import { usePetDetailsQuery, useUpdatePetDetailsMutation } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import type { PetFormData } from "@/types/database";

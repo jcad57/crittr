@@ -1,7 +1,7 @@
 import { Colors } from "@/constants/colors";
 import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import PetCard from "./PetCard";
 import SectionLabel from "./SectionLabel";
 
@@ -14,7 +14,13 @@ export default function PetManagement({ pets, onAddPet }: PetManagementProps) {
   return (
     <View style={styles.container}>
       <SectionLabel>My pets</SectionLabel>
-      <View style={styles.row}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+      >
         {pets.map((pet) => (
           <PetCard key={pet.id} pet={pet} />
         ))}
@@ -32,7 +38,7 @@ export default function PetManagement({ pets, onAddPet }: PetManagementProps) {
             />
           </View>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -49,10 +55,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 24,
+    paddingRight: 12,
   },
   addCard: {
     alignItems: "center",
     marginTop: ADD_TOP_OFFSET,
+    flexShrink: 0,
   },
   addCircle: {
     width: ADD_SIZE,

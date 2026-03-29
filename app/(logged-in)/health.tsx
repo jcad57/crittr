@@ -14,12 +14,12 @@ import {
   useHealthSnapshotQuery,
   useTodayActivitiesForPetIdsQuery,
 } from "@/hooks/queries";
-import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
+import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
+import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { usePetStore } from "@/stores/petStore";
 import {
   ActivityIndicator,
   ScrollView,
@@ -87,8 +87,7 @@ export default function HealthScreen() {
   );
 
   /** Don’t show until today’s activity query has settled — while pending, `[]` looks like no doses logged and inflates “due today” falsely. */
-  const todayActivitiesReady =
-    petIds.length === 0 || todayActivitiesFetched;
+  const todayActivitiesReady = petIds.length === 0 || todayActivitiesFetched;
 
   const showBanner =
     todayActivitiesReady &&
@@ -179,7 +178,11 @@ export default function HealthScreen() {
   if (!isLoading && pets.length === 0) {
     return (
       <View
-        style={[styles.screen, styles.noPetsScreen, { paddingTop: insets.top + 8 }]}
+        style={[
+          styles.screen,
+          styles.noPetsScreen,
+          { paddingTop: insets.top + 8 },
+        ]}
       >
         <View style={styles.headerTitles}>
           <Text style={styles.pageTitle}>Health</Text>
@@ -267,7 +270,7 @@ export default function HealthScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No medications on file for this filter.
+              No medications on file for this pet.
             </Text>
           </View>
         )}
@@ -307,9 +310,7 @@ export default function HealthScreen() {
                 item={v}
                 isLast={i === filteredVisits.length - 1}
                 onPress={() =>
-                  router.push(
-                    `/(logged-in)/pet/${v.pet_id}/vet-visits/${v.id}`,
-                  )
+                  router.push(`/(logged-in)/pet/${v.pet_id}/vet-visits/${v.id}`)
                 }
               />
             ))}

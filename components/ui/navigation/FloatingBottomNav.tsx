@@ -66,6 +66,25 @@ const TABS: TabItem[] = [
   },
 ];
 
+/** True when `pathname` is already the tab’s root screen (same destination as `router.replace(href)`). */
+function isAlreadyOnTabRoot(tabId: TabId, pathname: string): boolean {
+  const p = pathname.replace(/\/$/, "") || "/";
+  switch (tabId) {
+    case "home":
+      return /\/dashboard$/.test(p);
+    case "activity":
+      return /\/activity$/.test(p);
+    case "pets":
+      return /\/pets$/.test(p);
+    case "health":
+      return /\/health$/.test(p);
+    case "more":
+      return /\/more$/.test(p);
+    default:
+      return false;
+  }
+}
+
 function resolveActiveTab(pathname: string, segments: string[]): TabId {
   if (segments.includes("dashboard")) return "home";
   if (segments.includes("activity")) return "activity";
@@ -130,7 +149,10 @@ export default function FloatingBottomNav() {
                 styles.tab,
                 pressed && styles.tabPressed,
               ]}
-              onPress={() => router.replace(tab.href)}
+              onPress={() => {
+                if (isAlreadyOnTabRoot(tab.id, pathname)) return;
+                router.replace(tab.href);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={tab.label}

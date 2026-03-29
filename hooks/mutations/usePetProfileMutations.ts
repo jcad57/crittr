@@ -10,10 +10,47 @@ import {
   type UpsertPetFoodInput,
   updatePetFood,
 } from "@/services/petFoods";
-import { type UpdatePetDetailsInput, updatePetDetails } from "@/services/pets";
+import {
+  type UpdatePetDetailsInput,
+  type UpdatePetExerciseRequirementsInput,
+  updatePetDetails,
+  updatePetExerciseRequirements,
+} from "@/services/pets";
 import type { PetWithDetails } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 import { useMutation } from "@tanstack/react-query";
+
+export function useUpdatePetExerciseRequirementsMutation(petId: string) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: (fields: UpdatePetExerciseRequirementsInput) =>
+      updatePetExerciseRequirements(petId, fields),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PetWithDetails | null>(
+        petDetailsQueryKey(petId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...updated,
+            foods: old.foods,
+            medications: old.medications,
+            vaccinations: old.vaccinations,
+            exercise: old.exercise,
+          };
+        },
+      );
+      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+        void queryClient.invalidateQueries({
+          queryKey: healthSnapshotKey(userId),
+        });
+      }
+    },
+  });
+}
 
 export function useUpdatePetDetailsMutation(petId: string) {
   const userId = useAuthStore((s) => s.session?.user?.id);

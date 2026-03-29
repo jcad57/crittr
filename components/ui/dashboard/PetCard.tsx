@@ -43,8 +43,12 @@ export default function PetCard({ pet }: PetCardProps) {
           <MaterialCommunityIcons name="paw" size={32} color={Colors.orange} />
         )}
       </View>
-      <Text style={styles.name}>{pet.name}</Text>
-      <Text style={styles.breed}>{pet.breed}</Text>
+      <Text style={styles.name} numberOfLines={2}>
+        {pet.name}
+      </Text>
+      <Text style={styles.breed} numberOfLines={2}>
+        {pet.breed}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -53,6 +57,8 @@ const styles = StyleSheet.create({
   card: {
     alignItems: "center",
     gap: 4,
+    flexShrink: 0,
+    maxWidth: 112,
   },
   avatar: {
     width: AVATAR_SIZE,
@@ -73,10 +79,12 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-Bold",
     fontSize: 15,
     color: Colors.textPrimary,
+    textAlign: "center",
   },
   breed: {
     fontFamily: "InstrumentSans-Regular",
     fontSize: 12,
     color: Colors.textSecondary,
+    textAlign: "center",
   },
 });

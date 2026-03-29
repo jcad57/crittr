@@ -1,18 +1,15 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import type { Pet } from "@/types/database";
-import {
-  buildPetListTags,
-  formatPetListSubline,
-  petListPreviewStats,
-} from "@/utils/petListHelpers";
+import { formatPetListSubline } from "@/utils/petListHelpers";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-export type PetFeatureVariant = "orange" | "dark";
+export type PetFeatureVariant = "orange" | "dark" | "memorial";
 
 type PetFeatureCardProps = {
   pet: Pet;
@@ -24,33 +21,79 @@ const RADIUS = 28;
 export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
   const router = useRouter();
   const setActivePet = usePetStore((s) => s.setActivePet);
+  const isMemorial = variant === "memorial";
   const isOrange = variant === "orange";
-  const bg = isOrange ? Colors.orange : Colors.profileHeroDark;
+  const bg = isMemorial
+    ? Colors.memorialLavender
+    : isOrange
+      ? Colors.orange
+      : Colors.profileHeroDark;
   const subline = formatPetListSubline(pet);
-  const tags = buildPetListTags(pet);
-  const stats = petListPreviewStats(pet);
 
-  const statStripBg = isOrange ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.08)";
-  const tagBg = isOrange ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.12)";
-  const ctaSecondaryBg = isOrange
+  const logBg = isOrange
     ? "rgba(0,0,0,0.28)"
     : "rgba(255,255,255,0.16)";
+  const deleteBg = isMemorial
+    ? "rgba(110, 75, 105, 0.45)"
+    : isOrange
+      ? "rgba(90, 25, 25, 0.5)"
+      : "rgba(180, 55, 55, 0.55)";
+  const memorialCtaBg = isMemorial
+    ? "rgba(255,255,255,0.2)"
+    : isOrange
+      ? "rgba(255,255,255,0.95)"
+      : "rgba(255,255,255,0.14)";
 
-  const viewProfileText = isOrange ? Colors.orange : Colors.black;
+  const memorialCtaText = isMemorial
+    ? Colors.white
+    : isOrange
+      ? Colors.orange
+      : Colors.white;
+
   const avatarUri = pet.avatar_url?.trim() || null;
+  const canLogActivity = isPetActiveForDashboard(pet);
+
+  const goProfile = () => router.push(`/(logged-in)/pet/${pet.id}`);
+  const goDelete = () => router.push(`/(logged-in)/pet/${pet.id}/delete-pet`);
+  const goMemorial = () =>
+    router.push(`/(logged-in)/pet/${pet.id}/memorialize-pet`);
 
   return (
-    <View style={[styles.card, { backgroundColor: bg }]}>
+    <Pressable
+      style={[styles.card, { backgroundColor: bg }]}
+      onPress={goProfile}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${pet.name} profile`}
+      android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+    >
       <View style={styles.topRow}>
         <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
+          {isMemorial ? (
+            <View style={styles.memorialBadge}>
+              <MaterialCommunityIcons
+                name="flower-outline"
+                size={14}
+                color={Colors.memorialGoldSoft}
+              />
+              <Text style={styles.memorialBadgeText}>In loving memory</Text>
+            </View>
+          ) : null}
+          <Text
+            style={[styles.name, isMemorial && styles.nameMemorial]}
+            numberOfLines={1}
+          >
             {pet.name}
           </Text>
-          <Text style={styles.subline} numberOfLines={2}>
+          <Text
+            style={[styles.subline, isMemorial && styles.sublineMemorial]}
+            numberOfLines={2}
+          >
             {subline}
           </Text>
         </View>
-        <View style={styles.avatar}>
+        <View
+          style={[styles.avatar, isMemorial && styles.avatarMemorial]}
+        >
           {avatarUri ? (
             <Image
               source={{ uri: avatarUri }}
@@ -63,55 +106,56 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
             <MaterialCommunityIcons
               name="paw"
               size={36}
-              color={isOrange ? Colors.white : Colors.orange}
+              color={
+                isMemorial
+                  ? Colors.memorialGoldSoft
+                  : isOrange
+                    ? Colors.white
+                    : Colors.orange
+              }
             />
           )}
         </View>
       </View>
 
       <View style={styles.ctaRow}>
+        {canLogActivity ? (
+          <Pressable
+            style={[styles.ctaBtn, { backgroundColor: logBg }]}
+            onPress={() => {
+              setActivePet(pet.id);
+              router.push("/(logged-in)/add-activity");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Log activity for ${pet.name}`}
+          >
+            <Text style={styles.ctaBtnText}>Log activity</Text>
+          </Pressable>
+        ) : null}
         <Pressable
-          style={[styles.ctaPrimary, { backgroundColor: Colors.white }]}
-          onPress={() => router.push(`/(logged-in)/pet/${pet.id}`)}
+          style={[styles.ctaBtn, { backgroundColor: deleteBg }]}
+          onPress={goDelete}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${pet.name}`}
         >
-          <Text style={[styles.ctaPrimaryText, { color: viewProfileText }]}>
-            View profile
+          <Text style={styles.ctaBtnText}>Delete</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.ctaBtn, { backgroundColor: memorialCtaBg }]}
+          onPress={goMemorial}
+          accessibilityRole="button"
+          accessibilityLabel={
+            canLogActivity
+              ? `Memorialize ${pet.name}`
+              : `Restore ${pet.name} to active`
+          }
+        >
+          <Text style={[styles.ctaBtnText, { color: memorialCtaText }]}>
+            {canLogActivity ? "Memorialize" : "Restore"}
           </Text>
         </Pressable>
-        <Pressable
-          style={[styles.ctaSecondary, { backgroundColor: ctaSecondaryBg }]}
-          onPress={() => {
-            setActivePet(pet.id);
-            router.push("/(logged-in)/add-activity");
-          }}
-        >
-          <Text style={styles.ctaSecondaryText}>Log activity</Text>
-        </Pressable>
       </View>
-    </View>
-  );
-}
-
-function StatCell({
-  value,
-  label,
-  isWeight,
-}: {
-  value: string;
-  label: string;
-  isWeight?: boolean;
-}) {
-  return (
-    <View style={styles.statCell}>
-      <Text
-        style={[styles.statValue, isWeight && styles.statValueWeight]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {value}
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -133,11 +177,32 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  memorialBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginBottom: 8,
+  },
+  memorialBadgeText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: Colors.memorialGoldSoft,
+  },
   name: {
     fontFamily: Font.displayBold,
     fontSize: 28,
     color: Colors.white,
     letterSpacing: -0.5,
+  },
+  nameMemorial: {
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.96)",
   },
   subline: {
     fontFamily: Font.uiRegular,
@@ -146,21 +211,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 20,
   },
-  tagsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-  },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    color: Colors.white,
+  sublineMemorial: {
+    color: Colors.memorialTextMuted,
   },
   avatar: {
     width: 72,
@@ -173,72 +225,34 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.35)",
   },
-  avatarRingOrange: {},
+  avatarMemorial: {
+    borderColor: "rgba(201,184,150,0.45)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
   avatarImage: {
     width: 72,
     height: 72,
   },
-  statStrip: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    borderRadius: 16,
-    marginTop: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-  },
-  statCell: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  statValue: {
-    fontFamily: Font.displayBold,
-    fontSize: 22,
-    color: Colors.white,
-    letterSpacing: -0.3,
-  },
-  statValueWeight: {
-    fontSize: 18,
-  },
-  statLabel: {
-    fontFamily: Font.uiRegular,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  statDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginVertical: 4,
-  },
   ctaRow: {
     flexDirection: "row",
-    gap: 10,
+    flexWrap: "wrap",
+    gap: 8,
     marginTop: 16,
   },
-  ctaPrimary: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 16,
+  ctaBtn: {
+    flexGrow: 1,
+    flexBasis: "28%",
+    minWidth: "28%",
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  ctaPrimaryText: {
+  ctaBtnText: {
     fontFamily: Font.uiBold,
-    fontSize: 15,
-  },
-  ctaSecondary: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaSecondaryText: {
-    fontFamily: Font.uiBold,
-    fontSize: 15,
+    fontSize: 12,
     color: Colors.white,
+    textAlign: "center",
   },
 });

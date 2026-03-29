@@ -1,3 +1,4 @@
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { supabase } from "@/lib/supabase";
 import type { Pet } from "@/types/database";
 import { create } from "zustand";
@@ -45,8 +46,13 @@ export const usePetStore = create<PetState>((set, get) => ({
 
   initActivePetFromList: (pets) => {
     const { activePetId } = get();
-    if (activePetId && pets.some((p) => p.id === activePetId)) return;
-    const active = pets.find((p) => p.is_active) ?? pets[0];
+    const living = pets.filter(isPetActiveForDashboard);
+    if (living.length === 0) {
+      if (activePetId !== null) set({ activePetId: null });
+      return;
+    }
+    if (activePetId && living.some((p) => p.id === activePetId)) return;
+    const active = living.find((p) => p.is_active) ?? living[0];
     const nextId = active?.id ?? null;
     if (activePetId === nextId) return;
     set({ activePetId: nextId });

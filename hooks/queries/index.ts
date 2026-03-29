@@ -35,5 +35,11 @@ export {
   useDeletePetFoodMutation,
   useInsertPetFoodMutation,
   useUpdatePetDetailsMutation,
+  useUpdatePetExerciseRequirementsMutation,
   useUpdatePetFoodMutation,
 } from "../mutations/usePetProfileMutations";
+export {
+  useDeletePetMutation,
+  useMemorializePetMutation,
+  useUnmemorializePetMutation,
+} from "../mutations/usePetLifecycleMutations";

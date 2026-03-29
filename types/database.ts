@@ -59,6 +59,9 @@ export type Pet = {
   insurance_provider?: string | null;
   is_sterilized?: boolean | null;
   is_active: boolean;
+  /** When true, pet stays in My Pets for remembrance; excluded from dashboard & active selection. */
+  is_memorialized?: boolean;
+  memorialized_at?: string | null;
   created_at: string;
   updated_at: string;
 };

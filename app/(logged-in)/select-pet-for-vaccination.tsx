@@ -1,6 +1,7 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,7 +19,7 @@ export default function SelectPetForVaccinationScreen() {
   const router = useRouter();
   const setActivePet = usePetStore((s) => s.setActivePet);
   const { data: petsData } = usePetsQuery();
-  const pets: Pet[] = petsData ?? [];
+  const pets: Pet[] = (petsData ?? []).filter(isPetActiveForDashboard);
 
   const onPickPet = (pet: Pet) => {
     setActivePet(pet.id);
@@ -49,6 +50,12 @@ export default function SelectPetForVaccinationScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {pets.length === 0 ? (
+          <Text style={styles.empty}>
+            You have no active pets to add a vaccination for. Memorialized pets
+            are kept for remembrance only.
+          </Text>
+        ) : null}
         {pets.map((pet) => {
           const uri = pet.avatar_url?.trim() || null;
           return (
@@ -127,6 +134,14 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 20,
     gap: 10,
+  },
+  empty: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    textAlign: "center",
+    paddingVertical: 24,
   },
   row: {
     flexDirection: "row",

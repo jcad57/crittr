@@ -88,4 +88,11 @@ export const Colors = {
   skyDark: "#256A6E",
   amberDark: "#B45309",
   successDark: "#15803D",
+
+  /** Memorial / remembrance cards — calm dusk, soft harmony */
+  memorialLavender: "#7A6F8E",
+  memorialLavenderDeep: "#5C5468",
+  memorialMist: "#A39BB5",
+  memorialGoldSoft: "#C9B896",
+  memorialTextMuted: "rgba(255,255,255,0.78)",
 } as const;

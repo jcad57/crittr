@@ -1,4 +1,4 @@
-import ActivityFilterChips from "@/components/ui/activity/ActivityFilterChips";
+import ActivityHistoryFilterBar from "@/components/ui/activity/ActivityHistoryFilterBar";
 import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
 import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
@@ -127,11 +127,6 @@ export default function ActivityScreen() {
     [allEntries, filter, newestFirst],
   );
 
-  const entryCount = useMemo(
-    () => sections.reduce((n, s) => n + s.data.length, 0),
-    [sections],
-  );
-
   const handleLogActivity = useCallback(() => {
     router.push("/(logged-in)/add-activity");
   }, [router]);
@@ -173,13 +168,12 @@ export default function ActivityScreen() {
         </>
       ) : null}
 
-      <ActivityFilterChips active={filter} onChange={setFilter} />
-
-      {/* <View style={styles.listMetaRow}>
-        <Text style={styles.entryCount}>
-          {entryCount} {entryCount === 1 ? "ENTRY" : "ENTRIES"}
-        </Text>
-      </View> */}
+      <ActivityHistoryFilterBar
+        filter={filter}
+        onFilterChange={setFilter}
+        newestFirst={newestFirst}
+        onNewestFirstChange={setNewestFirst}
+      />
     </>
   );
 
@@ -192,20 +186,6 @@ export default function ActivityScreen() {
         renderSectionHeader={({ section }) => (
           <View style={styles.stickyHeader}>
             <Text style={styles.sectionHeading}>{section.title}</Text>
-            <Pressable
-              style={styles.sortBtn}
-              onPress={() => setNewestFirst((v) => !v)}
-              hitSlop={8}
-            >
-              <Text style={styles.sortText}>
-                {newestFirst ? "Newest first" : "Oldest first"}
-              </Text>
-              <MaterialCommunityIcons
-                name="sort-reverse-variant"
-                size={18}
-                color={Colors.orange}
-              />
-            </Pressable>
           </View>
         )}
         renderItem={({ item }) => (
@@ -295,36 +275,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  listMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  entryCount: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    color: Colors.gray500,
-  },
-  sortBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  sortText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.orange,
-  },
   listContent: {
     paddingHorizontal: 20,
     flexGrow: 1,
   },
   stickyHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     backgroundColor: Colors.cream,
     paddingTop: 12,
     paddingBottom: 8,

@@ -56,7 +56,6 @@ export default function PetCareStep() {
   const [medFreq, setMedFreq] = useState("");
   const [medCustomFreq, setMedCustomFreq] = useState("");
   const [medCondition, setMedCondition] = useState("");
-  const [medDosesPerDay, setMedDosesPerDay] = useState("1");
   const [medNotes, setMedNotes] = useState("");
   const [medReminderDate, setMedReminderDate] = useState(() => {
     const d = new Date();
@@ -120,7 +119,7 @@ export default function PetCareStep() {
             : "";
     const dosesPerPeriodStr =
       medFreq === "Daily"
-        ? medDosesPerDay.trim() || "1"
+        ? "1"
         : medFreq === "Weekly" || medFreq === "Monthly"
           ? "1"
           : "";
@@ -144,7 +143,6 @@ export default function PetCareStep() {
     setMedFreq("");
     setMedCustomFreq("");
     setMedCondition("");
-    setMedDosesPerDay("1");
     setMedNotes("");
     const reset = new Date();
     reset.setHours(9, 0, 0, 0);
@@ -201,8 +199,13 @@ export default function PetCareStep() {
         ? m.customFrequency
         : m.frequency;
     const scheduleParts: string[] = [];
-    if (m.dosePeriod === "day" && m.dosesPerPeriod?.trim()) {
-      scheduleParts.push(`${m.dosesPerPeriod.trim()}×/day`);
+    if (m.dosePeriod === "day") {
+      const n = parseInt(m.dosesPerPeriod?.trim() ?? "1", 10);
+      if (Number.isFinite(n) && n > 1) {
+        scheduleParts.push(`${n}×/day`);
+      } else {
+        scheduleParts.push("daily");
+      }
     } else if (m.dosePeriod === "week") {
       scheduleParts.push("weekly");
     } else if (m.dosePeriod === "month") {
@@ -431,19 +434,6 @@ export default function PetCareStep() {
         onChangeText={setMedCondition}
         containerStyle={styles.inputSpacing}
       />
-
-      {medFreq === "Daily" ? (
-        <>
-          <Text style={styles.fieldLabel}>Doses per day</Text>
-          <FormInput
-            placeholder="e.g. 2"
-            value={medDosesPerDay}
-            onChangeText={setMedDosesPerDay}
-            keyboardType="numeric"
-            containerStyle={styles.inputSpacing}
-          />
-        </>
-      ) : null}
 
       <Text style={styles.fieldLabel}>Reminder time</Text>
       <Pressable

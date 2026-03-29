@@ -233,6 +233,12 @@ export type UpdatePetDetailsInput = {
   sex: "male" | "female" | null;
 };
 
+export type UpdatePetExerciseRequirementsInput = {
+  energy_level: "low" | "medium" | "high";
+  /** Required for dog/other; ignored or null for other species when not tracked. */
+  exercises_per_day: number | null;
+};
+
 export async function updatePetDetails(
   petId: string,
   fields: UpdatePetDetailsInput,
@@ -259,6 +265,24 @@ export async function updatePetDetails(
       sex: fields.sex,
       age,
       age_months,
+    })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
+}
+
+export async function updatePetExerciseRequirements(
+  petId: string,
+  fields: UpdatePetExerciseRequirementsInput,
+): Promise<Pet> {
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      energy_level: fields.energy_level,
+      exercises_per_day: fields.exercises_per_day,
     })
     .eq("id", petId)
     .select()
@@ -296,4 +320,80 @@ export async function updatePetAvatar(
 
   if (error) throw error;
   return data as Pet;
+}
+
+/** After delete or memorialization, ensure one living pet is `is_active` if any exist. */
+export async function ensureOneActivePet(ownerId: string): Promise<void> {
+  const { data: rows, error } = await supabase
+    .from("pets")
+    .select("id, is_memorialized, is_active")
+    .eq("owner_id", ownerId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  const pets = rows ?? [];
+  const living = pets.filter((p) => !p.is_memorialized);
+  if (living.length === 0) {
+    await supabase.from("pets").update({ is_active: false }).eq("owner_id", ownerId);
+    return;
+  }
+  const hasLivingActive = living.some((p) => p.is_active);
+  if (hasLivingActive) return;
+
+  await supabase.from("pets").update({ is_active: false }).eq("owner_id", ownerId);
+  await supabase
+    .from("pets")
+    .update({ is_active: true })
+    .eq("id", living[0].id)
+    .eq("owner_id", ownerId);
+}
+
+export async function memorializePet(ownerId: string, petId: string): Promise<Pet> {
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      is_memorialized: true,
+      memorialized_at: new Date().toISOString(),
+      is_active: false,
+    })
+    .eq("id", petId)
+    .eq("owner_id", ownerId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await ensureOneActivePet(ownerId);
+  return data as Pet;
+}
+
+/** Clear memorial status so the pet appears again on the dashboard and in activity flows. */
+export async function unmemorializePet(
+  ownerId: string,
+  petId: string,
+): Promise<Pet> {
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      is_memorialized: false,
+      memorialized_at: null,
+    })
+    .eq("id", petId)
+    .eq("owner_id", ownerId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await ensureOneActivePet(ownerId);
+  return data as Pet;
+}
+
+export async function deletePet(ownerId: string, petId: string): Promise<void> {
+  const { error } = await supabase
+    .from("pets")
+    .delete()
+    .eq("id", petId)
+    .eq("owner_id", ownerId);
+
+  if (error) throw error;
+  await ensureOneActivePet(ownerId);
 }

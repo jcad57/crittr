@@ -2,6 +2,7 @@ import HealthListCard from "@/components/ui/health/HealthListCard";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
+import PetExerciseRequirementsBlock from "@/components/ui/pet/PetExerciseRequirementsBlock";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
 import PetProfileHero, {
   type PetHeroTag,
@@ -420,6 +421,10 @@ export default function PetProfilePage() {
             isLast
           />
         </View>
+
+        {details ? (
+          <PetExerciseRequirementsBlock details={details} />
+        ) : null}
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>

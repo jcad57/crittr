@@ -2,6 +2,7 @@ import PetFeatureCard from "@/components/ui/pets/PetFeatureCard";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -33,10 +34,13 @@ export default function PetsScreen() {
   const router = useRouter();
   const { data, isLoading } = usePetsQuery();
   const dbPets: Pet[] | undefined = data;
-  const ordered = useMemo(
-    () => (dbPets?.length ? sortPetsByCreatedAt(dbPets) : []),
-    [dbPets],
-  );
+  const ordered = useMemo(() => {
+    if (!dbPets?.length) return [];
+    const sorted = sortPetsByCreatedAt(dbPets);
+    const living = sorted.filter(isPetActiveForDashboard);
+    const memorial = sorted.filter((p) => !isPetActiveForDashboard(p));
+    return [...living, ...memorial];
+  }, [dbPets]);
 
   const companionLabel =
     ordered.length === 1 ? "1 companion" : `${ordered.length} companions`;
@@ -73,13 +77,19 @@ export default function PetsScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {ordered.map((pet, index) => (
-            <PetFeatureCard
-              key={pet.id}
-              pet={pet}
-              variant={index % 2 === 0 ? "orange" : "dark"}
-            />
-          ))}
+          {ordered.map((pet, index) => {
+            const livingBefore = ordered
+              .slice(0, index)
+              .filter(isPetActiveForDashboard).length;
+            const variant = !isPetActiveForDashboard(pet)
+              ? "memorial"
+              : livingBefore % 2 === 0
+                ? "orange"
+                : "dark";
+            return (
+              <PetFeatureCard key={pet.id} pet={pet} variant={variant} />
+            );
+          })}
         </ScrollView>
       )}
     </View>
