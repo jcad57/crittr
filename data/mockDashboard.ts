@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import type { HealthTrafficKind } from "@/lib/healthTraffic";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -101,10 +102,9 @@ export type Medication = {
   current: number;
   total: number;
   lastTaken?: string;
-  iconBg: string;
-  iconColor: string;
-  /** Profile card badge (mock when not from server) */
-  profileStatus?: "due_today" | "up_to_date";
+  /** Traffic badge — same as Health tab medications */
+  badgeKind: HealthTrafficKind;
+  badgeLabel: string;
 };
 
 export type VetVisit = {
@@ -233,8 +233,8 @@ export const MOCK_MEDICATIONS: Medication[] = [
     current: 2,
     total: 2,
     lastTaken: "10/19/2025",
-    iconBg: Colors.successLight,
-    iconColor: Colors.success,
+    badgeKind: "current",
+    badgeLabel: "2/2",
   },
   {
     id: "med-2",
@@ -245,8 +245,8 @@ export const MOCK_MEDICATIONS: Medication[] = [
     current: 1,
     total: 1,
     lastTaken: "10/19/2025",
-    iconBg: Colors.successLight,
-    iconColor: Colors.success,
+    badgeKind: "current",
+    badgeLabel: "1/1",
   },
 ];
 
@@ -357,8 +357,8 @@ export const MOCK_PET_PROFILES: Record<string, PetProfile> = {
         current: 1,
         total: 1,
         lastTaken: "10/01/2025",
-        iconBg: Colors.successLight,
-        iconColor: Colors.success,
+        badgeKind: "current",
+        badgeLabel: "1/1",
       },
     ],
     vetVisits: [

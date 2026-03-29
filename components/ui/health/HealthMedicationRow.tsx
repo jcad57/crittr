@@ -1,10 +1,7 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
-import { medicationTraffic } from "@/lib/healthTraffic";
+import MedicationListRow from "@/components/ui/medication/MedicationListRow";
+import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
+import type { MedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import type { MedicationWithPet } from "@/services/health";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import HealthTrafficBadge from "./HealthTrafficBadge";
 
 type Props = {
   item: MedicationWithPet;
@@ -30,77 +27,37 @@ export default function HealthMedicationRow({
   dosageLabel,
   dosageComplete,
 }: Props) {
-  const t = medicationTraffic(item);
   const useDosageBadge =
     dosageLabel != null &&
     dosageLabel.length > 0 &&
     dosageComplete !== undefined;
-  const badgeKind = useDosageBadge
-    ? dosageComplete
-      ? ("current" as const)
-      : ("due_today" as const)
-    : t.kind;
-  const badgeLabel = useDosageBadge ? dosageLabel : t.label;
+
+  const badge = useDosageBadge
+    ? (() => {
+        const parts = dosageLabel.split("/");
+        const cur = parseInt(parts[0] ?? "0", 10);
+        const tot = parseInt(parts[1] ?? "0", 10);
+        const prog: MedicationDosageProgress = {
+          current: Number.isFinite(cur) ? cur : 0,
+          total: Number.isFinite(tot) ? tot : 0,
+          isComplete: Boolean(dosageComplete),
+        };
+        return getMedicationBadgeDisplay(item, prog);
+      })()
+    : getMedicationBadgeDisplay(item, {
+        current: 0,
+        total: 0,
+        isComplete: true,
+      });
+
   return (
-    <Pressable
-      style={[styles.row, !isLast && styles.rowBorder]}
+    <MedicationListRow
+      title={item.name}
+      subline={formatSubline(item)}
+      badgeKind={badge.kind}
+      badgeLabel={badge.label}
       onPress={onPress}
-    >
-      <View style={styles.iconBox}>
-        <MaterialCommunityIcons name="pill" size={20} color={Colors.orange} />
-      </View>
-      <View style={styles.mid}>
-        <Text style={styles.title} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.sub} numberOfLines={2}>
-          {formatSubline(item)}
-        </Text>
-      </View>
-      <HealthTrafficBadge kind={badgeKind} label={badgeLabel} />
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={22}
-        color={Colors.gray400}
-      />
-    </Pressable>
+      isLast={isLast}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    gap: 10,
-  },
-  rowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray100,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.orangeLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mid: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-  title: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  sub: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.gray500,
-    lineHeight: 18,
-  },
-});

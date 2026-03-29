@@ -1,10 +1,18 @@
+import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import Divider from "@/components/ui/Divider";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import type { FoodFormEntry, MedicationFormEntry } from "@/types/database";
+import type {
+  FoodFormEntry,
+  MedicationDosePeriod,
+  MedicationFormEntry,
+  VaccinationFormEntry,
+} from "@/types/database";
+import { formatReminderTimeHHmm } from "@/lib/medicationSchedule";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -48,6 +56,20 @@ export default function PetCareStep() {
   const [medFreq, setMedFreq] = useState("");
   const [medCustomFreq, setMedCustomFreq] = useState("");
   const [medCondition, setMedCondition] = useState("");
+  const [medDosesPerDay, setMedDosesPerDay] = useState("1");
+  const [medNotes, setMedNotes] = useState("");
+  const [medReminderDate, setMedReminderDate] = useState(() => {
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    return d;
+  });
+  const [medShowTimePicker, setMedShowTimePicker] = useState(false);
+
+  // Vaccination form (optional)
+  const [vacName, setVacName] = useState("");
+  const [vacFrequencyLabel, setVacFrequencyLabel] = useState("");
+  const [vacExpiresOn, setVacExpiresOn] = useState("");
+  const [vacNotes, setVacNotes] = useState("");
 
   const isValid = pet.foods.length > 0;
 
@@ -88,6 +110,20 @@ export default function PetCareStep() {
 
   const addMedication = () => {
     if (!medName.trim()) return;
+    const dosePeriod: MedicationDosePeriod | "" =
+      medFreq === "Daily"
+        ? "day"
+        : medFreq === "Weekly"
+          ? "week"
+          : medFreq === "Monthly"
+            ? "month"
+            : "";
+    const dosesPerPeriodStr =
+      medFreq === "Daily"
+        ? (medDosesPerDay.trim() || "1")
+        : medFreq === "Weekly" || medFreq === "Monthly"
+          ? "1"
+          : "";
     const entry: MedicationFormEntry = {
       localId: Date.now().toString(),
       name: medName.trim(),
@@ -96,6 +132,10 @@ export default function PetCareStep() {
       frequency: medFreq,
       customFrequency: medFreq === "Custom" ? medCustomFreq : "",
       condition: medCondition,
+      dosesPerPeriod: dosesPerPeriodStr,
+      dosePeriod,
+      reminderTime: formatReminderTimeHHmm(medReminderDate),
+      notes: medNotes.trim(),
     };
     updateCurrentPet({ medications: [...pet.medications, entry] });
     setMedName("");
@@ -104,6 +144,11 @@ export default function PetCareStep() {
     setMedFreq("");
     setMedCustomFreq("");
     setMedCondition("");
+    setMedDosesPerDay("1");
+    setMedNotes("");
+    const reset = new Date();
+    reset.setHours(9, 0, 0, 0);
+    setMedReminderDate(reset);
   };
 
   const removeMed = (localId: string) => {
@@ -112,13 +157,61 @@ export default function PetCareStep() {
     });
   };
 
+  const addVaccination = () => {
+    if (!vacName.trim()) return;
+    const entry: VaccinationFormEntry = {
+      localId: Date.now().toString(),
+      name: vacName.trim(),
+      frequencyLabel: vacFrequencyLabel.trim(),
+      expiresOn: vacExpiresOn.trim(),
+      notes: vacNotes.trim(),
+    };
+    updateCurrentPet({ vaccinations: [...pet.vaccinations, entry] });
+    setVacName("");
+    setVacFrequencyLabel("");
+    setVacExpiresOn("");
+    setVacNotes("");
+  };
+
+  const removeVac = (localId: string) => {
+    updateCurrentPet({
+      vaccinations: pet.vaccinations.filter((v) => v.localId !== localId),
+    });
+  };
+
+  const formatVacSummary = (v: VaccinationFormEntry) => {
+    const parts: string[] = [];
+    if (v.frequencyLabel.trim()) parts.push(v.frequencyLabel.trim());
+    if (v.expiresOn.trim()) {
+      const d = new Date(`${v.expiresOn}T12:00:00`);
+      parts.push(
+        `Exp. ${d.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        })}`,
+      );
+    }
+    return parts.length ? parts.join(" · ") : "No expiry on file";
+  };
+
   const formatMedSummary = (m: MedicationFormEntry) => {
     const dosage = [m.dosageAmount, m.dosageType].filter(Boolean).join(" ");
     const freq =
       m.frequency === "Custom" && m.customFrequency
         ? m.customFrequency
         : m.frequency;
-    return [dosage, freq].filter(Boolean).join(" · ");
+    const scheduleParts: string[] = [];
+    if (m.dosePeriod === "day" && m.dosesPerPeriod?.trim()) {
+      scheduleParts.push(`${m.dosesPerPeriod.trim()}×/day`);
+    } else if (m.dosePeriod === "week") {
+      scheduleParts.push("weekly");
+    } else if (m.dosePeriod === "month") {
+      scheduleParts.push("monthly");
+    }
+    if (m.reminderTime?.trim()) {
+      scheduleParts.push(m.reminderTime.trim());
+    }
+    return [dosage, freq, ...scheduleParts].filter(Boolean).join(" · ");
   };
 
   return (
@@ -339,6 +432,48 @@ export default function PetCareStep() {
         containerStyle={styles.inputSpacing}
       />
 
+      {medFreq === "Daily" ? (
+        <>
+          <Text style={styles.fieldLabel}>Doses per day</Text>
+          <FormInput
+            placeholder="e.g. 2"
+            value={medDosesPerDay}
+            onChangeText={setMedDosesPerDay}
+            keyboardType="numeric"
+            containerStyle={styles.inputSpacing}
+          />
+        </>
+      ) : null}
+
+      <Text style={styles.fieldLabel}>Reminder time</Text>
+      <Pressable
+        style={styles.reminderTimeBtn}
+        onPress={() => setMedShowTimePicker(true)}
+      >
+        <MaterialCommunityIcons
+          name="clock-outline"
+          size={20}
+          color={Colors.orange}
+        />
+        <Text style={styles.reminderTimeText}>
+          {formatReminderTimeHHmm(medReminderDate)}
+        </Text>
+      </Pressable>
+      <ReminderTimePickerSheet
+        visible={medShowTimePicker}
+        value={medReminderDate}
+        onChange={setMedReminderDate}
+        onClose={() => setMedShowTimePicker(false)}
+      />
+
+      <FormInput
+        placeholder="Notes (optional)"
+        value={medNotes}
+        onChangeText={setMedNotes}
+        multiline
+        containerStyle={styles.inputSpacing}
+      />
+
       <Pressable style={styles.addButton} onPress={addMedication}>
         <Text style={styles.addButtonText}>+ Add this medication</Text>
       </Pressable>
@@ -352,6 +487,62 @@ export default function PetCareStep() {
                 <Text style={styles.listItemSub}>{formatMedSummary(m)}</Text>
               </View>
               <TouchableOpacity onPress={() => removeMed(m.localId)}>
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={20}
+                  color={Colors.gray400}
+                />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Divider />
+
+      <Text style={styles.sectionTitle}>Vaccinations</Text>
+      <Text style={styles.helperText}>
+        Optional — add shots on file so we can remind you before they expire
+      </Text>
+
+      <FormInput
+        placeholder="Vaccine name (e.g. Rabies, DHPP)"
+        value={vacName}
+        onChangeText={setVacName}
+        containerStyle={styles.inputSpacing}
+      />
+      <FormInput
+        placeholder="Schedule (e.g. Annual, 3-year)"
+        value={vacFrequencyLabel}
+        onChangeText={setVacFrequencyLabel}
+        containerStyle={styles.inputSpacing}
+      />
+      <Text style={styles.fieldLabel}>Next expiry</Text>
+      <ExpiryDateField
+        value={vacExpiresOn}
+        onChangeDate={setVacExpiresOn}
+        onClearDate={() => setVacExpiresOn("")}
+      />
+      <FormInput
+        placeholder="Notes (optional)"
+        value={vacNotes}
+        onChangeText={setVacNotes}
+        multiline
+        containerStyle={styles.inputSpacing}
+      />
+      <Pressable style={styles.addButton} onPress={addVaccination}>
+        <Text style={styles.addButtonText}>+ Add this vaccination</Text>
+      </Pressable>
+
+      {pet.vaccinations.length > 0 && (
+        <View style={styles.listCard}>
+          {pet.vaccinations.map((v) => (
+            <View key={v.localId} style={styles.listRow}>
+              <View style={styles.listRowText}>
+                <Text style={styles.listItemBold}>{v.name}</Text>
+                <Text style={styles.listItemSub}>{formatVacSummary(v)}</Text>
+              </View>
+              <TouchableOpacity onPress={() => removeVac(v.localId)}>
                 <MaterialCommunityIcons
                   name="close-circle"
                   size={20}
@@ -419,6 +610,23 @@ const styles = StyleSheet.create({
   },
   inputSpacing: {
     marginBottom: 12,
+  },
+  reminderTimeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
+    marginBottom: 12,
+  },
+  reminderTimeText: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 15,
+    color: Colors.textPrimary,
   },
   foodSection: {
     zIndex: 120,

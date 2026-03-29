@@ -4,7 +4,6 @@ import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklyS
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { Pet } from "@/data/mockDashboard";
 import {
   computeWeeklySummary,
   convertActivities,
@@ -12,18 +11,18 @@ import {
   type ActivityFilterCategory,
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
+import type { Pet } from "@/data/mockDashboard";
 import {
   useAllActivitiesQuery,
   usePetsQuery,
   useProfilesByIdsQuery,
 } from "@/hooks/queries";
-import {
-  buildActivityLoggerNameMap,
-} from "@/lib/profileDisplay";
-import { useAuthStore } from "@/stores/authStore";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
+import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -109,11 +108,7 @@ export default function ActivityScreen() {
 
   const allEntries = useMemo(
     () =>
-      convertActivities(
-        rawActivities ?? [],
-        loggerNameByUserId,
-        currentUserId,
-      ),
+      convertActivities(rawActivities ?? [], loggerNameByUserId, currentUserId),
     [rawActivities, loggerNameByUserId, currentUserId],
   );
 
@@ -141,6 +136,13 @@ export default function ActivityScreen() {
     router.push("/(logged-in)/add-activity");
   }, [router]);
 
+  const openActivityEditor = useCallback(
+    (activityId: string) => {
+      router.push(`/(logged-in)/manage-activity-item/${activityId}` as Href);
+    },
+    [router],
+  );
+
   const listHeader = (
     <>
       <View style={styles.headerRow}>
@@ -165,30 +167,19 @@ export default function ActivityScreen() {
       />
 
       {weeklySummary ? (
-        <ActivityWeeklySummaryStrip summary={weeklySummary} />
+        <>
+          <Text style={styles.weekAtGlanceTitle}>Week at a glance</Text>
+          <ActivityWeeklySummaryStrip summary={weeklySummary} />
+        </>
       ) : null}
 
       <ActivityFilterChips active={filter} onChange={setFilter} />
 
-      <View style={styles.listMetaRow}>
+      {/* <View style={styles.listMetaRow}>
         <Text style={styles.entryCount}>
           {entryCount} {entryCount === 1 ? "ENTRY" : "ENTRIES"}
         </Text>
-        <Pressable
-          style={styles.sortBtn}
-          onPress={() => setNewestFirst((v) => !v)}
-          hitSlop={8}
-        >
-          <Text style={styles.sortText}>
-            {newestFirst ? "Newest first" : "Oldest first"}
-          </Text>
-          <MaterialCommunityIcons
-            name="sort-reverse-variant"
-            size={18}
-            color={Colors.orange}
-          />
-        </Pressable>
-      </View>
+      </View> */}
     </>
   );
 
@@ -201,11 +192,28 @@ export default function ActivityScreen() {
         renderSectionHeader={({ section }) => (
           <View style={styles.stickyHeader}>
             <Text style={styles.sectionHeading}>{section.title}</Text>
+            <Pressable
+              style={styles.sortBtn}
+              onPress={() => setNewestFirst((v) => !v)}
+              hitSlop={8}
+            >
+              <Text style={styles.sortText}>
+                {newestFirst ? "Newest first" : "Oldest first"}
+              </Text>
+              <MaterialCommunityIcons
+                name="sort-reverse-variant"
+                size={18}
+                color={Colors.orange}
+              />
+            </Pressable>
           </View>
         )}
         renderItem={({ item }) => (
           <View style={styles.rowWrap}>
-            <ActivityHistoryRow entry={item} />
+            <ActivityHistoryRow
+              entry={item}
+              onPress={() => openActivityEditor(item.id)}
+            />
           </View>
         )}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
@@ -267,6 +275,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  weekAtGlanceTitle: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.gray500,
+    marginBottom: -8,
+  },
   fab: {
     width: 52,
     height: 52,
@@ -308,6 +322,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   stickyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: Colors.cream,
     paddingTop: 12,
     paddingBottom: 8,

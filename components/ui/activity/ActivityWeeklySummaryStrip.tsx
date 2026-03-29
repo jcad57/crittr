@@ -39,7 +39,9 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
       <View style={styles.card}>
         <Text style={styles.value}>{summary.meals}</Text>
         <Text style={styles.label}>Meals</Text>
-        <Text style={[styles.footer, styles.footerPlain, { color: greyFooter }]}>
+        <Text
+          style={[styles.footer, styles.footerPlain, { color: greyFooter }]}
+        >
           {summary.mealsFootnote}
         </Text>
       </View>

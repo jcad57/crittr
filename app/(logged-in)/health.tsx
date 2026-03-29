@@ -70,8 +70,18 @@ export default function HealthScreen() {
   );
 
   const dueTodayMeds = useMemo(
-    () => filteredMeds.filter((m) => isMedicationDueToday(m)),
-    [filteredMeds],
+    () =>
+      filteredMeds.filter((m) => {
+        if (!isMedicationDueToday(m)) return false;
+        const prog = buildMedicationDosageProgress(
+          m,
+          todayActivitiesAllPets,
+          m.pet_id,
+        );
+        if (prog.total > 0) return !prog.isComplete;
+        return true;
+      }),
+    [filteredMeds, todayActivitiesAllPets],
   );
 
   const showBanner =
@@ -251,7 +261,9 @@ export default function HealthScreen() {
                   item={m}
                   isLast={i === filteredMeds.length - 1}
                   onPress={() =>
-                    router.push(`/(logged-in)/pet/${m.pet_id}/medications`)
+                    router.push(
+                      `/(logged-in)/pet/${m.pet_id}/medications/${m.id}`,
+                    )
                   }
                   dosageLabel={dosageLabel}
                   dosageComplete={dosageLabel ? prog.isComplete : undefined}

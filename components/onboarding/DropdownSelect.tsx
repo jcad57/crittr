@@ -20,6 +20,8 @@ type DropdownSelectProps = {
   options: string[];
   onSelect: (value: string) => void;
   containerStyle?: StyleProp<ViewStyle>;
+  /** Invalid / empty selection (e.g. after failed save). */
+  error?: boolean;
 };
 
 export default function DropdownSelect({
@@ -28,6 +30,7 @@ export default function DropdownSelect({
   options,
   onSelect,
   containerStyle,
+  error,
 }: DropdownSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -143,6 +146,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     borderColor: Colors.orange,
   },
+  triggerError: {
+    borderColor: Colors.error,
+  },
   triggerText: {
     flex: 1,
     fontFamily: "InstrumentSans-Regular",
@@ -151,6 +157,9 @@ const styles = StyleSheet.create({
   },
   triggerPlaceholder: {
     color: Colors.gray400,
+  },
+  triggerPlaceholderError: {
+    color: Colors.error,
   },
   dropdown: {
     position: "absolute",

@@ -56,6 +56,7 @@ export default function ActivityItem({ activity, loggerName, onPress }: Props) {
   const rightVal = buildRightValue(activity);
   const time = formatTime(activity.logged_at);
   const hasNotes = !!activity.notes?.trim();
+  const showChevron = !!onPress;
 
   const row = (
     <>
@@ -83,17 +84,24 @@ export default function ActivityItem({ activity, loggerName, onPress }: Props) {
         </View>
         {loggerName ? (
           <Text style={styles.subline} numberOfLines={1}>
-            {loggerName}
+            Logged by {loggerName}
           </Text>
         ) : null}
       </View>
 
       <View style={styles.right}>
-        {rightVal ? (
-          <Text style={styles.rightValue}>{rightVal}</Text>
-        ) : null}
+        {rightVal ? <Text style={styles.rightValue}>{rightVal}</Text> : null}
         <Text style={styles.timeLabel}>{time}</Text>
       </View>
+
+      {showChevron ? (
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={22}
+          color={Colors.gray400}
+          style={styles.chevron}
+        />
+      ) : null}
     </>
   );
 
@@ -104,6 +112,7 @@ export default function ActivityItem({ activity, loggerName, onPress }: Props) {
         style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${activity.label}, edit activity`}
+        android_ripple={{ color: "rgba(0,0,0,0.08)" }}
       >
         {row}
       </Pressable>
@@ -126,7 +135,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray100,
   },
   cardPressed: {
-    opacity: 0.92,
+    backgroundColor: Colors.gray50,
+    borderColor: Colors.gray200,
   },
   iconBox: {
     width: ACTIVITY_ROW_ICON_BOX,
@@ -178,5 +188,9 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  chevron: {
+    flexShrink: 0,
+    marginLeft: -2,
   },
 });

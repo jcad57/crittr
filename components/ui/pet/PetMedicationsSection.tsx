@@ -1,4 +1,5 @@
 import MedicationCard from "@/components/ui/dashboard/MedicationCard";
+import HealthListCard from "@/components/ui/health/HealthListCard";
 import { Colors } from "@/constants/colors";
 import type { Medication } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -34,11 +35,15 @@ export default function PetMedicationsSection({
           <Text style={styles.emptyText}>No medications recorded</Text>
         </View>
       ) : (
-        <View style={styles.list}>
-          {medications.map((med) => (
-            <MedicationCard key={med.id} medication={med} />
+        <HealthListCard>
+          {medications.map((med, i) => (
+            <MedicationCard
+              key={med.id}
+              medication={med}
+              isLast={i === medications.length - 1}
+            />
           ))}
-        </View>
+        </HealthListCard>
       )}
     </View>
   );
@@ -84,9 +89,6 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 13,
     color: Colors.white,
-  },
-  list: {
-    gap: 0,
   },
   empty: {
     paddingVertical: 16,

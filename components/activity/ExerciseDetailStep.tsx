@@ -1,9 +1,11 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { useActivityFormStore } from "@/stores/activityFormStore";
-import { useCallback, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -19,13 +21,22 @@ type Props = {
   onBack: () => void;
   /** @default "Save" */
   saveLabel?: string;
+  embeddedInScreen?: boolean;
+  /** When embedded, hide the primary save button (e.g. parent renders it with delete). */
+  hideEmbeddedSave?: boolean;
 };
 
-export default function ExerciseDetailStep({
-  onSave,
-  onBack,
-  saveLabel = "Save",
-}: Props) {
+const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
+  function ExerciseDetailStep(
+    {
+      onSave,
+      onBack,
+      saveLabel = "Save",
+      embeddedInScreen = false,
+      hideEmbeddedSave = false,
+    },
+    ref,
+  ) {
   const form = useActivityFormStore((s) => s.exerciseForm);
   const update = useActivityFormStore((s) => s.updateExercise);
   const [saving, setSaving] = useState(false);
@@ -51,9 +62,36 @@ export default function ExerciseDetailStep({
     }
   }, [isValid, onSave]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => {
+        void handleSave();
+      },
+    }),
+    [handleSave],
+  );
+
+  const fieldLabelStyle = embeddedInScreen
+    ? styles.fieldLabelScreen
+    : styles.fieldLabel;
+  const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
+
+  const exerciseTypeError = attempted && !form.exerciseType;
+  const durationError =
+    attempted &&
+    !form.durationHours.trim() &&
+    !form.durationMinutes.trim();
+  const customTypeError =
+    attempted &&
+    form.exerciseType === "Other" &&
+    !form.customExerciseType.trim();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Exercise Details</Text>
+    <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
+      {!embeddedInScreen ? (
+        <Text style={styles.title}>Edit Exercise Details</Text>
+      ) : null}
 
       <FormInput
         label="Label"
@@ -61,11 +99,11 @@ export default function ExerciseDetailStep({
         placeholder="Morning walk, afternoon hike…"
         value={form.label}
         onChangeText={(v) => update({ label: v })}
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
         error={attempted && !form.label.trim()}
       />
 
-      <Text style={styles.fieldLabel}>Exercise type *</Text>
+      <Text style={fieldLabelStyle}>Exercise type *</Text>
       <View style={{ zIndex: 80, marginBottom: 12 }}>
         <DropdownSelect
           placeholder="Select type"
@@ -80,12 +118,12 @@ export default function ExerciseDetailStep({
           placeholder="Custom exercise type"
           value={form.customExerciseType}
           onChangeText={(v) => update({ customExerciseType: v })}
-          containerStyle={styles.spacing}
+          containerStyle={blockSpacing}
           error={attempted && !form.customExerciseType.trim()}
         />
       )}
 
-      <Text style={styles.fieldLabel}>Duration *</Text>
+      <Text style={fieldLabelStyle}>Duration *</Text>
       <View style={styles.row}>
         <FormInput
           placeholder="Hours"
@@ -119,7 +157,7 @@ export default function ExerciseDetailStep({
         value={form.distanceMiles}
         onChangeText={(v) => update({ distanceMiles: v })}
         keyboardType="numeric"
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
       />
 
       <FormInput
@@ -127,7 +165,7 @@ export default function ExerciseDetailStep({
         placeholder="Park name or address"
         value={form.location}
         onChangeText={(v) => update({ location: v })}
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
       />
 
       <FormInput
@@ -136,28 +174,42 @@ export default function ExerciseDetailStep({
         value={form.notes}
         onChangeText={(v) => update({ notes: v })}
         multiline
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
       />
 
-      <View style={styles.spacer} />
+      {!embeddedInScreen || !hideEmbeddedSave ? (
+        <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
+      ) : null}
 
       {attempted && !isValid && (
         <Text style={styles.errorHint}>Please fill in all required fields</Text>
       )}
 
-      <OrangeButton onPress={handleSave} disabled={saving} style={styles.cta}>
-        {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
-      </OrangeButton>
+      {(!embeddedInScreen || !hideEmbeddedSave) && (
+        <OrangeButton
+          onPress={handleSave}
+          disabled={saving}
+          style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+        >
+          {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
+        </OrangeButton>
+      )}
 
-      <Pressable onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+      {!embeddedInScreen ? (
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
-}
+  },
+);
+
+export default ExerciseDetailStep;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  containerEmbedded: { width: "100%" },
   title: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 26,
@@ -171,10 +223,21 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  fieldLabelScreen: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   spacing: { marginBottom: 12 },
+  spacingScreen: { marginBottom: 16 },
   row: { flexDirection: "row", gap: 12, marginBottom: 12 },
   halfInput: { flex: 1 },
   spacer: { flex: 1, minHeight: 24 },
+  spacerEmbedded: { height: 8 },
   errorHint: {
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 13,
@@ -183,6 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cta: { marginTop: 12 },
+  ctaScreen: { marginTop: 8 },
   backButton: { alignSelf: "center", paddingTop: 16 },
   backText: {
     fontFamily: "InstrumentSans-Bold",

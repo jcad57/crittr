@@ -13,7 +13,7 @@ export default function HealthSectionHeader({ title, onAddPress }: Props) {
       <Text style={styles.title}>{title}</Text>
       {onAddPress ? (
         <Pressable onPress={onAddPress} hitSlop={8}>
-          <Text style={styles.add}>+ Add</Text>
+          <Text style={styles.add}>Add</Text>
         </Pressable>
       ) : null}
     </View>

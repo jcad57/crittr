@@ -63,6 +63,13 @@ export function vaccinationTraffic(
   return { kind: "current", label: "Current" };
 }
 
+/** True when the shot is on file with an expiry date that is overdue or within 60 days. */
+export function vaccinationNeedsAttention(v: PetVaccination): boolean {
+  const raw = v.expires_on?.trim();
+  if (!raw) return false;
+  return vaccinationTraffic(v).kind !== "current";
+}
+
 export function isMedicationDueToday(m: PetMedication): boolean {
   return medicationTraffic(m).kind === "due_today";
 }

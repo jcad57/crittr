@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { Pet, PetFormData, PetWithDetails } from "@/types/database";
+import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
   extensionForContentType,
   inferImageContentType,
@@ -101,18 +102,44 @@ export async function createPet(
     if (foodError) throw foodError;
   }
 
+  // Insert vaccinations
+  if (petData.vaccinations.length > 0) {
+    const vacRows = petData.vaccinations.map((v) => ({
+      pet_id: pet.id,
+      name: v.name.trim(),
+      expires_on: v.expiresOn.trim() || null,
+      frequency_label: v.frequencyLabel.trim() || null,
+      notes: v.notes.trim() || null,
+    }));
+
+    const { error: vacError } = await supabase
+      .from("pet_vaccinations")
+      .insert(vacRows);
+    if (vacError) throw vacError;
+  }
+
   // Insert medications
   if (petData.medications.length > 0) {
-    const medRows = petData.medications.map((m) => ({
-      pet_id: pet.id,
-      name: m.name,
-      dosage: [m.dosageAmount, m.dosageType].filter(Boolean).join(" ") || null,
-      frequency:
+    const medRows = petData.medications.map((m) => {
+      const freqText =
         (m.frequency === "Custom" && m.customFrequency
           ? m.customFrequency
-          : m.frequency) || null,
-      condition: m.condition || null,
-    }));
+          : m.frequency) || null;
+      const doses = m.dosesPerPeriod.trim()
+        ? parseInt(m.dosesPerPeriod.trim(), 10)
+        : null;
+      return {
+        pet_id: pet.id,
+        name: m.name,
+        dosage: [m.dosageAmount, m.dosageType].filter(Boolean).join(" ") || null,
+        frequency: freqText,
+        condition: m.condition || null,
+        notes: m.notes?.trim() || null,
+        doses_per_period: Number.isFinite(doses ?? NaN) ? doses : null,
+        dose_period: m.dosePeriod || null,
+        reminder_time: m.reminderTime?.trim() || null,
+      };
+    });
 
     const { error: medError } = await supabase
       .from("pet_medications")
@@ -154,9 +181,10 @@ export async function fetchPetProfile(
 
   if (petError || !pet) return null;
 
-  const [foodsRes, medsRes, exerciseRes] = await Promise.all([
+  const [foodsRes, medsRes, vacsRes, exerciseRes] = await Promise.all([
     supabase.from("pet_foods").select("*").eq("pet_id", petId),
     supabase.from("pet_medications").select("*").eq("pet_id", petId),
+    supabase.from("pet_vaccinations").select("*").eq("pet_id", petId),
     supabase
       .from("pet_exercises")
       .select("*")
@@ -168,6 +196,7 @@ export async function fetchPetProfile(
     ...pet,
     foods: foodsRes.data ?? [],
     medications: medsRes.data ?? [],
+    vaccinations: vacsRes.data ?? [],
     exercise: exerciseRes.data ?? null,
   };
 }
@@ -190,6 +219,52 @@ export async function updatePetMicrochip(
     .eq("id", petId);
 
   if (error) throw error;
+}
+
+export type UpdatePetDetailsInput = {
+  breed: string | null;
+  color: string | null;
+  primary_vet_clinic: string | null;
+  primary_vet_address: string | null;
+  weight_lbs: number | null;
+  weight_unit: "lbs" | "kg" | null;
+  date_of_birth: string | null;
+  sex: "male" | "female" | null;
+};
+
+export async function updatePetDetails(
+  petId: string,
+  fields: UpdatePetDetailsInput,
+): Promise<Pet> {
+  const dob = fields.date_of_birth?.trim() || null;
+  let age: number | null = null;
+  let age_months: number | null = null;
+  if (dob) {
+    const { years, months } = yearsMonthsFromBirthDate(dob);
+    age = years;
+    age_months = months;
+  }
+
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      breed: fields.breed,
+      color: fields.color,
+      primary_vet_clinic: fields.primary_vet_clinic,
+      primary_vet_address: fields.primary_vet_address,
+      weight_lbs: fields.weight_lbs,
+      weight_unit: fields.weight_unit,
+      date_of_birth: dob,
+      sex: fields.sex,
+      age,
+      age_months,
+    })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
 }
 
 export async function updatePetAvatar(

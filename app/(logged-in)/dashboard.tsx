@@ -17,12 +17,15 @@ import {
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import {
   buildMedicationDosageProgress,
   sumMedicationDoseProgress,
 } from "@/lib/medicationDosageProgress";
+import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
 import { usePetStore } from "@/stores/petStore";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
@@ -130,11 +133,17 @@ export default function Dashboard() {
     ];
   }, [activePetDetails, todayActivities, activePetId]);
 
+  const attentionVaccinations = useMemo(() => {
+    if (!activePetDetails?.vaccinations?.length) return [];
+    return activePetDetails.vaccinations.filter(vaccinationNeedsAttention);
+  }, [activePetDetails]);
+
   const medications: Medication[] = useMemo(() => {
     if (!activePetDetails || !activePetId) return [];
     const acts = todayActivities ?? [];
     return activePetDetails.medications.map((m) => {
       const prog = buildMedicationDosageProgress(m, acts, activePetId);
+      const badge = getMedicationBadgeDisplay(m, prog);
       return {
         id: m.id,
         name: m.name,
@@ -144,8 +153,8 @@ export default function Dashboard() {
         current: prog.current,
         total: prog.total,
         lastTaken: prog.lastTaken,
-        iconBg: Colors.amberLight,
-        iconColor: Colors.amberDark,
+        badgeKind: badge.kind,
+        badgeLabel: badge.label,
       };
     });
   }, [activePetDetails, activePetId, todayActivities]);
@@ -164,6 +173,23 @@ export default function Dashboard() {
     },
     [setActivePet],
   );
+
+  const openMedicationEditor = useCallback(
+    (medicationId: string) => {
+      if (!activePetId) return;
+      router.push(
+        `/(logged-in)/pet/${activePetId}/medications/${medicationId}` as Href,
+      );
+    },
+    [router, activePetId],
+  );
+
+  const openAddMedication = useCallback(() => {
+    if (!activePetId) return;
+    router.push(
+      `/(logged-in)/pet/${activePetId}/medications/new` as Href,
+    );
+  }, [router, activePetId]);
 
   const showDetailsLoader = isDetailsLoading && !activePetDetails;
 
@@ -227,6 +253,12 @@ export default function Dashboard() {
                   medications={medications}
                   vetVisits={[]}
                   onScheduleVisitPress={() => {}}
+                  onMedicationPress={openMedicationEditor}
+                  onAddMedicationPress={openAddMedication}
+                  attentionVaccinations={attentionVaccinations}
+                  onVaccinationAttentionPress={() =>
+                    router.push("/(logged-in)/health" as Href)
+                  }
                 />
               </>
             )}

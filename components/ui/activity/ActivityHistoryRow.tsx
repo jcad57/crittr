@@ -8,17 +8,20 @@ import { Font } from "@/constants/typography";
 import type { ActivityHistoryEntry } from "@/data/activityHistory";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Props = {
   entry: ActivityHistoryEntry;
+  /** When set, the row is tappable (e.g. open edit activity). */
+  onPress?: () => void;
 };
 
-export default function ActivityHistoryRow({ entry }: Props) {
+export default function ActivityHistoryRow({ entry, onPress }: Props) {
   const cfg = ACTIVITY_ROW_ICONS[entry.category];
+  const showChevron = !!onPress;
 
-  return (
-    <View style={styles.card}>
+  const row = (
+    <>
       <View style={[styles.iconBox, { backgroundColor: cfg.track }]}>
         <Image
           source={cfg.source}
@@ -42,9 +45,11 @@ export default function ActivityHistoryRow({ entry }: Props) {
             />
           ) : null}
         </View>
-        <Text style={styles.detail} numberOfLines={2}>
-          {entry.loggedByLine}
-        </Text>
+        {entry.loggedByLine ? (
+          <Text style={styles.detail} numberOfLines={2}>
+            Logged by {entry.loggedByLine}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.right}>
@@ -53,8 +58,33 @@ export default function ActivityHistoryRow({ entry }: Props) {
         ) : null}
         <Text style={styles.time}>{entry.timeLabel}</Text>
       </View>
-    </View>
+
+      {showChevron ? (
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={22}
+          color={Colors.gray400}
+          style={styles.chevron}
+        />
+      ) : null}
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${entry.title}, edit activity`}
+        android_ripple={{ color: "rgba(0,0,0,0.08)" }}
+      >
+        {row}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.card}>{row}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -73,6 +103,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
+  },
+  cardPressed: {
+    backgroundColor: Colors.gray50,
+    borderColor: Colors.gray200,
   },
   iconBox: {
     width: ACTIVITY_ROW_ICON_BOX,
@@ -126,5 +160,9 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.gray500,
+  },
+  chevron: {
+    flexShrink: 0,
+    marginLeft: -2,
   },
 });

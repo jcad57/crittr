@@ -20,10 +20,18 @@ function formatLastTaken(iso: string): string {
 }
 
 /**
- * Expected doses for *today* from the medication schedule string.
+ * Expected doses for *today* from structured schedule or legacy frequency string.
  * Weekly/monthly schedules: 1 dose on days the med is due, else 0.
  */
 export function getExpectedDosesToday(m: PetMedication): number {
+  const period = m.dose_period ?? null;
+  const n = m.doses_per_period ?? null;
+
+  /** Structured daily schedule overrides frequency-string heuristics. */
+  if (period === "day" && n != null && n > 0) {
+    return Math.min(8, Math.max(1, Math.floor(n)));
+  }
+
   const f = (m.frequency ?? "").toLowerCase();
   const weeklyLike =
     (f.includes("week") ||

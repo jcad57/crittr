@@ -1,8 +1,9 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
-import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import {
@@ -13,9 +14,11 @@ import {
   useUpdateVetVisitActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
 import { useActivityQuery, usePetDetailsQuery } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import type { PetWithDetails } from "@/types/database";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
@@ -30,14 +33,36 @@ import {
   Alert,
   BackHandler,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+function navTitleForActivityType(t: string | null | undefined): string {
+  switch (t) {
+    case "exercise":
+      return "Edit exercise";
+    case "food":
+      return "Edit meal";
+    case "medication":
+      return "Edit medication";
+    case "vet_visit":
+      return "Edit vet visit";
+    default:
+      return "Edit activity";
+  }
+}
 
 const SAVE_LABEL = "Save changes";
 
 export default function ManageActivityItemScreen() {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const scrollInsetBottom = useFloatingNavScrollInset();
+  const stepRef = useRef<ActivityDetailStepRef | null>(null);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const activityId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
@@ -204,26 +229,38 @@ export default function ManageActivityItemScreen() {
       })
     : "";
 
-  const scrollKey = hydrated ? `${activityType}-${activityId}` : "loading";
+  /** Fills scroll viewport when form is short so Save/Delete sit at the bottom. */
+  const scrollContentMinHeight = useMemo(() => {
+    const topChrome = insets.top + 8 + 56 + (loggedAtLabel ? 28 : 0) + 8 + 4;
+    return Math.max(windowHeight - topChrome - insets.bottom, 240);
+  }, [insets.top, insets.bottom, loggedAtLabel, windowHeight]);
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.white} />
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
   }
 
   if (isError || activity == null) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>
+      <View
+        style={[
+          styles.screen,
+          styles.centered,
+          { paddingTop: insets.top + 24 },
+        ]}
+      >
+        <Text style={styles.errorTextMuted}>
           {isError
             ? (error?.message ?? "Could not load activity.")
             : "Activity not found."}
         </Text>
-        <Pressable onPress={goBack} style={styles.errorBack}>
-          <Text style={styles.errorBackText}>Go back</Text>
+        <Pressable onPress={goBack}>
+          <Text style={styles.backLink}>Go back</Text>
         </Pressable>
       </View>
     );
@@ -231,96 +268,196 @@ export default function ManageActivityItemScreen() {
 
   if (!hydrated) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.white} />
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
   }
 
   return (
-    <OnboardingCard scrollKey={scrollKey}>
-      <Text style={styles.timeHint}>Logged {loggedAtLabel}</Text>
+    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <View style={styles.nav}>
+        <Pressable onPress={goBack} hitSlop={8}>
+          <MaterialCommunityIcons
+            name="chevron-left"
+            size={28}
+            color={Colors.textPrimary}
+          />
+        </Pressable>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          {navTitleForActivityType(activityType)}
+        </Text>
+        <View style={styles.navSpacer} />
+      </View>
 
-      {activityType === "exercise" ? (
-        <ExerciseDetailStep
-          onSave={saveExercise}
-          onBack={goBack}
-          saveLabel={SAVE_LABEL}
-        />
-      ) : activityType === "food" ? (
-        <FoodDetailStep
-          onSave={saveFood}
-          onBack={goBack}
-          saveLabel={SAVE_LABEL}
-        />
-      ) : activityType === "medication" ? (
-        <MedicationDetailStep
-          onSave={saveMed}
-          onBack={goBack}
-          saveLabel={SAVE_LABEL}
-        />
-      ) : activityType === "vet_visit" ? (
-        <VetVisitDetailStep
-          onSave={saveVet}
-          onBack={goBack}
-          saveLabel={SAVE_LABEL}
-        />
+      {loggedAtLabel ? (
+        <Text style={styles.loggedAtHint}>{loggedAtLabel}</Text>
       ) : null}
 
-      <Pressable
-        style={styles.deleteBtn}
-        onPress={confirmDelete}
-        disabled={busy}
-        accessibilityRole="button"
-        accessibilityLabel="Delete activity"
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.body,
+          styles.scrollContentGrow,
+          { paddingBottom: scrollInsetBottom + 32 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
       >
-        {deleteMut.isPending ? (
-          <ActivityIndicator color={Colors.error} />
-        ) : (
-          <Text style={styles.deleteText}>Delete activity</Text>
-        )}
-      </Pressable>
-    </OnboardingCard>
+        <View
+          style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+        >
+          <View>
+            {activityType === "exercise" ? (
+              <ExerciseDetailStep
+                ref={stepRef}
+                onSave={saveExercise}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
+              />
+            ) : activityType === "food" ? (
+              <FoodDetailStep
+                ref={stepRef}
+                onSave={saveFood}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
+              />
+            ) : activityType === "medication" ? (
+              <MedicationDetailStep
+                ref={stepRef}
+                onSave={saveMed}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
+              />
+            ) : activityType === "vet_visit" ? (
+              <VetVisitDetailStep
+                ref={stepRef}
+                onSave={saveVet}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
+              />
+            ) : null}
+          </View>
+
+          <View style={styles.actionsBlock}>
+            <OrangeButton
+              onPress={() => stepRef.current?.submit()}
+              disabled={busy}
+              style={styles.saveBtn}
+            >
+              {saving ? <ActivityIndicator color={Colors.white} /> : SAVE_LABEL}
+            </OrangeButton>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                pressed && styles.deleteBtnPressed,
+              ]}
+              onPress={confirmDelete}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Delete activity"
+            >
+              {deleteMut.isPending ? (
+                <ActivityIndicator color={Colors.error} />
+              ) : (
+                <Text style={styles.deleteText}>Delete activity</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: {
+  screen: {
     flex: 1,
-    alignItems: "center",
+    backgroundColor: Colors.cream,
+  },
+  centered: {
     justifyContent: "center",
-    backgroundColor: Colors.orange,
-    padding: 24,
+    alignItems: "center",
+    paddingHorizontal: 24,
   },
-  errorText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.white,
+  nav: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  navTitle: {
+    flex: 1,
+    fontFamily: Font.displayBold,
+    fontSize: 22,
+    color: Colors.textPrimary,
     textAlign: "center",
+    marginHorizontal: 8,
   },
-  errorBack: { marginTop: 16, padding: 12 },
-  errorBackText: {
-    fontFamily: Font.uiBold,
-    fontSize: 15,
-    color: Colors.white,
-    textDecorationLine: "underline",
-  },
-  timeHint: {
+  navSpacer: { width: 28 },
+  loggedAtHint: {
     fontFamily: Font.uiRegular,
     fontSize: 13,
     color: Colors.textSecondary,
     textAlign: "center",
+    paddingHorizontal: 20,
     marginBottom: 8,
   },
+  scroll: { flex: 1 },
+  scrollContentGrow: {
+    flexGrow: 1,
+  },
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+  },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+  },
+  actionsBlock: {
+    paddingTop: 8,
+  },
+  saveBtn: {
+    marginTop: 0,
+  },
+  errorTextMuted: {
+    fontFamily: Font.uiRegular,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  backLink: {
+    marginTop: 12,
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.orange,
+    textAlign: "center",
+  },
   deleteBtn: {
+    marginTop: 16,
     alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 20,
-    marginTop: 8,
+  },
+  deleteBtnPressed: {
+    opacity: 0.75,
   },
   deleteText: {
-    fontFamily: Font.uiBold,
-    fontSize: 15,
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
     color: Colors.error,
   },
 });

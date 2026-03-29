@@ -1,12 +1,14 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";
-import { useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -25,13 +27,21 @@ type Props = {
   onBack: () => void;
   /** @default "Save" */
   saveLabel?: string;
+  embeddedInScreen?: boolean;
+  hideEmbeddedSave?: boolean;
 };
 
-export default function FoodDetailStep({
-  onSave,
-  onBack,
-  saveLabel = "Save",
-}: Props) {
+const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
+  function FoodDetailStep(
+    {
+      onSave,
+      onBack,
+      saveLabel = "Save",
+      embeddedInScreen = false,
+      hideEmbeddedSave = false,
+    },
+    ref,
+  ) {
   const form = useActivityFormStore((s) => s.foodForm);
   const update = useActivityFormStore((s) => s.updateFood);
   const [saving, setSaving] = useState(false);
@@ -62,9 +72,14 @@ export default function FoodDetailStep({
   const isValid =
     form.label.trim().length > 0 &&
     form.amount.trim().length > 0 &&
-    (isOtherFood
-      ? form.foodBrand.trim().length > 0
-      : form.foodId.length > 0);
+    form.unit.trim().length > 0 &&
+    (isOtherFood ? form.foodBrand.trim().length > 0 : form.foodId.length > 0);
+
+  const foodMissing =
+    attempted &&
+    (isOtherFood ? !form.foodBrand.trim() : !form.foodId.length);
+  const foodDropdownError = attempted && !isOtherFood && !form.foodId.length;
+  const unitRowError = attempted && !form.unit.trim();
 
   const handleSave = useCallback(async () => {
     if (!isValid) {
@@ -79,9 +94,16 @@ export default function FoodDetailStep({
     }
   }, [isValid, onSave]);
 
+  const fieldLabelStyle = embeddedInScreen
+    ? styles.fieldLabelScreen
+    : styles.fieldLabel;
+  const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Food Details</Text>
+    <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
+      {!embeddedInScreen ? (
+        <Text style={styles.title}>Edit Food Details</Text>
+      ) : null}
 
       <FormInput
         label="Label"
@@ -89,11 +111,11 @@ export default function FoodDetailStep({
         placeholder="Morning meal, Dinner, Treat time…"
         value={form.label}
         onChangeText={(v) => update({ label: v })}
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
         error={attempted && !form.label.trim()}
       />
 
-      <Text style={styles.fieldLabel}>Type *</Text>
+      <Text style={fieldLabelStyle}>Type *</Text>
       <View style={styles.toggleRow}>
         <Pressable
           style={[
@@ -101,9 +123,7 @@ export default function FoodDetailStep({
             styles.toggleBorder,
             !form.isTreat && styles.toggleActive,
           ]}
-          onPress={() =>
-            update({ isTreat: false, foodId: "", foodBrand: "" })
-          }
+          onPress={() => update({ isTreat: false, foodId: "", foodBrand: "" })}
         >
           <Text
             style={[
@@ -116,9 +136,7 @@ export default function FoodDetailStep({
         </Pressable>
         <Pressable
           style={[styles.toggle, form.isTreat && styles.toggleActive]}
-          onPress={() =>
-            update({ isTreat: true, foodId: "", foodBrand: "" })
-          }
+          onPress={() => update({ isTreat: true, foodId: "", foodBrand: "" })}
         >
           <Text
             style={[styles.toggleText, form.isTreat && styles.toggleTextActive]}
@@ -128,12 +146,20 @@ export default function FoodDetailStep({
         </Pressable>
       </View>
 
-      <Text style={styles.fieldLabel}>Food *</Text>
-      <View style={{ zIndex: 80, marginBottom: 12 }}>
+      <Text style={[fieldLabelStyle, foodMissing && styles.fieldLabelError]}>
+        Food *
+      </Text>
+      <View
+        style={{
+          zIndex: 80,
+          marginBottom: embeddedInScreen ? 16 : 12,
+        }}
+      >
         <DropdownSelect
           placeholder="Select a food"
           value={dropdownDisplayValue}
           options={dropdownLabels}
+          error={foodDropdownError}
           onSelect={(label) => {
             if (label === OTHER_FOOD_DROPDOWN_LABEL) {
               update({
@@ -155,12 +181,20 @@ export default function FoodDetailStep({
           placeholder="e.g. Cheese cube, bully stick, table scraps…"
           value={form.foodBrand}
           onChangeText={(v) => update({ foodBrand: v })}
-          containerStyle={styles.spacing}
+          containerStyle={blockSpacing}
           error={attempted && !form.foodBrand.trim()}
         />
       ) : null}
 
-      <Text style={styles.fieldLabel}>Amount *</Text>
+      <Text
+        style={[
+          fieldLabelStyle,
+          ((attempted && !form.amount.trim()) || unitRowError) &&
+            styles.fieldLabelError,
+        ]}
+      >
+        Amount *
+      </Text>
       <View style={styles.amountRow}>
         <FormInput
           placeholder="Amt"
@@ -170,7 +204,12 @@ export default function FoodDetailStep({
           containerStyle={styles.amountInput}
           error={attempted && !form.amount.trim()}
         />
-        <View style={styles.portionToggleRow}>
+        <View
+          style={[
+            styles.portionToggleRow,
+            unitRowError && styles.portionToggleRowError,
+          ]}
+        >
           {PORTION_UNITS.map((unit, i) => (
             <Pressable
               key={unit}
@@ -200,28 +239,42 @@ export default function FoodDetailStep({
         value={form.notes}
         onChangeText={(v) => update({ notes: v })}
         multiline
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
       />
 
-      <View style={styles.spacer} />
+      {!embeddedInScreen || !hideEmbeddedSave ? (
+        <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
+      ) : null}
 
       {attempted && !isValid && (
         <Text style={styles.errorHint}>Please fill in all required fields</Text>
       )}
 
-      <OrangeButton onPress={handleSave} disabled={saving} style={styles.cta}>
-        {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
-      </OrangeButton>
+      {(!embeddedInScreen || !hideEmbeddedSave) && (
+        <OrangeButton
+          onPress={handleSave}
+          disabled={saving}
+          style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+        >
+          {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
+        </OrangeButton>
+      )}
 
-      <Pressable onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+      {!embeddedInScreen ? (
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
-}
+  },
+);
+
+export default FoodDetailStep;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  containerEmbedded: { width: "100%" },
   title: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 26,
@@ -235,7 +288,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  fieldLabelScreen: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   spacing: { marginBottom: 12 },
+  spacingScreen: { marginBottom: 16 },
   toggleRow: {
     flexDirection: "row",
     borderRadius: 12,
@@ -282,6 +345,9 @@ const styles = StyleSheet.create({
     height: 50,
     flex: 1,
   },
+  portionToggleRowError: {
+    borderColor: Colors.error,
+  },
   portionToggle: {
     flex: 1,
     alignItems: "center",
@@ -302,6 +368,7 @@ const styles = StyleSheet.create({
     color: Colors.orange,
   },
   spacer: { flex: 1, minHeight: 24 },
+  spacerEmbedded: { height: 8 },
   errorHint: {
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 13,
@@ -310,6 +377,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cta: { marginTop: 12 },
+  ctaScreen: { marginTop: 8 },
   backButton: { alignSelf: "center", paddingTop: 16 },
   backText: {
     fontFamily: "InstrumentSans-Bold",

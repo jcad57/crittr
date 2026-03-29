@@ -24,3 +24,14 @@ export {
   useActivityQuery,
 } from "./useActivitiesQuery";
 export { useLoggedInQueryBootstrap } from "../useLoggedInQueryBootstrap";
+export {
+  useDeleteMedicationMutation,
+  useInsertMedicationMutation,
+  useUpdateMedicationMutation,
+} from "../mutations/useMedicationMutations";
+export {
+  useDeletePetFoodMutation,
+  useInsertPetFoodMutation,
+  useUpdatePetDetailsMutation,
+  useUpdatePetFoodMutation,
+} from "../mutations/usePetProfileMutations";

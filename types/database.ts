@@ -76,6 +76,14 @@ export type PetFood = {
   created_at: string;
 };
 
+export type MedicationDosePeriod = "day" | "week" | "month";
+
+/**
+ * Pet profile medication — mirrors `public.pet_medications`.
+ * Schedule columns (`doses_per_period`, `dose_period`, `reminder_time`) require
+ * `supabase/sql/pet_medications_schedule_columns.sql` (or migration
+ * `20260328140000_ensure_pet_medications_schedule_columns.sql`) on the database.
+ */
 export type PetMedication = {
   id: string;
   pet_id: string;
@@ -84,6 +92,12 @@ export type PetMedication = {
   frequency: string | null;
   condition: string | null;
   notes: string | null;
+  /** Number of doses per `dose_period` (e.g. 2 per day). */
+  doses_per_period?: number | null;
+  /** day = per day, week = per week, month = per month. */
+  dose_period?: MedicationDosePeriod | null;
+  /** Local time HH:mm (24h) for reminders. */
+  reminder_time?: string | null;
   /** When set, drives due badges on the Health hub. */
   next_due_date?: string | null;
   created_at: string;
@@ -173,6 +187,7 @@ export type PetActivity = {
 
 // ─── Activity form data (for the add-activity flow) ─────────────────────────
 
+/** Logged exercise activity — label, type, duration required; distance/location/notes optional. */
 export type ExerciseFormData = {
   label: string;
   exerciseType: string;
@@ -187,6 +202,7 @@ export type ExerciseFormData = {
 /** Sentinel for Food activity: user chose a food not in their pet profile. */
 export const FOOD_ACTIVITY_OTHER_ID = "__other__" as const;
 
+/** Logged food/treat — label, food selection, amount, and unit required; notes optional. */
 export type FoodActivityFormData = {
   label: string;
   isTreat: boolean;
@@ -207,6 +223,7 @@ export type MedicationActivityFormData = {
   notes: string;
 };
 
+/** Logged vet visit — label and location required (custom address when Location is Other); notes optional. */
 export type VetVisitActivityFormData = {
   label: string;
   vetLocation: string;
@@ -220,6 +237,7 @@ export type VetVisitActivityFormData = {
 export type PetWithDetails = Pet & {
   foods: PetFood[];
   medications: PetMedication[];
+  vaccinations: PetVaccination[];
   exercise: PetExercise | null;
 };
 
@@ -258,6 +276,22 @@ export type MedicationFormEntry = {
   frequency: string;
   customFrequency: string;
   condition: string;
+  /** Doses per period, e.g. "2". */
+  dosesPerPeriod: string;
+  dosePeriod: MedicationDosePeriod | "";
+  /** HH:mm 24h */
+  reminderTime: string;
+  notes: string;
+};
+
+export type VaccinationFormEntry = {
+  localId: string;
+  name: string;
+  /** e.g. Annual, 3-year — optional */
+  frequencyLabel: string;
+  /** YYYY-MM-DD when known — drives due / overdue UI */
+  expiresOn: string;
+  notes: string;
 };
 
 export type PetFormData = {
@@ -278,6 +312,7 @@ export type PetFormData = {
   avatarUri: string | null;
   foods: FoodFormEntry[];
   medications: MedicationFormEntry[];
+  vaccinations: VaccinationFormEntry[];
   coCarerEmail: string;
   /** null = prefer not to say */
   isMicrochipped: boolean | null;
@@ -310,6 +345,7 @@ export const EMPTY_PET_FORM: PetFormData = {
   avatarUri: null,
   foods: [],
   medications: [],
+  vaccinations: [],
   coCarerEmail: "",
   isMicrochipped: null,
   microchipNumber: "",

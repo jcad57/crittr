@@ -1,11 +1,13 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
-import { useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -28,13 +30,21 @@ type Props = {
   onBack: () => void;
   /** @default "Save" */
   saveLabel?: string;
+  embeddedInScreen?: boolean;
+  hideEmbeddedSave?: boolean;
 };
 
-export default function MedicationDetailStep({
-  onSave,
-  onBack,
-  saveLabel = "Save",
-}: Props) {
+const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
+  function MedicationDetailStep(
+    {
+      onSave,
+      onBack,
+      saveLabel = "Save",
+      embeddedInScreen = false,
+      hideEmbeddedSave = false,
+    },
+    ref,
+  ) {
   const form = useActivityFormStore((s) => s.medicationForm);
   const update = useActivityFormStore((s) => s.updateMedication);
   const [saving, setSaving] = useState(false);
@@ -66,12 +76,36 @@ export default function MedicationDetailStep({
     }
   }, [isValid, onSave]);
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Medication Details</Text>
+  const fieldLabelStyle = embeddedInScreen
+    ? styles.fieldLabelScreen
+    : styles.fieldLabel;
+  const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
 
-      <Text style={styles.fieldLabel}>Medication *</Text>
-      <View style={{ zIndex: 80, marginBottom: 12 }}>
+  const medicationSelectError = attempted && !form.medicationId;
+  const amountMissing = attempted && !form.amount.trim();
+  const unitMissing = attempted && !form.unit;
+  const amountRowInvalid = amountMissing || unitMissing;
+
+  return (
+    <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
+      {!embeddedInScreen ? (
+        <Text style={styles.title}>Medication Details</Text>
+      ) : null}
+
+      <Text
+        style={[
+          fieldLabelStyle,
+          medicationSelectError && styles.fieldLabelError,
+        ]}
+      >
+        Medication *
+      </Text>
+      <View
+        style={{
+          zIndex: 80,
+          marginBottom: embeddedInScreen ? 16 : 12,
+        }}
+      >
         <DropdownSelect
           placeholder="Select medication"
           value={medOptions.find((o) => o.id === form.medicationId)?.name ?? ""}
@@ -81,10 +115,15 @@ export default function MedicationDetailStep({
             if (match)
               update({ medicationId: match.id, medicationName: match.name });
           }}
+          error={medicationSelectError}
         />
       </View>
 
-      <Text style={styles.fieldLabel}>Amount *</Text>
+      <Text
+        style={[fieldLabelStyle, amountRowInvalid && styles.fieldLabelError]}
+      >
+        Amount *
+      </Text>
       <View style={styles.amountRow}>
         <FormInput
           placeholder="Amt"
@@ -92,7 +131,7 @@ export default function MedicationDetailStep({
           onChangeText={(v) => update({ amount: v })}
           keyboardType="numeric"
           containerStyle={styles.amountInput}
-          error={attempted && !form.amount.trim()}
+          error={amountMissing}
         />
         <View style={{ flex: 1, zIndex: 70 }}>
           <DropdownSelect
@@ -100,6 +139,7 @@ export default function MedicationDetailStep({
             value={form.unit}
             options={DOSAGE_TYPES}
             onSelect={(v) => update({ unit: v })}
+            error={unitMissing}
           />
         </View>
       </View>
@@ -110,28 +150,42 @@ export default function MedicationDetailStep({
         value={form.notes}
         onChangeText={(v) => update({ notes: v })}
         multiline
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
       />
 
-      <View style={styles.spacer} />
+      {!embeddedInScreen || !hideEmbeddedSave ? (
+        <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
+      ) : null}
 
       {attempted && !isValid && (
         <Text style={styles.errorHint}>Please fill in all required fields</Text>
       )}
 
-      <OrangeButton onPress={handleSave} disabled={saving} style={styles.cta}>
-        {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
-      </OrangeButton>
+      {(!embeddedInScreen || !hideEmbeddedSave) && (
+        <OrangeButton
+          onPress={handleSave}
+          disabled={saving}
+          style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+        >
+          {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
+        </OrangeButton>
+      )}
 
-      <Pressable onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+      {!embeddedInScreen ? (
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
-}
+  },
+);
+
+export default MedicationDetailStep;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  containerEmbedded: { width: "100%" },
   title: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 26,
@@ -145,7 +199,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  fieldLabelScreen: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   spacing: { marginBottom: 12 },
+  spacingScreen: { marginBottom: 16 },
   amountRow: {
     flexDirection: "row",
     gap: 8,
@@ -154,6 +218,7 @@ const styles = StyleSheet.create({
   },
   amountInput: { width: 80 },
   spacer: { flex: 1, minHeight: 24 },
+  spacerEmbedded: { height: 8 },
   errorHint: {
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 13,
@@ -162,6 +227,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cta: { marginTop: 12 },
+  ctaScreen: { marginTop: 8 },
   backButton: { alignSelf: "center", paddingTop: 16 },
   backText: {
     fontFamily: "InstrumentSans-Bold",

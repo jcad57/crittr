@@ -1,11 +1,13 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
-import { useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -19,13 +21,21 @@ type Props = {
   onBack: () => void;
   /** @default "Save" */
   saveLabel?: string;
+  embeddedInScreen?: boolean;
+  hideEmbeddedSave?: boolean;
 };
 
-export default function VetVisitDetailStep({
-  onSave,
-  onBack,
-  saveLabel = "Save",
-}: Props) {
+const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
+  function VetVisitDetailStep(
+    {
+      onSave,
+      onBack,
+      saveLabel = "Save",
+      embeddedInScreen = false,
+      hideEmbeddedSave = false,
+    },
+    ref,
+  ) {
   const form = useActivityFormStore((s) => s.vetVisitForm);
   const update = useActivityFormStore((s) => s.updateVetVisit);
   const [saving, setSaving] = useState(false);
@@ -71,6 +81,16 @@ export default function VetVisitDetailStep({
     }
   }, [isValid, onSave]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => {
+        void handleSave();
+      },
+    }),
+    [handleSave],
+  );
+
   const toggleOtherPet = (petId: string) => {
     const current = form.otherPetIds;
     if (current.includes(petId)) {
@@ -80,9 +100,20 @@ export default function VetVisitDetailStep({
     }
   };
 
+  const fieldLabelStyle = embeddedInScreen
+    ? styles.fieldLabelScreen
+    : styles.fieldLabel;
+  const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
+
+  const locationError = attempted && !form.vetLocation;
+  const customLocationError =
+    attempted && form.vetLocation === "Other" && !form.customVetLocation.trim();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Vet Visit Details</Text>
+    <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
+      {!embeddedInScreen ? (
+        <Text style={styles.title}>Vet Visit Details</Text>
+      ) : null}
 
       <FormInput
         label="Label"
@@ -90,12 +121,17 @@ export default function VetVisitDetailStep({
         placeholder="Checkup, hot spot, vaccinations…"
         value={form.label}
         onChangeText={(v) => update({ label: v })}
-        containerStyle={styles.spacing}
+        containerStyle={blockSpacing}
         error={attempted && !form.label.trim()}
       />
 
-      <Text style={styles.fieldLabel}>Location *</Text>
-      <View style={{ zIndex: 80, marginBottom: 12 }}>
+      <Text style={fieldLabelStyle}>Location *</Text>
+      <View
+        style={{
+          zIndex: 80,
+          marginBottom: embeddedInScreen ? 16 : 12,
+        }}
+      >
         <DropdownSelect
           placeholder="Select location"
           value={form.vetLocation}
@@ -109,14 +145,14 @@ export default function VetVisitDetailStep({
           placeholder="Clinic name or address"
           value={form.customVetLocation}
           onChangeText={(v) => update({ customVetLocation: v })}
-          containerStyle={styles.spacing}
+          containerStyle={blockSpacing}
           error={attempted && !form.customVetLocation.trim()}
         />
       )}
 
       {otherPets.length > 0 && (
         <>
-          <Text style={styles.fieldLabel}>Other pets at this visit?</Text>
+          <Text style={fieldLabelStyle}>Other pets at this visit?</Text>
           <View style={styles.petChips}>
             {otherPets.map((p) => {
               const selected = form.otherPetIds.includes(p.id);
@@ -147,28 +183,42 @@ export default function VetVisitDetailStep({
         value={form.notes}
         onChangeText={(v) => update({ notes: v })}
         multiline
-        containerStyle={styles.spacing}
+        containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
       />
 
-      <View style={styles.spacer} />
+      {!embeddedInScreen || !hideEmbeddedSave ? (
+        <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
+      ) : null}
 
       {attempted && !isValid && (
         <Text style={styles.errorHint}>Please fill in all required fields</Text>
       )}
 
-      <OrangeButton onPress={handleSave} disabled={saving} style={styles.cta}>
-        {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
-      </OrangeButton>
+      {(!embeddedInScreen || !hideEmbeddedSave) && (
+        <OrangeButton
+          onPress={handleSave}
+          disabled={saving}
+          style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+        >
+          {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
+        </OrangeButton>
+      )}
 
-      <Pressable onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+      {!embeddedInScreen ? (
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
-}
+  },
+);
+
+export default VetVisitDetailStep;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  containerEmbedded: { width: "100%" },
   title: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 26,
@@ -182,7 +232,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  fieldLabelScreen: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  fieldLabelError: {
+    color: Colors.error,
+  },
   spacing: { marginBottom: 12 },
+  spacingScreen: { marginBottom: 16 },
   petChips: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -209,6 +269,7 @@ const styles = StyleSheet.create({
     color: Colors.orange,
   },
   spacer: { flex: 1, minHeight: 24 },
+  spacerEmbedded: { height: 8 },
   errorHint: {
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 13,
@@ -217,6 +278,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cta: { marginTop: 12 },
+  ctaScreen: { marginTop: 8 },
   backButton: { alignSelf: "center", paddingTop: 16 },
   backText: {
     fontFamily: "InstrumentSans-Bold",

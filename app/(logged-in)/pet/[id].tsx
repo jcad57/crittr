@@ -1,6 +1,8 @@
+import HealthListCard from "@/components/ui/health/HealthListCard";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
+import MedicationListRow from "@/components/ui/medication/MedicationListRow";
+import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import PetMedicationProfileCard from "@/components/ui/pet/PetMedicationProfileCard";
 import PetProfileHero, {
   type PetHeroTag,
 } from "@/components/ui/pet/PetProfileHero";
@@ -23,14 +25,21 @@ import {
   usePetDetailsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
+import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { pickAvatarImage } from "@/lib/pickImage";
 import { queryClient } from "@/lib/queryClient";
+import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { isTreatFood } from "@/lib/petFood";
 import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
-import type { PetActivity, PetFood, PetWithDetails } from "@/types/database";
+import type {
+  PetActivity,
+  PetFood,
+  PetVaccination,
+  PetWithDetails,
+} from "@/types/database";
 import {
   formatBirthdayChip,
   formatDateOfBirth,
@@ -40,6 +49,7 @@ import {
   formatPetTypeLabel,
   formatPetWeightDisplay,
 } from "@/utils/petDisplay";
+import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -84,6 +94,7 @@ function toMedications(
 ): Medication[] {
   return details.medications.map((m) => {
     const prog = buildMedicationDosageProgress(m, todayActivities, details.id);
+    const badge = getMedicationBadgeDisplay(m, prog);
     return {
       id: m.id,
       name: m.name,
@@ -93,9 +104,8 @@ function toMedications(
       current: prog.current,
       total: prog.total,
       lastTaken: prog.lastTaken,
-      iconBg: Colors.successLight,
-      iconColor: Colors.success,
-      profileStatus: prog.isComplete ? "up_to_date" : "due_today",
+      badgeKind: badge.kind,
+      badgeLabel: badge.label,
     };
   });
 }
@@ -211,6 +221,21 @@ export default function PetProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const { data: details, isLoading } = usePetDetailsQuery(id);
+
+  const sortedFoodsForProfile = useMemo(() => {
+    if (!details?.foods) return [];
+    return [...details.foods].sort((a, b) => {
+      const ta = isTreatFood(a);
+      const tb = isTreatFood(b);
+      return ta === tb ? 0 : ta ? 1 : -1;
+    });
+  }, [details?.foods]);
+
+  const attentionVaccinations = useMemo((): PetVaccination[] => {
+    if (!details?.vaccinations?.length) return [];
+    return details.vaccinations.filter(vaccinationNeedsAttention);
+  }, [details?.vaccinations]);
+
   const { data: todayActivities = [] } = useTodayActivitiesQuery(id);
 
   const handlePetAvatarPress = useCallback(async () => {
@@ -374,7 +399,14 @@ export default function PetProfilePage() {
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Details</SectionLabel>
-          <TouchableOpacity hitSlop={8} onPress={() => {}}>
+          <TouchableOpacity
+            hitSlop={8}
+            onPress={() =>
+              router.push(
+                `/(logged-in)/pet/${profile.id}/edit-details` as Href,
+              )
+            }
+          >
             <Text style={styles.sectionEditLink}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -395,21 +427,32 @@ export default function PetProfilePage() {
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
           <TouchableOpacity
-            onPress={() => router.push(`/pet/${profile.id}/food`)}
+            onPress={() =>
+              router.push(`/(logged-in)/pet/${profile.id}/food` as Href)
+            }
             hitSlop={8}
           >
             <Text style={styles.sectionEditLink}>Edit</Text>
           </TouchableOpacity>
         </View>
-        {profile.feeding.items.length > 0 ? (
+        {sortedFoodsForProfile.length > 0 ? (
           <View style={styles.medList}>
-            {profile.feeding.items.map((item, index) => (
-              <PetFoodProfileCard
-                key={`food-${index}-${item.brand}`}
-                name={item.brand}
-                subline={item.portionLabel.trim() || "—"}
-                isTreat={item.isTreat}
-              />
+            {sortedFoodsForProfile.map((f) => (
+              <TouchableOpacity
+                key={f.id}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push(
+                    `/(logged-in)/pet/${profile.id}/food/${f.id}` as Href,
+                  )
+                }
+              >
+                <PetFoodProfileCard
+                  name={f.brand?.trim() || "Food"}
+                  subline={formatPortionLabel(f)}
+                  isTreat={isTreatFood(f)}
+                />
+              </TouchableOpacity>
             ))}
           </View>
         ) : (
@@ -421,29 +464,57 @@ export default function PetProfilePage() {
             Active medications
           </SectionLabel>
           <TouchableOpacity
-            onPress={() => router.push(`/pet/${profile.id}/medications`)}
+            onPress={() =>
+              router.push(
+                `/(logged-in)/pet/${profile.id}/medications` as Href,
+              )
+            }
             hitSlop={8}
           >
             <Text style={styles.sectionEditLink}>Edit</Text>
           </TouchableOpacity>
         </View>
         {profile.medications.length > 0 ? (
-          <View style={styles.medList}>
-            {profile.medications.map((m) => (
-              <PetMedicationProfileCard
+          <HealthListCard>
+            {profile.medications.map((m, i) => (
+              <MedicationListRow
                 key={m.id}
-                name={m.name}
+                title={m.name}
                 subline={medicationSubline(m)}
-                status={m.profileStatus ?? "up_to_date"}
-                progressLabel={
-                  m.total > 0 ? `${m.current}/${m.total}` : undefined
+                badgeKind={m.badgeKind}
+                badgeLabel={m.badgeLabel}
+                isLast={i === profile.medications.length - 1}
+                onPress={() =>
+                  router.push(
+                    `/(logged-in)/pet/${profile.id}/medications/${m.id}` as Href,
+                  )
                 }
               />
             ))}
-          </View>
+          </HealthListCard>
         ) : (
           <Text style={styles.emptyMed}>No medications recorded.</Text>
         )}
+
+        {attentionVaccinations.length > 0 ? (
+          <>
+            <SectionLabel style={styles.sectionLabelInline}>
+              Vaccinations
+            </SectionLabel>
+            <HealthListCard>
+              {attentionVaccinations.map((v, i) => (
+                <VaccinationAttentionRow
+                  key={v.id}
+                  vaccination={v}
+                  isLast={i === attentionVaccinations.length - 1}
+                  onPress={() =>
+                    router.push("/(logged-in)/health" as Href)
+                  }
+                />
+              ))}
+            </HealthListCard>
+          </>
+        ) : null}
 
         <SectionLabel style={styles.sectionFlush}>Records</SectionLabel>
         <RecordsNavCard items={recordsItems} />

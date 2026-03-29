@@ -1,6 +1,7 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type PetMedicationProfileCardProps = {
   name: string;
@@ -8,6 +9,7 @@ type PetMedicationProfileCardProps = {
   status: "due_today" | "up_to_date";
   /** e.g. "2/2" for today's doses */
   progressLabel?: string;
+  onPress?: () => void;
 };
 
 export default function PetMedicationProfileCard({
@@ -15,11 +17,12 @@ export default function PetMedicationProfileCard({
   subline,
   status,
   progressLabel,
+  onPress,
 }: PetMedicationProfileCardProps) {
   const isDue = status === "due_today";
 
-  return (
-    <View style={styles.card}>
+  const inner = (
+    <>
       <View style={styles.iconBox}>
         <Text style={styles.plus}>+</Text>
       </View>
@@ -43,8 +46,30 @@ export default function PetMedicationProfileCard({
           {progressLabel ?? (isDue ? "Due today" : "Up to date")}
         </Text>
       </View>
-    </View>
+      {onPress ? (
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={22}
+          color={Colors.gray400}
+        />
+      ) : null}
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${name}, edit medication`}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.card}>{inner}</View>;
 }
 
 const coralBg = "#FFEBE6";
@@ -60,12 +85,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    gap: 12,
+    gap: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  cardPressed: {
+    backgroundColor: Colors.gray50,
+    opacity: 0.96,
   },
   iconBox: {
     width: 40,
