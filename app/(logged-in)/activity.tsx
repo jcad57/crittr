@@ -7,6 +7,7 @@ import { Font } from "@/constants/typography";
 import {
   computeWeeklySummary,
   convertActivities,
+  filterEntriesByDateKey,
   groupActivityHistory,
   type ActivityFilterCategory,
   type ActivityHistoryEntry,
@@ -105,6 +106,7 @@ export default function ActivityScreen() {
 
   const [filter, setFilter] = useState<ActivityFilterCategory>("all");
   const [newestFirst, setNewestFirst] = useState(true);
+  const [dateFilterYmd, setDateFilterYmd] = useState<string | null>(null);
 
   const allEntries = useMemo(
     () =>
@@ -119,12 +121,16 @@ export default function ActivityScreen() {
 
   const sections: Section[] = useMemo(
     () =>
-      groupActivityHistory(allEntries, filter, newestFirst).map((s) => ({
+      groupActivityHistory(
+        filterEntriesByDateKey(allEntries, dateFilterYmd),
+        filter,
+        newestFirst,
+      ).map((s) => ({
         title: s.title,
         dateKey: s.dateKey,
         data: s.data,
       })),
-    [allEntries, filter, newestFirst],
+    [allEntries, filter, newestFirst, dateFilterYmd],
   );
 
   const handleLogActivity = useCallback(() => {
@@ -173,6 +179,8 @@ export default function ActivityScreen() {
         onFilterChange={setFilter}
         newestFirst={newestFirst}
         onNewestFirstChange={setNewestFirst}
+        dateFilterYmd={dateFilterYmd}
+        onDateFilterChange={setDateFilterYmd}
       />
     </>
   );
@@ -209,7 +217,9 @@ export default function ActivityScreen() {
               <Text style={styles.emptyText}>
                 {!isPetsLoading && dbPets?.length === 0
                   ? "Add a pet to see activity here."
-                  : "No activities match this filter."}
+                  : dateFilterYmd != null
+                    ? "No activities on this date for this filter."
+                    : "No activities match this filter."}
               </Text>
             )}
           </View>

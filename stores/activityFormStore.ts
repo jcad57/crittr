@@ -1,3 +1,4 @@
+import type { FoodActivityExtraPetRow } from "@/lib/foodActivityMerge";
 import {
   petActivityToExerciseForm,
   petActivityToFoodForm,
@@ -20,6 +21,10 @@ type ActivityFormState = {
 
   exerciseForm: ExerciseFormData;
   foodForm: FoodActivityFormData;
+  /** Additional pets for the same meal/treat (shared label, type, notes; per-pet food + amount). */
+  foodExtraRows: FoodActivityExtraPetRow[];
+  /** Extra pets to log the same exercise for (shared details). */
+  exerciseExtraPetIds: string[];
   medicationForm: MedicationActivityFormData;
   vetVisitForm: VetVisitActivityFormData;
 
@@ -27,6 +32,16 @@ type ActivityFormState = {
   selectType: (type: ActivityType) => void;
   updateExercise: (patch: Partial<ExerciseFormData>) => void;
   updateFood: (patch: Partial<FoodActivityFormData>) => void;
+  addFoodExtraRow: (petId: string) => void;
+  removeFoodExtraRow: (index: number) => void;
+  updateFoodExtraRow: (
+    index: number,
+    patch: Partial<FoodActivityExtraPetRow>,
+  ) => void;
+  clearFoodExtraRows: () => void;
+  addExerciseExtraPetId: (petId: string) => void;
+  removeExerciseExtraPetId: (petId: string) => void;
+  clearExerciseExtraPetIds: () => void;
   updateMedication: (patch: Partial<MedicationActivityFormData>) => void;
   updateVetVisit: (patch: Partial<VetVisitActivityFormData>) => void;
   reset: () => void;
@@ -78,6 +93,8 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
   activityType: null,
   exerciseForm: { ...EMPTY_EXERCISE },
   foodForm: { ...EMPTY_FOOD },
+  foodExtraRows: [],
+  exerciseExtraPetIds: [],
   medicationForm: { ...EMPTY_MED },
   vetVisitForm: { ...EMPTY_VET },
 
@@ -88,6 +105,41 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
     set((s) => ({ exerciseForm: { ...s.exerciseForm, ...patch } })),
   updateFood: (patch) =>
     set((s) => ({ foodForm: { ...s.foodForm, ...patch } })),
+  addFoodExtraRow: (petId) =>
+    set((s) => ({
+      foodExtraRows: [
+        ...s.foodExtraRows,
+        {
+          petId,
+          foodId: "",
+          foodBrand: "",
+          amount: "",
+          unit: "Cups",
+        },
+      ],
+    })),
+  removeFoodExtraRow: (index) =>
+    set((s) => ({
+      foodExtraRows: s.foodExtraRows.filter((_, i) => i !== index),
+    })),
+  updateFoodExtraRow: (index, patch) =>
+    set((s) => ({
+      foodExtraRows: s.foodExtraRows.map((row, i) =>
+        i === index ? { ...row, ...patch } : row,
+      ),
+    })),
+  clearFoodExtraRows: () => set({ foodExtraRows: [] }),
+  addExerciseExtraPetId: (petId) =>
+    set((s) => ({
+      exerciseExtraPetIds: s.exerciseExtraPetIds.includes(petId)
+        ? s.exerciseExtraPetIds
+        : [...s.exerciseExtraPetIds, petId],
+    })),
+  removeExerciseExtraPetId: (petId) =>
+    set((s) => ({
+      exerciseExtraPetIds: s.exerciseExtraPetIds.filter((id) => id !== petId),
+    })),
+  clearExerciseExtraPetIds: () => set({ exerciseExtraPetIds: [] }),
   updateMedication: (patch) =>
     set((s) => ({ medicationForm: { ...s.medicationForm, ...patch } })),
   updateVetVisit: (patch) =>
@@ -99,6 +151,8 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       activityType: null,
       exerciseForm: { ...EMPTY_EXERCISE },
       foodForm: { ...EMPTY_FOOD },
+      foodExtraRows: [],
+      exerciseExtraPetIds: [],
       medicationForm: { ...EMPTY_MED },
       vetVisitForm: { ...EMPTY_VET },
     }),
@@ -115,6 +169,8 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
           : { ...EMPTY_EXERCISE },
       foodForm:
         type === "food" ? petActivityToFoodForm(activity) : { ...EMPTY_FOOD },
+      foodExtraRows: [],
+      exerciseExtraPetIds: [],
       medicationForm:
         type === "medication"
           ? petActivityToMedicationForm(activity)

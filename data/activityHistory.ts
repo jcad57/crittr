@@ -145,6 +145,15 @@ export function formatActivitySectionTitle(
   return `${weekday} · ${month} ${dayNum}`;
 }
 
+/** Filter history entries to a single calendar day (`YYYY-MM-DD`, local), or pass `null` for all days. */
+export function filterEntriesByDateKey(
+  entries: ActivityHistoryEntry[],
+  dateKeyYmd: string | null,
+): ActivityHistoryEntry[] {
+  if (dateKeyYmd == null) return entries;
+  return entries.filter((e) => e.dateKey === dateKeyYmd);
+}
+
 export function groupActivityHistory(
   entries: ActivityHistoryEntry[],
   filter: ActivityFilterCategory,

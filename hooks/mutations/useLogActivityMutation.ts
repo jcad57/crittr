@@ -18,38 +18,40 @@ import type {
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
 
-export function useLogExerciseMutation(petId: string | null) {
+export function useLogExerciseMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: (form: ExerciseFormData) => {
-      if (!petId || !userId) throw new Error("Missing pet or user");
-      return logExercise(petId, userId, form);
+    mutationFn: (payload: { petId: string; form: ExerciseFormData }) => {
+      if (!userId) throw new Error("Not signed in");
+      return logExercise(payload.petId, userId, payload.form);
     },
-    onSuccess: () => {
-      if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
-        queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
-      }
+    onSuccess: (_data, variables) => {
+      const petId = variables.petId;
+      void queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     },
   });
 }
 
-export function useLogFoodMutation(petId: string | null) {
+export function useLogFoodMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: (form: FoodActivityFormData) => {
-      if (!petId || !userId) throw new Error("Missing pet or user");
-      return logFood(petId, userId, form);
+    mutationFn: (payload: { petId: string; form: FoodActivityFormData }) => {
+      if (!userId) throw new Error("Not signed in");
+      return logFood(payload.petId, userId, payload.form);
     },
-    onSuccess: () => {
-      if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
-        queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
-      }
+    onSuccess: (_data, variables) => {
+      const petId = variables.petId;
+      void queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     },
   });
 }

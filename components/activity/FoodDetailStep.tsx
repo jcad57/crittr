@@ -1,19 +1,26 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import FoodPetFieldsRow from "@/components/activity/FoodPetFieldsRow";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { usePetDetailsQuery } from "@/hooks/queries";
+import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
+import type { FoodActivityExtraPetRow } from "@/lib/foodActivityMerge";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { forwardRef, useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -44,11 +51,36 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
   ) {
   const form = useActivityFormStore((s) => s.foodForm);
   const update = useActivityFormStore((s) => s.updateFood);
+  const foodExtraRows = useActivityFormStore((s) => s.foodExtraRows);
+  const addFoodExtraRow = useActivityFormStore((s) => s.addFoodExtraRow);
+  const removeFoodExtraRow = useActivityFormStore((s) => s.removeFoodExtraRow);
+  const updateFoodExtraRow = useActivityFormStore((s) => s.updateFoodExtraRow);
+  const clearFoodExtraRows = useActivityFormStore((s) => s.clearFoodExtraRows);
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const [pickPetOpen, setPickPetOpen] = useState(false);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: petDetails } = usePetDetailsQuery(activePetId);
+  const { data: allPets } = usePetsQuery();
+
+  const petNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of allPets ?? []) {
+      m.set(p.id, p.name?.trim() || "Pet");
+    }
+    return m;
+  }, [allPets]);
+
+  const activePetName =
+    petDetails?.name?.trim() || petNameById.get(activePetId ?? "") || "Pet";
+
+  const selectablePetsForBatch = useMemo(() => {
+    const taken = new Set<string>([activePetId ?? "", ...foodExtraRows.map((r) => r.petId)]);
+    return (allPets ?? []).filter(
+      (p) => isPetActiveForDashboard(p) && !taken.has(p.id),
+    );
+  }, [allPets, activePetId, foodExtraRows]);
 
   const foodOptions = useMemo(() => {
     if (!petDetails) return [];
@@ -69,11 +101,24 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     return foodOptions.find((o) => o.id === form.foodId)?.label ?? "";
   }, [isOtherFood, foodOptions, form.foodId]);
 
+  const extraRowValid = useCallback(
+    (row: FoodActivityExtraPetRow) => {
+      const other = row.foodId === FOOD_ACTIVITY_OTHER_ID;
+      return (
+        row.amount.trim().length > 0 &&
+        row.unit.trim().length > 0 &&
+        (other ? row.foodBrand.trim().length > 0 : row.foodId.length > 0)
+      );
+    },
+    [],
+  );
+
   const isValid =
     form.label.trim().length > 0 &&
     form.amount.trim().length > 0 &&
     form.unit.trim().length > 0 &&
-    (isOtherFood ? form.foodBrand.trim().length > 0 : form.foodId.length > 0);
+    (isOtherFood ? form.foodBrand.trim().length > 0 : form.foodId.length > 0) &&
+    foodExtraRows.every((row) => extraRowValid(row));
 
   const foodMissing =
     attempted &&
@@ -123,7 +168,10 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
             styles.toggleBorder,
             !form.isTreat && styles.toggleActive,
           ]}
-          onPress={() => update({ isTreat: false, foodId: "", foodBrand: "" })}
+          onPress={() => {
+            clearFoodExtraRows();
+            update({ isTreat: false, foodId: "", foodBrand: "" });
+          }}
         >
           <Text
             style={[
@@ -136,7 +184,10 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         </Pressable>
         <Pressable
           style={[styles.toggle, form.isTreat && styles.toggleActive]}
-          onPress={() => update({ isTreat: true, foodId: "", foodBrand: "" })}
+          onPress={() => {
+            clearFoodExtraRows();
+            update({ isTreat: true, foodId: "", foodBrand: "" });
+          }}
         >
           <Text
             style={[styles.toggleText, form.isTreat && styles.toggleTextActive]}
@@ -146,6 +197,7 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         </Pressable>
       </View>
 
+      <Text style={styles.forPetHint}>Food and amount for {activePetName}</Text>
       <Text style={[fieldLabelStyle, foodMissing && styles.fieldLabelError]}>
         Food *
       </Text>
@@ -232,6 +284,81 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
           ))}
         </View>
       </View>
+
+      {foodExtraRows.map((row, index) => (
+        <FoodPetFieldsRow
+          key={`${row.petId}-${index}`}
+          petName={petNameById.get(row.petId) ?? "Pet"}
+          row={row}
+          rowIndex={index}
+          isTreat={form.isTreat}
+          attempted={attempted}
+          embeddedInScreen={embeddedInScreen}
+          onChange={updateFoodExtraRow}
+          onRemove={() => removeFoodExtraRow(index)}
+        />
+      ))}
+
+      {selectablePetsForBatch.length > 0 ? (
+        <Pressable
+          style={styles.addPetBtn}
+          onPress={() => setPickPetOpen(true)}
+        >
+          <MaterialCommunityIcons
+            name="account-plus-outline"
+            size={20}
+            color={Colors.orange}
+          />
+          <Text style={styles.addPetBtnText}>Add another pet</Text>
+        </Pressable>
+      ) : null}
+
+      <Modal
+        visible={pickPetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickPetOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setPickPetOpen(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Which pet?</Text>
+            <Text style={styles.modalSub}>
+              Same label and notes; you can pick a different food and amount.
+            </Text>
+            <ScrollView
+              style={styles.modalList}
+              keyboardShouldPersistTaps="handled"
+            >
+              {selectablePetsForBatch.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.modalRow}
+                  onPress={() => {
+                    addFoodExtraRow(p.id);
+                    setPickPetOpen(false);
+                  }}
+                >
+                  <Text style={styles.modalRowText}>{p.name}</Text>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={22}
+                    color={Colors.gray400}
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setPickPetOpen(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <FormInput
         label="Notes"
@@ -382,6 +509,78 @@ const styles = StyleSheet.create({
   backText: {
     fontFamily: "InstrumentSans-Bold",
     fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  forPetHint: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  addPetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    marginTop: 8,
+    marginBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  addPetBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.orange,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: "70%",
+  },
+  modalTitle: {
+    fontFamily: Font.displayBold,
+    fontSize: 18,
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  modalSub: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  modalList: {
+    maxHeight: 280,
+  },
+  modalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.gray100,
+  },
+  modalRowText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.textPrimary,
+  },
+  modalCancel: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  modalCancelText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
     color: Colors.textSecondary,
   },
 });

@@ -2,7 +2,7 @@ import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -14,6 +14,25 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+/** YYYY-MM-DD in local calendar. */
+function toLocalIsoDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateFilterLabel(ymd: string): string {
+  const [yy, mm, dd] = ymd.split("-").map(Number);
+  if (!yy || !mm || !dd) return ymd;
+  return new Date(yy, mm - 1, dd).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 const FILTER_ITEMS: { id: ActivityFilterCategory; label: string }[] = [
   { id: "all", label: "All" },
@@ -40,6 +59,9 @@ type Props = {
   onFilterChange: (id: ActivityFilterCategory) => void;
   newestFirst: boolean;
   onNewestFirstChange: (value: boolean) => void;
+  /** `YYYY-MM-DD` local, or `null` for all dates. */
+  dateFilterYmd: string | null;
+  onDateFilterChange: (ymd: string | null) => void;
 };
 
 export default function ActivityHistoryFilterBar({
@@ -47,10 +69,13 @@ export default function ActivityHistoryFilterBar({
   onFilterChange,
   newestFirst,
   onNewestFirstChange,
+  dateFilterYmd,
+  onDateFilterChange,
 }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const [menu, setMenu] = useState<Menu>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const filterRef = useRef<View>(null);
   const sortRef = useRef<View>(null);
@@ -64,6 +89,18 @@ export default function ActivityHistoryFilterBar({
     FILTER_ITEMS.find((f) => f.id === filter)?.label ?? "All";
 
   const sortLabel = newestFirst ? "Newest first" : "Oldest first";
+
+  const datePickerValue = useMemo(() => {
+    if (!dateFilterYmd) return new Date();
+    const [y, m, d] = dateFilterYmd.split("-").map(Number);
+    if (!y || !m || !d) return new Date();
+    return new Date(y, m - 1, d);
+  }, [dateFilterYmd]);
+
+  const dateTriggerLabel =
+    dateFilterYmd != null
+      ? formatDateFilterLabel(dateFilterYmd)
+      : "Any date";
 
   const openFilter = () => {
     if (menu === "filter") {
@@ -86,6 +123,20 @@ export default function ActivityHistoryFilterBar({
       setMenu("sort");
     });
   };
+
+  const openDatePicker = () => {
+    dismiss();
+    setDatePickerOpen(true);
+  };
+
+  const handleDateConfirm = (picked: Date) => {
+    setDatePickerOpen(false);
+    onDateFilterChange(toLocalIsoDateString(picked));
+  };
+
+  const handleDateCancel = useCallback(() => {
+    setDatePickerOpen(false);
+  }, []);
 
   const panelLeft = anchor
     ? Math.min(
@@ -140,7 +191,56 @@ export default function ActivityHistoryFilterBar({
             />
           </Pressable>
         </View>
+
+        <View collapsable={false} style={[styles.menuCol, styles.dateTriggerWrap]}>
+          <Pressable
+            style={[
+              styles.trigger,
+              datePickerOpen && styles.triggerOpen,
+              dateFilterYmd != null && styles.triggerHasValue,
+            ]}
+            onPress={openDatePicker}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by date"
+          >
+            <MaterialCommunityIcons
+              name="calendar-month-outline"
+              size={18}
+              color={dateFilterYmd != null ? Colors.orange : Colors.gray500}
+            />
+            <Text style={styles.triggerText} numberOfLines={1}>
+              {dateTriggerLabel}
+            </Text>
+          </Pressable>
+          {dateFilterYmd != null ? (
+            <Pressable
+              style={styles.dateClearHit}
+              onPress={() => onDateFilterChange(null)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear date filter"
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={20}
+                color={Colors.gray400}
+              />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
+
+      <DateTimePickerModal
+        isVisible={datePickerOpen}
+        mode="date"
+        date={datePickerValue}
+        display={Platform.OS === "ios" ? "spinner" : "default"}
+        onConfirm={handleDateConfirm}
+        onCancel={handleDateCancel}
+        confirmTextIOS="Set filter"
+        cancelTextIOS="Cancel"
+        buttonTextColorIOS={Colors.orange}
+      />
 
       <Modal
         visible={menu !== null && anchor !== null}
@@ -262,6 +362,7 @@ const styles = StyleSheet.create({
   },
   rowRight: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "flex-start",
     justifyContent: "flex-end",
     gap: 8,
@@ -270,17 +371,30 @@ const styles = StyleSheet.create({
   menuCol: {
     flexShrink: 0,
   },
+  dateTriggerWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  dateClearHit: {
+    paddingVertical: 6,
+  },
   trigger: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minWidth: 118,
+    minWidth: 100,
+    maxWidth: 168,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,
     backgroundColor: Colors.white,
+  },
+  triggerHasValue: {
+    borderColor: Colors.orange,
+    backgroundColor: Colors.orangeLight,
   },
   triggerOpen: {
     borderColor: Colors.orange,

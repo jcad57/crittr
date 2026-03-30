@@ -11,6 +11,7 @@ import {
   useLogVetVisitMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery } from "@/hooks/queries";
+import { foodActivityFormForPet } from "@/lib/foodActivityMerge";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
@@ -27,14 +28,16 @@ export default function AddActivityScreen() {
 
   const exerciseForm = useActivityFormStore((s) => s.exerciseForm);
   const foodForm = useActivityFormStore((s) => s.foodForm);
+  const foodExtraRows = useActivityFormStore((s) => s.foodExtraRows);
+  const exerciseExtraPetIds = useActivityFormStore((s) => s.exerciseExtraPetIds);
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const vetForm = useActivityFormStore((s) => s.vetVisitForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
 
-  const exerciseMut = useLogExerciseMutation(activePetId);
-  const foodMut = useLogFoodMutation(activePetId);
+  const exerciseMut = useLogExerciseMutation();
+  const foodMut = useLogFoodMutation();
   const medMut = useLogMedicationMutation(activePetId);
   const vetMut = useLogVetVisitMutation(activePetId);
 
@@ -71,14 +74,26 @@ export default function AddActivityScreen() {
   }, [reset, router]);
 
   const saveExercise = useCallback(async () => {
-    await exerciseMut.mutateAsync(exerciseForm);
+    if (!activePetId) return;
+    const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
+    for (const petId of ids) {
+      await exerciseMut.mutateAsync({ petId, form: exerciseForm });
+    }
     finish();
-  }, [exerciseMut, exerciseForm, finish]);
+  }, [exerciseMut, exerciseForm, exerciseExtraPetIds, activePetId, finish]);
 
   const saveFood = useCallback(async () => {
-    await foodMut.mutateAsync(foodForm);
+    if (!activePetId) return;
+    await foodMut.mutateAsync({ petId: activePetId, form: foodForm });
+    for (const row of foodExtraRows) {
+      const { petId, ...petFields } = row;
+      await foodMut.mutateAsync({
+        petId,
+        form: foodActivityFormForPet(foodForm, petFields),
+      });
+    }
     finish();
-  }, [foodMut, foodForm, finish]);
+  }, [foodMut, foodForm, foodExtraRows, activePetId, finish]);
 
   const saveMed = useCallback(async () => {
     await medMut.mutateAsync(medForm);
