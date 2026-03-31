@@ -1,13 +1,21 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { usePetDetailsQuery } from "@/hooks/queries";
+import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -32,6 +40,7 @@ type Props = {
   saveLabel?: string;
   embeddedInScreen?: boolean;
   hideEmbeddedSave?: boolean;
+  showBatchPets?: boolean;
 };
 
 const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
@@ -42,16 +51,45 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       saveLabel = "Save",
       embeddedInScreen = false,
       hideEmbeddedSave = false,
+      showBatchPets = true,
     },
     ref,
   ) {
   const form = useActivityFormStore((s) => s.medicationForm);
   const update = useActivityFormStore((s) => s.updateMedication);
+  const medicationExtraPetIds = useActivityFormStore(
+    (s) => s.medicationExtraPetIds,
+  );
+  const addMedicationExtraPetId = useActivityFormStore(
+    (s) => s.addMedicationExtraPetId,
+  );
+  const removeMedicationExtraPetId = useActivityFormStore(
+    (s) => s.removeMedicationExtraPetId,
+  );
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: petDetails } = usePetDetailsQuery(activePetId);
+  const { data: allPets } = usePetsQuery();
+
+  const petNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of allPets ?? []) {
+      m.set(p.id, p.name?.trim() || "Pet");
+    }
+    return m;
+  }, [allPets]);
+
+  const selectableMedicationPets = useMemo(() => {
+    const taken = new Set<string>([
+      activePetId ?? "",
+      ...medicationExtraPetIds,
+    ]);
+    return (allPets ?? []).filter(
+      (p) => isPetActiveForDashboard(p) && !taken.has(p.id),
+    );
+  }, [allPets, activePetId, medicationExtraPetIds]);
 
   const medOptions = useMemo(() => {
     if (!petDetails) return [];
@@ -75,6 +113,16 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       setSaving(false);
     }
   }, [isValid, onSave]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => {
+        void handleSave();
+      },
+    }),
+    [handleSave],
+  );
 
   const fieldLabelStyle = embeddedInScreen
     ? styles.fieldLabelScreen
@@ -152,6 +200,18 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         multiline
         containerStyle={blockSpacing}
       />
+
+      {showBatchPets ? (
+        <AlsoLogForPetsSection
+          hint="Same medication and dose for each pet. Add companions who received it too."
+          extraPetIds={medicationExtraPetIds}
+          selectablePets={selectableMedicationPets}
+          petNameById={petNameById}
+          onAddPet={addMedicationExtraPetId}
+          onRemovePet={removeMedicationExtraPetId}
+          fieldLabelStyle={fieldLabelStyle}
+        />
+      ) : null}
 
       {!embeddedInScreen || !hideEmbeddedSave ? (
         <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />

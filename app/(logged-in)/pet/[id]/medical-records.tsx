@@ -1,7 +1,8 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import HealthSectionHeader from "@/components/ui/health/HealthSectionHeader";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { getMockMedicalLibrary } from "@/data/medicalRecordsMock";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -61,13 +62,20 @@ export default function PetMedicalRecordsScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </Pressable>
+        <View style={styles.navSideLeft}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </Pressable>
+        </View>
         <Text style={styles.navTitle} numberOfLines={1}>
           Medical Records
         </Text>
-        <View style={styles.navSpacer} />
+        <View style={styles.navSideRight}>
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Medical records for"
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -182,20 +190,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
+  navSideLeft: {
+    width: 72,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  navSideRight: {
+    width: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   navBack: {
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.orange,
-    minWidth: 72,
   },
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
+    marginHorizontal: 8,
   },
-  navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,

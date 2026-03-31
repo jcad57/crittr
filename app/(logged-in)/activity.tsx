@@ -3,7 +3,7 @@ import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
 import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   computeWeeklySummary,
   convertActivities,
@@ -19,12 +19,13 @@ import {
   useProfilesByIdsQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,10 +47,23 @@ export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
+  const { petId: petIdParam } = useLocalSearchParams<{
+    petId?: string | string[];
+  }>();
+  const petIdFromRoute = useMemo(() => {
+    const p = petIdParam;
+    if (p == null) return undefined;
+    const s = Array.isArray(p) ? p[0] : p;
+    return typeof s === "string" && s.length > 0 ? s : undefined;
+  }, [petIdParam]);
+
   const { activePetId, setActivePet } = usePetStore();
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
+
+  const effectivePetId = petIdFromRoute ?? activePetId ?? null;
+
   const { data: rawActivities, isLoading: isActivitiesLoading } =
-    useAllActivitiesQuery(activePetId);
+    useAllActivitiesQuery(effectivePetId ?? undefined);
   const currentUserId = useAuthStore((s) => s.session?.user?.id);
 
   const activityLoggerIds = useMemo(() => {
@@ -77,6 +91,13 @@ export default function ActivityScreen() {
     if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
   }, [dbPets]);
 
+  /** Deep link / profile: focus a specific pet (including memorial when `petId` is in the URL). */
+  useEffect(() => {
+    if (!petIdFromRoute || !dbPets?.length) return;
+    const p = dbPets.find((x) => x.id === petIdFromRoute);
+    if (p && isPetActiveForDashboard(p)) setActivePet(petIdFromRoute);
+  }, [petIdFromRoute, dbPets, setActivePet]);
+
   const pets: Pet[] = useMemo(
     () =>
       (dbPets ?? []).map((p) => ({
@@ -91,8 +112,11 @@ export default function ActivityScreen() {
   const handleSwitchPet = useCallback(
     (id: string) => {
       setActivePet(id);
+      if (petIdFromRoute) {
+        router.replace("/(logged-in)/activity" as Href);
+      }
     },
-    [setActivePet],
+    [setActivePet, router, petIdFromRoute],
   );
 
   const subtitleMonth = useMemo(
@@ -163,7 +187,7 @@ export default function ActivityScreen() {
 
       <PetPillSwitcher
         pets={pets}
-        activePetId={activePetId}
+        activePetId={effectivePetId}
         onSwitchPet={handleSwitchPet}
       />
 
@@ -255,7 +279,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontFamily: Font.displayBold,
-    fontSize: 28,
+    fontSize: MAIN_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     letterSpacing: -0.5,
   },

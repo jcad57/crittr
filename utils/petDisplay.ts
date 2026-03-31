@@ -9,6 +9,19 @@ export function formatPetAgeDisplay(
   return `${y} yr`;
 }
 
+/** Age for compact list lines (e.g. My pets): years only, no months. */
+export function formatPetAgeYearsOld(
+  pet: Pick<Pet, "age" | "age_months">,
+): string {
+  const y = pet.age ?? 0;
+  const m = pet.age_months;
+  const hasAny =
+    pet.age != null || (m != null && m > 0);
+  if (!hasAny) return "—";
+  if (y === 0 && m != null && m > 0) return "Less than 1 year old";
+  return y === 1 ? "1 year old" : `${y} years old`;
+}
+
 export function formatPetWeightDisplay(
   pet: Pick<Pet, "weight_lbs" | "weight_unit">,
 ): string {

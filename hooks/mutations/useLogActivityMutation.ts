@@ -56,20 +56,24 @@ export function useLogFoodMutation() {
   });
 }
 
-export function useLogMedicationMutation(petId: string | null) {
+export function useLogMedicationMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: (form: MedicationActivityFormData) => {
-      if (!petId || !userId) throw new Error("Missing pet or user");
-      return logMedication(petId, userId, form);
+    mutationFn: (payload: {
+      petId: string;
+      form: MedicationActivityFormData;
+    }) => {
+      if (!userId) throw new Error("Not signed in");
+      return logMedication(payload.petId, userId, payload.form);
     },
-    onSuccess: () => {
-      if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
-        queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
-      }
+    onSuccess: (_data, variables) => {
+      const petId = variables.petId;
+      void queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     },
   });
 }

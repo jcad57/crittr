@@ -1,13 +1,20 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import type { Pet } from "@/types/database";
-import { formatPetListSubline } from "@/utils/petListHelpers";
 import { usePetStore } from "@/stores/petStore";
+import type { Pet } from "@/types/database";
+import { getPetListSublineParts } from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 export type PetFeatureVariant = "orange" | "dark" | "memorial";
 
@@ -18,7 +25,14 @@ type PetFeatureCardProps = {
 
 const RADIUS = 28;
 
+/** Below this width, breed/sex stay on line 1 and age moves to line 2. */
+const SUBLINE_STACK_WIDTH = 400;
+
 export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const stackSubline = windowWidth < SUBLINE_STACK_WIDTH;
+  const { primary: sublinePrimary, age: sublineAge } =
+    getPetListSublineParts(pet);
   const router = useRouter();
   const setActivePet = usePetStore((s) => s.setActivePet);
   const isMemorial = variant === "memorial";
@@ -28,11 +42,7 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
     : isOrange
       ? Colors.orange
       : Colors.profileHeroDark;
-  const subline = formatPetListSubline(pet);
-
-  const logBg = isOrange
-    ? "rgba(0,0,0,0.28)"
-    : "rgba(255,255,255,0.16)";
+  const logBg = isOrange ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.16)";
   const deleteBg = isMemorial
     ? "rgba(110, 75, 105, 0.45)"
     : isOrange
@@ -59,12 +69,12 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
     router.push(`/(logged-in)/pet/${pet.id}/memorialize-pet`);
 
   return (
-    <Pressable
+    <TouchableOpacity
       style={[styles.card, { backgroundColor: bg }]}
       onPress={goProfile}
+      activeOpacity={0.88}
       accessibilityRole="button"
       accessibilityLabel={`Open ${pet.name} profile`}
-      android_ripple={{ color: "rgba(255,255,255,0.12)" }}
     >
       <View style={styles.topRow}>
         <View style={styles.identity}>
@@ -84,16 +94,35 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
           >
             {pet.name}
           </Text>
-          <Text
-            style={[styles.subline, isMemorial && styles.sublineMemorial]}
-            numberOfLines={2}
-          >
-            {subline}
-          </Text>
+          {stackSubline ? (
+            <View>
+              <Text
+                style={[styles.subline, isMemorial && styles.sublineMemorial]}
+                numberOfLines={2}
+              >
+                {sublinePrimary}
+              </Text>
+              <Text
+                style={[
+                  styles.subline,
+                  styles.sublineAgeSecondLine,
+                  isMemorial && styles.sublineMemorial,
+                ]}
+                numberOfLines={1}
+              >
+                {sublineAge}
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={[styles.subline, isMemorial && styles.sublineMemorial]}
+              numberOfLines={2}
+            >
+              {`${sublinePrimary} · ${sublineAge}`}
+            </Text>
+          )}
         </View>
-        <View
-          style={[styles.avatar, isMemorial && styles.avatarMemorial]}
-        >
+        <View style={[styles.avatar, isMemorial && styles.avatarMemorial]}>
           {avatarUri ? (
             <Image
               source={{ uri: avatarUri }}
@@ -155,7 +184,7 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
           </Text>
         </Pressable>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
@@ -209,10 +238,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.82)",
     marginTop: 6,
-    lineHeight: 20,
+    lineHeight: 14,
   },
   sublineMemorial: {
     color: Colors.memorialTextMuted,
+  },
+  sublineAgeSecondLine: {
+    marginTop: 4,
   },
   avatar: {
     width: 72,

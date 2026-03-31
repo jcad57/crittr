@@ -1,13 +1,21 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
+import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -58,10 +66,22 @@ const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     return opts;
   }, [vetClinic]);
 
-  const otherPets = useMemo(() => {
+  const petNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of allPets ?? []) {
+      m.set(p.id, p.name?.trim() || "Pet");
+    }
+    return m;
+  }, [allPets]);
+
+  const selectableVetPets = useMemo(() => {
     if (!allPets || !activePetId) return [];
-    return allPets.filter((p) => p.id !== activePetId);
-  }, [allPets, activePetId]);
+    const taken = new Set<string>([activePetId, ...form.otherPetIds]);
+    return allPets.filter(
+      (p) =>
+        isPetActiveForDashboard(p) && !taken.has(p.id),
+    );
+  }, [allPets, activePetId, form.otherPetIds]);
 
   const isValid =
     form.label.trim().length > 0 &&
@@ -91,14 +111,22 @@ const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     [handleSave],
   );
 
-  const toggleOtherPet = (petId: string) => {
-    const current = form.otherPetIds;
-    if (current.includes(petId)) {
-      update({ otherPetIds: current.filter((id) => id !== petId) });
-    } else {
-      update({ otherPetIds: [...current, petId] });
-    }
-  };
+  const addOtherPet = useCallback(
+    (petId: string) => {
+      if (form.otherPetIds.includes(petId)) return;
+      update({ otherPetIds: [...form.otherPetIds, petId] });
+    },
+    [form.otherPetIds, update],
+  );
+
+  const removeOtherPet = useCallback(
+    (petId: string) => {
+      update({
+        otherPetIds: form.otherPetIds.filter((id) => id !== petId),
+      });
+    },
+    [form.otherPetIds, update],
+  );
 
   const fieldLabelStyle = embeddedInScreen
     ? styles.fieldLabelScreen
@@ -150,33 +178,6 @@ const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         />
       )}
 
-      {otherPets.length > 0 && (
-        <>
-          <Text style={fieldLabelStyle}>Other pets at this visit?</Text>
-          <View style={styles.petChips}>
-            {otherPets.map((p) => {
-              const selected = form.otherPetIds.includes(p.id);
-              return (
-                <Pressable
-                  key={p.id}
-                  style={[styles.petChip, selected && styles.petChipActive]}
-                  onPress={() => toggleOtherPet(p.id)}
-                >
-                  <Text
-                    style={[
-                      styles.petChipText,
-                      selected && styles.petChipTextActive,
-                    ]}
-                  >
-                    {p.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </>
-      )}
-
       <FormInput
         label="Notes"
         placeholder="Diagnoses, follow-ups, etc."
@@ -184,6 +185,16 @@ const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         onChangeText={(v) => update({ notes: v })}
         multiline
         containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
+      />
+
+      <AlsoLogForPetsSection
+        hint="Same visit details for each pet. Add companions who were at this visit."
+        extraPetIds={form.otherPetIds}
+        selectablePets={selectableVetPets}
+        petNameById={petNameById}
+        onAddPet={addOtherPet}
+        onRemovePet={removeOtherPet}
+        fieldLabelStyle={fieldLabelStyle}
       />
 
       {!embeddedInScreen || !hideEmbeddedSave ? (
@@ -243,31 +254,6 @@ const styles = StyleSheet.create({
   },
   spacing: { marginBottom: 12 },
   spacingScreen: { marginBottom: 16 },
-  petChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
-  petChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-  },
-  petChipActive: {
-    backgroundColor: Colors.orangeLight,
-    borderColor: Colors.orange,
-  },
-  petChipText: {
-    fontFamily: "InstrumentSans-SemiBold",
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  petChipTextActive: {
-    color: Colors.orange,
-  },
   spacer: { flex: 1, minHeight: 24 },
   spacerEmbedded: { height: 8 },
   errorHint: {

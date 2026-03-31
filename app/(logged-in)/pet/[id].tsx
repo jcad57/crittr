@@ -1,7 +1,6 @@
-import HealthListCard from "@/components/ui/health/HealthListCard";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
+import HealthListCard from "@/components/ui/health/HealthListCard";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import PetExerciseRequirementsBlock from "@/components/ui/pet/PetExerciseRequirementsBlock";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
 import PetProfileHero, {
@@ -13,8 +12,9 @@ import PetStatChips, {
 import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
+import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import type {
   FeedingSchedule,
   Medication,
@@ -26,13 +26,13 @@ import {
   usePetDetailsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
-import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { isTreatFood } from "@/lib/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
 import { queryClient } from "@/lib/queryClient";
-import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
-import { isTreatFood } from "@/lib/petFood";
 import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type {
@@ -121,12 +121,13 @@ function buildQuickTags(profile: PetProfile): PetHeroTag[] {
           muted: false,
         };
 
-  const t2: PetHeroTag =
-    profile.isMicrochipped === true
-      ? { label: "Microchipped", muted: false }
-      : profile.isMicrochipped === false
-        ? { label: "Not chipped", muted: true }
-        : { label: "Microchip", muted: true };
+  const isChipped =
+    profile.isMicrochipped === true ||
+    (profile.isMicrochipped !== false &&
+      Boolean(profile.microchipNumber?.trim()));
+  const t2: PetHeroTag = isChipped
+    ? { label: "Microchipped", muted: false }
+    : { label: "No microchip", muted: true };
 
   const t3: PetHeroTag =
     profile.isInsured === true
@@ -304,14 +305,18 @@ export default function PetProfilePage() {
         icon: "clipboard-check-outline",
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
+        onPress: () =>
+          router.push(`/(logged-in)/pet/${profile.id}/medical-records` as Href),
       },
       {
         id: "vaccinations",
         title: "Vaccinations",
-        subtitle: "Rabies due Apr 2027",
+        subtitle: "View and add shots",
         icon: "calendar-month",
         iconBg: Colors.mintLight,
         iconColor: Colors.successDark,
+        onPress: () =>
+          router.push(`/(logged-in)/pet/${profile.id}/vaccinations` as Href),
       },
       {
         id: "microchip",
@@ -337,6 +342,37 @@ export default function PetProfilePage() {
         icon: "clock-outline",
         iconBg: Colors.amberLight,
         iconColor: Colors.amberDark,
+        onPress: () =>
+          router.push(
+            `/(logged-in)/activity?petId=${encodeURIComponent(profile.id)}` as Href,
+          ),
+      },
+    ];
+  }, [profile, router]);
+
+  const manageItems = useMemo((): RecordsNavItem[] => {
+    if (!profile) return [];
+    const petName = profile.name?.trim() || "your pet";
+    return [
+      {
+        id: "visibility",
+        title: "Visibility",
+        subtitle: "Memorial, delete, and how this pet appears",
+        icon: "eye-outline",
+        iconBg: Colors.orangeLight,
+        iconColor: Colors.orange,
+        onPress: () =>
+          router.push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
+      },
+      {
+        id: "invite",
+        title: `Invite someone to care for ${petName}`,
+        subtitle: "Email a co-carer (coming soon)",
+        icon: "account-heart-outline",
+        iconBg: Colors.lavenderLight,
+        iconColor: Colors.lavenderDark,
+        onPress: () =>
+          router.push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
       },
     ];
   }, [profile, router]);
@@ -400,9 +436,7 @@ export default function PetProfilePage() {
           <TouchableOpacity
             hitSlop={8}
             onPress={() =>
-              router.push(
-                `/(logged-in)/pet/${profile.id}/edit-details` as Href,
-              )
+              router.push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
             }
           >
             <Text style={styles.sectionEditLink}>Edit</Text>
@@ -422,9 +456,7 @@ export default function PetProfilePage() {
           />
         </View>
 
-        {details ? (
-          <PetExerciseRequirementsBlock details={details} />
-        ) : null}
+        {details ? <PetExerciseRequirementsBlock details={details} /> : null}
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
@@ -467,9 +499,7 @@ export default function PetProfilePage() {
           </SectionLabel>
           <TouchableOpacity
             onPress={() =>
-              router.push(
-                `/(logged-in)/pet/${profile.id}/medications` as Href,
-              )
+              router.push(`/(logged-in)/pet/${profile.id}/medications` as Href)
             }
             hitSlop={8}
           >
@@ -509,9 +539,7 @@ export default function PetProfilePage() {
                   key={v.id}
                   vaccination={v}
                   isLast={i === attentionVaccinations.length - 1}
-                  onPress={() =>
-                    router.push("/(logged-in)/health" as Href)
-                  }
+                  onPress={() => router.push("/(logged-in)/health" as Href)}
                 />
               ))}
             </HealthListCard>
@@ -520,6 +548,9 @@ export default function PetProfilePage() {
 
         <SectionLabel style={styles.sectionFlush}>Records</SectionLabel>
         <RecordsNavCard items={recordsItems} />
+
+        <SectionLabel style={styles.sectionFlush}>Manage pet</SectionLabel>
+        <RecordsNavCard items={manageItems} />
       </ScrollView>
     </View>
   );
@@ -563,7 +594,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
     marginHorizontal: 8,

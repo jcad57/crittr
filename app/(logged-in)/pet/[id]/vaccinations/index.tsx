@@ -1,15 +1,14 @@
-import MedicationListRow from "@/components/ui/medication/MedicationListRow";
+import VaccinationListRow from "@/components/ui/vaccination/VaccinationListRow";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
-  useDeleteMedicationMutation,
+  useDeletePetVaccinationMutation,
   usePetDetailsQuery,
-  useTodayActivitiesQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
-import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { getErrorMessage } from "@/lib/errorMessage";
+import { vaccinationTraffic } from "@/lib/healthTraffic";
+import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -25,7 +24,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function PetMedicationsListScreen() {
+function formatVaccinationSubline(v: PetVaccination): string {
+  const exp = v.expires_on
+    ? new Date(`${v.expires_on}T12:00:00`).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+  const freq = v.frequency_label?.trim() || "—";
+  return `${freq} · Exp. ${exp}`;
+}
+
+export default function PetVaccinationsListScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
@@ -33,27 +43,26 @@ export default function PetMedicationsListScreen() {
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
-  const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
-  const deleteMut = useDeleteMedicationMutation(petId ?? "");
+  const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
 
   const rows = useMemo(() => {
-    if (!details || !petId) return [];
-    const acts = todayActivities ?? [];
-    return details.medications.map((m) => {
-      const prog = buildMedicationDosageProgress(m, acts, petId);
-      const badge = getMedicationBadgeDisplay(m, prog);
-      const subline = [m.frequency, m.condition, m.dosage]
-        .filter((s) => s && String(s).trim())
-        .join(" · ");
-      return { m, badge, subline };
+    if (!details?.vaccinations?.length) return [];
+    return details.vaccinations.map((v) => {
+      const t = vaccinationTraffic(v);
+      return {
+        v,
+        badgeKind: t.kind,
+        badgeLabel: t.label,
+        subline: formatVaccinationSubline(v),
+      };
     });
-  }, [details, petId, todayActivities]);
+  }, [details?.vaccinations]);
 
   const confirmDelete = useCallback(
-    (medicationId: string, name: string) => {
+    (vaccinationId: string, name: string) => {
       Alert.alert(
-        "Remove medication?",
-        `Remove “${name.trim() || "this medication"}” from ${details?.name ?? "this pet"}’s profile? Past activity logs may still reference it.`,
+        "Remove vaccination?",
+        `Remove “${name.trim() || "this vaccination"}” from ${details?.name ?? "this pet"}’s profile?`,
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -61,7 +70,7 @@ export default function PetMedicationsListScreen() {
             style: "destructive",
             onPress: async () => {
               try {
-                await deleteMut.mutateAsync(medicationId);
+                await deleteMut.mutateAsync(vaccinationId);
               } catch (e) {
                 Alert.alert("Couldn't remove", getErrorMessage(e));
               }
@@ -84,7 +93,7 @@ export default function PetMedicationsListScreen() {
           />
         </Pressable>
         <Text style={styles.navTitle} numberOfLines={1}>
-          Medications
+          Vaccinations
         </Text>
         <View style={styles.navSpacer} />
       </View>
@@ -92,6 +101,10 @@ export default function PetMedicationsListScreen() {
       {isLoading && !details ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.orange} />
+        </View>
+      ) : !details || !petId ? (
+        <View style={[styles.screen, { paddingTop: 24 }]}>
+          <Text style={styles.missing}>Pet not found.</Text>
         </View>
       ) : (
         <ScrollView
@@ -104,7 +117,7 @@ export default function PetMedicationsListScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.lead}>
-            Tap a medication to edit it, add a new one below, or use ✕ to
+            Tap a vaccination to edit it, add a new one below, or use ✕ to
             remove it from this pet’s profile.
           </Text>
 
@@ -115,7 +128,7 @@ export default function PetMedicationsListScreen() {
             ]}
             onPress={() =>
               router.push(
-                `/(logged-in)/pet/${petId}/medications/new` as Href,
+                `/(logged-in)/pet/${petId}/vaccinations/new` as Href,
               )
             }
           >
@@ -124,29 +137,31 @@ export default function PetMedicationsListScreen() {
               size={22}
               color={Colors.orange}
             />
-            <Text style={styles.addBtnText}>Add medication</Text>
+            <Text style={styles.addBtnText}>Add vaccination</Text>
           </Pressable>
 
           {rows.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No medications on file yet.</Text>
+              <Text style={styles.emptyText}>
+                No vaccination records on file yet.
+              </Text>
             </View>
           ) : (
             <View style={styles.list}>
-              {rows.map(({ m, badge, subline }) => (
-                <MedicationListRow
-                  key={m.id}
+              {rows.map(({ v, badgeKind, badgeLabel, subline }) => (
+                <VaccinationListRow
+                  key={v.id}
                   variant="standalone"
-                  title={m.name}
+                  title={v.name}
                   subline={subline}
-                  badgeKind={badge.kind}
-                  badgeLabel={badge.label}
+                  badgeKind={badgeKind}
+                  badgeLabel={badgeLabel}
                   onPress={() =>
                     router.push(
-                      `/(logged-in)/pet/${petId}/medications/${m.id}` as Href,
+                      `/(logged-in)/pet/${petId}/vaccinations/${v.id}` as Href,
                     )
                   }
-                  onDeletePress={() => confirmDelete(m.id, m.name)}
+                  onDeletePress={() => confirmDelete(v.id, v.name)}
                 />
               ))}
             </View>
@@ -226,5 +241,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  missing: {
+    fontFamily: Font.uiRegular,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: 24,
   },
 });

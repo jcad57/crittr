@@ -1,6 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useMemorializePetMutation,
   usePetDetailsQuery,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
   },

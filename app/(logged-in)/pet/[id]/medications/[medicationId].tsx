@@ -2,16 +2,16 @@ import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useDeleteMedicationMutation,
   useInsertMedicationMutation,
   usePetDetailsQuery,
   useUpdateMedicationMutation,
 } from "@/hooks/queries";
-import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import {
   buildMedicationFrequencyLabelForDb,
@@ -30,10 +30,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const DOSAGE_TYPES = [
   "Tablet",
@@ -120,8 +122,6 @@ function hydrateFromMed(m: PetMedication) {
 
 export default function EditPetMedicationScreen() {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const { id: rawPetId, medicationId: rawMedId } = useLocalSearchParams<{
     id: string;
@@ -383,15 +383,7 @@ export default function EditPetMedicationScreen() {
     schedulePeriod === "custom" &&
     (!Number.isFinite(parsedCustomInterval) || parsedCustomInterval < 1);
 
-  const scrollContentMinHeight = useMemo(() => {
-    const topChrome = insets.top + 8 + 56 + 12;
-    return Math.max(windowHeight - topChrome - insets.bottom, 240);
-  }, [insets.top, insets.bottom, windowHeight]);
-
-  const petNameForTitle = details?.name?.trim() || "your pet";
-  const medNavTitle = isNew
-    ? `Add medication for ${petNameForTitle}`
-    : `Edit medication for ${petNameForTitle}`;
+  const medNavTitle = isNew ? `Add medication` : `Edit medication`;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -406,23 +398,22 @@ export default function EditPetMedicationScreen() {
         <Text style={styles.navTitle} numberOfLines={2}>
           {medNavTitle}
         </Text>
-        <View style={styles.navSpacer} />
+        <PetNavAvatar
+          displayPet={details}
+          accessibilityLabelPrefix={
+            isNew ? "Adding medication for" : "Editing medication for"
+          }
+        />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.body,
-          styles.scrollContentGrow,
-          { paddingBottom: scrollInsetBottom + 32 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
-        showsVerticalScrollIndicator={false}
-      >
-        <View
-          style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+      <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
           <View>
             <FormInput
@@ -600,34 +591,34 @@ export default function EditPetMedicationScreen() {
                 Please fill in the required fields above.
               </Text>
             ) : null}
-          </View>
 
-          <View style={styles.actionsBlock}>
-            <OrangeButton
-              onPress={handleSave}
-              disabled={saving || deleting}
-              style={styles.saveBtn}
-            >
-              {saving ? "Saving…" : isNew ? "Add medication" : "Save changes"}
-            </OrangeButton>
-
-            {!isNew ? (
-              <Pressable
-                onPress={handleDelete}
+            <View style={styles.actionsBlock}>
+              <OrangeButton
+                onPress={handleSave}
                 disabled={saving || deleting}
-                style={({ pressed }) => [
-                  styles.deleteBtn,
-                  pressed && styles.deleteBtnPressed,
-                ]}
+                style={styles.saveBtn}
               >
-                <Text style={styles.deleteText}>
-                  {deleting ? "Deleting…" : "Delete medication"}
-                </Text>
-              </Pressable>
-            ) : null}
+                {saving ? "Saving…" : isNew ? "Add medication" : "Save changes"}
+              </OrangeButton>
+
+              {!isNew ? (
+                <Pressable
+                  onPress={handleDelete}
+                  disabled={saving || deleting}
+                  style={({ pressed }) => [
+                    styles.deleteBtn,
+                    pressed && styles.deleteBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.deleteText}>
+                    {deleting ? "Deleting…" : "Delete medication"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -650,27 +641,22 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
+    lineHeight: 26,
     color: Colors.textPrimary,
     textAlign: "center",
     marginHorizontal: 8,
   },
-  navSpacer: { width: 28 },
+  scrollSafe: {
+    flex: 1,
+  },
   scroll: { flex: 1 },
-  scrollContentGrow: {
-    flexGrow: 1,
-  },
-  scrollInner: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-  },
   body: {
     paddingHorizontal: 20,
     paddingTop: 8,
   },
   actionsBlock: {
-    paddingTop: 8,
+    marginTop: 20,
   },
   field: {
     marginBottom: 16,
@@ -754,7 +740,6 @@ const styles = StyleSheet.create({
   deleteBtn: {
     marginTop: 16,
     alignItems: "center",
-    paddingVertical: 14,
   },
   deleteBtnPressed: {
     opacity: 0.75,

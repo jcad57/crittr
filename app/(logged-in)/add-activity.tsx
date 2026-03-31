@@ -1,9 +1,13 @@
+import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
-import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
+import { Colors } from "@/constants/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,
@@ -11,15 +15,56 @@ import {
   useLogVetVisitMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { foodActivityFormForPet } from "@/lib/foodActivityMerge";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
+import type { ActivityType } from "@/types/database";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
-import { BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  ActivityIndicator,
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const SAVE_LABEL = "Save";
+const CONTINUE_LABEL = "Continue";
+
+function addActivityNavTitle(
+  step: "type" | "details",
+  activityType: ActivityType | null,
+): string {
+  if (step === "type") return "Log activity";
+  switch (activityType) {
+    case "exercise":
+      return "Add exercise";
+    case "food":
+      return "Add meal";
+    case "medication":
+      return "Add medication";
+    case "vet_visit":
+      return "Add vet visit";
+    default:
+      return "Log activity";
+  }
+}
 
 export default function AddActivityScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const scrollInsetBottom = useFloatingNavScrollInset();
+  const scrollRef = useRef<ScrollView>(null);
+  const stepRef = useRef<ActivityDetailStepRef | null>(null);
+
   const step = useActivityFormStore((s) => s.step);
   const activityType = useActivityFormStore((s) => s.activityType);
   const selectType = useActivityFormStore((s) => s.selectType);
@@ -29,7 +74,12 @@ export default function AddActivityScreen() {
   const exerciseForm = useActivityFormStore((s) => s.exerciseForm);
   const foodForm = useActivityFormStore((s) => s.foodForm);
   const foodExtraRows = useActivityFormStore((s) => s.foodExtraRows);
-  const exerciseExtraPetIds = useActivityFormStore((s) => s.exerciseExtraPetIds);
+  const exerciseExtraPetIds = useActivityFormStore(
+    (s) => s.exerciseExtraPetIds,
+  );
+  const medicationExtraPetIds = useActivityFormStore(
+    (s) => s.medicationExtraPetIds,
+  );
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const vetForm = useActivityFormStore((s) => s.vetVisitForm);
 
@@ -38,13 +88,19 @@ export default function AddActivityScreen() {
 
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
-  const medMut = useLogMedicationMutation(activePetId);
+  const medMut = useLogMedicationMutation();
   const vetMut = useLogVetVisitMutation(activePetId);
+
+  const scrollKey = `${step}-${activityType ?? "none"}`;
 
   useEffect(() => {
     reset();
     return () => reset();
   }, [reset]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollKey]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -73,6 +129,11 @@ export default function AddActivityScreen() {
     router.back();
   }, [reset, router]);
 
+  const cancelDetails = useCallback(() => {
+    reset();
+    router.back();
+  }, [reset, router]);
+
   const saveExercise = useCallback(async () => {
     if (!activePetId) return;
     const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
@@ -96,9 +157,13 @@ export default function AddActivityScreen() {
   }, [foodMut, foodForm, foodExtraRows, activePetId, finish]);
 
   const saveMed = useCallback(async () => {
-    await medMut.mutateAsync(medForm);
+    if (!activePetId) return;
+    const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
+    for (const petId of ids) {
+      await medMut.mutateAsync({ petId, form: medForm });
+    }
     finish();
-  }, [medMut, medForm, finish]);
+  }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
 
   const saveVet = useCallback(async () => {
     await vetMut.mutateAsync({
@@ -108,25 +173,210 @@ export default function AddActivityScreen() {
     finish();
   }, [vetMut, vetForm, allPets, finish]);
 
-  const scrollKey = `${step}-${activityType ?? "none"}`;
+  const saving =
+    exerciseMut.isPending ||
+    foodMut.isPending ||
+    medMut.isPending ||
+    vetMut.isPending;
+
+  const navTitle = addActivityNavTitle(step, activityType);
+
+  const scrollContentMinHeight = useMemo(() => {
+    const topChrome = insets.top + 8 + 56 + 8 + 4;
+    return Math.max(windowHeight - topChrome - insets.bottom, 240);
+  }, [insets.top, insets.bottom, windowHeight]);
 
   return (
-    <OnboardingCard scrollKey={scrollKey}>
-      {step === "type" ? (
-        <ActivityTypeStep
-          selected={activityType}
-          onSelect={selectType}
-          onBack={goBack}
-        />
-      ) : activityType === "exercise" ? (
-        <ExerciseDetailStep onSave={saveExercise} onBack={goBack} />
-      ) : activityType === "food" ? (
-        <FoodDetailStep onSave={saveFood} onBack={goBack} />
-      ) : activityType === "medication" ? (
-        <MedicationDetailStep onSave={saveMed} onBack={goBack} />
-      ) : activityType === "vet_visit" ? (
-        <VetVisitDetailStep onSave={saveVet} onBack={goBack} />
-      ) : null}
-    </OnboardingCard>
+    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <View style={styles.nav}>
+        <Pressable onPress={goBack} hitSlop={8}>
+          <MaterialCommunityIcons
+            name="chevron-left"
+            size={28}
+            color={Colors.textPrimary}
+          />
+        </Pressable>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          {navTitle}
+        </Text>
+        <PetNavAvatar accessibilityLabelPrefix="Logging activity for" />
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.body,
+          styles.scrollContentGrow,
+          { paddingBottom: scrollInsetBottom + 32 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
+        {step === "type" ? (
+          <View
+            style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+          >
+            <View>
+              <ActivityTypeStep selected={activityType} onSelect={selectType} />
+            </View>
+
+            <View style={styles.actionsBlock}>
+              <OrangeButton
+                onPress={() => {
+                  if (activityType) setStep("details");
+                }}
+                disabled={!activityType}
+                style={styles.saveBtn}
+              >
+                {CONTINUE_LABEL}
+              </OrangeButton>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  pressed && styles.cancelBtnPressed,
+                ]}
+                onPress={goBack}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel and go back"
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View
+            style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+          >
+            <View>
+              {activityType === "exercise" ? (
+                <ExerciseDetailStep
+                  ref={stepRef}
+                  onSave={saveExercise}
+                  onBack={goBack}
+                  saveLabel={SAVE_LABEL}
+                  embeddedInScreen
+                  hideEmbeddedSave
+                />
+              ) : activityType === "food" ? (
+                <FoodDetailStep
+                  ref={stepRef}
+                  onSave={saveFood}
+                  onBack={goBack}
+                  saveLabel={SAVE_LABEL}
+                  embeddedInScreen
+                  hideEmbeddedSave
+                />
+              ) : activityType === "medication" ? (
+                <MedicationDetailStep
+                  ref={stepRef}
+                  onSave={saveMed}
+                  onBack={goBack}
+                  saveLabel={SAVE_LABEL}
+                  embeddedInScreen
+                  hideEmbeddedSave
+                />
+              ) : activityType === "vet_visit" ? (
+                <VetVisitDetailStep
+                  ref={stepRef}
+                  onSave={saveVet}
+                  onBack={goBack}
+                  saveLabel={SAVE_LABEL}
+                  embeddedInScreen
+                  hideEmbeddedSave
+                />
+              ) : null}
+            </View>
+
+            <View style={styles.actionsBlock}>
+              <OrangeButton
+                onPress={() => stepRef.current?.submit()}
+                disabled={saving}
+                style={styles.saveBtn}
+              >
+                {saving ? (
+                  <ActivityIndicator color={Colors.white} />
+                ) : (
+                  SAVE_LABEL
+                )}
+              </OrangeButton>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  pressed && styles.cancelBtnPressed,
+                ]}
+                onPress={cancelDetails}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel and go back"
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
+  nav: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  navTitle: {
+    flex: 1,
+    fontFamily: Font.displayBold,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
+    color: Colors.textPrimary,
+    textAlign: "center",
+    marginHorizontal: 8,
+  },
+  petContextHint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  scroll: { flex: 1 },
+  scrollContentGrow: {
+    flexGrow: 1,
+  },
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+  },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+  },
+  actionsBlock: {
+    paddingTop: 8,
+  },
+  saveBtn: {
+    marginTop: 0,
+  },
+  cancelBtn: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  cancelBtnPressed: {
+    opacity: 0.75,
+  },
+  cancelText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+});

@@ -25,6 +25,8 @@ type ActivityFormState = {
   foodExtraRows: FoodActivityExtraPetRow[];
   /** Extra pets to log the same exercise for (shared details). */
   exerciseExtraPetIds: string[];
+  /** Extra pets to log the same medication dose for (shared med + amount). */
+  medicationExtraPetIds: string[];
   medicationForm: MedicationActivityFormData;
   vetVisitForm: VetVisitActivityFormData;
 
@@ -42,6 +44,9 @@ type ActivityFormState = {
   addExerciseExtraPetId: (petId: string) => void;
   removeExerciseExtraPetId: (petId: string) => void;
   clearExerciseExtraPetIds: () => void;
+  addMedicationExtraPetId: (petId: string) => void;
+  removeMedicationExtraPetId: (petId: string) => void;
+  clearMedicationExtraPetIds: () => void;
   updateMedication: (patch: Partial<MedicationActivityFormData>) => void;
   updateVetVisit: (patch: Partial<VetVisitActivityFormData>) => void;
   reset: () => void;
@@ -95,11 +100,12 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
   foodForm: { ...EMPTY_FOOD },
   foodExtraRows: [],
   exerciseExtraPetIds: [],
+  medicationExtraPetIds: [],
   medicationForm: { ...EMPTY_MED },
   vetVisitForm: { ...EMPTY_VET },
 
   setStep: (step) => set({ step }),
-  selectType: (type) => set({ activityType: type, step: "details" }),
+  selectType: (type) => set({ activityType: type }),
 
   updateExercise: (patch) =>
     set((s) => ({ exerciseForm: { ...s.exerciseForm, ...patch } })),
@@ -140,6 +146,17 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       exerciseExtraPetIds: s.exerciseExtraPetIds.filter((id) => id !== petId),
     })),
   clearExerciseExtraPetIds: () => set({ exerciseExtraPetIds: [] }),
+  addMedicationExtraPetId: (petId) =>
+    set((s) => ({
+      medicationExtraPetIds: s.medicationExtraPetIds.includes(petId)
+        ? s.medicationExtraPetIds
+        : [...s.medicationExtraPetIds, petId],
+    })),
+  removeMedicationExtraPetId: (petId) =>
+    set((s) => ({
+      medicationExtraPetIds: s.medicationExtraPetIds.filter((id) => id !== petId),
+    })),
+  clearMedicationExtraPetIds: () => set({ medicationExtraPetIds: [] }),
   updateMedication: (patch) =>
     set((s) => ({ medicationForm: { ...s.medicationForm, ...patch } })),
   updateVetVisit: (patch) =>
@@ -153,6 +170,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       foodForm: { ...EMPTY_FOOD },
       foodExtraRows: [],
       exerciseExtraPetIds: [],
+      medicationExtraPetIds: [],
       medicationForm: { ...EMPTY_MED },
       vetVisitForm: { ...EMPTY_VET },
     }),
@@ -171,6 +189,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
         type === "food" ? petActivityToFoodForm(activity) : { ...EMPTY_FOOD },
       foodExtraRows: [],
       exerciseExtraPetIds: [],
+      medicationExtraPetIds: [],
       medicationForm:
         type === "medication"
           ? petActivityToMedicationForm(activity)

@@ -1,7 +1,7 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useInsertPetFoodMutation,
   usePetDetailsQuery,
@@ -12,7 +12,7 @@ import { isTreatFood } from "@/lib/petFood";
 import type { UpsertPetFoodInput } from "@/services/petFoods";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,7 +39,13 @@ export default function EditPetFoodScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
+
+  const scrollContentMinHeight = useMemo(() => {
+    const topChrome = insets.top + 8 + 56 + 8 + 4;
+    return Math.max(windowHeight - topChrome - insets.bottom, 240);
+  }, [insets.top, insets.bottom, windowHeight]);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const insertMut = useInsertPetFoodMutation(petId ?? "");
@@ -169,142 +176,155 @@ export default function EditPetFoodScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
-          { paddingBottom: scrollInsetBottom + 24 },
+          styles.scrollContentGrow,
+          { paddingBottom: scrollInsetBottom + 32 },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lead}>
-          {isNew
-            ? "Add a meal or treat for this pet."
-            : "Update brand, portion, and how often it’s given."}
-        </Text>
-
-        <FormInput
-          label="Brand / name *"
-          value={brand}
-          onChangeText={setBrand}
-          placeholder="e.g. Purina Pro Plan"
-          containerStyle={styles.field}
-          error={attempted && !brand.trim()}
-        />
-
-        <Text style={styles.fieldLabel}>Type</Text>
-        <View style={styles.row2}>
-          <Pressable
-            style={[styles.typeToggle, !isTreat && styles.typeToggleActive]}
-            onPress={() => setIsTreat(false)}
-          >
-            <Text
-              style={[
-                styles.typeToggleText,
-                !isTreat && styles.typeToggleTextActive,
-              ]}
-            >
-              Meal
+        <View
+          style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+        >
+          <View>
+            <Text style={styles.lead}>
+              {isNew
+                ? "Add a meal or treat for this pet."
+                : "Update brand, portion, and how often it’s given."}
             </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.typeToggle, isTreat && styles.typeToggleActiveTreat]}
-            onPress={() => setIsTreat(true)}
-          >
-            <Text
-              style={[
-                styles.typeToggleText,
-                isTreat && styles.typeToggleTextActiveTreat,
-              ]}
-            >
-              Treat
-            </Text>
-          </Pressable>
-        </View>
 
-        <Text style={styles.fieldLabel}>Portion</Text>
-        <View style={styles.row2}>
-          <FormInput
-            placeholder="Amount"
-            value={portionSize}
-            onChangeText={setPortionSize}
-            keyboardType="decimal-pad"
-            containerStyle={styles.portionAmt}
-          />
-          <View style={styles.portionUnits}>
-            {PORTION_UNITS.map((unit, i) => (
+            <FormInput
+              label="Brand / name *"
+              value={brand}
+              onChangeText={setBrand}
+              placeholder="e.g. Purina Pro Plan"
+              containerStyle={styles.field}
+              error={attempted && !brand.trim()}
+            />
+
+            <Text style={styles.fieldLabel}>Type</Text>
+            <View style={styles.row2}>
               <Pressable
-                key={unit}
-                style={[
-                  styles.unitChip,
-                  i < PORTION_UNITS.length - 1 && styles.unitChipBorder,
-                  portionUnit === unit && styles.unitChipActive,
-                ]}
-                onPress={() => setPortionUnit(unit)}
+                style={[styles.typeToggle, !isTreat && styles.typeToggleActive]}
+                onPress={() => setIsTreat(false)}
               >
                 <Text
                   style={[
-                    styles.unitChipText,
-                    portionUnit === unit && styles.unitChipTextActive,
+                    styles.typeToggleText,
+                    !isTreat && styles.typeToggleTextActive,
                   ]}
                 >
-                  {unit}
+                  Meal
                 </Text>
               </Pressable>
-            ))}
+              <Pressable
+                style={[
+                  styles.typeToggle,
+                  isTreat && styles.typeToggleActiveTreat,
+                ]}
+                onPress={() => setIsTreat(true)}
+              >
+                <Text
+                  style={[
+                    styles.typeToggleText,
+                    isTreat && styles.typeToggleTextActiveTreat,
+                  ]}
+                >
+                  Treat
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.fieldLabel}>Portion</Text>
+            <View style={styles.row2}>
+              <FormInput
+                placeholder="Amount"
+                value={portionSize}
+                onChangeText={setPortionSize}
+                keyboardType="decimal-pad"
+                containerStyle={styles.portionAmt}
+              />
+              <View style={styles.portionUnits}>
+                {PORTION_UNITS.map((unit, i) => (
+                  <Pressable
+                    key={unit}
+                    style={[
+                      styles.unitChip,
+                      i < PORTION_UNITS.length - 1 && styles.unitChipBorder,
+                      portionUnit === unit && styles.unitChipActive,
+                    ]}
+                    onPress={() => setPortionUnit(unit)}
+                  >
+                    <Text
+                      style={[
+                        styles.unitChipText,
+                        portionUnit === unit && styles.unitChipTextActive,
+                      ]}
+                    >
+                      {unit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <Text
+              style={[
+                styles.fieldLabel,
+                attempted && !isValid && styles.fieldLabelError,
+              ]}
+            >
+              Times per day *
+            </Text>
+            <View style={styles.timesRow}>
+              {TIMES_QUICK.map((t) => (
+                <Pressable
+                  key={t}
+                  style={[
+                    styles.timeChip,
+                    mealsPerDay === t && styles.timeChipActive,
+                  ]}
+                  onPress={() => setMealsPerDay(t)}
+                >
+                  <Text
+                    style={[
+                      styles.timeChipText,
+                      mealsPerDay === t && styles.timeChipTextActive,
+                    ]}
+                  >
+                    {t}×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <FormInput
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Any feeding notes"
+              multiline
+              containerStyle={styles.field}
+            />
+
+            {attempted && !isValid ? (
+              <Text style={styles.formError}>
+                Please enter a brand and a valid times-per-day (1–8).
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.actionsBlock}>
+            <OrangeButton
+              onPress={handleSave}
+              disabled={saving}
+              style={styles.saveBtn}
+            >
+              {saving ? "Saving…" : isNew ? "Add food" : "Save changes"}
+            </OrangeButton>
           </View>
         </View>
-
-        <Text
-          style={[
-            styles.fieldLabel,
-            attempted && !isValid && styles.fieldLabelError,
-          ]}
-        >
-          Times per day *
-        </Text>
-        <View style={styles.timesRow}>
-          {TIMES_QUICK.map((t) => (
-            <Pressable
-              key={t}
-              style={[
-                styles.timeChip,
-                mealsPerDay === t && styles.timeChipActive,
-              ]}
-              onPress={() => setMealsPerDay(t)}
-            >
-              <Text
-                style={[
-                  styles.timeChipText,
-                  mealsPerDay === t && styles.timeChipTextActive,
-                ]}
-              >
-                {t}×
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <FormInput
-          label="Notes"
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Any feeding notes"
-          multiline
-          containerStyle={styles.field}
-        />
-
-        {attempted && !isValid ? (
-          <Text style={styles.formError}>
-            Please enter a brand and a valid times-per-day (1–8).
-          </Text>
-        ) : null}
-
-        <OrangeButton
-          onPress={handleSave}
-          disabled={saving}
-          style={styles.saveBtn}
-        >
-          {saving ? "Saving…" : isNew ? "Add food" : "Save changes"}
-        </OrangeButton>
       </ScrollView>
     </View>
   );
@@ -328,16 +348,26 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
+    lineHeight: 26,
     color: Colors.textPrimary,
     textAlign: "center",
     marginHorizontal: 8,
   },
   navSpacer: { width: 28 },
   scroll: { flex: 1 },
+  scrollContentGrow: {
+    flexGrow: 1,
+  },
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+  },
   body: {
     paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  actionsBlock: {
     paddingTop: 8,
   },
   lead: {
@@ -463,7 +493,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   saveBtn: {
-    marginTop: 8,
+    marginTop: 0,
   },
   missing: {
     fontFamily: Font.uiRegular,

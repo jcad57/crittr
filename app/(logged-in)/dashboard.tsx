@@ -251,7 +251,7 @@ export default function Dashboard() {
   return (
     <View style={styles.root}>
       <View style={styles.screen}>
-        <View style={[styles.headerBar, { paddingTop: insets.top }]}>
+        <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerInner}>
             <DashboardHeader
               pets={pets}

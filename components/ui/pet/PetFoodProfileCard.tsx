@@ -1,7 +1,12 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
+
+/** Same assets as `DailyProgress` meals / treats rings. */
+const MEAL_ICON = require("@/assets/icons/food-icon.png");
+const TREAT_ICON = require("@/assets/icons/dog-bone-icon.png");
 
 type PetFoodProfileCardProps = {
   name: string;
@@ -17,10 +22,10 @@ export default function PetFoodProfileCard({
   return (
     <View style={styles.card}>
       <View style={styles.iconBox}>
-        <MaterialCommunityIcons
-          name="food-variant"
-          size={22}
-          color={Colors.orange}
+        <Image
+          source={isTreat ? TREAT_ICON : MEAL_ICON}
+          style={styles.iconImage}
+          contentFit="contain"
         />
       </View>
       <View style={styles.mid}>
@@ -43,6 +48,11 @@ export default function PetFoodProfileCard({
           {isTreat ? "Treat" : "Meal"}
         </Text>
       </View>
+      <MaterialCommunityIcons
+        name="chevron-right"
+        size={22}
+        color={Colors.gray400}
+      />
     </View>
   );
 }
@@ -75,6 +85,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  iconImage: {
+    width: 26,
+    height: 26,
+  },
   mid: {
     flex: 1,
     minWidth: 0,
@@ -95,7 +109,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    maxWidth: "36%",
+    flexShrink: 1,
+    maxWidth: "32%",
   },
   badgeTreat: {
     backgroundColor: treatBg,

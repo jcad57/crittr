@@ -1,15 +1,15 @@
 import HealthActionBanner from "@/components/ui/health/HealthActionBanner";
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import HealthMedicationRow from "@/components/ui/health/HealthMedicationRow";
-import HealthPetFilterChips from "@/components/ui/health/HealthPetFilterChips";
 import HealthSectionHeader from "@/components/ui/health/HealthSectionHeader";
 import HealthVaccinationRow from "@/components/ui/health/HealthVaccinationRow";
 import HealthVisitRow from "@/components/ui/health/HealthVisitRow";
 import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useHealthSnapshotQuery,
   useTodayActivitiesForPetIdsQuery,
@@ -19,7 +19,7 @@ import { isMedicationDueToday } from "@/lib/healthTraffic";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { usePetStore } from "@/stores/petStore";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -41,13 +41,21 @@ export default function HealthScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
-  const setActivePet = usePetStore((s) => s.setActivePet);
+  const activePetId = usePetStore((s) => s.activePetId);
+  const initActivePetFromList = usePetStore((s) => s.initActivePetFromList);
   const { data, isLoading, isError, error } = useHealthSnapshotQuery();
 
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const pets = data?.pets ?? [];
+
+  useEffect(() => {
+    if (pets.length > 0) initActivePetFromList(pets);
+  }, [pets, initActivePetFromList]);
+
+  /** PetNavAvatar + lists use global active pet; fallback until store syncs. */
+  const effectivePetId = activePetId ?? pets[0]?.id ?? null;
+
   const medications = data?.medications ?? [];
 
   const petIds = useMemo(() => pets.map((p) => p.id), [pets]);
@@ -59,16 +67,16 @@ export default function HealthScreen() {
   const vetVisits = data?.vetVisits ?? [];
 
   const filteredMeds = useMemo(
-    () => filterByPet(medications, selectedPetId),
-    [medications, selectedPetId],
+    () => filterByPet(medications, effectivePetId),
+    [medications, effectivePetId],
   );
   const filteredVacs = useMemo(
-    () => filterByPet(vaccinations, selectedPetId),
-    [vaccinations, selectedPetId],
+    () => filterByPet(vaccinations, effectivePetId),
+    [vaccinations, effectivePetId],
   );
   const filteredVisits = useMemo(
-    () => filterByPet(vetVisits, selectedPetId),
-    [vetVisits, selectedPetId],
+    () => filterByPet(vetVisits, effectivePetId),
+    [vetVisits, effectivePetId],
   );
 
   const dueTodayMeds = useMemo(
@@ -101,19 +109,18 @@ export default function HealthScreen() {
     return `${m.pet.name}'s ${m.name} dose is due today`;
   }, [dueTodayMeds]);
 
-  const defaultPetId = selectedPetId ?? pets[0]?.id;
-
   const updatedHint = useMemo(() => {
     const t = new Date().toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
     });
-    return `All pets · Updated ${t}`;
-  }, []);
+    const name = pets.find((p) => p.id === effectivePetId)?.name?.trim();
+    return name ? `${name} · Updated ${t}` : `Updated ${t}`;
+  }, [pets, effectivePetId]);
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
-    if (!defaultPetId) return [];
+    if (!effectivePetId) return [];
     return [
       {
         id: "microchip",
@@ -123,7 +130,7 @@ export default function HealthScreen() {
         iconBg: Colors.skyLight,
         iconColor: Colors.skyDark,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${defaultPetId}/microchip`),
+          router.push(`/(logged-in)/pet/${effectivePetId}/microchip`),
       },
       {
         id: "medical-records",
@@ -133,25 +140,20 @@ export default function HealthScreen() {
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${defaultPetId}/medical-records`),
+          router.push(`/(logged-in)/pet/${effectivePetId}/medical-records`),
       },
     ];
-  }, [defaultPetId, router]);
+  }, [effectivePetId, router]);
 
   const openAddVisit = () => {
-    if (!defaultPetId) return;
-    router.push(`/(logged-in)/add-vet-visit?petId=${defaultPetId}`);
+    if (!effectivePetId) return;
+    router.push(`/(logged-in)/add-vet-visit?petId=${effectivePetId}`);
   };
 
-  const openAddVaccination = useCallback(() => {
-    if (pets.length === 0) return;
-    if (selectedPetId) {
-      setActivePet(selectedPetId);
-      router.push(`/(logged-in)/add-vaccination?petId=${selectedPetId}`);
-    } else {
-      router.push("/(logged-in)/select-pet-for-vaccination");
-    }
-  }, [pets.length, selectedPetId, router, setActivePet]);
+  const openManageVaccinations = useCallback(() => {
+    if (!effectivePetId) return;
+    router.push(`/(logged-in)/pet/${effectivePetId}/vaccinations`);
+  }, [effectivePetId, router]);
 
   if (isLoading && !data) {
     return (
@@ -207,18 +209,13 @@ export default function HealthScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerTitles}>
-          <Text style={styles.pageTitle}>Health</Text>
-          <Text style={styles.pageSubtitle}>{updatedHint}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTitles}>
+            <Text style={styles.pageTitle}>Health</Text>
+            <Text style={styles.pageSubtitle}>{updatedHint}</Text>
+          </View>
+          <PetNavAvatar accessibilityLabelPrefix="Health view for" />
         </View>
-
-        {pets.length > 0 ? (
-          <HealthPetFilterChips
-            pets={pets}
-            selectedPetId={selectedPetId}
-            onSelect={setSelectedPetId}
-          />
-        ) : null}
 
         {showBanner ? (
           <HealthActionBanner
@@ -235,9 +232,11 @@ export default function HealthScreen() {
         <HealthSectionHeader
           title="MEDICATIONS"
           onAddPress={
-            defaultPetId
+            effectivePetId
               ? () =>
-                  router.push(`/(logged-in)/pet/${defaultPetId}/medications`)
+                  router.push(
+                    `/(logged-in)/pet/${effectivePetId}/medications`,
+                  )
               : undefined
           }
         />
@@ -277,7 +276,9 @@ export default function HealthScreen() {
 
         <HealthSectionHeader
           title="VACCINATIONS"
-          onAddPress={pets.length > 0 ? openAddVaccination : undefined}
+          onAddPress={
+            effectivePetId ? openManageVaccinations : undefined
+          }
         />
         {filteredVacs.length > 0 ? (
           <HealthListCard>
@@ -286,21 +287,25 @@ export default function HealthScreen() {
                 key={v.id}
                 item={v}
                 isLast={i === filteredVacs.length - 1}
-                onPress={() => router.push(`/(logged-in)/pet/${v.pet_id}`)}
+                onPress={() =>
+                  router.push(
+                    `/(logged-in)/pet/${v.pet_id}/vaccinations/${v.id}`,
+                  )
+                }
               />
             ))}
           </HealthListCard>
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No vaccination records on file for this filter.
+              No vaccination records on file for this pet.
             </Text>
           </View>
         )}
 
         <HealthSectionHeader
           title="UPCOMING VISITS"
-          onAddPress={defaultPetId ? openAddVisit : undefined}
+          onAddPress={effectivePetId ? openAddVisit : undefined}
         />
         {filteredVisits.length > 0 ? (
           <HealthListCard>
@@ -318,7 +323,7 @@ export default function HealthScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No upcoming visits for this filter.
+              No upcoming visits for this pet.
             </Text>
           </View>
         )}
@@ -355,12 +360,19 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 4,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   headerTitles: {
+    flex: 1,
     minWidth: 0,
   },
   pageTitle: {
     fontFamily: Font.displayBold,
-    fontSize: 28,
+    fontSize: MAIN_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     letterSpacing: -0.5,
   },

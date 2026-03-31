@@ -1,5 +1,5 @@
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { usePetStore } from "@/stores/petStore";
@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * Shown from Health when the filter is “All pets” and the user adds a vaccination.
- * Choosing a pet sets it as active and opens add-vaccination for that pet.
+ * Choosing a pet opens the add-vaccination form for that pet.
  */
 export default function SelectPetForVaccinationScreen() {
   const insets = useSafeAreaInsets();
@@ -23,7 +23,7 @@ export default function SelectPetForVaccinationScreen() {
 
   const onPickPet = (pet: Pet) => {
     setActivePet(pet.id);
-    router.replace(`/(logged-in)/add-vaccination?petId=${pet.id}`);
+    router.replace(`/(logged-in)/pet/${pet.id}/vaccinations/new`);
   };
 
   return (
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
   },

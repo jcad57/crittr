@@ -5,7 +5,7 @@ import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useDeleteActivityMutation,
   useUpdateExerciseActivityMutation,
@@ -320,6 +320,7 @@ export default function ManageActivityItemScreen() {
                 saveLabel={SAVE_LABEL}
                 embeddedInScreen
                 hideEmbeddedSave
+                showBatchPets={false}
               />
             ) : activityType === "food" ? (
               <FoodDetailStep
@@ -329,6 +330,7 @@ export default function ManageActivityItemScreen() {
                 saveLabel={SAVE_LABEL}
                 embeddedInScreen
                 hideEmbeddedSave
+                showBatchPets={false}
               />
             ) : activityType === "medication" ? (
               <MedicationDetailStep
@@ -338,6 +340,7 @@ export default function ManageActivityItemScreen() {
                 saveLabel={SAVE_LABEL}
                 embeddedInScreen
                 hideEmbeddedSave
+                showBatchPets={false}
               />
             ) : activityType === "vet_visit" ? (
               <VetVisitDetailStep
@@ -402,7 +405,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 22,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
     marginHorizontal: 8,

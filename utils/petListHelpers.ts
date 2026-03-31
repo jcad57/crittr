@@ -1,11 +1,12 @@
 import type { Pet } from "@/types/database";
 import {
-  formatPetAgeDisplay,
+  formatPetAgeYearsOld,
   formatPetTypeLabel,
   formatPetWeightDisplay,
 } from "@/utils/petDisplay";
 
-export function formatPetListSubline(pet: Pet): string {
+/** Breed · sex and age separately so My Pets can stack age on narrow screens. */
+export function getPetListSublineParts(pet: Pet): { primary: string; age: string } {
   const breed = pet.breed?.trim() || formatPetTypeLabel(pet.pet_type);
   const sex =
     pet.sex === "female"
@@ -15,8 +16,16 @@ export function formatPetListSubline(pet: Pet): string {
         : "—";
   const hasAge =
     pet.age != null || (pet.age_months != null && pet.age_months > 0);
-  const age = hasAge ? formatPetAgeDisplay(pet) : "—";
-  return `${breed} · ${sex} · ${age}`;
+  const age = hasAge ? formatPetAgeYearsOld(pet) : "—";
+  return {
+    primary: `${breed} · ${sex}`,
+    age,
+  };
+}
+
+export function formatPetListSubline(pet: Pet): string {
+  const { primary, age } = getPetListSublineParts(pet);
+  return `${primary} · ${age}`;
 }
 
 /** Quick-glance tags for the pets list cards. */

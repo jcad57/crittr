@@ -1,8 +1,10 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import type { Pet } from "@/data/mockDashboard";
+import { useProfileQuery } from "@/hooks/queries";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -29,6 +31,9 @@ export default function DashboardHeader({
   onNotificationsPress,
   onProfilePress,
 }: DashboardHeaderProps) {
+  const { data: profile } = useProfileQuery();
+  const profileAvatarUri = profile?.avatar_url?.trim() || null;
+
   const { greeting, dateLine } = useMemo(() => {
     const now = new Date();
     const hour = now.getHours();
@@ -62,15 +67,30 @@ export default function DashboardHeader({
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.circleButton}
+            style={[
+              styles.circleButton,
+              profileAvatarUri && styles.circleButtonWithPhoto,
+            ]}
             onPress={onProfilePress}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
           >
-            <MaterialCommunityIcons
-              name="account-circle-outline"
-              size={24}
-              color={Colors.gray800}
-            />
+            {profileAvatarUri ? (
+              <Image
+                source={{ uri: profileAvatarUri }}
+                style={styles.profileAvatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+            ) : (
+              <MaterialCommunityIcons
+                name="account-circle-outline"
+                size={24}
+                color={Colors.gray800}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -109,8 +129,8 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: Font.displayBold,
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: MAIN_SCREEN_TITLE_SIZE,
+    lineHeight: 34,
     color: Colors.textPrimary,
     letterSpacing: -0.3,
   },
@@ -139,6 +159,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray200,
     alignItems: "center",
     justifyContent: "center",
+  },
+  circleButtonWithPhoto: {
+    padding: 0,
+    overflow: "hidden",
+  },
+  profileAvatarImage: {
+    width: "100%",
+    height: "100%",
   },
   pillBlock: {
     marginTop: 8,

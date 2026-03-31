@@ -1,7 +1,9 @@
-import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { usePetsQuery } from "@/hooks/queries";
+import { usePetStore } from "@/stores/petStore";
 import type { ActivityType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Option = {
@@ -46,18 +48,19 @@ const OPTIONS: Option[] = [
 type Props = {
   selected: ActivityType | null;
   onSelect: (type: ActivityType) => void;
-  onBack: () => void;
 };
 
-export default function ActivityTypeStep({
-  selected,
-  onSelect,
-  onBack,
-}: Props) {
+export default function ActivityTypeStep({ selected, onSelect }: Props) {
+  const activePetId = usePetStore((s) => s.activePetId);
+  const { data: allPets } = usePetsQuery();
+  const activePetName = useMemo(() => {
+    if (!activePetId || !allPets?.length) return null;
+    return allPets.find((p) => p.id === activePetId)?.name?.trim() ?? null;
+  }, [activePetId, allPets]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Log an activity</Text>
-      <Text style={styles.subtitle}>What type of activity?</Text>
+      <Text style={styles.title}>What type of activity are you logging?</Text>
 
       <View style={styles.grid}>
         {OPTIONS.map((opt) => {
@@ -87,41 +90,21 @@ export default function ActivityTypeStep({
           );
         })}
       </View>
-
-      <View style={styles.spacer} />
-
-      <OrangeButton
-        onPress={() => {
-          if (selected) onSelect(selected);
-        }}
-        disabled={!selected}
-        style={styles.cta}
-      >
-        Continue
-      </OrangeButton>
-
-      <Pressable onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>Cancel</Text>
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 4,
+  container: {
+    width: "100%",
   },
-  subtitle: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 15,
+  title: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 16,
     color: Colors.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 36,
   },
   grid: {
     flexDirection: "row",
@@ -149,16 +132,5 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-SemiBold",
     fontSize: 14,
     color: Colors.textPrimary,
-  },
-  spacer: { flex: 1, minHeight: 24 },
-  cta: { marginTop: 12 },
-  backButton: {
-    alignSelf: "center",
-    paddingTop: 16,
-  },
-  backText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.textSecondary,
   },
 });

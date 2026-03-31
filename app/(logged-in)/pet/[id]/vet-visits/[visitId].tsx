@@ -1,7 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
   },

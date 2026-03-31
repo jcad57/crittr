@@ -193,3 +193,50 @@ export async function createPetVaccination(
   if (error) throw error;
   return data as PetVaccination;
 }
+
+export type UpdatePetVaccinationInput = {
+  name: string;
+  expires_on: string | null;
+  frequency_label: string | null;
+  notes: string | null;
+};
+
+export async function updatePetVaccination(
+  petId: string,
+  vaccinationId: string,
+  input: UpdatePetVaccinationInput,
+): Promise<PetVaccination> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Vaccination name is required");
+
+  const { data, error } = await supabase
+    .from("pet_vaccinations")
+    .update({
+      name,
+      expires_on: input.expires_on,
+      frequency_label: input.frequency_label?.trim()
+        ? input.frequency_label.trim()
+        : null,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    })
+    .eq("id", vaccinationId)
+    .eq("pet_id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetVaccination;
+}
+
+export async function deletePetVaccination(
+  petId: string,
+  vaccinationId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("pet_vaccinations")
+    .delete()
+    .eq("id", vaccinationId)
+    .eq("pet_id", petId);
+
+  if (error) throw error;
+}

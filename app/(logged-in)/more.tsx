@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -14,7 +15,7 @@ export default function MorePlaceholderScreen() {
       style={[
         styles.screen,
         {
-          paddingTop: insets.top + 16,
+          paddingTop: insets.top + 8,
           paddingBottom: scrollInsetBottom,
         },
       ]}
@@ -43,9 +44,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
+    fontFamily: Font.displayBold,
+    fontSize: MAIN_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {

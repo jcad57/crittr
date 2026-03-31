@@ -1,8 +1,9 @@
 import PetFeatureCard from "@/components/ui/pets/PetFeatureCard";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
+import { sortPetsByCreatedAt } from "@/lib/petSort";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,16 +18,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-/** Oldest added first, newest at the bottom (matches `fetchUserPets` order). */
-function sortPetsByCreatedAt(list: Pet[]): Pet[] {
-  return [...list].sort((a, b) => {
-    const ta = new Date(a.created_at).getTime();
-    const tb = new Date(b.created_at).getTime();
-    if (ta !== tb) return ta - tb;
-    return a.id.localeCompare(b.id);
-  });
-}
 
 export default function PetsScreen() {
   const insets = useSafeAreaInsets();
@@ -115,7 +106,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: Font.displayBold,
-    fontSize: 28,
+    fontSize: MAIN_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     letterSpacing: -0.5,
   },

@@ -5,26 +5,21 @@ import type { HealthTrafficKind } from "@/lib/healthTraffic";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-export type MedicationListRowProps = {
+export type VaccinationListRowProps = {
   title: string;
   subline: string;
   badgeKind: HealthTrafficKind;
   badgeLabel: string;
   onPress?: () => void;
-  /** When set, shows a red ✕ beside the row (e.g. manager screen). */
   onDeletePress?: () => void;
   isLast?: boolean;
-  /**
-   * `grouped`: rows inside a shared HealthListCard (dashboard, pet profile).
-   * `standalone`: one white card per row, ✕ outside the card (matches Food & treats list).
-   */
   variant?: "grouped" | "standalone";
 };
 
 /**
- * Shared medication row — matches Health tab medications (icon, typography, traffic badge).
+ * Vaccination row — matches {@link MedicationListRow} layout (standalone + ✕).
  */
-export default function MedicationListRow({
+export default function VaccinationListRow({
   title,
   subline,
   badgeKind,
@@ -33,14 +28,14 @@ export default function MedicationListRow({
   onDeletePress,
   isLast,
   variant = "grouped",
-}: MedicationListRowProps) {
+}: VaccinationListRowProps) {
   const showChevron = Boolean(onPress) && !onDeletePress;
   const isStandalone = variant === "standalone";
 
   const main = (
     <>
       <View style={styles.iconBox}>
-        <MaterialCommunityIcons name="pill" size={20} color={Colors.orange} />
+        <MaterialCommunityIcons name="needle" size={20} color={Colors.orange} />
       </View>
       <View style={styles.mid}>
         <Text style={styles.rowTitle} numberOfLines={1}>

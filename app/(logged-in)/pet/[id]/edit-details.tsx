@@ -6,7 +6,7 @@ import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetDetailsQuery, useUpdatePetDetailsMutation } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
@@ -155,8 +155,8 @@ export default function EditPetDetailsScreen() {
           styles.body,
           { paddingBottom: scrollInsetBottom + 24 },
         ]}
+        contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
   },

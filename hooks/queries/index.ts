@@ -32,6 +32,11 @@ export {
   useUpdateMedicationMutation,
 } from "../mutations/useMedicationMutations";
 export {
+  useDeletePetVaccinationMutation,
+  useInsertPetVaccinationMutation,
+  useUpdatePetVaccinationMutation,
+} from "../mutations/useVaccinationMutations";
+export {
   useDeletePetFoodMutation,
   useInsertPetFoodMutation,
   useUpdatePetDetailsMutation,

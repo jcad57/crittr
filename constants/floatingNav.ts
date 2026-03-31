@@ -39,6 +39,14 @@ export function shouldShowFloatingNav(
   if (s.includes("add-vet-visit")) return false;
   if (s.includes("profile")) return false;
 
+  if (p.includes("add-pet")) return false;
+  if (p.includes("add-activity")) return false;
+  if (p.includes("add-vet-visit")) return false;
+  if (p.includes("profile")) return false;
+
+  /** Nested pet stack (/pet/:id/medications/..., food/..., etc.) — must run before segment tab checks. */
+  if (/\/pet\/[^/]+\/.+/.test(p)) return false;
+
   if (
     s.includes("dashboard") ||
     s.includes("activity") ||
@@ -48,12 +56,6 @@ export function shouldShowFloatingNav(
   ) {
     return true;
   }
-
-  if (p.includes("add-pet")) return false;
-  if (p.includes("add-activity")) return false;
-  if (p.includes("add-vet-visit")) return false;
-  if (p.includes("profile")) return false;
-  if (/\/pet\/[^/]+\/.+/.test(p)) return false;
 
   return (
     /\/(dashboard|activity|pets|health|more)$/.test(p) ||

@@ -3,7 +3,7 @@ import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevel
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   usePetDetailsQuery,
   useUpdatePetExerciseRequirementsMutation,
@@ -11,7 +11,7 @@ import {
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { PetFormData } from "@/types/database";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +29,13 @@ export default function ExerciseRequirementsScreen() {
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
+
+  const scrollContentMinHeight = useMemo(() => {
+    const topChrome = insets.top + 8 + 56 + 8 + 4;
+    return Math.max(windowHeight - topChrome - insets.bottom, 240);
+  }, [insets.top, insets.bottom, windowHeight]);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const updateMut = useUpdatePetExerciseRequirementsMutation(petId ?? "");
@@ -131,48 +138,59 @@ export default function ExerciseRequirementsScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
-          { paddingBottom: scrollInsetBottom + 24 },
+          styles.scrollContentGrow,
+          { paddingBottom: scrollInsetBottom + 32 },
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lead}>
-          Energy and activity targets are part of your pet&apos;s baseline care.
-          You can update them anytime; they power daily progress on the home
-          screen.
-        </Text>
-
-        <PetEnergyLevelToggle
-          energyLevel={energyLevel}
-          onChange={(level) => setEnergyLevel(level)}
-          error={energyError}
-        />
-
-        {showExercise ? (
-          <FormInput
-            label="Target activities per day"
-            required
-            placeholder="Walks, dog park, playtime, etc."
-            value={exercisesPerDay}
-            onChangeText={setExercisesPerDay}
-            keyboardType="number-pad"
-            containerStyle={styles.field}
-            error={exercisesError}
-          />
-        ) : (
-          <Text style={styles.helperMuted}>
-            Activity count applies to dogs and similar companions. It isn&apos;t
-            tracked for this species; the value stays as stored.
-          </Text>
-        )}
-
-        <OrangeButton
-          onPress={handleSave}
-          disabled={updateMut.isPending}
-          style={styles.saveBtn}
+        <View
+          style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
         >
-          {updateMut.isPending ? "Saving…" : "Save"}
-        </OrangeButton>
+          <View>
+            <Text style={styles.lead}>
+              Energy and activity targets are part of your pet&apos;s baseline
+              care. You can update them anytime; they power daily progress on
+              the home screen.
+            </Text>
+
+            <PetEnergyLevelToggle
+              energyLevel={energyLevel}
+              onChange={(level) => setEnergyLevel(level)}
+              error={energyError}
+            />
+
+            {showExercise ? (
+              <FormInput
+                label="Target activities per day"
+                required
+                placeholder="Walks, dog park, playtime, etc."
+                value={exercisesPerDay}
+                onChangeText={setExercisesPerDay}
+                keyboardType="number-pad"
+                containerStyle={styles.field}
+                error={exercisesError}
+              />
+            ) : (
+              <Text style={styles.helperMuted}>
+                Activity count applies to dogs and similar companions. It
+                isn&apos;t tracked for this species; the value stays as stored.
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.actionsBlock}>
+            <OrangeButton
+              onPress={handleSave}
+              disabled={updateMut.isPending}
+              style={styles.saveBtn}
+            >
+              {updateMut.isPending ? "Saving…" : "Save"}
+            </OrangeButton>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -203,14 +221,24 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
   },
   navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
+  scrollContentGrow: {
+    flexGrow: 1,
+  },
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+  },
   body: {
     paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  actionsBlock: {
     paddingTop: 8,
   },
   lead: {
@@ -231,6 +259,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   saveBtn: {
-    marginTop: 8,
+    marginTop: 0,
   },
 });

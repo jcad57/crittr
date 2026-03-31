@@ -1,4 +1,5 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import FoodPetFieldsRow from "@/components/activity/FoodPetFieldsRow";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
@@ -11,18 +12,14 @@ import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { forwardRef, useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"];
 
@@ -36,6 +33,7 @@ type Props = {
   saveLabel?: string;
   embeddedInScreen?: boolean;
   hideEmbeddedSave?: boolean;
+  showBatchPets?: boolean;
 };
 
 const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
@@ -46,6 +44,7 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       saveLabel = "Save",
       embeddedInScreen = false,
       hideEmbeddedSave = false,
+      showBatchPets = true,
     },
     ref,
   ) {
@@ -58,7 +57,6 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
   const clearFoodExtraRows = useActivityFormStore((s) => s.clearFoodExtraRows);
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
-  const [pickPetOpen, setPickPetOpen] = useState(false);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: petDetails } = usePetDetailsQuery(activePetId);
@@ -76,11 +74,27 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     petDetails?.name?.trim() || petNameById.get(activePetId ?? "") || "Pet";
 
   const selectablePetsForBatch = useMemo(() => {
-    const taken = new Set<string>([activePetId ?? "", ...foodExtraRows.map((r) => r.petId)]);
+    const taken = new Set<string>([
+      activePetId ?? "",
+      ...foodExtraRows.map((r) => r.petId),
+    ]);
     return (allPets ?? []).filter(
       (p) => isPetActiveForDashboard(p) && !taken.has(p.id),
     );
   }, [allPets, activePetId, foodExtraRows]);
+
+  const foodExtraPetIds = useMemo(
+    () => foodExtraRows.map((r) => r.petId),
+    [foodExtraRows],
+  );
+
+  const removeFoodExtraByPetId = useCallback(
+    (petId: string) => {
+      const idx = foodExtraRows.findIndex((r) => r.petId === petId);
+      if (idx >= 0) removeFoodExtraRow(idx);
+    },
+    [foodExtraRows, removeFoodExtraRow],
+  );
 
   const foodOptions = useMemo(() => {
     if (!petDetails) return [];
@@ -138,6 +152,16 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       setSaving(false);
     }
   }, [isValid, onSave]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => {
+        void handleSave();
+      },
+    }),
+    [handleSave],
+  );
 
   const fieldLabelStyle = embeddedInScreen
     ? styles.fieldLabelScreen
@@ -285,81 +309,6 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         </View>
       </View>
 
-      {foodExtraRows.map((row, index) => (
-        <FoodPetFieldsRow
-          key={`${row.petId}-${index}`}
-          petName={petNameById.get(row.petId) ?? "Pet"}
-          row={row}
-          rowIndex={index}
-          isTreat={form.isTreat}
-          attempted={attempted}
-          embeddedInScreen={embeddedInScreen}
-          onChange={updateFoodExtraRow}
-          onRemove={() => removeFoodExtraRow(index)}
-        />
-      ))}
-
-      {selectablePetsForBatch.length > 0 ? (
-        <Pressable
-          style={styles.addPetBtn}
-          onPress={() => setPickPetOpen(true)}
-        >
-          <MaterialCommunityIcons
-            name="account-plus-outline"
-            size={20}
-            color={Colors.orange}
-          />
-          <Text style={styles.addPetBtnText}>Add another pet</Text>
-        </Pressable>
-      ) : null}
-
-      <Modal
-        visible={pickPetOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPickPetOpen(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setPickPetOpen(false)}
-        >
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Which pet?</Text>
-            <Text style={styles.modalSub}>
-              Same label and notes; you can pick a different food and amount.
-            </Text>
-            <ScrollView
-              style={styles.modalList}
-              keyboardShouldPersistTaps="handled"
-            >
-              {selectablePetsForBatch.map((p) => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={styles.modalRow}
-                  onPress={() => {
-                    addFoodExtraRow(p.id);
-                    setPickPetOpen(false);
-                  }}
-                >
-                  <Text style={styles.modalRowText}>{p.name}</Text>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={22}
-                    color={Colors.gray400}
-                  />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalCancel}
-              onPress={() => setPickPetOpen(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       <FormInput
         label="Notes"
         placeholder="Any notes about this meal or treat"
@@ -368,6 +317,34 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         multiline
         containerStyle={blockSpacing}
       />
+
+      {showBatchPets ? (
+        <AlsoLogForPetsSection
+          hint="Same label and notes; pick food and amount for each pet."
+          extraPetIds={foodExtraPetIds}
+          selectablePets={selectablePetsForBatch}
+          petNameById={petNameById}
+          onAddPet={addFoodExtraRow}
+          onRemovePet={removeFoodExtraByPetId}
+          fieldLabelStyle={fieldLabelStyle}
+        />
+      ) : null}
+
+      {showBatchPets
+        ? foodExtraRows.map((row, index) => (
+            <FoodPetFieldsRow
+              key={`${row.petId}-${index}`}
+              petName={petNameById.get(row.petId) ?? "Pet"}
+              row={row}
+              rowIndex={index}
+              isTreat={form.isTreat}
+              attempted={attempted}
+              embeddedInScreen={embeddedInScreen}
+              onChange={updateFoodExtraRow}
+              onRemove={() => removeFoodExtraRow(index)}
+            />
+          ))
+        : null}
 
       {!embeddedInScreen || !hideEmbeddedSave ? (
         <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
@@ -516,71 +493,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginBottom: 8,
-  },
-  addPetBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-start",
-    marginTop: 8,
-    marginBottom: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  addPetBtnText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 15,
-    color: Colors.orange,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 16,
-    maxHeight: "70%",
-  },
-  modalTitle: {
-    fontFamily: Font.displayBold,
-    fontSize: 18,
-    color: Colors.textPrimary,
-    marginBottom: 6,
-  },
-  modalSub: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  modalList: {
-    maxHeight: 280,
-  },
-  modalRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray100,
-  },
-  modalRowText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  modalCancel: {
-    marginTop: 12,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  modalCancelText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textSecondary,
   },
 });

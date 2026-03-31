@@ -1,7 +1,8 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
@@ -11,11 +12,12 @@ import { queryClient } from "@/lib/queryClient";
 import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
+import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePetsQuery } from "@/hooks/queries";
 import type { Pet } from "@/types/database";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -46,18 +48,37 @@ export default function AddVetVisitScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
-  const { petId: petIdParam } = useLocalSearchParams<{ petId?: string }>();
+  const { petId: rawPetIdParam } = useLocalSearchParams<{ petId?: string }>();
+  const petIdParam = Array.isArray(rawPetIdParam) ? rawPetIdParam[0] : rawPetIdParam;
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePet = usePetStore((s) => s.setActivePet);
   const { data: petsData } = usePetsQuery();
   const pets: Pet[] = petsData ?? [];
 
-  const initialPetId = useMemo(() => {
-    if (petIdParam && pets.some((p) => p.id === petIdParam)) return petIdParam;
-    return pets[0]?.id ?? "";
-  }, [petIdParam, pets]);
+  /** Apply ?petId= once when opening from a deep link; otherwise scheduling uses global active pet. */
+  const appliedPetParamRef = useRef(false);
+  useEffect(() => {
+    if (appliedPetParamRef.current) return;
+    if (!pets.length) return;
+    appliedPetParamRef.current = true;
+    if (petIdParam && pets.some((p) => p.id === petIdParam)) {
+      setActivePet(petIdParam);
+    }
+  }, [pets, petIdParam, setActivePet]);
 
-  const [petIdOverride, setPetIdOverride] = useState<string | null>(null);
-  const petId = petIdOverride ?? initialPetId;
+  const petId = useMemo(() => {
+    if (activePetId && pets.some((p) => p.id === activePetId)) {
+      return activePetId;
+    }
+    return pets[0]?.id ?? "";
+  }, [activePetId, pets]);
+
+  const schedulingPet = useMemo(
+    () => (petId ? pets.find((p) => p.id === petId) ?? null : null),
+    [pets, petId],
+  );
+
   const [title, setTitle] = useState("Vet visit");
   const [locationChoice, setLocationChoice] = useState("");
   const [otherClinicText, setOtherClinicText] = useState("");
@@ -143,13 +164,15 @@ export default function AddVetVisitScreen() {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
+          <View style={styles.navSideLeft}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Text style={styles.navBack}>&lt; Back</Text>
+            </Pressable>
+          </View>
           <Text style={styles.navTitle} numberOfLines={1}>
             Vet visit
           </Text>
-          <View style={styles.navSpacer} />
+          <View style={styles.navSideRight} />
         </View>
         <Text style={styles.hint}>
           Add a pet before scheduling a visit.
@@ -165,13 +188,20 @@ export default function AddVetVisitScreen() {
     >
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
+          <View style={styles.navSideLeft}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Text style={styles.navBack}>&lt; Back</Text>
+            </Pressable>
+          </View>
           <Text style={styles.navTitle} numberOfLines={1}>
             Schedule visit
           </Text>
-          <View style={styles.navSpacer} />
+          <View style={styles.navSideRight}>
+            <PetNavAvatar
+              displayPet={schedulingPet ?? undefined}
+              accessibilityLabelPrefix="Scheduling visit for"
+            />
+          </View>
         </View>
 
         <ScrollView
@@ -181,27 +211,6 @@ export default function AddVetVisitScreen() {
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.label}>Pet</Text>
-          <View style={styles.petRow}>
-            {pets.map((p) => {
-              const selected = petId === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  style={[styles.petChip, selected && styles.petChipOn]}
-                  onPress={() => setPetIdOverride(p.id)}
-                >
-                  <Text
-                    style={[styles.petChipText, selected && styles.petChipTextOn]}
-                    numberOfLines={1}
-                  >
-                    {p.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           <Text style={styles.label}>Title</Text>
           <TextInput
             style={styles.input}
@@ -293,20 +302,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
+  /** Same width as navSideRight so the title centers on screen (matches pet edit screens). */
+  navSideLeft: {
+    width: 72,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  navSideRight: {
+    width: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   navBack: {
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.orange,
-    minWidth: 72,
   },
   navTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
-    fontSize: 20,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
+    marginHorizontal: 8,
   },
-  navSpacer: { minWidth: 72 },
   scroll: {
     flex: 1,
   },
@@ -344,32 +363,6 @@ const styles = StyleSheet.create({
   notes: {
     minHeight: 100,
     paddingTop: 14,
-  },
-  petRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  petChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    backgroundColor: Colors.white,
-    maxWidth: "100%",
-  },
-  petChipOn: {
-    borderColor: Colors.orange,
-    backgroundColor: Colors.orangeLight,
-  },
-  petChipText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textPrimary,
-  },
-  petChipTextOn: {
-    color: Colors.orangeDark,
   },
   whenBtn: {
     flexDirection: "row",
