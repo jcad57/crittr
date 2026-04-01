@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Pet, PetFormData, PetWithDetails } from "@/types/database";
+import type { Pet, PetFormData, PetWithDetails, PetWithRole } from "@/types/database";
 import { parseDateOnlyYmd } from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
@@ -169,6 +169,43 @@ export async function fetchUserPets(ownerId: string): Promise<Pet[]> {
 
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * Returns all pets the user has access to — owned and co-cared — tagged with
+ * the user's role. Owned pets appear first, then shared pets.
+ */
+export async function fetchAccessiblePets(
+  userId: string,
+): Promise<PetWithRole[]> {
+  const [ownedRes, sharedRes] = await Promise.all([
+    supabase
+      .from("pets")
+      .select("*")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("pet_co_carers")
+      .select("permissions, pets(*)")
+      .eq("user_id", userId),
+  ]);
+
+  if (ownedRes.error) throw ownedRes.error;
+
+  const owned: PetWithRole[] = (ownedRes.data ?? []).map((p) => ({
+    ...p,
+    role: "owner" as const,
+  }));
+
+  const shared: PetWithRole[] = (sharedRes.data ?? [])
+    .filter((row: any) => row.pets)
+    .map((row: any) => ({
+      ...row.pets,
+      role: "co_carer" as const,
+      permissions: row.permissions,
+    }));
+
+  return [...owned, ...shared];
 }
 
 export async function fetchPetProfile(

@@ -5,7 +5,7 @@ import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { sortPetsByCreatedAt } from "@/lib/petSort";
-import type { Pet } from "@/types/database";
+import type { Pet, PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -77,7 +77,14 @@ export default function PetsScreen() {
               : livingBefore % 2 === 0
                 ? "orange"
                 : "dark";
-            return <PetFeatureCard key={pet.id} pet={pet} variant={variant} />;
+            return (
+              <PetFeatureCard
+                key={pet.id}
+                pet={pet}
+                variant={variant}
+                role={(pet as PetWithRole).role}
+              />
+            );
           })}
         </ScrollView>
       )}

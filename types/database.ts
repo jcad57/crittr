@@ -160,6 +160,62 @@ export type CoCarerInvite = {
   invited_by: string;
   email: string;
   status: "pending" | "accepted" | "declined";
+  invited_user_id: string | null;
+  responded_at: string | null;
+  created_at: string;
+};
+
+// ─── Co-Care ─────────────────────────────────────────────────────────────────
+
+export type CoCarePermissions = {
+  can_log_activities: boolean;
+  can_edit_pet_profile: boolean;
+  can_manage_food: boolean;
+  can_manage_medications: boolean;
+  can_manage_vaccinations: boolean;
+  can_manage_vet_visits: boolean;
+};
+
+export const DEFAULT_CO_CARE_PERMISSIONS: CoCarePermissions = {
+  can_log_activities: true,
+  can_edit_pet_profile: false,
+  can_manage_food: false,
+  can_manage_medications: false,
+  can_manage_vaccinations: false,
+  can_manage_vet_visits: false,
+};
+
+export type PetCoCarer = {
+  id: string;
+  pet_id: string;
+  user_id: string;
+  invited_by: string | null;
+  permissions: CoCarePermissions;
+  created_at: string;
+};
+
+export type PetRole = "owner" | "co_carer";
+
+export type PetWithRole = Pet & {
+  role: PetRole;
+  permissions?: CoCarePermissions;
+};
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | "co_care_invite"
+  | "co_care_accepted"
+  | "co_care_removed";
+
+export type AppNotification = {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown>;
+  read: boolean;
   created_at: string;
 };
 

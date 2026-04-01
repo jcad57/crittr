@@ -10,6 +10,12 @@ export {
   todayActivitiesForPetIdsPrefixKey,
   todayActivitiesKey,
   todayActivitiesPrefixKey,
+  coCarersForPetKey,
+  sentInvitesForPetKey,
+  pendingInvitesKey,
+  userPetPermissionsKey,
+  notificationsKey,
+  unreadNotificationCountKey,
 } from "./queryKeys";
 export {
   usePetsQuery,
@@ -25,6 +31,16 @@ export {
   useAllActivitiesQuery,
   useActivityQuery,
 } from "./useActivitiesQuery";
+export {
+  useCoCarersForPetQuery,
+  useSentInvitesForPetQuery,
+  usePendingInvitesQuery,
+  useUserPetPermissionsQuery,
+} from "./useCoCareQuery";
+export {
+  useNotificationsQuery,
+  useUnreadNotificationCountQuery,
+} from "./useNotificationsQuery";
 export { useLoggedInQueryBootstrap } from "../useLoggedInQueryBootstrap";
 export {
   useDeleteMedicationMutation,
@@ -49,3 +65,17 @@ export {
   useMemorializePetMutation,
   useUnmemorializePetMutation,
 } from "../mutations/usePetLifecycleMutations";
+export {
+  useSendInviteMutation,
+  useAcceptInviteMutation,
+  useDeclineInviteMutation,
+  useRevokeInviteMutation,
+  useUpdatePermissionsMutation,
+  useRemoveCoCarerMutation,
+  useLeaveCoCare,
+} from "../mutations/useCoCareMutations";
+export {
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from "../mutations/useNotificationMutations";
+export { useCanPerformAction, usePetRole } from "../useCanPerformAction";

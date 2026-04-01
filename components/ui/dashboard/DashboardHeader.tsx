@@ -21,6 +21,7 @@ type DashboardHeaderProps = {
   onAddPet?: () => void;
   onNotificationsPress?: () => void;
   onProfilePress?: () => void;
+  unreadNotificationCount?: number;
 };
 
 export default function DashboardHeader({
@@ -30,6 +31,7 @@ export default function DashboardHeader({
   onAddPet,
   onNotificationsPress,
   onProfilePress,
+  unreadNotificationCount = 0,
 }: DashboardHeaderProps) {
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
@@ -65,6 +67,13 @@ export default function DashboardHeader({
               size={22}
               color={Colors.gray800}
             />
+            {unreadNotificationCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -187,5 +196,25 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.gray500,
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: Colors.cream,
+  },
+  badgeText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 10,
+    color: Colors.white,
+    lineHeight: 14,
   },
 });

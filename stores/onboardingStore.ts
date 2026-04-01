@@ -9,6 +9,7 @@ import { create } from "zustand";
 export const ONBOARDING_STEPS = [
   "signup",
   "profile",
+  "pending-invites",
   "pet-type",
   "pet-info",
   "pet-care",
@@ -19,6 +20,10 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 /** `onboarding` = full signup flow; `add-pet` = logged-in user adding a pet (reuses pet steps). */
 export type PetFlowMode = "onboarding" | "add-pet";
+
+/** Index of `"pending-invites"` in `ONBOARDING_STEPS`. */
+export const PENDING_INVITES_STEP_INDEX =
+  ONBOARDING_STEPS.indexOf("pending-invites");
 
 /** Index of `"pet-type"` in `ONBOARDING_STEPS` (shared by add-pet flow). */
 export const PET_TYPE_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-type");

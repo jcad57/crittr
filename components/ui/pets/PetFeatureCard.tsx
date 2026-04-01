@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { Pet } from "@/types/database";
+import type { Pet, PetRole } from "@/types/database";
 import { getPetListSublineParts } from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -18,6 +18,7 @@ export type PetFeatureVariant = "orange" | "dark" | "memorial";
 type PetFeatureCardProps = {
   pet: Pet;
   variant: PetFeatureVariant;
+  role?: PetRole;
 };
 
 const RADIUS = 28;
@@ -25,7 +26,7 @@ const RADIUS = 28;
 /** Below this width, breed/sex stay on line 1 and age moves to line 2. */
 const SUBLINE_STACK_WIDTH = 400;
 
-export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
+export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardProps) {
   const { width: windowWidth } = useWindowDimensions();
   const stackSubline = windowWidth < SUBLINE_STACK_WIDTH;
   const { primary: sublinePrimary, age: sublineAge } =
@@ -65,6 +66,15 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
                 color={Colors.memorialGoldSoft}
               />
               <Text style={styles.memorialBadgeText}>In loving memory</Text>
+            </View>
+          ) : role === "co_carer" ? (
+            <View style={styles.coCarerBadge}>
+              <MaterialCommunityIcons
+                name="account-group-outline"
+                size={14}
+                color="rgba(255,255,255,0.9)"
+              />
+              <Text style={styles.coCarerBadgeText}>Co-carer</Text>
             </View>
           ) : null}
           <Text
@@ -172,6 +182,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.4,
     color: Colors.memorialGoldSoft,
+  },
+  coCarerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    marginBottom: 8,
+  },
+  coCarerBadgeText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: "rgba(255,255,255,0.9)",
   },
   name: {
     fontFamily: Font.displayBold,

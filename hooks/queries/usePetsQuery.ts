@@ -1,7 +1,7 @@
 import { queryClient } from "@/lib/queryClient";
-import { fetchPetProfile, fetchUserPets } from "@/services/pets";
+import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
-import type { Pet, PetWithDetails } from "@/types/database";
+import type { PetWithDetails, PetWithRole } from "@/types/database";
 import {
   type UseQueryResult,
   useQuery,
@@ -9,16 +9,16 @@ import {
 import { petDetailsQueryKey, petsQueryKey } from "./queryKeys";
 
 /**
- * All pets belonging to the logged-in user.
+ * All pets the logged-in user has access to (owned + co-cared).
  * Automatically prefetches details for every pet in the background.
  */
-export function usePetsQuery(): UseQueryResult<Pet[], Error> {
+export function usePetsQuery(): UseQueryResult<PetWithRole[], Error> {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
-  return useQuery<Pet[], Error>({
+  return useQuery<PetWithRole[], Error>({
     queryKey: petsQueryKey(userId ?? ""),
     queryFn: async () => {
-      const pets = await fetchUserPets(userId!);
+      const pets = await fetchAccessiblePets(userId!);
 
       for (const pet of pets) {
         const key = petDetailsQueryKey(pet.id);

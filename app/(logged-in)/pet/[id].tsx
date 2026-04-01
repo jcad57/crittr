@@ -13,6 +13,7 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import type {
@@ -26,6 +27,7 @@ import {
   usePetDetailsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
+import { usePetRole, useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
@@ -224,6 +226,10 @@ export default function PetProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const { data: details, isLoading } = usePetDetailsQuery(id);
+  const { isOwner, isCoCarer } = usePetRole(id);
+  const canEditProfile = useCanPerformAction(id, "can_edit_pet_profile");
+  const canManageFood = useCanPerformAction(id, "can_manage_food");
+  const canManageMeds = useCanPerformAction(id, "can_manage_medications");
 
   const sortedFoodsForProfile = useMemo(() => {
     if (!details?.foods) return [];
@@ -353,8 +359,10 @@ export default function PetProfilePage() {
   const manageItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
     const petName = profile.name?.trim() || "your pet";
-    return [
-      {
+    const items: RecordsNavItem[] = [];
+
+    if (isOwner) {
+      items.push({
         id: "visibility",
         title: "Visibility",
         subtitle: "Memorial, delete, and how this pet appears",
@@ -363,19 +371,26 @@ export default function PetProfilePage() {
         iconColor: Colors.orange,
         onPress: () =>
           router.push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
-      },
-      {
-        id: "invite",
-        title: `Invite someone to care for ${petName}`,
-        subtitle: "Email a co-carer (coming soon)",
-        icon: "account-heart-outline",
-        iconBg: Colors.lavenderLight,
-        iconColor: Colors.lavenderDark,
-        onPress: () =>
-          router.push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
-      },
-    ];
-  }, [profile, router]);
+      });
+    }
+
+    items.push({
+      id: "invite",
+      title: isOwner
+        ? `Invite someone to care for ${petName}`
+        : `Co-carers for ${petName}`,
+      subtitle: isOwner
+        ? "Manage co-carers and permissions"
+        : "View who else cares for this pet",
+      icon: "account-heart-outline",
+      iconBg: Colors.lavenderLight,
+      iconColor: Colors.lavenderDark,
+      onPress: () =>
+        router.push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
+    });
+
+    return items;
+  }, [profile, router, isOwner]);
 
   if (isLoading) {
     return (
@@ -420,17 +435,33 @@ export default function PetProfilePage() {
         showsVerticalScrollIndicator={false}
         bounces
       >
+        {isCoCarer && (
+          <View style={styles.coCarerBanner}>
+            <MaterialCommunityIcons
+              name="account-group-outline"
+              size={16}
+              color={Colors.lavenderDark}
+            />
+            <Text style={styles.coCarerBannerText}>
+              You are co-caring for this pet
+            </Text>
+          </View>
+        )}
+
         <PetProfileHero
           name={profile.name}
           subline={profileSubline(profile)}
           imageUrl={profile.imageUrl}
           tags={tags}
-          onAvatarPress={handlePetAvatarPress}
+          onAvatarPress={canEditProfile ? handlePetAvatarPress : undefined}
           avatarUploading={avatarUploading}
-          onEditNamePress={() =>
-            router.push(
-              `/(logged-in)/pet/${profile.id}/edit-name-breed` as Href,
-            )
+          onEditNamePress={
+            canEditProfile
+              ? () =>
+                  router.push(
+                    `/(logged-in)/pet/${profile.id}/edit-name-breed` as Href,
+                  )
+              : undefined
           }
         />
 
@@ -438,14 +469,16 @@ export default function PetProfilePage() {
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Details</SectionLabel>
-          <TouchableOpacity
-            hitSlop={8}
-            onPress={() =>
-              router.push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
-            }
-          >
-            <Text style={styles.sectionEditLink}>Edit</Text>
-          </TouchableOpacity>
+          {canEditProfile && (
+            <TouchableOpacity
+              hitSlop={8}
+              onPress={() =>
+                router.push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
+              }
+            >
+              <Text style={styles.sectionEditLink}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.detailsCard}>
           <InfoRow label="Breed" value={profile.breed} />
@@ -465,14 +498,16 @@ export default function PetProfilePage() {
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
-          <TouchableOpacity
-            onPress={() =>
-              router.push(`/(logged-in)/pet/${profile.id}/food` as Href)
-            }
-            hitSlop={8}
-          >
-            <Text style={styles.sectionEditLink}>Edit</Text>
-          </TouchableOpacity>
+          {canManageFood && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push(`/(logged-in)/pet/${profile.id}/food` as Href)
+              }
+              hitSlop={8}
+            >
+              <Text style={styles.sectionEditLink}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {sortedFoodsForProfile.length > 0 ? (
           <View style={styles.medList}>
@@ -502,14 +537,16 @@ export default function PetProfilePage() {
           <SectionLabel style={styles.sectionLabelInline}>
             Active medications
           </SectionLabel>
-          <TouchableOpacity
-            onPress={() =>
-              router.push(`/(logged-in)/pet/${profile.id}/medications` as Href)
-            }
-            hitSlop={8}
-          >
-            <Text style={styles.sectionEditLink}>Edit</Text>
-          </TouchableOpacity>
+          {canManageMeds && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push(`/(logged-in)/pet/${profile.id}/medications` as Href)
+              }
+              hitSlop={8}
+            >
+              <Text style={styles.sectionEditLink}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {profile.medications.length > 0 ? (
           <HealthListCard>
@@ -684,5 +721,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: Colors.gray500,
     paddingVertical: 4,
+  },
+  coCarerBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.lavenderLight,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  coCarerBannerText: {
+    fontFamily: Font.uiMedium,
+    fontSize: 13,
+    color: Colors.lavenderDark,
   },
 });

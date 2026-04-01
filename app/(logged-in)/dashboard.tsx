@@ -19,6 +19,7 @@ import {
   usePetVetVisitsQuery,
   usePetsQuery,
   useTodayActivitiesQuery,
+  useUnreadNotificationCountQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isDailyProgressComplete } from "@/lib/dailyProgressComplete";
@@ -48,6 +49,7 @@ export default function Dashboard() {
 
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
   const { activePetId, setActivePet } = usePetStore();
+  const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
 
   useEffect(() => {
     if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
@@ -257,7 +259,10 @@ export default function Dashboard() {
               pets={pets}
               activePetId={activePetId}
               onSwitchPet={handleSwitchPet}
-              onNotificationsPress={() => {}}
+              unreadNotificationCount={unreadCount}
+              onNotificationsPress={() =>
+                router.push("/(logged-in)/notifications" as Href)
+              }
               onProfilePress={() => router.push("/(logged-in)/profile")}
             />
           </View>

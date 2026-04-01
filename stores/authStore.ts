@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 
 const PROFILE_STEP = ONBOARDING_STEPS.indexOf("profile");
+const PENDING_INVITES_STEP = ONBOARDING_STEPS.indexOf("pending-invites");
 const PET_TYPE_STEP = ONBOARDING_STEPS.indexOf("pet-type");
 
 /** Profile onboarding step: home address and phone required; bio is optional. */
@@ -27,25 +28,43 @@ export type ResolvedOnboarding = {
 };
 
 /**
- * One round-trip: profile row + pet count (parallel). Derives onboarding progress.
+ * One round-trip: profile row + pet counts (owned + co-cared) + pending invites (parallel).
+ * Derives onboarding progress including co-care pets.
  */
 async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
   const userId = session.user.id;
 
-  const [profileRes, petsCountRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    supabase
-      .from("pets")
-      .select("*", { count: "exact", head: true })
-      .eq("owner_id", userId),
-  ]);
+  const [profileRes, ownedCountRes, coCareCountRes, pendingInvitesRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      supabase
+        .from("pets")
+        .select("*", { count: "exact", head: true })
+        .eq("owner_id", userId),
+      supabase
+        .from("pet_co_carers")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("co_carer_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("invited_user_id", userId)
+        .eq("status", "pending"),
+    ]);
 
   let profile = profileRes.data ?? null;
-  const petError = petsCountRes.error;
-  const count = petError ? 0 : petsCountRes.count ?? 0;
-  const hasPets = count > 0;
+  const ownedCount = ownedCountRes.error ? 0 : ownedCountRes.count ?? 0;
+  const coCareCount = coCareCountRes.error ? 0 : coCareCountRes.count ?? 0;
+  const hasPets = ownedCount + coCareCount > 0;
+  const pendingInviteCount = pendingInvitesRes.error
+    ? 0
+    : pendingInvitesRes.count ?? 0;
 
-  if (profile?.onboarding_complete && isProfileStepComplete(profile) && hasPets) {
+  if (
+    profile?.onboarding_complete &&
+    isProfileStepComplete(profile) &&
+    hasPets
+  ) {
     return {
       profile,
       needsOnboarding: false,
@@ -80,6 +99,15 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
       needsOnboarding: true,
       hasPets,
       onboardingResumeStep: PROFILE_STEP,
+    };
+  }
+
+  if (pendingInviteCount > 0) {
+    return {
+      profile,
+      needsOnboarding: true,
+      hasPets,
+      onboardingResumeStep: PENDING_INVITES_STEP,
     };
   }
 

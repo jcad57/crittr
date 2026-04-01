@@ -1,5 +1,6 @@
 import FinishStep from "@/components/onboarding/FinishStep";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import PendingInvitesStep from "@/components/onboarding/PendingInvitesStep";
 import PetCareStep from "@/components/onboarding/PetCareStep";
 import PetInfoStep from "@/components/onboarding/PetInfoStep";
 import PetTypeStep from "@/components/onboarding/PetTypeStep";
@@ -13,6 +14,7 @@ import { useEffect } from "react";
 const STEP_COMPONENTS = [
   SignUpStep,
   ProfileStep,
+  PendingInvitesStep,
   PetTypeStep,
   PetInfoStep,
   PetCareStep,

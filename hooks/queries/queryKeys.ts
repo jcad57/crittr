@@ -48,3 +48,25 @@ export const allActivitiesKey = (petId: string) =>
 
 export const petActivityQueryKey = (activityId: string) =>
   ["petActivity", activityId] as const;
+
+// ─── Co-Care ─────────────────────────────────────────────────────────────────
+
+export const coCarersForPetKey = (petId: string) =>
+  ["coCarers", petId] as const;
+
+export const sentInvitesForPetKey = (petId: string) =>
+  ["sentInvites", petId] as const;
+
+export const pendingInvitesKey = (userId: string) =>
+  ["pendingInvites", userId] as const;
+
+export const userPetPermissionsKey = (petId: string, userId: string) =>
+  ["petPermissions", petId, userId] as const;
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export const notificationsKey = (userId: string) =>
+  ["notifications", userId] as const;
+
+export const unreadNotificationCountKey = (userId: string) =>
+  ["notificationCount", userId] as const;
