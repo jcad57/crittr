@@ -69,6 +69,9 @@ export default function AddActivityScreen() {
   const activityType = useActivityFormStore((s) => s.activityType);
   const selectType = useActivityFormStore((s) => s.selectType);
   const setStep = useActivityFormStore((s) => s.setStep);
+  const setActivityOccurredAt = useActivityFormStore(
+    (s) => s.setActivityOccurredAt,
+  );
   const reset = useActivityFormStore((s) => s.reset);
 
   const exerciseForm = useActivityFormStore((s) => s.exerciseForm);
@@ -136,21 +139,36 @@ export default function AddActivityScreen() {
 
   const saveExercise = useCallback(async () => {
     if (!activePetId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
     const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
     for (const petId of ids) {
-      await exerciseMut.mutateAsync({ petId, form: exerciseForm });
+      await exerciseMut.mutateAsync({
+        petId,
+        form: exerciseForm,
+        loggedAtIso,
+      });
     }
     finish();
   }, [exerciseMut, exerciseForm, exerciseExtraPetIds, activePetId, finish]);
 
   const saveFood = useCallback(async () => {
     if (!activePetId) return;
-    await foodMut.mutateAsync({ petId: activePetId, form: foodForm });
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
+    await foodMut.mutateAsync({
+      petId: activePetId,
+      form: foodForm,
+      loggedAtIso,
+    });
     for (const row of foodExtraRows) {
       const { petId, ...petFields } = row;
       await foodMut.mutateAsync({
         petId,
         form: foodActivityFormForPet(foodForm, petFields),
+        loggedAtIso,
       });
     }
     finish();
@@ -158,17 +176,24 @@ export default function AddActivityScreen() {
 
   const saveMed = useCallback(async () => {
     if (!activePetId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
     const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
     for (const petId of ids) {
-      await medMut.mutateAsync({ petId, form: medForm });
+      await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
     }
     finish();
   }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
 
   const saveVet = useCallback(async () => {
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
     await vetMut.mutateAsync({
       form: vetForm,
       allPetIds: (allPets ?? []).map((p) => p.id),
+      loggedAtIso,
     });
     finish();
   }, [vetMut, vetForm, allPets, finish]);
@@ -226,7 +251,10 @@ export default function AddActivityScreen() {
             <View style={styles.actionsBlock}>
               <OrangeButton
                 onPress={() => {
-                  if (activityType) setStep("details");
+                  if (activityType) {
+                    setActivityOccurredAt(null);
+                    setStep("details");
+                  }
                 }}
                 disabled={!activityType}
                 style={styles.saveBtn}

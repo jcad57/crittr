@@ -1,0 +1,211 @@
+import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
+import FormInput from "@/components/onboarding/FormInput";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { getBreedLabelForPetType } from "@/constants/petInfo";
+import { Colors } from "@/constants/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import {
+  usePetDetailsQuery,
+  useUpdatePetNameAndBreedMutation,
+} from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+export default function EditPetNameAndBreedScreen() {
+  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const petId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const scrollInsetBottom = useFloatingNavScrollInset();
+
+  const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const updateMut = useUpdatePetNameAndBreedMutation(petId ?? "");
+
+  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
+  const breedPetType = details?.pet_type ?? "dog";
+  const breeds = useReferenceStore(
+    (s) => s.breeds[breedPetType] ?? EMPTY_BREEDS,
+  );
+
+  const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
+
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState("");
+  const [attempted, setAttempted] = useState(false);
+
+  useEffect(() => {
+    if (!details?.id) return;
+    void fetchForPetType(details.pet_type ?? "dog");
+  }, [details?.id, details?.pet_type, fetchForPetType]);
+
+  useEffect(() => {
+    if (!details?.id) return;
+    setName(details.name?.trim() ?? "");
+    setBreed(details.breed?.trim() ?? "");
+  }, [details?.id]);
+
+  const breedLabel = getBreedLabelForPetType(breedPetType);
+
+  const nameMissing = attempted && !name.trim();
+
+  const handleSave = useCallback(async () => {
+    if (!petId) return;
+    setAttempted(true);
+    if (!name.trim()) return;
+
+    try {
+      await updateMut.mutateAsync({
+        name: name.trim(),
+        breed: breed.trim() || null,
+      });
+      router.back();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't save", msg);
+    }
+  }, [petId, name, breed, updateMut, router]);
+
+  if (isLoading || !details) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <View style={styles.nav}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+          <Text style={styles.navBack}>&lt; Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          Name & breed
+        </Text>
+        <View style={styles.navSpacer} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollBody}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.lead}>
+            Update how this pet appears on their profile and around the app.
+          </Text>
+
+          <FormInput
+            label="Name"
+            required
+            value={name}
+            onChangeText={setName}
+            placeholder="Pet name"
+            containerStyle={styles.field}
+            error={nameMissing}
+          />
+
+          <AutocompleteInput
+            label={breedLabel}
+            placeholder="Search or type a breed"
+            value={breed}
+            onChangeText={setBreed}
+            onSelect={setBreed}
+            suggestions={breedNames}
+            containerStyle={styles.field}
+          />
+        </ScrollView>
+
+        <View
+          style={[styles.saveFooter, { paddingBottom: scrollInsetBottom + 16 }]}
+        >
+          <OrangeButton
+            onPress={handleSave}
+            disabled={updateMut.isPending}
+          >
+            {updateMut.isPending ? "Saving…" : "Save changes"}
+          </OrangeButton>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
+  centered: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  navBack: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.orange,
+    minWidth: 72,
+  },
+  navTitle: {
+    flex: 1,
+    fontFamily: Font.displayBold,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
+    color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  navSpacer: { minWidth: 72 },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scroll: { flex: 1 },
+  scrollBody: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  saveFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.gray200,
+    backgroundColor: Colors.cream,
+  },
+  lead: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  field: {
+    marginBottom: 16,
+  },
+});

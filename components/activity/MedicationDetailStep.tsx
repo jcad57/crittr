@@ -1,4 +1,5 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
@@ -192,6 +193,7 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         </View>
       </View>
 
+      <ActivityOccurredTimeRow containerStyle={blockSpacing} />
       <FormInput
         label="Notes"
         placeholder="Given with cheese, etc."

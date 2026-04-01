@@ -2,9 +2,9 @@ import PetFeatureCard from "@/components/ui/pets/PetFeatureCard";
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { sortPetsByCreatedAt } from "@/lib/petSort";
-import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -77,9 +77,7 @@ export default function PetsScreen() {
               : livingBefore % 2 === 0
                 ? "orange"
                 : "dark";
-            return (
-              <PetFeatureCard key={pet.id} pet={pet} variant={variant} />
-            );
+            return <PetFeatureCard key={pet.id} pet={pet} variant={variant} />;
           })}
         </ScrollView>
       )}

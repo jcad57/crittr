@@ -207,6 +207,34 @@ export type PetMicrochipUpdate = {
   microchip_number: string | null;
 };
 
+export type UpdatePetNameAndBreedInput = {
+  name: string;
+  breed: string | null;
+};
+
+export async function updatePetNameAndBreed(
+  petId: string,
+  fields: UpdatePetNameAndBreedInput,
+): Promise<Pet> {
+  const trimmed = fields.name.trim();
+  if (!trimmed) {
+    throw new Error("Name is required");
+  }
+
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      name: trimmed,
+      breed: fields.breed,
+    })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
+}
+
 export async function updatePetMicrochip(
   petId: string,
   fields: PetMicrochipUpdate,

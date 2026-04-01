@@ -42,6 +42,7 @@ export {
   useUpdatePetDetailsMutation,
   useUpdatePetExerciseRequirementsMutation,
   useUpdatePetFoodMutation,
+  useUpdatePetNameAndBreedMutation,
 } from "../mutations/usePetProfileMutations";
 export {
   useDeletePetMutation,

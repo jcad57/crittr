@@ -34,6 +34,8 @@ export default function EditAccountScreen() {
 
   const { data: profile, isLoading } = useProfileQuery();
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
@@ -41,6 +43,8 @@ export default function EditAccountScreen() {
 
   useEffect(() => {
     if (!profile) return;
+    setFirstName(profile.first_name?.trim() ?? "");
+    setLastName(profile.last_name?.trim() ?? "");
     setPhone(profile.phone_number?.trim() ?? "");
     setEmail(sessionEmail);
     setAddress(profile.home_address?.trim() ?? "");
@@ -57,10 +61,14 @@ export default function EditAccountScreen() {
 
     setSaving(true);
     try {
+      const trimmedFirst = firstName.trim() || null;
+      const trimmedLast = lastName.trim() || null;
       const trimmedPhone = phone.trim() || null;
       const trimmedAddress = address.trim() || null;
 
       const updated = await updateProfile(userId, {
+        first_name: trimmedFirst,
+        last_name: trimmedLast,
         phone_number: trimmedPhone,
         home_address: trimmedAddress,
       });
@@ -84,6 +92,8 @@ export default function EditAccountScreen() {
     }
   }, [
     userId,
+    firstName,
+    lastName,
     phone,
     email,
     address,
@@ -134,8 +144,29 @@ export default function EditAccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Update your phone, email, and address. Changes save to your account.
+          Update your name, phone, email, and address. Changes save to your
+          account.
         </Text>
+
+        <FormInput
+          label="First name"
+          placeholder="First name"
+          value={firstName}
+          onChangeText={setFirstName}
+          autoCapitalize="words"
+          autoComplete="name-given"
+          containerStyle={styles.fieldGap}
+        />
+
+        <FormInput
+          label="Last name"
+          placeholder="Last name"
+          value={lastName}
+          onChangeText={setLastName}
+          autoCapitalize="words"
+          autoComplete="name-family"
+          containerStyle={styles.fieldGap}
+        />
 
         <FormInput
           label="Phone number"

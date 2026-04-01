@@ -30,6 +30,13 @@ type ActivityFormState = {
   medicationForm: MedicationActivityFormData;
   vetVisitForm: VetVisitActivityFormData;
 
+  /**
+   * When null, save uses the current time at submit. When set, that instant is
+   * stored as `logged_at` (after merging date with today in local time).
+   */
+  activityOccurredAt: Date | null;
+  setActivityOccurredAt: (d: Date | null) => void;
+
   setStep: (step: "type" | "details") => void;
   selectType: (type: ActivityType) => void;
   updateExercise: (patch: Partial<ExerciseFormData>) => void;
@@ -103,9 +110,11 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
   medicationExtraPetIds: [],
   medicationForm: { ...EMPTY_MED },
   vetVisitForm: { ...EMPTY_VET },
+  activityOccurredAt: null,
 
   setStep: (step) => set({ step }),
   selectType: (type) => set({ activityType: type }),
+  setActivityOccurredAt: (d) => set({ activityOccurredAt: d }),
 
   updateExercise: (patch) =>
     set((s) => ({ exerciseForm: { ...s.exerciseForm, ...patch } })),
@@ -173,6 +182,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       medicationExtraPetIds: [],
       medicationForm: { ...EMPTY_MED },
       vetVisitForm: { ...EMPTY_VET },
+      activityOccurredAt: null,
     }),
 
   hydrateFromActivity: (activity, options) => {
@@ -198,6 +208,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
         type === "vet_visit"
           ? petActivityToVetVisitForm(activity, vetClinic)
           : { ...EMPTY_VET },
+      activityOccurredAt: new Date(activity.logged_at),
     });
   },
 }));

@@ -25,6 +25,8 @@ type PetProfileHeroProps = {
   /** When set, the avatar becomes tappable to change the photo. */
   onAvatarPress?: () => void;
   avatarUploading?: boolean;
+  /** When set, shows a pencil next to the name to edit it. */
+  onEditNamePress?: () => void;
 };
 
 export default function PetProfileHero({
@@ -34,6 +36,7 @@ export default function PetProfileHero({
   tags,
   onAvatarPress,
   avatarUploading,
+  onEditNamePress,
 }: PetProfileHeroProps) {
   const uri = imageUrl?.trim() || null;
 
@@ -81,7 +84,29 @@ export default function PetProfileHero({
           <View style={styles.avatarOuter}>{avatarCircle}</View>
         )}
         <View style={styles.textCol}>
-          <Text style={styles.name}>{name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={2}>
+              {name}
+            </Text>
+            {onEditNamePress ? (
+              <Pressable
+                onPress={onEditNamePress}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.nameEditHit,
+                  pressed && styles.nameEditPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Edit pet name"
+              >
+                <MaterialCommunityIcons
+                  name="pencil-outline"
+                  size={20}
+                  color="rgba(255,255,255,0.95)"
+                />
+              </Pressable>
+            ) : null}
+          </View>
           <Text style={styles.subline} numberOfLines={2}>
             {subline}
           </Text>
@@ -173,10 +198,26 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 6,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
   name: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: Font.displayBold,
     fontSize: 24,
     color: Colors.white,
+  },
+  nameEditHit: {
+    marginTop: 2,
+    padding: 4,
+    borderRadius: 8,
+  },
+  nameEditPressed: {
+    opacity: 0.85,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   subline: {
     fontFamily: Font.uiRegular,

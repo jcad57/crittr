@@ -50,7 +50,7 @@ export default function PetExerciseRequirementsBlock({ details }: Props) {
 
   const activitiesLine =
     details.exercises_per_day != null && details.exercises_per_day > 0
-      ? `${details.exercises_per_day} (walks, playtime, etc.)`
+      ? `${details.exercises_per_day}`
       : showExerciseCount
         ? "—"
         : "Not tracked for this species";
@@ -73,7 +73,10 @@ export default function PetExerciseRequirementsBlock({ details }: Props) {
         </TouchableOpacity>
       </View>
       <View style={styles.detailsCard}>
-        <SummaryRow label="Energy level" value={formatEnergyLabel(details.energy_level)} />
+        <SummaryRow
+          label="Energy level"
+          value={formatEnergyLabel(details.energy_level)}
+        />
         <SummaryRow
           label="Target activities per day"
           value={activitiesLine}

@@ -485,6 +485,18 @@ export default function UserProfileScreen() {
         </View>
         <View style={styles.whiteCard}>
           <AccountRow
+            icon="account-outline"
+            label="First name"
+            value={profile?.first_name?.trim() ?? ""}
+          />
+          <View style={styles.rowDivider} />
+          <AccountRow
+            icon="account-outline"
+            label="Last name"
+            value={profile?.last_name?.trim() ?? ""}
+          />
+          <View style={styles.rowDivider} />
+          <AccountRow
             icon="phone-outline"
             label="Phone number"
             value={profile?.phone_number?.trim() ?? ""}

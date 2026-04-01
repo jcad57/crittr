@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     width: ADD_SIZE,
     height: ADD_SIZE,
     borderRadius: ADD_SIZE / 2,
-    backgroundColor: Colors.gray100,
+    backgroundColor: Colors.white,
     alignItems: "center",
     justifyContent: "center",
   },

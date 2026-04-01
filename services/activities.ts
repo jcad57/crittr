@@ -67,6 +67,11 @@ export async function fetchTodayActivitiesForPetIds(
   return (data ?? []) as PetActivity[];
 }
 
+export type LogActivityOptions = {
+  /** ISO timestamp for `logged_at` (defaults to DB `now()` if omitted). */
+  loggedAt?: string;
+};
+
 export async function fetchActivitiesForPet(
   petId: string,
 ): Promise<PetActivity[]> {
@@ -84,6 +89,7 @@ export async function logExercise(
   petId: string,
   userId: string,
   form: ExerciseFormData,
+  options?: LogActivityOptions,
 ): Promise<PetActivity> {
   const exType =
     form.exerciseType === "Other"
@@ -109,6 +115,7 @@ export async function logExercise(
         : null,
       location: form.location.trim() || null,
       notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })
     .select()
     .single();
@@ -121,6 +128,7 @@ export async function logFood(
   petId: string,
   userId: string,
   form: FoodActivityFormData,
+  options?: LogActivityOptions,
 ): Promise<PetActivity> {
   const isOther = form.foodId === FOOD_ACTIVITY_OTHER_ID;
   const { data, error } = await supabase
@@ -138,6 +146,7 @@ export async function logFood(
       food_amount: form.amount ? parseFloat(form.amount) : null,
       food_unit: form.unit || null,
       notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })
     .select()
     .single();
@@ -150,6 +159,7 @@ export async function logMedication(
   petId: string,
   userId: string,
   form: MedicationActivityFormData,
+  options?: LogActivityOptions,
 ): Promise<PetActivity> {
   const { data, error } = await supabase
     .from("pet_activities")
@@ -162,6 +172,7 @@ export async function logMedication(
       med_amount: form.amount ? parseFloat(form.amount) : null,
       med_unit: form.unit || null,
       notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })
     .select()
     .single();
@@ -175,6 +186,7 @@ export async function logVetVisit(
   userId: string,
   form: VetVisitActivityFormData,
   allPetIds: string[],
+  options?: LogActivityOptions,
 ): Promise<PetActivity[]> {
   const location =
     form.vetLocation === "Other"
@@ -195,6 +207,7 @@ export async function logVetVisit(
         vet_location: location || null,
         other_pet_ids: form.otherPetIds.length > 0 ? form.otherPetIds : null,
         notes: form.notes.trim() || null,
+        ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
       })
       .select()
       .single();

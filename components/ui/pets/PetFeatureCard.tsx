@@ -1,14 +1,11 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
 import { getPetListSublineParts } from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import {
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -34,7 +31,6 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
   const { primary: sublinePrimary, age: sublineAge } =
     getPetListSublineParts(pet);
   const router = useRouter();
-  const setActivePet = usePetStore((s) => s.setActivePet);
   const isMemorial = variant === "memorial";
   const isOrange = variant === "orange";
   const bg = isMemorial
@@ -42,31 +38,13 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
     : isOrange
       ? Colors.orange
       : Colors.profileHeroDark;
-  const logBg = isOrange ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.16)";
-  const deleteBg = isMemorial
-    ? "rgba(110, 75, 105, 0.45)"
-    : isOrange
-      ? "rgba(90, 25, 25, 0.5)"
-      : "rgba(180, 55, 55, 0.55)";
-  const memorialCtaBg = isMemorial
-    ? "rgba(255,255,255,0.2)"
-    : isOrange
-      ? "rgba(255,255,255,0.95)"
-      : "rgba(255,255,255,0.14)";
-
-  const memorialCtaText = isMemorial
-    ? Colors.white
-    : isOrange
-      ? Colors.orange
-      : Colors.white;
 
   const avatarUri = pet.avatar_url?.trim() || null;
-  const canLogActivity = isPetActiveForDashboard(pet);
+  const chevronColor = isMemorial
+    ? "rgba(255,255,255,0.75)"
+    : "rgba(255,255,255,0.9)";
 
   const goProfile = () => router.push(`/(logged-in)/pet/${pet.id}`);
-  const goDelete = () => router.push(`/(logged-in)/pet/${pet.id}/delete-pet`);
-  const goMemorial = () =>
-    router.push(`/(logged-in)/pet/${pet.id}/memorialize-pet`);
 
   return (
     <TouchableOpacity
@@ -74,7 +52,8 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
       onPress={goProfile}
       activeOpacity={0.88}
       accessibilityRole="button"
-      accessibilityLabel={`Open ${pet.name} profile`}
+      accessibilityLabel={`${pet.name}`}
+      accessibilityHint="Opens profile"
     >
       <View style={styles.topRow}>
         <View style={styles.identity}>
@@ -122,67 +101,39 @@ export default function PetFeatureCard({ pet, variant }: PetFeatureCardProps) {
             </Text>
           )}
         </View>
-        <View style={[styles.avatar, isMemorial && styles.avatarMemorial]}>
-          {avatarUri ? (
-            <Image
-              source={{ uri: avatarUri }}
-              style={styles.avatarImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
-          ) : (
+        <View style={styles.avatarChevron}>
+          <View style={[styles.avatar, isMemorial && styles.avatarMemorial]}>
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+            ) : (
+              <MaterialCommunityIcons
+                name="paw"
+                size={36}
+                color={
+                  isMemorial
+                    ? Colors.memorialGoldSoft
+                    : isOrange
+                      ? Colors.white
+                      : Colors.orange
+                }
+              />
+            )}
+          </View>
+          <View accessible={false}>
             <MaterialCommunityIcons
-              name="paw"
-              size={36}
-              color={
-                isMemorial
-                  ? Colors.memorialGoldSoft
-                  : isOrange
-                    ? Colors.white
-                    : Colors.orange
-              }
+              name="chevron-right"
+              size={28}
+              color={chevronColor}
+              style={styles.chevron}
             />
-          )}
+          </View>
         </View>
-      </View>
-
-      <View style={styles.ctaRow}>
-        {canLogActivity ? (
-          <Pressable
-            style={[styles.ctaBtn, { backgroundColor: logBg }]}
-            onPress={() => {
-              setActivePet(pet.id);
-              router.push("/(logged-in)/add-activity");
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`Log activity for ${pet.name}`}
-          >
-            <Text style={styles.ctaBtnText}>Log activity</Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          style={[styles.ctaBtn, { backgroundColor: deleteBg }]}
-          onPress={goDelete}
-          accessibilityRole="button"
-          accessibilityLabel={`Delete ${pet.name}`}
-        >
-          <Text style={styles.ctaBtnText}>Delete</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.ctaBtn, { backgroundColor: memorialCtaBg }]}
-          onPress={goMemorial}
-          accessibilityRole="button"
-          accessibilityLabel={
-            canLogActivity
-              ? `Memorialize ${pet.name}`
-              : `Restore ${pet.name} to active`
-          }
-        >
-          <Text style={[styles.ctaBtnText, { color: memorialCtaText }]}>
-            {canLogActivity ? "Memorialize" : "Restore"}
-          </Text>
-        </Pressable>
       </View>
     </TouchableOpacity>
   );
@@ -192,8 +143,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS,
     paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 18,
+    paddingVertical: 22,
     overflow: "hidden",
   },
   topRow: {
@@ -265,26 +215,13 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
   },
-  ctaRow: {
+  avatarChevron: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 16,
-  },
-  ctaBtn: {
-    flexGrow: 1,
-    flexBasis: "28%",
-    minWidth: "28%",
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: 14,
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
+    flexShrink: 0,
   },
-  ctaBtnText: {
-    fontFamily: Font.uiBold,
-    fontSize: 12,
-    color: Colors.white,
-    textAlign: "center",
+  chevron: {
+    marginLeft: 2,
   },
 });

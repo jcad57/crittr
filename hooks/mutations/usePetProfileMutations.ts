@@ -13,8 +13,10 @@ import {
 import {
   type UpdatePetDetailsInput,
   type UpdatePetExerciseRequirementsInput,
+  type UpdatePetNameAndBreedInput,
   updatePetDetails,
   updatePetExerciseRequirements,
+  updatePetNameAndBreed,
 } from "@/services/pets";
 import type { PetWithDetails } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
@@ -26,6 +28,38 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
   return useMutation({
     mutationFn: (fields: UpdatePetExerciseRequirementsInput) =>
       updatePetExerciseRequirements(petId, fields),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PetWithDetails | null>(
+        petDetailsQueryKey(petId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...updated,
+            foods: old.foods,
+            medications: old.medications,
+            vaccinations: old.vaccinations,
+            exercise: old.exercise,
+          };
+        },
+      );
+      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+        void queryClient.invalidateQueries({
+          queryKey: healthSnapshotKey(userId),
+        });
+      }
+    },
+  });
+}
+
+export function useUpdatePetNameAndBreedMutation(petId: string) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: (fields: UpdatePetNameAndBreedInput) =>
+      updatePetNameAndBreed(petId, fields),
     onSuccess: (updated) => {
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),

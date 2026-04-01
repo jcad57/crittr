@@ -22,9 +22,15 @@ export function useLogExerciseMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: (payload: { petId: string; form: ExerciseFormData }) => {
+    mutationFn: (payload: {
+      petId: string;
+      form: ExerciseFormData;
+      loggedAtIso: string;
+    }) => {
       if (!userId) throw new Error("Not signed in");
-      return logExercise(payload.petId, userId, payload.form);
+      return logExercise(payload.petId, userId, payload.form, {
+        loggedAt: payload.loggedAtIso,
+      });
     },
     onSuccess: (_data, variables) => {
       const petId = variables.petId;
@@ -41,9 +47,15 @@ export function useLogFoodMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: (payload: { petId: string; form: FoodActivityFormData }) => {
+    mutationFn: (payload: {
+      petId: string;
+      form: FoodActivityFormData;
+      loggedAtIso: string;
+    }) => {
       if (!userId) throw new Error("Not signed in");
-      return logFood(payload.petId, userId, payload.form);
+      return logFood(payload.petId, userId, payload.form, {
+        loggedAt: payload.loggedAtIso,
+      });
     },
     onSuccess: (_data, variables) => {
       const petId = variables.petId;
@@ -63,9 +75,12 @@ export function useLogMedicationMutation() {
     mutationFn: (payload: {
       petId: string;
       form: MedicationActivityFormData;
+      loggedAtIso: string;
     }) => {
       if (!userId) throw new Error("Not signed in");
-      return logMedication(payload.petId, userId, payload.form);
+      return logMedication(payload.petId, userId, payload.form, {
+        loggedAt: payload.loggedAtIso,
+      });
     },
     onSuccess: (_data, variables) => {
       const petId = variables.petId;
@@ -85,9 +100,12 @@ export function useLogVetVisitMutation(petId: string | null) {
     mutationFn: (payload: {
       form: VetVisitActivityFormData;
       allPetIds: string[];
+      loggedAtIso: string;
     }) => {
       if (!petId || !userId) throw new Error("Missing pet or user");
-      return logVetVisit(petId, userId, payload.form, payload.allPetIds);
+      return logVetVisit(petId, userId, payload.form, payload.allPetIds, {
+        loggedAt: payload.loggedAtIso,
+      });
     },
     onSuccess: () => {
       if (petId) {

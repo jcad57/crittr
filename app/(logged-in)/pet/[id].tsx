@@ -427,6 +427,11 @@ export default function PetProfilePage() {
           tags={tags}
           onAvatarPress={handlePetAvatarPress}
           avatarUploading={avatarUploading}
+          onEditNamePress={() =>
+            router.push(
+              `/(logged-in)/pet/${profile.id}/edit-name-breed` as Href,
+            )
+          }
         />
 
         <PetStatChips items={statItems} />
