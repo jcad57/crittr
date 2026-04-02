@@ -8,7 +8,9 @@ import { sortPetsByCreatedAt } from "@/lib/petSort";
 import type { Pet, PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useMemo } from "react";
+import { useCrittrProStore } from "@/stores/crittrProStore";
+import type { Href } from "expo-router";
+import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -23,6 +25,14 @@ export default function PetsScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
+  const isMockPro = useCrittrProStore((s) => s.isMockPro);
+  const goToAddPet = useCallback(() => {
+    if (isMockPro) {
+      push("/(logged-in)/add-pet" as Href);
+    } else {
+      push("/(logged-in)/upgrade" as Href);
+    }
+  }, [isMockPro, push]);
   const { data, isLoading } = usePetsQuery();
   const dbPets: Pet[] | undefined = data;
   const ordered = useMemo(() => {
@@ -47,7 +57,7 @@ export default function PetsScreen() {
         </View>
         <Pressable
           style={styles.fab}
-          onPress={() => push("/(logged-in)/add-pet")}
+          onPress={goToAddPet}
           accessibilityRole="button"
           accessibilityLabel="Add a pet"
         >

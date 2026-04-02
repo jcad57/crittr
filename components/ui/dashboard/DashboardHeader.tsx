@@ -1,10 +1,17 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
+import {
+  PRO_GRADIENT_END,
+  PRO_GRADIENT_START,
+  PRO_HERO_INNER_GRADIENT,
+} from "@/constants/proHeroGoldGradient";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import type { PetSummary } from "@/types/ui";
 import { useProfileQuery } from "@/hooks/queries";
+import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useMemo } from "react";
 import {
   StyleSheet,
@@ -42,6 +49,7 @@ export default function DashboardHeader({
   const { width: windowWidth } = useWindowDimensions();
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
+  const isPro = useIsCrittrPro(profile);
 
   /** Smaller title on narrow screens so “Good morning” / “Good afternoon” isn’t clipped by flex layout. */
   const greetingTitleSize = useMemo(() => {
@@ -95,32 +103,64 @@ export default function DashboardHeader({
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.circleButton,
-              profileAvatarUri && styles.circleButtonWithPhoto,
-            ]}
-            onPress={onProfilePress}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-          >
-            {profileAvatarUri ? (
-              <Image
-                source={{ uri: profileAvatarUri }}
-                style={styles.profileAvatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={150}
-              />
-            ) : (
-              <MaterialCommunityIcons
-                name="account-circle-outline"
-                size={24}
-                color={Colors.gray800}
-              />
-            )}
-          </TouchableOpacity>
+          <View style={styles.profileAvatarWrap}>
+            <TouchableOpacity
+              style={[
+                styles.circleButton,
+                profileAvatarUri && styles.circleButtonWithPhoto,
+              ]}
+              onPress={onProfilePress}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isPro ? "Open profile, Crittr Pro member" : "Open profile"
+              }
+            >
+              {profileAvatarUri ? (
+                <Image
+                  source={{ uri: profileAvatarUri }}
+                  style={styles.profileAvatarImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                />
+              ) : (
+                <MaterialCommunityIcons
+                  name="account-circle-outline"
+                  size={24}
+                  color={Colors.gray800}
+                />
+              )}
+            </TouchableOpacity>
+            {isPro ? (
+              <LinearGradient
+                colors={
+                  PRO_HERO_INNER_GRADIENT.colors as [
+                    string,
+                    string,
+                    ...string[],
+                  ]
+                }
+                locations={
+                  PRO_HERO_INNER_GRADIENT.locations as [
+                    number,
+                    number,
+                    ...number[],
+                  ]
+                }
+                start={PRO_GRADIENT_START}
+                end={PRO_GRADIENT_END}
+                style={styles.proCrownBadge}
+                dither
+              >
+                <MaterialCommunityIcons
+                  name="crown"
+                  size={13}
+                  color={Colors.black}
+                />
+              </LinearGradient>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -169,9 +209,33 @@ const styles = StyleSheet.create({
   },
   rightIcons: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
     flexShrink: 0,
+  },
+  profileAvatarWrap: {
+    width: 40,
+    height: 40,
+    position: "relative",
+  },
+  /** Shiny gold pill behind crown; sits on avatar rim (top-right). */
+  proCrownBadge: {
+    position: "absolute",
+    right: -8,
+    top: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.55)",
+    shadowColor: "#8B6914",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.45,
+    shadowRadius: 3,
+    elevation: 4,
   },
   circleButton: {
     width: 40,

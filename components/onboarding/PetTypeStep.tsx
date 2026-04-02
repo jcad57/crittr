@@ -28,7 +28,7 @@ const PET_TYPES: {
   { id: "fish", label: "Fish", icon: "fish" },
   { id: "bird", label: "Bird", icon: "bird" },
   { id: "reptile", label: "Reptile", icon: "snake" },
-  { id: "other", label: "Other", icon: "paw" },
+  { id: "small_mammal", label: "Small Mammal", icon: "paw" },
 ];
 
 export default function PetTypeStep() {

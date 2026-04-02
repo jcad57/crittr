@@ -1,11 +1,19 @@
 import { Colors } from "@/constants/colors";
+import {
+  PRO_GRADIENT_END,
+  PRO_GRADIENT_START,
+  PRO_HERO_INNER_GRADIENT,
+} from "@/constants/proHeroGoldGradient";
 import { Font } from "@/constants/typography";
 import {
   profileQueryKey,
   usePetsQuery,
   useProfileQuery,
 } from "@/hooks/queries";
+import { useDeviceTiltShared } from "@/hooks/useDeviceTiltShared";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { pickAvatarImage } from "@/lib/pickImage";
 import { queryClient } from "@/lib/queryClient";
 import { updateProfile, uploadAvatar } from "@/services/profiles";
@@ -15,12 +23,19 @@ import type { Pet, Profile } from "@/types/database";
 import { formatPetTypeLabel } from "@/utils/petDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useCallback, useMemo, useState, type ComponentProps } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +43,174 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const HERO_RADIUS = 24;
+/** Extra size so translating the gradient reveals shifting shine inside the clip. */
+const INNER_GRADIENT_OVERSCAN = 0.42;
+const HERO_BORDER = 3;
+
+/** Rotating border ring — metallic sweep (dark gold → bright → dark). */
+const PRO_SHINE_BORDER_COLORS = [
+  "#5C4008",
+  "#8B6914",
+  "#C9A012",
+  "#FFF8DC",
+  "#FFE566",
+  "#FFF8DC",
+  "#C9A012",
+  "#8B6914",
+  "#5C4008",
+] as const;
+const PRO_SHINE_LOCATIONS = [
+  0, 0.12, 0.28, 0.45, 0.52, 0.6, 0.75, 0.88, 1,
+] as const;
+
+const proHeroStyles = StyleSheet.create({
+  heroProWrapper: {
+    marginBottom: 22,
+    position: "relative",
+  },
+  heroCardProBorder: {
+    borderRadius: HERO_RADIUS,
+    position: "relative",
+    shadowColor: "#FF8F00",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.26,
+    shadowRadius: 26,
+    elevation: 10,
+  },
+  heroCardProRing: {
+    overflow: "hidden",
+  },
+  heroProShineSpinner: {
+    position: "absolute",
+  },
+  heroCardProInnerClip: {
+    margin: HERO_BORDER,
+    borderRadius: HERO_RADIUS - HERO_BORDER,
+    overflow: "hidden",
+    zIndex: 1,
+    position: "relative",
+  },
+  /** Oversized gradient layer; parent clips — translate simulates moving shine. */
+  heroCardProInnerGradientWrap: {
+    position: "absolute",
+    borderRadius: HERO_RADIUS - HERO_BORDER,
+  },
+  heroCardProInnerContent: {
+    padding: 17,
+    gap: 14,
+    position: "relative",
+    zIndex: 1,
+  },
+});
+
+function ProHeroWithShine({ children }: { children: React.ReactNode }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const rotation = useSharedValue(0);
+  const { tiltX, tiltY } = useDeviceTiltShared(Platform.OS !== "web");
+
+  /** Native LinearGradient ignores animated start/end; shift the layer instead. */
+  const innerGradientShiftStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: tiltX.value * 36 },
+      { translateY: tiltY.value * 28 },
+    ],
+  }));
+
+  useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 10000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+  }, [rotation]);
+
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  const spinSize = box.w > 0 && box.h > 0 ? Math.max(box.w, box.h) * 2.75 : 0;
+  const spinLeft = box.w > 0 ? (box.w - spinSize) / 2 : 0;
+  const spinTop = box.h > 0 ? (box.h - spinSize) / 2 : 0;
+
+  return (
+    <View style={proHeroStyles.heroProWrapper}>
+      <View
+        style={[proHeroStyles.heroCardProBorder, proHeroStyles.heroCardProRing]}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setBox({ w: width, h: height });
+        }}
+      >
+        {spinSize > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              proHeroStyles.heroProShineSpinner,
+              {
+                width: spinSize,
+                height: spinSize,
+                left: spinLeft,
+                top: spinTop,
+              },
+              spinStyle,
+            ]}
+          >
+            <LinearGradient
+              colors={[...PRO_SHINE_BORDER_COLORS]}
+              locations={[...PRO_SHINE_LOCATIONS]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+          </Animated.View>
+        ) : null}
+        <View style={proHeroStyles.heroCardProInnerClip}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              proHeroStyles.heroCardProInnerGradientWrap,
+              {
+                left: `${-INNER_GRADIENT_OVERSCAN * 50}%`,
+                top: `${-INNER_GRADIENT_OVERSCAN * 50}%`,
+                width: `${100 + INNER_GRADIENT_OVERSCAN * 100}%`,
+                height: `${100 + INNER_GRADIENT_OVERSCAN * 100}%`,
+              },
+              innerGradientShiftStyle,
+            ]}
+          >
+            <LinearGradient
+              colors={
+                PRO_HERO_INNER_GRADIENT.colors as [string, string, ...string[]]
+              }
+              locations={
+                PRO_HERO_INNER_GRADIENT.locations as [
+                  number,
+                  number,
+                  ...number[],
+                ]
+              }
+              start={PRO_GRADIENT_START}
+              end={PRO_GRADIENT_END}
+              style={StyleSheet.absoluteFillObject}
+              dither
+            />
+          </Animated.View>
+          <View style={proHeroStyles.heroCardProInnerContent}>{children}</View>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function displayNameFromProfile(p: Profile | null): string {
   if (!p) return "Your name";
@@ -159,6 +341,8 @@ export default function UserProfileScreen() {
     return m ? `Member since ${m}` : null;
   }, [profile?.created_at]);
 
+  const isPro = useIsCrittrPro(profile);
+
   const handleSignOut = async () => {
     await signOut();
   };
@@ -284,54 +468,121 @@ export default function UserProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ───────────────────────────────────────── */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <Pressable
-              onPress={handleProfileAvatarPress}
-              disabled={avatarUploading}
-              style={({ pressed }) => [
-                styles.heroAvatarOuter,
-                pressed && styles.heroAvatarPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
-            >
-              <View style={styles.heroAvatarClip}>
-                {profile?.avatar_url?.trim() ? (
-                  <Image
-                    source={{ uri: profile.avatar_url }}
-                    style={styles.heroAvatarImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <Text style={styles.heroInitials}>{initials}</Text>
-                )}
-                {avatarUploading ? (
-                  <View style={styles.heroAvatarOverlay}>
-                    <ActivityIndicator color={Colors.white} />
+        {isPro ? (
+          <ProHeroWithShine>
+            <View style={styles.proMemberPillRow}>
+              <View style={styles.proMemberPill}>
+                <MaterialCommunityIcons
+                  name="crown-outline"
+                  size={15}
+                  color={Colors.black}
+                />
+                <Text style={styles.proMemberPillText}>Crittr Pro Member</Text>
+              </View>
+            </View>
+            <View style={styles.heroTopRow}>
+              <Pressable
+                onPress={handleProfileAvatarPress}
+                disabled={avatarUploading}
+                style={({ pressed }) => [
+                  styles.heroAvatarOuter,
+                  pressed && styles.heroAvatarPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                <View style={styles.heroAvatarClip}>
+                  {profile?.avatar_url?.trim() ? (
+                    <Image
+                      source={{ uri: profile.avatar_url }}
+                      style={styles.heroAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <Text style={styles.heroInitials}>{initials}</Text>
+                  )}
+                  {avatarUploading ? (
+                    <View style={styles.heroAvatarOverlay}>
+                      <ActivityIndicator color={Colors.white} />
+                    </View>
+                  ) : null}
+                </View>
+                {!avatarUploading ? (
+                  <View style={styles.heroPencilBadge} pointerEvents="none">
+                    <MaterialCommunityIcons
+                      name="pencil-outline"
+                      size={14}
+                      color={Colors.black}
+                    />
                   </View>
                 ) : null}
+              </Pressable>
+              <View style={styles.heroTextCol}>
+                <Text style={[styles.heroName, styles.heroNamePro]}>
+                  {titleName}
+                </Text>
+                <Text style={[styles.heroEmail, styles.heroEmailPro]}>
+                  {email || "—"}
+                </Text>
+                {memberLine ? (
+                  <Text style={[styles.heroMember, styles.heroMemberPro]}>
+                    {memberLine}
+                  </Text>
+                ) : null}
               </View>
-              {!avatarUploading ? (
-                <View style={styles.heroPencilBadge} pointerEvents="none">
-                  <MaterialCommunityIcons
-                    name="pencil-outline"
-                    size={14}
-                    color={Colors.black}
-                  />
+            </View>
+          </ProHeroWithShine>
+        ) : (
+          <View style={styles.heroCard}>
+            <View style={styles.heroTopRow}>
+              <Pressable
+                onPress={handleProfileAvatarPress}
+                disabled={avatarUploading}
+                style={({ pressed }) => [
+                  styles.heroAvatarOuter,
+                  pressed && styles.heroAvatarPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                <View style={styles.heroAvatarClip}>
+                  {profile?.avatar_url?.trim() ? (
+                    <Image
+                      source={{ uri: profile.avatar_url }}
+                      style={styles.heroAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <Text style={styles.heroInitials}>{initials}</Text>
+                  )}
+                  {avatarUploading ? (
+                    <View style={styles.heroAvatarOverlay}>
+                      <ActivityIndicator color={Colors.white} />
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
-            </Pressable>
-            <View style={styles.heroTextCol}>
-              <Text style={styles.heroName}>{titleName}</Text>
-              <Text style={styles.heroEmail}>{email || "—"}</Text>
-              {memberLine ? (
-                <Text style={styles.heroMember}>{memberLine}</Text>
-              ) : null}
+                {!avatarUploading ? (
+                  <View style={styles.heroPencilBadge} pointerEvents="none">
+                    <MaterialCommunityIcons
+                      name="pencil-outline"
+                      size={14}
+                      color={Colors.black}
+                    />
+                  </View>
+                ) : null}
+              </Pressable>
+              <View style={styles.heroTextCol}>
+                <Text style={styles.heroName}>{titleName}</Text>
+                <Text style={styles.heroEmail}>{email || "—"}</Text>
+                {memberLine ? (
+                  <Text style={styles.heroMember}>{memberLine}</Text>
+                ) : null}
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* ── Pets ───────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
@@ -572,8 +823,6 @@ export default function UserProfileScreen() {
   );
 }
 
-const HERO_RADIUS = 24;
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -626,6 +875,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 4,
+  },
+  proMemberPillRow: {
+    alignItems: "center",
+  },
+  proMemberPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "hsla(46, 92.30%, 64.50%, 0.25)",
+    borderWidth: 1,
+    borderColor: "hsla(46, 92.30%, 64.50%, 0.35)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  proMemberPillText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    letterSpacing: 0.2,
+    color: Colors.black,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -691,16 +965,28 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: Colors.white,
   },
+  heroNamePro: {
+    color: "#2a2210",
+    textShadowColor: "rgba(255,255,255,0.35)",
+    textShadowOffset: { width: 0, height: 0.5 },
+    textShadowRadius: 1,
+  },
   heroEmail: {
     fontFamily: Font.uiRegular,
     fontSize: 14,
     color: "rgba(255,255,255,0.75)",
+  },
+  heroEmailPro: {
+    color: "rgba(42,34,16,0.78)",
   },
   heroMember: {
     fontFamily: Font.uiRegular,
     fontSize: 13,
     color: "rgba(255,255,255,0.55)",
     marginTop: 2,
+  },
+  heroMemberPro: {
+    color: "rgba(58,48,28,0.65)",
   },
 
   sectionHeader: {

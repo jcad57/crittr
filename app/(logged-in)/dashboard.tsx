@@ -38,6 +38,7 @@ import {
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useCrittrProStore } from "@/stores/crittrProStore";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
@@ -48,6 +49,15 @@ export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
+  const isMockPro = useCrittrProStore((s) => s.isMockPro);
+
+  const goToAddPet = useCallback(() => {
+    if (isMockPro) {
+      push("/(logged-in)/add-pet" as Href);
+    } else {
+      push("/(logged-in)/upgrade" as Href);
+    }
+  }, [isMockPro, push]);
 
   const {
     data: dbPets,
@@ -394,10 +404,7 @@ export default function Dashboard() {
             )}
           </View>
 
-          <PetManagement
-            pets={pets}
-            onAddPet={() => push("/(logged-in)/add-pet")}
-          />
+          <PetManagement pets={pets} onAddPet={goToAddPet} />
         </PullToRefreshScrollView>
       </View>
     </View>

@@ -1,6 +1,12 @@
 // ─── Pet type ────────────────────────────────────────────────────────────────
 
-export type PetType = "dog" | "cat" | "fish" | "bird" | "reptile" | "other";
+export type PetType =
+  | "dog"
+  | "cat"
+  | "fish"
+  | "bird"
+  | "reptile"
+  | "small_mammal";
 
 // ─── Reference data rows ────────────────────────────────────────────────────
 
@@ -28,6 +34,10 @@ export type Profile = {
   phone_number: string | null;
   avatar_url: string | null;
   onboarding_complete: boolean;
+  /** Pro access valid until this ISO time; null = no Pro. Set server-side (Stripe / admin). */
+  crittr_pro_until: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   created_at: string;
   updated_at: string;
 };
