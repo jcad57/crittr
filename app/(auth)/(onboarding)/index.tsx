@@ -1,25 +1,14 @@
-import FinishStep from "@/components/onboarding/FinishStep";
+import AuthBackToWelcome from "@/components/onboarding/AuthBackToWelcome";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
-import PendingInvitesStep from "@/components/onboarding/PendingInvitesStep";
-import PetCareStep from "@/components/onboarding/PetCareStep";
-import PetInfoStep from "@/components/onboarding/PetInfoStep";
-import PetTypeStep from "@/components/onboarding/PetTypeStep";
-import ProfileStep from "@/components/onboarding/ProfileStep";
-import SignUpStep from "@/components/onboarding/SignUpStep";
+import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import { useAuthStore } from "@/stores/authStore";
-import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
+import {
+  FINISH_STEP_INDEX,
+  ONBOARDING_INDICATED_STEP_COUNT,
+  useOnboardingStore,
+} from "@/stores/onboardingStore";
 import { useEffect } from "react";
-
-const STEP_COMPONENTS = [
-  SignUpStep,
-  ProfileStep,
-  PendingInvitesStep,
-  PetTypeStep,
-  PetInfoStep,
-  PetCareStep,
-  FinishStep,
-];
 
 /**
  * Resume onboarding at the correct step for returning sessions.
@@ -28,6 +17,7 @@ const STEP_COMPONENTS = [
 export default function Onboarding() {
   const currentStep = useOnboardingStore((s) => s.currentStep);
   const goToStep = useOnboardingStore((s) => s.goToStep);
+  const resetOnboarding = useOnboardingStore((s) => s.reset);
   const session = useAuthStore((s) => s.session);
   const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const resumeStep = useAuthStore((s) => s.onboardingResumeStep);
@@ -39,14 +29,27 @@ export default function Onboarding() {
     goToStep(resumeStep);
   }, [session?.user.id, needsOnboarding, resumeStep, goToStep]);
 
-  const StepComponent = STEP_COMPONENTS[currentStep] ?? SignUpStep;
+  const StepComponent =
+    ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[0];
+
+  const showIndicator = currentStep > 0;
+  const indicatorIndex = currentStep - 1;
 
   return (
-    <OnboardingCard scrollKey={currentStep}>
-      <StepIndicator
-        totalSteps={ONBOARDING_STEPS.length}
-        currentStep={currentStep}
-      />
+    <OnboardingCard
+      scrollKey={currentStep}
+      scrollBody={currentStep !== FINISH_STEP_INDEX}
+      header={
+        currentStep === 0 ? (
+          <AuthBackToWelcome onBeforeNavigate={resetOnboarding} />
+        ) : showIndicator ? (
+          <StepIndicator
+            totalSteps={ONBOARDING_INDICATED_STEP_COUNT}
+            currentStep={indicatorIndex}
+          />
+        ) : undefined
+      }
+    >
       <StepComponent />
     </OnboardingCard>
   );

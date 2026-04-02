@@ -1,9 +1,10 @@
+import AuthBackToWelcome from "@/components/onboarding/AuthBackToWelcome";
 import FormInput from "@/components/onboarding/FormInput";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import Divider from "@/components/ui/Divider";
-import { Colors } from "@/constants/colors";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useAuthStore } from "@/stores/authStore";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
@@ -31,11 +32,10 @@ export default function SignIn() {
   };
 
   return (
-    <OnboardingCard>
-      {/* Title */}
-      <Text style={styles.title}>Welcome Back!</Text>
+    <OnboardingCard header={<AuthBackToWelcome />}>
+      <Text style={authOnboardingStyles.screenTitle}>Welcome Back!</Text>
 
-      <Text style={styles.socialLabel}>Sign in with</Text>
+      <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
       <SocialAuthContainer />
 
       <Divider />
@@ -70,99 +70,22 @@ export default function SignIn() {
         Sign In
       </OrangeButton>
       <Link href="/(auth)/(onboarding)?intent=signup" asChild>
-        <Pressable
-          style={{
-            marginTop: 12,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            justifyContent: "center",
-          }}
-        >
-          <Text style={styles.signInLink}>Don't have an account? </Text>
-          <Text style={styles.signInLinkBold}>Sign Up</Text>
+        <Pressable style={authOnboardingStyles.linkRow}>
+          <Text style={authOnboardingStyles.linkMuted}>
+            Don&apos;t have an account?{" "}
+          </Text>
+          <Text style={authOnboardingStyles.linkAccent}>Sign Up</Text>
         </Pressable>
       </Link>
     </OnboardingCard>
   );
 }
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  iconRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 20,
-  },
-  socialLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  nameRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
-  },
-  halfInput: {
-    flex: 1,
-  },
   inputSpacing: {
     marginBottom: 12,
   },
-  terms: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  termsLink: {
-    color: Colors.orange,
-    fontFamily: "InstrumentSans-Bold",
-  },
   cta: {
     marginTop: 12,
-  },
-  signInLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  signInButton: {
-    height: 50,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: Colors.black,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signInButtonText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  signInLink: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  signInLinkBold: {
-    fontFamily: "InstrumentSans-Bold",
-    color: Colors.orange,
   },
 });

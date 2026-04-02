@@ -1,5 +1,8 @@
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { markCoCareRemovalNotificationsRead } from "@/services/notifications";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -42,60 +45,58 @@ export default function CoCareRemovedScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <MaterialCommunityIcons
-          name="account-remove"
-          size={56}
-          color={Colors.orange}
-        />
+    <OnboardingCard>
+      <View style={styles.inner}>
+        <View style={styles.iconWrap}>
+          <MaterialCommunityIcons
+            name="account-remove"
+            size={56}
+            color={Colors.orange}
+          />
+        </View>
+        <Text style={[authOnboardingStyles.screenTitle, styles.titleSpacing]}>
+          You no longer have access
+        </Text>
+        <Text style={[authOnboardingStyles.body, styles.bodySpacing]}>
+          You&apos;ve been removed as a co-carer for the pet you were helping
+          with. You won&apos;t be able to view or log activities for that pet
+          anymore.
+        </Text>
+        <Text style={styles.sub}>
+          Add a pet you own to keep using Crittr, or close the app — when you
+          come back, we&apos;ll walk you through adding a pet like a new
+          account.
+        </Text>
+        <View style={styles.spacer} />
+        <OrangeButton onPress={onAddPet}>Add your own pet</OrangeButton>
       </View>
-      <Text style={styles.title}>You no longer have access</Text>
-      <Text style={styles.body}>
-        You’ve been removed as a co-carer for the pet you were helping with.
-        You won’t be able to view or log activities for that pet anymore.
-      </Text>
-      <Text style={styles.sub}>
-        Add a pet you own to keep using Crittr, or close the app — when you
-        come back, we’ll walk you through adding a pet like a new account.
-      </Text>
-      <View style={styles.spacer} />
-      <OrangeButton onPress={onAddPet}>Add your own pet</OrangeButton>
-    </View>
+    </OnboardingCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  inner: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 32,
-    backgroundColor: Colors.background,
+    minHeight: 360,
   },
   iconWrap: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 16,
+  titleSpacing: {
+    marginBottom: 14,
   },
-  body: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.textSecondary,
+  bodySpacing: {
     textAlign: "center",
     marginBottom: 12,
   },
   sub: {
+    fontFamily: Font.uiRegular,
     fontSize: 14,
     lineHeight: 22,
-    color: Colors.gray500,
+    color: Colors.textSecondary,
     textAlign: "center",
+    opacity: 0.95,
   },
   spacer: {
     flex: 1,

@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.gray100,
+    backgroundColor: Colors.gray200,
     maxWidth: "80%",
   },
 });

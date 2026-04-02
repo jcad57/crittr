@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -161,7 +162,7 @@ export default function AutocompleteInput({
 
 const styles = StyleSheet.create({
   fieldLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
     height: "100%",
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.gray100,
   },
   optionText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
   },

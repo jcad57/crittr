@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import {
   GestureResponderEvent,
   Pressable,
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   label: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.white,
   },

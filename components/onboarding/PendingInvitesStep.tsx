@@ -1,5 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import {
   coCarersForPetKey,
   petsQueryKey,
@@ -36,7 +38,8 @@ export default function PendingInvitesStep() {
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
-  const { nextStep, prevStep } = useOnboardingStore();
+  const { nextStep, prevStep, skippedPendingInvitesEmpty, setSkippedPendingInvitesEmpty } =
+    useOnboardingStore();
   const router = useRouter();
 
   const [invites, setInvites] = useState<InviteRow[]>([]);
@@ -53,10 +56,20 @@ export default function PendingInvitesStep() {
   }, [session?.user.id]);
 
   useEffect(() => {
-    if (!loading && invites.length === 0 && acceptedCount === 0) {
-      nextStep();
-    }
-  }, [loading, invites.length, acceptedCount, nextStep]);
+    if (!session || loading) return;
+    if (invites.length > 0 || acceptedCount !== 0) return;
+    if (skippedPendingInvitesEmpty) return;
+    setSkippedPendingInvitesEmpty(true);
+    nextStep();
+  }, [
+    session,
+    loading,
+    invites.length,
+    acceptedCount,
+    skippedPendingInvitesEmpty,
+    nextStep,
+    setSkippedPendingInvitesEmpty,
+  ]);
 
   const handleAccept = useCallback(
     async (inviteId: string) => {
@@ -138,8 +151,10 @@ export default function PendingInvitesStep() {
         />
       </View>
 
-      <Text style={styles.title}>You've been invited!</Text>
-      <Text style={styles.subtitle}>
+      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 8 }]}>
+        You&apos;ve been invited!
+      </Text>
+      <Text style={[authOnboardingStyles.screenSubtitle, { marginBottom: 24 }]}>
         {acceptedCount > 0 && invites.length === 0
           ? "You accepted an invite. You can start co-caring right away, or add your own pet too."
           : "Someone wants to share pet care with you. Accept to get started."}
@@ -203,7 +218,7 @@ export default function PendingInvitesStep() {
       )}
 
       <Pressable onPress={prevStep} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
+        <Text style={authOnboardingStyles.backText}>Back</Text>
       </Pressable>
     </View>
   );
@@ -213,21 +228,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { justifyContent: "center", alignItems: "center" },
   iconCenter: { alignItems: "center", marginBottom: 16, marginTop: 12 },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 22,
-  },
   inviteCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -237,17 +237,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.gray200,
     borderRadius: 14,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.white,
     marginBottom: 12,
   },
   inviteInfo: { flex: 1, marginRight: 12 },
   invitePetName: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textPrimary,
   },
   inviteFrom: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   acceptText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 14,
     color: Colors.white,
   },
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   declineText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 14,
     color: Colors.textSecondary,
   },
@@ -277,14 +277,9 @@ const styles = StyleSheet.create({
   cta: { marginTop: 16 },
   addOwnPetBtn: { alignSelf: "center", paddingVertical: 12 },
   addOwnPetText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 15,
     color: Colors.orange,
   },
   backButton: { alignSelf: "center", paddingVertical: 16 },
-  backText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.textSecondary,
-  },
 });

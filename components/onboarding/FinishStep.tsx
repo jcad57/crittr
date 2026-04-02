@@ -1,5 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/queryClient";
 import { createPet, fetchUserPets } from "@/services/pets";
@@ -11,15 +13,21 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const HIGH_FIVE = require("@/assets/images/high-five.png");
 
 export default function FinishStep() {
   const router = useRouter();
-  const { pets, addAnotherPet, editPetAtIndex, prevStep, reset, petFlowMode } =
+  const insets = useSafeAreaInsets();
+  const { pets, addAnotherPet, editPetAtIndex, reset, petFlowMode } =
     useOnboardingStore();
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
@@ -35,11 +43,7 @@ export default function FinishStep() {
 
       for (let i = 0; i < pets.length; i++) {
         const isFirstInAccount = existingPets.length === 0 && i === 0;
-        const pet = await createPet(
-          session.user.id,
-          pets[i],
-          isFirstInAccount,
-        );
+        const pet = await createPet(session.user.id, pets[i], isFirstInAccount);
         createdIds.push(pet.id);
       }
 
@@ -77,99 +81,105 @@ export default function FinishStep() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconCenter}>
-        <MaterialCommunityIcons name="paw" size={48} color={Colors.orange} />
-      </View>
-
-      <Text style={styles.title}>You're all set!</Text>
-      <Text style={styles.subtitle}>
-        {pets.length === 1
-          ? "Here's the pet you've added:"
-          : `Here are the ${pets.length} pets you've added:`}
-      </Text>
-
-      {/* Pet chips */}
-      <View style={styles.chipContainer}>
-        {pets.map((p, i) => (
-          <View key={i} style={styles.chip}>
-            <View style={styles.chipLeft}>
-              <View style={styles.chipTitleRow}>
-                <MaterialCommunityIcons
-                  name="paw"
-                  size={16}
-                  color={Colors.orange}
-                />
-                <Text style={styles.chipName}>{p.name || `Pet ${i + 1}`}</Text>
-              </View>
-              {p.breed ? (
-                <Text style={styles.chipBreed}>{p.breed}</Text>
-              ) : null}
-            </View>
-            <Pressable
-              onPress={() => editPetAtIndex(i)}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.editHit,
-                pressed && styles.editHitPressed,
-              ]}
-            >
-              <Text style={styles.editLabel}>Edit</Text>
-            </Pressable>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.spacer} />
-
-      {/* Add Another Pet */}
-      <Pressable style={styles.addButton} onPress={addAnotherPet}>
-        <MaterialCommunityIcons name="plus" size={20} color={Colors.orange} />
-        <Text style={styles.addButtonText}>Add Another Pet</Text>
-      </Pressable>
-
-      {/* Finish */}
-      <OrangeButton
-        onPress={handleFinish}
-        disabled={isSubmitting}
-        style={styles.cta}
+    <View style={styles.outer}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollInner,
+          { paddingBottom: Math.max(insets.bottom, 24) + 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {isSubmitting ? (
-          <ActivityIndicator color={Colors.white} />
-        ) : (
-          "Finish"
-        )}
-      </OrangeButton>
+        <View style={styles.heroImageWrap}>
+          <Image
+            source={HIGH_FIVE}
+            style={styles.heroImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+        </View>
 
-      <Pressable onPress={prevStep} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+        <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 8 }]}>
+          You&apos;re all set!
+        </Text>
+        <Text
+          style={[authOnboardingStyles.screenSubtitle, { marginBottom: 24 }]}
+        >
+          {pets.length === 1
+            ? "Here's the pet you've added:"
+            : `Here are the ${pets.length} pets you've added:`}
+        </Text>
+
+        <View style={styles.chipContainer}>
+          {pets.map((p, i) => (
+            <View key={i} style={styles.chip}>
+              <View style={styles.chipLeft}>
+                <View style={styles.chipTitleRow}>
+                  <MaterialCommunityIcons
+                    name="paw"
+                    size={16}
+                    color={Colors.orange}
+                  />
+                  <Text style={styles.chipName}>
+                    {p.name || `Pet ${i + 1}`}
+                  </Text>
+                </View>
+                {p.breed ? (
+                  <Text style={styles.chipBreed}>{p.breed}</Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={() => editPetAtIndex(i)}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.editHit,
+                  pressed && styles.editHitPressed,
+                ]}
+              >
+                <Text style={styles.editLabel}>Edit</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        <Pressable style={styles.addButton} onPress={addAnotherPet}>
+          <MaterialCommunityIcons name="plus" size={20} color={Colors.orange} />
+          <Text style={styles.addButtonText}>Add Another Pet</Text>
+        </Pressable>
+
+        <OrangeButton
+          onPress={handleFinish}
+          disabled={isSubmitting}
+          style={styles.finishCta}
+        >
+          {isSubmitting ? <ActivityIndicator color={Colors.white} /> : "Finish"}
+        </OrangeButton>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outer: {
+    flex: 1,
+    width: "100%",
+  },
+  scroll: {
     flex: 1,
   },
-  iconCenter: {
+  scrollInner: {
+    flexGrow: 1,
+    paddingTop: 40,
+  },
+  heroImageWrap: {
     alignItems: "center",
     marginBottom: 16,
-    marginTop: 12,
   },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 24,
+  heroImage: {
+    width: "100%",
+    maxWidth: 160,
+    height: 120,
   },
   chipContainer: {
     gap: 12,
@@ -196,13 +206,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   chipName: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textPrimary,
     flexShrink: 1,
   },
   chipBreed: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 4,
@@ -216,13 +226,9 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   editLabel: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 15,
     color: Colors.orange,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 32,
   },
   addButton: {
     flexDirection: "row",
@@ -233,23 +239,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.orange,
     borderRadius: 999,
     height: 50,
-    marginBottom: 12,
+    marginTop: 20,
   },
   addButtonText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.orange,
   },
-  cta: {
-    marginBottom: 0,
-  },
-  backButton: {
-    alignSelf: "center",
-    paddingVertical: 16,
-  },
-  backText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.textSecondary,
+  finishCta: {
+    marginTop: 28,
   },
 });

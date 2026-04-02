@@ -1,11 +1,9 @@
-import FinishStep from "@/components/onboarding/FinishStep";
+import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
-import PetCareStep from "@/components/onboarding/PetCareStep";
-import PetInfoStep from "@/components/onboarding/PetInfoStep";
-import PetTypeStep from "@/components/onboarding/PetTypeStep";
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import { Colors } from "@/constants/colors";
 import {
+  FINISH_STEP_INDEX,
   ONBOARDING_STEPS,
   PET_TYPE_STEP_INDEX,
   useOnboardingStore,
@@ -14,15 +12,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useLayoutEffect } from "react";
 import { ActivityIndicator, BackHandler, StyleSheet, View } from "react-native";
 
-const FINISH_STEP_INDEX = ONBOARDING_STEPS.indexOf("finish");
 const ADD_PET_STEP_COUNT = FINISH_STEP_INDEX - PET_TYPE_STEP_INDEX + 1;
-
-const ADD_PET_STEPS = [
-  PetTypeStep,
-  PetInfoStep,
-  PetCareStep,
-  FinishStep,
-] as const;
 
 export default function AddPetScreen() {
   const router = useRouter();
@@ -65,7 +55,8 @@ export default function AddPetScreen() {
     currentStep <= FINISH_STEP_INDEX;
 
   const stepOffset = currentStep - PET_TYPE_STEP_INDEX;
-  const StepComponent = ADD_PET_STEPS[stepOffset] ?? PetTypeStep;
+  const StepComponent =
+    ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[PET_TYPE_STEP_INDEX];
 
   if (!ready) {
     return (
@@ -76,11 +67,16 @@ export default function AddPetScreen() {
   }
 
   return (
-    <OnboardingCard scrollKey={currentStep}>
-      <StepIndicator
-        totalSteps={ADD_PET_STEP_COUNT}
-        currentStep={stepOffset}
-      />
+    <OnboardingCard
+      scrollKey={currentStep}
+      scrollBody={currentStep !== FINISH_STEP_INDEX}
+      header={
+        <StepIndicator
+          totalSteps={ADD_PET_STEP_COUNT}
+          currentStep={stepOffset}
+        />
+      }
+    >
       <StepComponent />
     </OnboardingCard>
   );

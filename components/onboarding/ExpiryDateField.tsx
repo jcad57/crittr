@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   datePickerText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: "black",
   },
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   clearDateText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 12,
     color: Colors.textSecondary,
   },

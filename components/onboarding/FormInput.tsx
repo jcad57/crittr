@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   StyleProp,
@@ -79,7 +80,7 @@ export default function FormInput({
 
 const styles = StyleSheet.create({
   fieldLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -92,10 +93,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.gray200,
-    borderRadius: 12,
+    borderRadius: 14,
     height: 50,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.gray50,
   },
   /** Taller field with icon pinned to top so placeholder/text align with phone row. */
   containerMultiline: {
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
     height: "100%",

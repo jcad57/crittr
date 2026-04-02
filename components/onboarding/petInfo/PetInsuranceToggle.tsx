@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -64,13 +65,13 @@ const styles = StyleSheet.create({
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
   label: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 4,
   },
   hint: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.gray400,
     marginBottom: 8,
@@ -93,12 +94,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.orange,
   },
   optionText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
   },
   optionTextActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
 });

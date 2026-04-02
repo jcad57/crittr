@@ -1,5 +1,6 @@
 import FormInput from "@/components/onboarding/FormInput";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -78,7 +79,7 @@ export default function PetWeightFields({
 
 const styles = StyleSheet.create({
   fieldLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -116,12 +117,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.orangeLight,
   },
   unitToggleText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
   },
   unitToggleTextActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
 });

@@ -1,6 +1,7 @@
 import FormInput from "@/components/onboarding/FormInput";
 import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
   fieldLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   orText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 13,
     color: Colors.textSecondary,
     textAlign: "center",

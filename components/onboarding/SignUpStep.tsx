@@ -1,13 +1,15 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { useAuthStore } from "@/stores/authStore";
 import {
   ONBOARDING_STEPS,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -21,10 +23,10 @@ import Divider from "../ui/Divider";
 import SocialAuthContainer from "./SocialAuthContainer";
 
 export default function SignUpStep() {
-  const router = useRouter();
   const { accountData, setAccountData, goToStep } = useOnboardingStore();
   const signUp = useAuthStore((s) => s.signUp);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const canSubmit =
     accountData.firstName.trim() &&
@@ -32,8 +34,16 @@ export default function SignUpStep() {
     accountData.email.trim() &&
     accountData.password.length >= 6;
 
+  const firstErr = attempted && !accountData.firstName.trim();
+  const lastErr = attempted && !accountData.lastName.trim();
+  const emailErr = attempted && !accountData.email.trim();
+  const passwordErr = attempted && accountData.password.length < 6;
+
   const handleCreateAccount = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      setAttempted(true);
+      return;
+    }
     setIsSubmitting(true);
     try {
       await signUp(
@@ -52,8 +62,7 @@ export default function SignUpStep() {
 
   return (
     <View style={styles.container}>
-      {/* Title */}
-      <Text style={styles.title}>Welcome to Crittr!</Text>
+      <Text style={authOnboardingStyles.screenTitle}>Welcome to Crittr!</Text>
 
       {/* Animal icons */}
       <View style={styles.iconRow}>
@@ -71,7 +80,9 @@ export default function SignUpStep() {
         />
       </View>
 
-      <Text style={styles.socialLabel}>Sign up with</Text>
+      <Text style={[authOnboardingStyles.socialLabel, { marginBottom: 16 }]}>
+        Sign up with
+      </Text>
       <SocialAuthContainer />
 
       <Divider />
@@ -79,23 +90,31 @@ export default function SignUpStep() {
       {/* Name row */}
       <View style={styles.nameRow}>
         <FormInput
+          label="First name"
+          required
           placeholder="First Name"
           value={accountData.firstName}
           onChangeText={(v) => setAccountData({ firstName: v })}
           containerStyle={styles.halfInput}
           autoCapitalize="words"
+          error={firstErr}
         />
         <FormInput
+          label="Last name"
+          required
           placeholder="Last Name"
           value={accountData.lastName}
           onChangeText={(v) => setAccountData({ lastName: v })}
           containerStyle={styles.halfInput}
           autoCapitalize="words"
+          error={lastErr}
         />
       </View>
 
       {/* Email */}
       <FormInput
+        label="Email"
+        required
         icon="email-outline"
         placeholder="Email"
         value={accountData.email}
@@ -103,27 +122,39 @@ export default function SignUpStep() {
         keyboardType="email-address"
         autoCapitalize="none"
         containerStyle={styles.inputSpacing}
+        error={emailErr}
       />
 
       {/* Password */}
       <FormInput
+        label="Password"
+        required
         icon="lock-outline"
-        placeholder="Password"
+        placeholder="At least 6 characters"
         value={accountData.password}
         onChangeText={(v) => setAccountData({ password: v })}
         secureTextEntry
         containerStyle={styles.inputSpacing}
+        error={passwordErr}
       />
 
       {/* Terms */}
-      <Text style={styles.terms}>
-        I agree to the <Text style={styles.termsLink}>Terms & Conditions</Text>
+      <Text style={authOnboardingStyles.terms}>
+        I agree to the{" "}
+        <Text style={authOnboardingStyles.termsLink}>Terms & Conditions</Text>
       </Text>
+
+      {attempted && !canSubmit ? (
+        <Text style={styles.errorHint}>
+          Please fill in all required fields. Password must be at least 6
+          characters.
+        </Text>
+      ) : null}
 
       {/* Create Account */}
       <OrangeButton
         onPress={handleCreateAccount}
-        disabled={!canSubmit || isSubmitting}
+        disabled={isSubmitting}
         style={styles.cta}
       >
         {isSubmitting ? (
@@ -133,16 +164,13 @@ export default function SignUpStep() {
         )}
       </OrangeButton>
 
-      <Divider />
-
-      {/* Sign In link */}
-      <Text style={styles.signInLabel}>Already have an account?</Text>
-      <Pressable
-        style={styles.signInButton}
-        onPress={() => router.replace("/(auth)/sign-in")}
-      >
-        <Text style={styles.signInButtonText}>Log In</Text>
-      </Pressable>
+      {/* Same layout + copy as welcome screen: inline “Sign In” link */}
+      <Link href="/(auth)/sign-in" asChild>
+        <Pressable style={styles.signInRow}>
+          <Text style={styles.signInLink}>I already have an account! </Text>
+          <Text style={styles.signInLinkBold}>Sign In</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
@@ -150,20 +178,6 @@ export default function SignUpStep() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  socialLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 16,
   },
   iconRow: {
     flexDirection: "row",
@@ -186,39 +200,32 @@ const styles = StyleSheet.create({
   inputSpacing: {
     marginBottom: 12,
   },
-  terms: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  termsLink: {
-    color: Colors.orange,
-    fontFamily: "InstrumentSans-Bold",
-  },
   cta: {
     marginTop: 12,
+    marginBottom: 22,
   },
-  signInLabel: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  signInButton: {
-    height: 50,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: Colors.black,
+  signInRow: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 4,
   },
-  signInButtonText: {
-    fontFamily: "InstrumentSans-Bold",
+  signInLink: {
+    fontFamily: "InstrumentSans-Regular",
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  signInLinkBold: {
+    fontFamily: "InstrumentSans-Bold",
+    fontSize: 16,
+    color: Colors.orange,
+  },
+  errorHint: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.error,
+    textAlign: "center",
+    marginBottom: 8,
   },
 });

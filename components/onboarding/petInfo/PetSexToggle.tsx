@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -57,7 +58,7 @@ export default function PetSexToggle({ sex, onChange, error }: PetSexToggleProps
 
 const styles = StyleSheet.create({
   fieldLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -87,12 +88,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
   },
   toggleText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
   },
   toggleTextActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
 });

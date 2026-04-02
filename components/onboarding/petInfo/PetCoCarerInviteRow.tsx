@@ -1,5 +1,6 @@
 import FormInput from "@/components/onboarding/FormInput";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PetCoCarerInviteRowProps = {
@@ -34,7 +35,7 @@ export default function PetCoCarerInviteRow({
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textPrimary,
     marginBottom: 12,
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   inviteButtonText: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 15,
     color: Colors.white,
   },

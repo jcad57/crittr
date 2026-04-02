@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
     height: "100%",
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.gray100,
   },
   optionText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
   },
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   tagText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 13,
     color: Colors.orange,
   },

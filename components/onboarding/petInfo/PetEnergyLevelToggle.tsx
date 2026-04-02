@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { ENERGY_OPTIONS, PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -49,7 +50,7 @@ export default function PetEnergyLevelToggle({
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textPrimary,
     marginBottom: 12,
@@ -79,12 +80,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
   },
   toggleText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
   },
   toggleTextActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
 });

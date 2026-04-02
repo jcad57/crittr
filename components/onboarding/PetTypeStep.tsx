@@ -1,12 +1,16 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
 import type { PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import {
   Alert,
+  BackHandler,
   Pressable,
   StyleSheet,
   Text,
@@ -28,11 +32,26 @@ const PET_TYPES: {
 ];
 
 export default function PetTypeStep() {
-  const { pets, currentPetIndex, updateCurrentPet, nextStep } =
-    useOnboardingStore();
+  const {
+    pets,
+    currentPetIndex,
+    updateCurrentPet,
+    nextStep,
+    addingAnotherPet,
+    cancelAddAnotherPet,
+  } = useOnboardingStore();
   const handleBack = usePetFlowExitOnBack();
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const pet = pets[currentPetIndex];
+  const [attempted, setAttempted] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [handleBack]);
 
   const handleSelect = (type: PetType) => {
     updateCurrentPet({ petType: type });
@@ -41,6 +60,7 @@ export default function PetTypeStep() {
 
   const handleContinue = () => {
     if (!pet.petType) {
+      setAttempted(true);
       Alert.alert(
         "Select a pet type",
         "Please choose a pet type before you can continue.",
@@ -50,15 +70,22 @@ export default function PetTypeStep() {
     nextStep();
   };
 
+  const typeMissing = attempted && !pet.petType;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What type of pet do you have?</Text>
-      <Text style={styles.subtitle}>
-        This helps us tailor the experience for your pet. You'll be able to add
-        more pets later.
+      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 8 }]}>
+        What type of pet do you have?
+      </Text>
+      <Text style={[authOnboardingStyles.screenSubtitle, { marginBottom: 28 }]}>
+        This helps us tailor the experience for your pet. You&apos;ll be able to
+        add more pets later.
       </Text>
 
-      <View style={styles.grid}>
+      <Text style={[styles.fieldLabel, typeMissing && styles.fieldLabelError]}>
+        Pet type *
+      </Text>
+      <View style={[styles.grid, typeMissing && styles.gridError]}>
         {PET_TYPES.map((pt) => {
           const isActive = pet.petType === pt.id;
           return (
@@ -90,8 +117,18 @@ export default function PetTypeStep() {
         Continue
       </OrangeButton>
 
+      {addingAnotherPet ? (
+        <Pressable
+          onPress={cancelAddAnotherPet}
+          style={styles.cancelRow}
+          hitSlop={8}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
+      ) : null}
+
       <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
+        <Text style={authOnboardingStyles.backText}>Back</Text>
       </TouchableOpacity>
     </View>
   );
@@ -101,25 +138,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
+  fieldLabel: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
-  subtitle: {
-    fontFamily: "InstrumentSans-Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 28,
+  fieldLabelError: {
+    color: Colors.error,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     gap: 12,
+    borderRadius: 16,
+    padding: 4,
+  },
+  gridError: {
+    borderWidth: 1.5,
+    borderColor: Colors.error,
   },
   card: {
     width: "47%",
@@ -127,6 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderWidth: 1.5,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     borderRadius: 16,
     gap: 8,
   },
@@ -146,12 +185,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   label: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 15,
     color: Colors.textSecondary,
   },
   labelActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
   spacer: {
@@ -161,13 +200,17 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 12,
   },
+  cancelRow: {
+    alignSelf: "center",
+    paddingVertical: 12,
+  },
+  cancelText: {
+    fontFamily: Font.uiBold,
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
   backButton: {
     alignSelf: "center",
     paddingVertical: 16,
-  },
-  backText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.textSecondary,
   },
 });

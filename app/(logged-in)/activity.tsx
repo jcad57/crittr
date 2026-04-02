@@ -20,12 +20,12 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -272,8 +272,8 @@ export default function ActivityScreen() {
                 {!isPetsLoading && dbPets?.length === 0
                   ? "Add a pet to see activity here."
                   : dateFilterYmd != null
-                    ? "No activities on this date for this filter."
-                    : "No activities match this filter."}
+                    ? "No activities on this date for this pet."
+                    : "No activities yet for this pet."}
               </Text>
             )}
           </View>

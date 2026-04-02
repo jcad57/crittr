@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray200,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.white,
   },
 });

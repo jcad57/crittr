@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { AVATAR_SIZE } from "@/constants/petInfo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -54,14 +55,14 @@ const styles = StyleSheet.create({
     height: AVATAR_SIZE,
   },
   uploadLabel: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: Colors.orange,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.orange,
+    borderRadius: 999,
     overflow: "hidden",
   },
 });

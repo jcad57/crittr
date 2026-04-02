@@ -4,14 +4,14 @@ import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSecti
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetCoCarerInviteRow from "@/components/onboarding/petInfo/PetCoCarerInviteRow";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
-import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
-import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import {
   getBreedLabelForPetType,
   PET_INFO_FIELD_MARGIN_BOTTOM,
@@ -39,7 +39,7 @@ import {
   View,
 } from "react-native";
 
-export default function PetInfoStep() {
+export default function PetDetailsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore();
   const pet = pets[currentPetIndex];
@@ -128,13 +128,13 @@ export default function PetInfoStep() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tell us about your pet!</Text>
+      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 20 }]}>
+        Tell us about your pet!
+      </Text>
 
       <PetAvatarSection avatarUri={pet.avatarUri} onPickImage={pickImage} />
 
-      {/* <Divider /> */}
-
-      <Text style={styles.sectionTitle}>Basic Info</Text>
+      <Text style={authOnboardingStyles.sectionTitle}>Basic Info</Text>
 
       <FormInput
         label="Pet's name"
@@ -159,7 +159,7 @@ export default function PetInfoStep() {
         error={!!err("breed")}
       />
 
-      <Text style={styles.sectionTitle}>About</Text>
+      <Text style={authOnboardingStyles.sectionTitle}>About</Text>
       <Text style={styles.aboutHint}>Short bio (max 320 characters)</Text>
       <View style={[styles.aboutBox, styles.inputSpacing]}>
         <TextInput
@@ -232,82 +232,7 @@ export default function PetInfoStep() {
         />
       ) : null}
 
-      <Text style={styles.sectionTitle}>Health & identification</Text>
-
-      <FormInput
-        label="Primary vet clinic"
-        placeholder="Clinic name"
-        value={pet.primaryVetClinic}
-        onChangeText={(v) => updateCurrentPet({ primaryVetClinic: v })}
-        autoCapitalize="words"
-        containerStyle={styles.inputSpacing}
-      />
-
-      <FormInput
-        label="Vet clinic address"
-        placeholder="Street, city"
-        value={pet.primaryVetAddress}
-        onChangeText={(v) => updateCurrentPet({ primaryVetAddress: v })}
-        autoCapitalize="words"
-        containerStyle={styles.inputSpacing}
-      />
-
-      <PetMicrochipToggle
-        value={pet.isMicrochipped}
-        onChange={(v) =>
-          updateCurrentPet({
-            isMicrochipped: v,
-            microchipNumber: v === true ? pet.microchipNumber : "",
-          })
-        }
-      />
-
-      {pet.isMicrochipped === true ? (
-        <FormInput
-          label="Microchip number"
-          placeholder="e.g. 1234567890"
-          value={pet.microchipNumber}
-          onChangeText={(v) => updateCurrentPet({ microchipNumber: v })}
-          keyboardType="number-pad"
-          containerStyle={styles.inputSpacing}
-        />
-      ) : null}
-
-      <PetInsuranceToggle
-        value={pet.isInsured}
-        onChange={(v) =>
-          updateCurrentPet({
-            isInsured: v,
-            insuranceProvider: v === true ? pet.insuranceProvider : "",
-            insurancePolicyNumber: v === true ? pet.insurancePolicyNumber : "",
-          })
-        }
-      />
-
-      {pet.isInsured === true ? (
-        <>
-          <FormInput
-            label="Insurance company"
-            placeholder="e.g. Trupanion, Nationwide"
-            value={pet.insuranceProvider}
-            onChangeText={(v) => updateCurrentPet({ insuranceProvider: v })}
-            autoCapitalize="words"
-            containerStyle={styles.inputSpacing}
-          />
-          <FormInput
-            label="Policy number"
-            placeholder="Policy or member ID"
-            value={pet.insurancePolicyNumber}
-            onChangeText={(v) =>
-              updateCurrentPet({ insurancePolicyNumber: v })
-            }
-            autoCapitalize="none"
-            containerStyle={styles.inputSpacing}
-          />
-        </>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Allergies</Text>
+      <Text style={authOnboardingStyles.sectionTitle}>Allergies</Text>
       <TagInput
         placeholder="Search or type an allergy…"
         tags={pet.allergies}
@@ -341,7 +266,7 @@ export default function PetInfoStep() {
       </OrangeButton>
 
       <TouchableOpacity onPress={prevStep} style={styles.backButton}>
-        <Text style={styles.backText}>Back</Text>
+        <Text style={authOnboardingStyles.backText}>Back</Text>
       </TouchableOpacity>
     </View>
   );
@@ -351,21 +276,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  title: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-    marginBottom: 12,
-  },
   aboutHint: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.textSecondary,
     marginBottom: 8,
@@ -381,7 +293,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   aboutInput: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
     minHeight: 88,
@@ -396,7 +308,7 @@ const styles = StyleSheet.create({
     minHeight: 24,
   },
   errorHint: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 13,
     color: Colors.error,
     textAlign: "center",
@@ -408,10 +320,5 @@ const styles = StyleSheet.create({
   backButton: {
     alignSelf: "center",
     paddingVertical: 16,
-  },
-  backText: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 15,
-    color: Colors.textSecondary,
   },
 });

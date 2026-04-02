@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -55,12 +56,20 @@ export default function DropdownSelect({
 
       <View style={styles.inner}>
         <TouchableOpacity
-          style={[styles.trigger, isOpen && styles.triggerOpen]}
+          style={[
+            styles.trigger,
+            isOpen && styles.triggerOpen,
+            error && styles.triggerError,
+          ]}
           onPress={() => setIsOpen(!isOpen)}
           activeOpacity={0.7}
         >
           <Text
-            style={[styles.triggerText, !value && styles.triggerPlaceholder]}
+            style={[
+              styles.triggerText,
+              !value && styles.triggerPlaceholder,
+              !value && error && styles.triggerPlaceholderError,
+            ]}
             numberOfLines={1}
           >
             {value || placeholder}
@@ -68,7 +77,7 @@ export default function DropdownSelect({
           <MaterialCommunityIcons
             name={isOpen ? "chevron-up" : "chevron-down"}
             size={20}
-            color={Colors.gray400}
+            color={error && !value ? Colors.error : Colors.gray400}
           />
         </TouchableOpacity>
 
@@ -151,7 +160,7 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     flex: 1,
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
   },
@@ -201,12 +210,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.orangeLight,
   },
   optionText: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
   },
   optionTextActive: {
-    fontFamily: "InstrumentSans-Bold",
+    fontFamily: Font.uiBold,
     color: Colors.orange,
   },
 });

@@ -11,8 +11,12 @@ export const ONBOARDING_STEPS = [
   "profile",
   "pending-invites",
   "pet-type",
-  "pet-info",
-  "pet-care",
+  "pet-details",
+  "pet-food",
+  "pet-vet-clinic",
+  "pet-health-records",
+  "pet-medications",
+  "pet-vaccinations",
   "finish",
 ] as const;
 
@@ -28,6 +32,13 @@ export const PENDING_INVITES_STEP_INDEX =
 /** Index of `"pet-type"` in `ONBOARDING_STEPS` (shared by add-pet flow). */
 export const PET_TYPE_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-type");
 
+export const FINISH_STEP_INDEX = ONBOARDING_STEPS.indexOf("finish");
+
+export const PROFILE_STEP_INDEX = ONBOARDING_STEPS.indexOf("profile");
+
+/** Dot indicator is hidden on signup; this is the count of steps that show dots (profile → finish). */
+export const ONBOARDING_INDICATED_STEP_COUNT = ONBOARDING_STEPS.length - 1;
+
 type OnboardingState = {
   currentStep: number;
   /** When `add-pet`, only pet-type → finish steps are used; signup/profile are skipped. */
@@ -36,6 +47,16 @@ type OnboardingState = {
   profileData: ProfileFormData;
   pets: PetFormData[];
   currentPetIndex: number;
+  /**
+   * After we auto-advance past pending-invites with zero invites, Back from pet-type
+   * should go to profile — not step 2 (which would auto-advance again).
+   */
+  skippedPendingInvitesEmpty: boolean;
+  /**
+   * True after "Add another pet" from finish — Back from pet-type returns to finish;
+   * Cancel discards the new pet row and returns to finish.
+   */
+  addingAnotherPet: boolean;
 
   nextStep: () => void;
   prevStep: () => void;
@@ -49,6 +70,9 @@ type OnboardingState = {
   addAnotherPet: () => void;
   /** Jump to pet-type step for an existing pet (data stays in `pets[index]`). */
   editPetAtIndex: (index: number) => void;
+  setSkippedPendingInvitesEmpty: (value: boolean) => void;
+  /** Abandon the in-progress extra pet and return to the finish step. */
+  cancelAddAnotherPet: () => void;
   reset: () => void;
 };
 
@@ -73,9 +97,17 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   profileData: { ...INITIAL_PROFILE },
   pets: [{ ...EMPTY_PET_FORM }],
   currentPetIndex: 0,
+  skippedPendingInvitesEmpty: false,
+  addingAnotherPet: false,
 
   nextStep: () => set((s) => ({ currentStep: s.currentStep + 1 })),
-  prevStep: () => set((s) => ({ currentStep: Math.max(0, s.currentStep - 1) })),
+
+  setSkippedPendingInvitesEmpty: (value) =>
+    set({ skippedPendingInvitesEmpty: value }),
+
+  prevStep: () =>
+    set((s) => ({ currentStep: Math.max(0, s.currentStep - 1) })),
+
   goToStep: (step) => set({ currentStep: step }),
 
   startAddPetFlow: () =>
@@ -84,6 +116,8 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       currentStep: PET_TYPE_STEP_INDEX,
       pets: [{ ...EMPTY_PET_FORM }],
       currentPetIndex: 0,
+      skippedPendingInvitesEmpty: false,
+      addingAnotherPet: false,
     }),
 
   setAccountData: (data) =>
@@ -108,8 +142,22 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         pets,
         currentPetIndex: pets.length - 1,
         currentStep: ONBOARDING_STEPS.indexOf("pet-type"),
+        skippedPendingInvitesEmpty: false,
+        addingAnotherPet: true,
       };
     }),
+
+  cancelAddAnotherPet: () => {
+    const s = get();
+    if (!s.addingAnotherPet || s.pets.length <= 1) return;
+    const pets = s.pets.slice(0, -1);
+    set({
+      pets,
+      currentPetIndex: pets.length - 1,
+      currentStep: FINISH_STEP_INDEX,
+      addingAnotherPet: false,
+    });
+  },
 
   editPetAtIndex: (index) => {
     const s = get();
@@ -117,6 +165,8 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     set({
       currentPetIndex: index,
       currentStep: ONBOARDING_STEPS.indexOf("pet-type"),
+      skippedPendingInvitesEmpty: false,
+      addingAnotherPet: false,
     });
   },
 
@@ -128,5 +178,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       profileData: { ...INITIAL_PROFILE },
       pets: [{ ...EMPTY_PET_FORM }],
       currentPetIndex: 0,
+      skippedPendingInvitesEmpty: false,
+      addingAnotherPet: false,
     }),
 }));

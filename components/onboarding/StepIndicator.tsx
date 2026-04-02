@@ -29,13 +29,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: 16,
   },
   dot: {
     width: DOT_SIZE,
     height: DOT_SIZE,
     borderRadius: DOT_SIZE / 2,
-    backgroundColor: Colors.gray200,
+    backgroundColor: Colors.gray300,
   },
   dotActive: {
     backgroundColor: Colors.orange,
