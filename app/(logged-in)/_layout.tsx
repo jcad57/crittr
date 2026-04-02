@@ -1,7 +1,8 @@
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
 import { useAuth } from "@/context/auth";
 import { useLoggedInQueryBootstrap } from "@/hooks/useLoggedInQueryBootstrap";
-import { Redirect, Stack } from "expo-router";
+import { useAuthStore } from "@/stores/authStore";
+import { Redirect, Stack, usePathname } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
 function LoggedInQueryBootstrap() {
@@ -11,12 +12,20 @@ function LoggedInQueryBootstrap() {
 
 export default function LoggedInLayout() {
   const { isLoggedIn, needsOnboarding } = useAuth();
+  const requiresCoCareRemovedScreen = useAuthStore(
+    (s) => s.requiresCoCareRemovedScreen,
+  );
+  const pathname = usePathname() ?? "";
+  const isAddPetRoute = pathname.includes("add-pet");
 
   if (!isLoggedIn) {
     return <Redirect href="/(auth)/welcome" />;
   }
 
-  if (needsOnboarding) {
+  if (needsOnboarding && !(requiresCoCareRemovedScreen && isAddPetRoute)) {
+    if (requiresCoCareRemovedScreen) {
+      return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
+    }
     return <Redirect href="/(auth)/(onboarding)" />;
   }
 

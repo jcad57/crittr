@@ -11,6 +11,10 @@ export type RecordsNavItem = {
   iconBg: string;
   iconColor: string;
   onPress?: () => void;
+  /** Default true. Set false for in-place actions (no navigation). */
+  showChevron?: boolean;
+  /** Light red row styling for destructive actions. */
+  variant?: "default" | "destructive";
 };
 
 type RecordsNavCardProps = {
@@ -20,37 +24,54 @@ type RecordsNavCardProps = {
 export default function RecordsNavCard({ items }: RecordsNavCardProps) {
   return (
     <View style={styles.wrap}>
-      {items.map((item, index) => (
-        <TouchableOpacity
-          key={item.id}
-          style={[
-            styles.row,
-            index < items.length - 1 && styles.rowBorder,
-          ]}
-          onPress={item.onPress}
-          activeOpacity={0.65}
-          disabled={!item.onPress}
-        >
-          <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
-            <MaterialCommunityIcons
-              name={item.icon}
-              size={22}
-              color={item.iconColor}
-            />
-          </View>
-          <View style={styles.textCol}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.sub} numberOfLines={2}>
-              {item.subtitle}
-            </Text>
-          </View>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={22}
-            color={Colors.gray400}
-          />
-        </TouchableOpacity>
-      ))}
+      {items.map((item, index) => {
+        const destructive = item.variant === "destructive";
+        const showChevron = item.showChevron !== false;
+        return (
+          <TouchableOpacity
+            key={item.id}
+            style={[
+              styles.row,
+              destructive && styles.rowDestructive,
+              index < items.length - 1 && styles.rowBorder,
+              destructive && index < items.length - 1 && styles.rowBorderDestructive,
+            ]}
+            onPress={item.onPress}
+            activeOpacity={0.65}
+            disabled={!item.onPress}
+          >
+            <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+              <MaterialCommunityIcons
+                name={item.icon}
+                size={22}
+                color={item.iconColor}
+              />
+            </View>
+            <View style={styles.textCol}>
+              <Text
+                style={[styles.title, destructive && styles.titleDestructive]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[styles.sub, destructive && styles.subDestructive]}
+                numberOfLines={2}
+              >
+                {item.subtitle}
+              </Text>
+            </View>
+            {showChevron ? (
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={22}
+                color={destructive ? Colors.error : Colors.gray400}
+              />
+            ) : (
+              <View style={styles.chevronSpacer} />
+            )}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -76,6 +97,21 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.gray100,
+  },
+  rowDestructive: {
+    backgroundColor: Colors.errorLight,
+  },
+  rowBorderDestructive: {
+    borderBottomColor: "rgba(239, 68, 68, 0.2)",
+  },
+  titleDestructive: {
+    color: Colors.error,
+  },
+  subDestructive: {
+    color: Colors.gray700,
+  },
+  chevronSpacer: {
+    width: 22,
   },
   iconBox: {
     width: 44,

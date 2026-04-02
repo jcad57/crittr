@@ -24,32 +24,40 @@ export default function UpcomingVisitFeatureCard({
   empty,
 }: UpcomingVisitFeatureCardProps) {
   if (empty || !visit) {
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.85}
-        onPress={onPress}
-      >
-        <View style={styles.emptyInner}>
-          <MaterialCommunityIcons
-            name="calendar-heart"
-            size={28}
-            color={Colors.orangeLight}
-          />
-          <View style={styles.emptyTextBlock}>
-            <Text style={styles.emptyTitle}>Schedule your next visit</Text>
-            <Text style={styles.emptySubtitle}>
-              Keep vaccinations and checkups on track
-            </Text>
-          </View>
+    const inner = (
+      <View style={styles.emptyInner}>
+        <MaterialCommunityIcons
+          name="calendar-heart"
+          size={28}
+          color={Colors.orangeLight}
+        />
+        <View style={styles.emptyTextBlock}>
+          <Text style={styles.emptyTitle}>Schedule your next visit</Text>
+          <Text style={styles.emptySubtitle}>
+            Keep vaccinations and checkups on track
+          </Text>
+        </View>
+        {onPress ? (
           <MaterialCommunityIcons
             name="chevron-right"
             size={24}
             color={Colors.gray400}
           />
-        </View>
-      </TouchableOpacity>
+        ) : null}
+      </View>
     );
+    if (onPress) {
+      return (
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.85}
+          onPress={onPress}
+        >
+          {inner}
+        </TouchableOpacity>
+      );
+    }
+    return <View style={styles.card}>{inner}</View>;
   }
 
   const badge = badgeFromVisit(visit);

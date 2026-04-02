@@ -7,6 +7,7 @@ import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import HealthSectionSkeleton from "@/components/ui/dashboard/HealthSectionSkeleton";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
+import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import { Colors } from "@/constants/colors";
 import type {
@@ -22,6 +23,7 @@ import {
   useUnreadNotificationCountQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { isDailyProgressComplete } from "@/lib/dailyProgressComplete";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import {
@@ -35,32 +37,46 @@ import {
 } from "@/lib/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
 
-  const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
+  const {
+    data: dbPets,
+    isLoading: isPetsLoading,
+    refetch: refetchPets,
+  } = usePetsQuery();
   const { activePetId, setActivePet } = usePetStore();
-  const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
+  const { data: unreadCount = 0, refetch: refetchUnreadCount } =
+    useUnreadNotificationCountQuery();
 
   useEffect(() => {
     if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
   }, [dbPets]);
 
-  const { data: activePetDetails, isPending: detailsPending } =
-    usePetDetailsQuery(activePetId);
-  const { data: todayActivities, isPending: todayActivitiesPending } =
-    useTodayActivitiesQuery(activePetId);
-  const { data: vetVisitRows, isPending: vetVisitsPending } =
-    usePetVetVisitsQuery(activePetId ?? undefined);
+  const {
+    data: activePetDetails,
+    isPending: detailsPending,
+    refetch: refetchPetDetails,
+  } = usePetDetailsQuery(activePetId);
+  const {
+    data: todayActivities,
+    isPending: todayActivitiesPending,
+    refetch: refetchTodayActivities,
+  } = useTodayActivitiesQuery(activePetId);
+  const {
+    data: vetVisitRows,
+    isPending: vetVisitsPending,
+    refetch: refetchVetVisits,
+  } = usePetVetVisitsQuery(activePetId ?? undefined);
 
   const pets: Pet[] = useMemo(
     () =>
@@ -171,6 +187,30 @@ export default function Dashboard() {
       .map(mapPetVetVisitToDashboard);
   }, [vetVisitRows]);
 
+  const resolvedPetIdForPerm = useMemo(() => {
+    if (
+      activePetId &&
+      (dbPets ?? []).some(
+        (p) => p.id === activePetId && isPetActiveForDashboard(p),
+      )
+    ) {
+      return activePetId;
+    }
+    return (dbPets ?? []).find((p) => isPetActiveForDashboard(p))?.id ?? null;
+  }, [activePetId, dbPets]);
+
+  const canLogActivities = useCanPerformAction(
+    resolvedPetIdForPerm,
+    "can_log_activities",
+  );
+  const canManageVetVisits = useCanPerformAction(
+    resolvedPetIdForPerm,
+    "can_manage_vet_visits",
+  );
+  const canManageMedications = useCanPerformAction(
+    resolvedPetIdForPerm,
+    "can_manage_medications",
+  );
   const medications: Medication[] = useMemo(() => {
     if (!activePetDetails || !activePetId) return [];
     const acts = todayActivities ?? [];
@@ -193,12 +233,12 @@ export default function Dashboard() {
   }, [activePetDetails, activePetId, todayActivities]);
 
   const navigateToAddActivity = useCallback(() => {
-    router.push("/(logged-in)/add-activity");
-  }, [router]);
+    push("/(logged-in)/add-activity");
+  }, [push]);
 
   const navigateToActivity = useCallback(() => {
-    router.push("/(logged-in)/activity");
-  }, [router]);
+    push("/(logged-in)/activity");
+  }, [push]);
 
   const handleSwitchPet = useCallback(
     (id: string) => {
@@ -210,34 +250,51 @@ export default function Dashboard() {
   const openMedicationEditor = useCallback(
     (medicationId: string) => {
       if (!activePetId) return;
-      router.push(
+      push(
         `/(logged-in)/pet/${activePetId}/medications/${medicationId}` as Href,
       );
     },
-    [router, activePetId],
+    [push, activePetId],
   );
 
   const openAddMedication = useCallback(() => {
     if (!activePetId) return;
-    router.push(
-      `/(logged-in)/pet/${activePetId}/medications/new` as Href,
-    );
-  }, [router, activePetId]);
+    push(`/(logged-in)/pet/${activePetId}/medications/new` as Href);
+  }, [push, activePetId]);
 
   const openVetVisitEditor = useCallback(
     (visitId: string) => {
       if (!activePetId) return;
-      router.push(
+      push(
         `/(logged-in)/pet/${activePetId}/vet-visits/${visitId}` as Href,
       );
     },
-    [router, activePetId],
+    [push, activePetId],
   );
 
   const scheduleVetVisit = useCallback(() => {
     if (!activePetId) return;
-    router.push(`/(logged-in)/add-vet-visit?petId=${activePetId}` as Href);
-  }, [router, activePetId]);
+    push(`/(logged-in)/add-vet-visit?petId=${activePetId}` as Href);
+  }, [push, activePetId]);
+
+  const handleDashboardRefresh = useCallback(async () => {
+    const tasks: Promise<unknown>[] = [refetchPets(), refetchUnreadCount()];
+    if (activePetId) {
+      tasks.push(
+        refetchPetDetails(),
+        refetchTodayActivities(),
+        refetchVetVisits(),
+      );
+    }
+    await Promise.all(tasks);
+  }, [
+    activePetId,
+    refetchPets,
+    refetchUnreadCount,
+    refetchPetDetails,
+    refetchTodayActivities,
+    refetchVetVisits,
+  ]);
 
   const showDailyProgressSkeleton =
     Boolean(activePetId) && (detailsPending || todayActivitiesPending);
@@ -261,20 +318,21 @@ export default function Dashboard() {
               onSwitchPet={handleSwitchPet}
               unreadNotificationCount={unreadCount}
               onNotificationsPress={() =>
-                router.push("/(logged-in)/notifications" as Href)
+                push("/(logged-in)/notifications" as Href)
               }
-              onProfilePress={() => router.push("/(logged-in)/profile")}
+              onProfilePress={() => push("/(logged-in)/profile")}
             />
           </View>
         </View>
 
-        <ScrollView
+        <PullToRefreshScrollView
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
             { paddingBottom: scrollInsetBottom },
           ]}
           showsVerticalScrollIndicator={false}
+          onRefresh={handleDashboardRefresh}
         >
           <View style={styles.petDataBlock}>
             <View style={styles.sectionBlock}>
@@ -305,6 +363,7 @@ export default function Dashboard() {
                 activities={todayActivities ?? []}
                 onLogActivityPress={navigateToAddActivity}
                 onSeeAllPress={navigateToActivity}
+                showLogActivity={canLogActivities === true}
               />
             )}
 
@@ -314,13 +373,22 @@ export default function Dashboard() {
               <HealthSection
                 medications={medications}
                 vetVisits={dashboardVetVisits}
-                onScheduleVisitPress={scheduleVetVisit}
+                onScheduleVisitPress={
+                  canManageVetVisits === true ? scheduleVetVisit : undefined
+                }
                 onVetVisitPress={openVetVisitEditor}
                 onMedicationPress={openMedicationEditor}
-                onAddMedicationPress={openAddMedication}
+                onAddMedicationPress={
+                  canManageMedications === true ? openAddMedication : undefined
+                }
                 attentionVaccinations={attentionVaccinations}
-                onVaccinationAttentionPress={() =>
-                  router.push("/(logged-in)/health" as Href)
+                onVaccinationAttentionPress={
+                  activePetId
+                    ? () =>
+                        push(
+                          `/(logged-in)/pet/${activePetId}/vaccinations` as Href,
+                        )
+                    : undefined
                 }
               />
             )}
@@ -328,9 +396,9 @@ export default function Dashboard() {
 
           <PetManagement
             pets={pets}
-            onAddPet={() => router.push("/(logged-in)/add-pet")}
+            onAddPet={() => push("/(logged-in)/add-pet")}
           />
-        </ScrollView>
+        </PullToRefreshScrollView>
       </View>
     </View>
   );

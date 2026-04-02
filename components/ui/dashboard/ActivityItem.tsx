@@ -84,7 +84,7 @@ export default function ActivityItem({ activity, loggerName, onPress }: Props) {
         </View>
         {loggerName ? (
           <Text style={styles.subline} numberOfLines={1}>
-            Logged by {loggerName}
+            Logged by {loggerName.split(" ")[0]}
           </Text>
         ) : null}
       </View>

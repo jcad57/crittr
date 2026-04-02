@@ -4,8 +4,9 @@ import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
   Pressable,
@@ -19,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetVisibilityScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
@@ -73,7 +74,7 @@ export default function PetVisibilityScreen() {
 
         <OrangeButton
           onPress={() =>
-            router.push(`/(logged-in)/pet/${petId}/memorialize-pet` as Href)
+            push(`/(logged-in)/pet/${petId}/memorialize-pet` as Href)
           }
           style={styles.cta}
         >
@@ -83,7 +84,7 @@ export default function PetVisibilityScreen() {
         <Pressable
           style={styles.deleteLink}
           onPress={() =>
-            router.push(`/(logged-in)/pet/${petId}/delete-pet` as Href)
+            push(`/(logged-in)/pet/${petId}/delete-pet` as Href)
           }
         >
           <Text style={styles.deleteLinkText}>Delete pet permanently…</Text>

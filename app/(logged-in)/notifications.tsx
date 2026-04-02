@@ -1,7 +1,8 @@
-import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  notificationsKey,
+  unreadNotificationCountKey,
   useAcceptInviteMutation,
   useDeclineInviteMutation,
   useMarkAllNotificationsReadMutation,
@@ -9,14 +10,18 @@ import {
   useNotificationsQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { queryClient } from "@/lib/queryClient";
+import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -49,11 +54,37 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationsScreen() {
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
-  const { data: notifications = [], isLoading } = useNotificationsQuery();
+  const userId = useAuthStore((s) => s.session?.user?.id);
+  const {
+    data: notifications = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useNotificationsQuery();
+
+  const onRefresh = useCallback(async () => {
+    await refetch();
+    if (userId) {
+      void queryClient.invalidateQueries({
+        queryKey: unreadNotificationCountKey(userId),
+      });
+    }
+  }, [refetch, userId]);
+
+  /** Badge (unread count) can update via polling while this screen’s list cache stays stale under global staleTime — refetch both on focus. */
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: notificationsKey(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: unreadNotificationCountKey(userId),
+      });
+    }, [userId]),
+  );
   const markRead = useMarkNotificationReadMutation();
   const markAllRead = useMarkAllNotificationsReadMutation();
   const acceptInvite = useAcceptInviteMutation();
@@ -68,10 +99,10 @@ export default function NotificationsScreen() {
         | string
         | undefined;
       if (petId) {
-        router.push(`/(logged-in)/pet/${petId}` as any);
+        push(`/(logged-in)/pet/${petId}` as any);
       }
     },
-    [markRead, router],
+    [markRead, push],
   );
 
   const handleAcceptInvite = useCallback(
@@ -135,14 +166,29 @@ export default function NotificationsScreen() {
           <ActivityIndicator size="large" color={Colors.orange} />
         </View>
       ) : notifications.length === 0 ? (
-        <View style={styles.centered}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.emptyScrollContent,
+            { paddingBottom: scrollInsetBottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void onRefresh()}
+              tintColor={Colors.orange}
+              colors={[Colors.orange]}
+            />
+          }
+        >
           <MaterialCommunityIcons
             name="bell-check-outline"
             size={48}
             color={Colors.gray300}
           />
           <Text style={styles.emptyText}>No notifications yet</Text>
-        </View>
+        </ScrollView>
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -151,6 +197,14 @@ export default function NotificationsScreen() {
             { paddingBottom: scrollInsetBottom + 24 },
           ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void onRefresh()}
+              tintColor={Colors.orange}
+              colors={[Colors.orange]}
+            />
+          }
         >
           {notifications.map((n) => (
             <Pressable
@@ -238,6 +292,13 @@ const styles = StyleSheet.create({
     color: Colors.orange,
   },
   scroll: { flex: 1 },
+  emptyScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
   body: { paddingHorizontal: 20, paddingTop: 8 },
   emptyText: {
     fontFamily: Font.uiRegular,

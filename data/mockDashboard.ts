@@ -52,6 +52,7 @@ export type PetProfile = Pet & {
   primaryVetName?: string | null;
   isInsured?: boolean | null;
   insuranceProvider?: string | null;
+  insurancePolicyNumber?: string | null;
   isSterilized?: boolean | null;
   exercisesPerDay: number | null;
   about: string;

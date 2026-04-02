@@ -20,6 +20,15 @@ export const healthSnapshotKey = (ownerId: string) =>
 export const petVetVisitsQueryKey = (petId: string) =>
   ["petVetVisits", petId] as const;
 
+export const petMedicalRecordsQueryKey = (petId: string) =>
+  ["petMedicalRecords", petId] as const;
+
+export const petMedicalRecordDetailQueryKey = (recordId: string) =>
+  ["petMedicalRecordDetail", recordId] as const;
+
+export const petInsuranceFilesQueryKey = (petId: string) =>
+  ["petInsuranceFiles", petId] as const;
+
 /** Includes local calendar day so caches roll forward at local midnight. */
 export const todayActivitiesKey = (petId: string, localYmd: string) =>
   ["todayActivities", petId, localYmd] as const;

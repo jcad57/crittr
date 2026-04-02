@@ -25,6 +25,10 @@ export type ResolvedOnboarding = {
   hasPets: boolean;
   /** Step index in `ONBOARDING_STEPS` when `needsOnboarding` is true; otherwise `null`. */
   onboardingResumeStep: number | null;
+  ownedPetCount: number;
+  coCarePetCount: number;
+  /** Unread “removed as co-carer” notifications (cold start after removal when app was closed). */
+  unreadCoCareRemovalCount: number;
 };
 
 /**
@@ -34,27 +38,41 @@ export type ResolvedOnboarding = {
 async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
   const userId = session.user.id;
 
-  const [profileRes, ownedCountRes, coCareCountRes, pendingInvitesRes] =
-    await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase
-        .from("pets")
-        .select("*", { count: "exact", head: true })
-        .eq("owner_id", userId),
-      supabase
-        .from("pet_co_carers")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId),
-      supabase
-        .from("co_carer_invites")
-        .select("*", { count: "exact", head: true })
-        .eq("invited_user_id", userId)
-        .eq("status", "pending"),
-    ]);
+  const [
+    profileRes,
+    ownedCountRes,
+    coCareCountRes,
+    pendingInvitesRes,
+    removalNotifRes,
+  ] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    supabase
+      .from("pets")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_id", userId),
+    supabase
+      .from("pet_co_carers")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase
+      .from("co_carer_invites")
+      .select("*", { count: "exact", head: true })
+      .eq("invited_user_id", userId)
+      .eq("status", "pending"),
+    supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("type", "co_care_removed")
+      .eq("read", false),
+  ]);
 
   let profile = profileRes.data ?? null;
   const ownedCount = ownedCountRes.error ? 0 : ownedCountRes.count ?? 0;
   const coCareCount = coCareCountRes.error ? 0 : coCareCountRes.count ?? 0;
+  const unreadCoCareRemovalCount = removalNotifRes.error
+    ? 0
+    : removalNotifRes.count ?? 0;
   const hasPets = ownedCount + coCareCount > 0;
   const pendingInviteCount = pendingInvitesRes.error
     ? 0
@@ -70,6 +88,9 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
       needsOnboarding: false,
       hasPets,
       onboardingResumeStep: null,
+      ownedPetCount: ownedCount,
+      coCarePetCount: coCareCount,
+      unreadCoCareRemovalCount,
     };
   }
 
@@ -90,6 +111,9 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
       needsOnboarding: false,
       hasPets,
       onboardingResumeStep: null,
+      ownedPetCount: ownedCount,
+      coCarePetCount: coCareCount,
+      unreadCoCareRemovalCount,
     };
   }
 
@@ -99,6 +123,9 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
       needsOnboarding: true,
       hasPets,
       onboardingResumeStep: PROFILE_STEP,
+      ownedPetCount: ownedCount,
+      coCarePetCount: coCareCount,
+      unreadCoCareRemovalCount,
     };
   }
 
@@ -108,6 +135,9 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
       needsOnboarding: true,
       hasPets,
       onboardingResumeStep: PENDING_INVITES_STEP,
+      ownedPetCount: ownedCount,
+      coCarePetCount: coCareCount,
+      unreadCoCareRemovalCount,
     };
   }
 
@@ -116,12 +146,49 @@ async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
     needsOnboarding: true,
     hasPets,
     onboardingResumeStep: PET_TYPE_STEP,
+    ownedPetCount: ownedCount,
+    coCarePetCount: coCareCount,
+    unreadCoCareRemovalCount,
   };
 }
 
 function syncProfileRowToQuery(profile: Profile | null) {
   if (!profile) return;
   queryClient.setQueryData(profileQueryKey(profile.id), profile);
+}
+
+/**
+ * Co-carer-only users who lose their last co-care link need a dedicated screen
+ * before generic onboarding (add a pet they own).
+ */
+function nextRequiresCoCareRemovedScreen(
+  prev: {
+    hasPets: boolean;
+    ownedPetCount: number;
+    coCarePetCount: number;
+    requiresCoCareRemovedScreen: boolean;
+  },
+  resolved: ResolvedOnboarding,
+): boolean {
+  const profileComplete = isProfileStepComplete(resolved.profile);
+
+  const lostAllCoCareOnly =
+    prev.hasPets &&
+    !resolved.hasPets &&
+    resolved.ownedPetCount === 0 &&
+    prev.coCarePetCount > 0 &&
+    resolved.coCarePetCount === 0;
+
+  const coldStartFromRemovalNotification =
+    !resolved.hasPets &&
+    resolved.ownedPetCount === 0 &&
+    resolved.coCarePetCount === 0 &&
+    profileComplete &&
+    resolved.unreadCoCareRemovalCount > 0;
+
+  if (lostAllCoCareOnly || coldStartFromRemovalNotification) return true;
+  if (resolved.hasPets) return false;
+  return prev.requiresCoCareRemovedScreen;
 }
 
 /**
@@ -147,6 +214,9 @@ const loggedOutState = {
   session: null,
   profile: null,
   hasPets: false,
+  ownedPetCount: 0,
+  coCarePetCount: 0,
+  requiresCoCareRemovedScreen: false,
   onboardingResumeStep: null,
   isLoggedIn: false,
   needsOnboarding: false,
@@ -157,6 +227,13 @@ type AuthState = {
   profile: Profile | null;
   /** Cached from last resolve; used when updating profile without re-fetching pets. */
   hasPets: boolean;
+  ownedPetCount: number;
+  coCarePetCount: number;
+  /**
+   * When true, user only had co-care pets and lost all access; show removal screen
+   * before add-pet onboarding.
+   */
+  requiresCoCareRemovedScreen: boolean;
   /** Target step index in `ONBOARDING_STEPS` when user must resume onboarding. */
   onboardingResumeStep: number | null;
   isLoading: boolean;
@@ -173,6 +250,8 @@ type AuthState = {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setProfile: (profile: Profile) => void;
+  /** Re-runs server onboarding/pet checks (owned + co-care). Call after co-care changes or profile save. */
+  refreshAuthSession: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
 };
 
@@ -180,6 +259,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   profile: null,
   hasPets: false,
+  ownedPetCount: 0,
+  coCarePetCount: 0,
+  requiresCoCareRemovedScreen: false,
   onboardingResumeStep: null,
   isLoading: true,
   isLoggedIn: false,
@@ -199,13 +281,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set(loggedOutState);
         } else {
           const resolved = await resolveSession(session);
+          const prev = get();
+          const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
+            {
+              hasPets: prev.hasPets,
+              ownedPetCount: prev.ownedPetCount,
+              coCarePetCount: prev.coCarePetCount,
+              requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
+            },
+            resolved,
+          );
           set({
             session,
             profile: resolved.profile,
             hasPets: resolved.hasPets,
+            ownedPetCount: resolved.ownedPetCount,
+            coCarePetCount: resolved.coCarePetCount,
             onboardingResumeStep: resolved.onboardingResumeStep,
             isLoggedIn: true,
             needsOnboarding: resolved.needsOnboarding,
+            requiresCoCareRemovedScreen,
           });
           syncProfileRowToQuery(resolved.profile);
         }
@@ -221,13 +316,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
           const resolved = await resolveSession(session);
+          const prev = get();
+          const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
+            {
+              hasPets: prev.hasPets,
+              ownedPetCount: prev.ownedPetCount,
+              coCarePetCount: prev.coCarePetCount,
+              requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
+            },
+            resolved,
+          );
           set({
             session,
             profile: resolved.profile,
             hasPets: resolved.hasPets,
+            ownedPetCount: resolved.ownedPetCount,
+            coCarePetCount: resolved.coCarePetCount,
             onboardingResumeStep: resolved.onboardingResumeStep,
             isLoggedIn: true,
             needsOnboarding: resolved.needsOnboarding,
+            requiresCoCareRemovedScreen,
           });
           syncProfileRowToQuery(resolved.profile);
         } else {
@@ -236,6 +344,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             session: null,
             profile: null,
             hasPets: false,
+            ownedPetCount: 0,
+            coCarePetCount: 0,
+            requiresCoCareRemovedScreen: false,
             onboardingResumeStep: null,
             isLoggedIn: false,
             needsOnboarding: false,
@@ -272,13 +383,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } = await supabase.auth.getSession();
     if (session) {
       const resolved = await resolveSession(session);
+      const prev = get();
+      const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
+        {
+          hasPets: prev.hasPets,
+          ownedPetCount: prev.ownedPetCount,
+          coCarePetCount: prev.coCarePetCount,
+          requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
+        },
+        resolved,
+      );
       set({
         session,
         profile: resolved.profile,
         hasPets: resolved.hasPets,
+        ownedPetCount: resolved.ownedPetCount,
+        coCarePetCount: resolved.coCarePetCount,
         onboardingResumeStep: resolved.onboardingResumeStep,
         isLoggedIn: true,
         needsOnboarding: resolved.needsOnboarding,
+        requiresCoCareRemovedScreen,
       });
       syncProfileRowToQuery(resolved.profile);
     }
@@ -292,6 +416,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       profile: null,
       hasPets: false,
+      ownedPetCount: 0,
+      coCarePetCount: 0,
+      requiresCoCareRemovedScreen: false,
       onboardingResumeStep: null,
       isLoggedIn: false,
       needsOnboarding: false,
@@ -320,6 +447,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     });
     queryClient.setQueryData(profileQueryKey(profile.id), profile);
+    void get().refreshAuthSession();
+  },
+
+  refreshAuthSession: async () => {
+    const session = get().session;
+    if (!session) return;
+    const prev = get();
+    const resolved = await resolveSession(session);
+    const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
+      {
+        hasPets: prev.hasPets,
+        ownedPetCount: prev.ownedPetCount,
+        coCarePetCount: prev.coCarePetCount,
+        requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
+      },
+      resolved,
+    );
+    set({
+      profile: resolved.profile,
+      hasPets: resolved.hasPets,
+      ownedPetCount: resolved.ownedPetCount,
+      coCarePetCount: resolved.coCarePetCount,
+      onboardingResumeStep: resolved.onboardingResumeStep,
+      needsOnboarding: resolved.needsOnboarding,
+      requiresCoCareRemovedScreen,
+    });
+    syncProfileRowToQuery(resolved.profile);
   },
 
   completeOnboarding: async () => {
@@ -334,14 +488,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) throw error;
-    set({
-      profile: data,
-      needsOnboarding: false,
-      hasPets: true,
-      onboardingResumeStep: null,
-    });
     if (data) {
       queryClient.setQueryData(profileQueryKey(data.id), data);
     }
+    await get().refreshAuthSession();
   },
 }));

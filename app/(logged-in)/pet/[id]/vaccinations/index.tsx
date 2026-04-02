@@ -5,13 +5,15 @@ import {
   useDeletePetVaccinationMutation,
   usePetDetailsQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { vaccinationTraffic } from "@/lib/healthTraffic";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -38,11 +40,15 @@ function formatVaccinationSubline(v: PetVaccination): string {
 export default function PetVaccinationsListScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
+  const canManageVaccinations = useCanPerformAction(
+    petId,
+    "can_manage_vaccinations",
+  );
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
 
   const rows = useMemo(() => {
@@ -106,6 +112,10 @@ export default function PetVaccinationsListScreen() {
         <View style={[styles.screen, { paddingTop: 24 }]}>
           <Text style={styles.missing}>Pet not found.</Text>
         </View>
+      ) : canManageVaccinations === undefined ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.orange} />
+        </View>
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -117,28 +127,29 @@ export default function PetVaccinationsListScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.lead}>
-            Tap a vaccination to edit it, add a new one below, or use ✕ to
-            remove it from this pet’s profile.
+            {canManageVaccinations
+              ? "Tap a vaccination to edit it, add a new one below, or use ✕ to remove it from this pet’s profile."
+              : "Tap a vaccination to view its details."}
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.addBtn,
-              pressed && styles.addBtnPressed,
-            ]}
-            onPress={() =>
-              router.push(
-                `/(logged-in)/pet/${petId}/vaccinations/new` as Href,
-              )
-            }
-          >
-            <MaterialCommunityIcons
-              name="plus-circle-outline"
-              size={22}
-              color={Colors.orange}
-            />
-            <Text style={styles.addBtnText}>Add vaccination</Text>
-          </Pressable>
+          {canManageVaccinations ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                pressed && styles.addBtnPressed,
+              ]}
+              onPress={() =>
+                push(`/(logged-in)/pet/${petId}/vaccinations/new` as Href)
+              }
+            >
+              <MaterialCommunityIcons
+                name="plus-circle-outline"
+                size={22}
+                color={Colors.orange}
+              />
+              <Text style={styles.addBtnText}>Add vaccination</Text>
+            </Pressable>
+          ) : null}
 
           {rows.length === 0 ? (
             <View style={styles.empty}>
@@ -157,11 +168,15 @@ export default function PetVaccinationsListScreen() {
                   badgeKind={badgeKind}
                   badgeLabel={badgeLabel}
                   onPress={() =>
-                    router.push(
+                    push(
                       `/(logged-in)/pet/${petId}/vaccinations/${v.id}` as Href,
                     )
                   }
-                  onDeletePress={() => confirmDelete(v.id, v.name)}
+                  onDeletePress={
+                    canManageVaccinations
+                      ? () => confirmDelete(v.id, v.name)
+                      : undefined
+                  }
                 />
               ))}
             </View>

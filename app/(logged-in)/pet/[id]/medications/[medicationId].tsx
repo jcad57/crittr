@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
@@ -12,6 +14,7 @@ import {
   usePetDetailsQuery,
   useUpdateMedicationMutation,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { getErrorMessage } from "@/lib/errorMessage";
 import {
   buildMedicationFrequencyLabelForDb,
@@ -132,6 +135,10 @@ export default function EditPetMedicationScreen() {
   const isNew = medicationId === "new";
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
+  const canManageMedications = useCanPerformAction(
+    petId,
+    "can_manage_medications",
+  );
   const med = useMemo(
     () =>
       !isNew && medicationId
@@ -355,6 +362,95 @@ export default function EditPetMedicationScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.backLink}>Go back</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (details && canManageMedications === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (isNew && canManageMedications === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Add medication
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <Text style={styles.leadReadOnly}>
+            Adding medications requires permission from the primary caretaker.
+          </Text>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (!isNew && med && canManageMedications === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Medication details
+          </Text>
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Medication details for"
+          />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow label="Name" value={med.name} />
+          <ReadOnlyFieldRow label="Dosage" value={med.dosage?.trim() || ""} />
+          <ReadOnlyFieldRow
+            label="Frequency"
+            value={med.frequency?.trim() || ""}
+          />
+          <ReadOnlyFieldRow
+            label="Condition"
+            value={med.condition?.trim() || ""}
+          />
+          <ReadOnlyFieldRow label="Notes" value={med.notes?.trim() || ""} />
+          <ReadOnlyFieldRow
+            label="Reminder time"
+            value={med.reminder_time?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Last given"
+            value={med.last_given_on?.trim() || "—"}
+          />
+        </ScrollView>
       </View>
     );
   }
@@ -646,6 +742,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     textAlign: "center",
     marginHorizontal: 8,
+  },
+  navSpacer: { width: 28 },
+  leadReadOnly: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
   },
   scrollSafe: {
     flex: 1,

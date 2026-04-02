@@ -1,7 +1,10 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { petDetailsQueryKey, usePetDetailsQuery } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { updatePetMicrochip } from "@/services/pets";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -20,12 +23,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetMicrochipScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const { data: details, isLoading } = usePetDetailsQuery(id);
+  const { data: details, isLoading } = usePetDetailsQuery(petId);
+  const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
 
   const [number, setNumber] = useState("");
   const [hasMicrochip, setHasMicrochip] = useState(false);
@@ -42,34 +47,89 @@ export default function PetMicrochipScreen() {
   }, [details]);
 
   const onSave = useCallback(async () => {
-    if (!id) return;
+    if (!petId) return;
     setSaving(true);
     try {
       if (!hasMicrochip) {
-        await updatePetMicrochip(id, {
+        await updatePetMicrochip(petId, {
           is_microchipped: false,
           microchip_number: null,
         });
       } else {
         const trimmed = number.trim();
-        await updatePetMicrochip(id, {
+        await updatePetMicrochip(petId, {
           is_microchipped: true,
           microchip_number: trimmed || null,
         });
       }
       await queryClient.invalidateQueries({
-        queryKey: petDetailsQueryKey(id),
+        queryKey: petDetailsQueryKey(petId),
       });
       router.back();
     } finally {
       setSaving(false);
     }
-  }, [id, hasMicrochip, number, queryClient, router]);
+  }, [petId, hasMicrochip, number, queryClient, router]);
 
   if (isLoading || !details) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === undefined) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === false) {
+    const chipped =
+      details.is_microchipped === true ||
+      (details.is_microchipped !== false &&
+        Boolean(details.microchip_number?.trim()));
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <View style={styles.navSideLeft}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Text style={styles.navBack}>&lt; Back</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Microchip
+          </Text>
+          <View style={styles.navSideRight}>
+            <PetNavAvatar
+              displayPet={details}
+              accessibilityLabelPrefix="Microchip for"
+            />
+          </View>
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow
+            label="Microchipped"
+            value={chipped ? "Yes" : "No"}
+          />
+          {chipped ? (
+            <ReadOnlyFieldRow
+              label="Microchip number"
+              value={details.microchip_number?.trim() || "—"}
+            />
+          ) : null}
+        </ScrollView>
       </View>
     );
   }

@@ -3,6 +3,9 @@ export {
   petActivityQueryKey,
   petDetailsQueryKey,
   petVetVisitsQueryKey,
+  petMedicalRecordsQueryKey,
+  petMedicalRecordDetailQueryKey,
+  petInsuranceFilesQueryKey,
   petsQueryKey,
   profileQueryKey,
   profilesByIdsQueryKey,
@@ -23,6 +26,9 @@ export {
 } from "./usePetsQuery";
 export { useHealthSnapshotQuery } from "./useHealthSnapshotQuery";
 export { usePetVetVisitsQuery } from "./usePetVetVisitsQuery";
+export { usePetMedicalRecordsQuery } from "./usePetMedicalRecordsQuery";
+export { usePetMedicalRecordDetailQuery } from "./usePetMedicalRecordDetailQuery";
+export { usePetInsuranceFilesQuery } from "./usePetInsuranceFilesQuery";
 export { useProfileQuery } from "./useProfileQuery";
 export { useProfilesByIdsQuery } from "./useProfilesByIdsQuery";
 export {
@@ -78,4 +84,16 @@ export {
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
 } from "../mutations/useNotificationMutations";
+export {
+  useCreatePetMedicalRecordWithFilesMutation,
+  useDeleteMedicalRecordFileMutation,
+  useDeletePetMedicalRecordMutation,
+  useUpdatePetMedicalRecordTitleMutation,
+  useUploadMedicalRecordFileMutation,
+} from "../mutations/usePetMedicalRecordMutations";
+export {
+  useDeletePetInsuranceFileMutation,
+  useUpdatePetInsuranceMutation,
+  useUploadPetInsuranceFileMutation,
+} from "../mutations/usePetInsuranceMutations";
 export { useCanPerformAction, usePetRole } from "../useCanPerformAction";

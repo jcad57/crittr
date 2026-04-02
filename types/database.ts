@@ -57,6 +57,7 @@ export type Pet = {
   primary_vet_name?: string | null;
   is_insured?: boolean | null;
   insurance_provider?: string | null;
+  insurance_policy_number?: string | null;
   is_sterilized?: boolean | null;
   is_active: boolean;
   /** When true, pet stays in My Pets for remembrance; excluded from dashboard & active selection. */
@@ -154,17 +155,6 @@ export type PetExercise = {
   created_at: string;
 };
 
-export type CoCarerInvite = {
-  id: string;
-  pet_id: string | null;
-  invited_by: string;
-  email: string;
-  status: "pending" | "accepted" | "declined";
-  invited_user_id: string | null;
-  responded_at: string | null;
-  created_at: string;
-};
-
 // ─── Co-Care ─────────────────────────────────────────────────────────────────
 
 export type CoCarePermissions = {
@@ -174,6 +164,8 @@ export type CoCarePermissions = {
   can_manage_medications: boolean;
   can_manage_vaccinations: boolean;
   can_manage_vet_visits: boolean;
+  /** Upload, rename, or delete files in Medical records for this pet. */
+  can_manage_pet_records: boolean;
 };
 
 export const DEFAULT_CO_CARE_PERMISSIONS: CoCarePermissions = {
@@ -183,6 +175,53 @@ export const DEFAULT_CO_CARE_PERMISSIONS: CoCarePermissions = {
   can_manage_medications: false,
   can_manage_vaccinations: false,
   can_manage_vet_visits: false,
+  can_manage_pet_records: false,
+};
+
+/** A medical record groups one or more uploaded files for a pet. */
+export type PetMedicalRecord = {
+  id: string;
+  pet_id: string;
+  title: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Single file attached to a pet_medical_records row. */
+export type PetMedicalRecordFile = {
+  id: string;
+  medical_record_id: string;
+  storage_path: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  created_at: string;
+};
+
+/** Policy document uploaded for a pet (storage: bucket `pet-insurance`). */
+export type PetInsuranceFile = {
+  id: string;
+  pet_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  created_at: string;
+};
+
+export type CoCarerInvite = {
+  id: string;
+  pet_id: string | null;
+  invited_by: string;
+  email: string;
+  status: "pending" | "accepted" | "declined";
+  invited_user_id: string | null;
+  responded_at: string | null;
+  /** Intended permissions when the invite is accepted (set by inviter). */
+  permissions: CoCarePermissions;
+  created_at: string;
 };
 
 export type PetCoCarer = {
@@ -395,6 +434,7 @@ export type PetFormData = {
   /** null = unknown; true = insured; false = not insured */
   isInsured: boolean | null;
   insuranceProvider: string;
+  insurancePolicyNumber: string;
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
@@ -424,4 +464,5 @@ export const EMPTY_PET_FORM: PetFormData = {
   primaryVetAddress: "",
   isInsured: null,
   insuranceProvider: "",
+  insurancePolicyNumber: "",
 };

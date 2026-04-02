@@ -69,7 +69,7 @@ export default function SignIn() {
       >
         Sign In
       </OrangeButton>
-      <Link href="/(auth)/(onboarding)" asChild>
+      <Link href="/(auth)/(onboarding)?intent=signup" asChild>
         <Pressable
           style={{
             marginTop: 12,

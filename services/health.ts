@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { fetchUserPets } from "@/services/pets";
+import { fetchAccessiblePets } from "@/services/pets";
 import type {
   Pet,
   PetMedication,
@@ -33,7 +33,10 @@ function attachPet<T extends { pet_id: string }>(
 export async function fetchOwnerHealthSnapshot(
   ownerId: string,
 ): Promise<OwnerHealthSnapshot> {
-  const pets = await fetchUserPets(ownerId);
+  const petsWithRole = await fetchAccessiblePets(ownerId);
+  const pets = petsWithRole.map(
+    ({ role: _r, permissions: _p, ...pet }) => pet,
+  );
   if (pets.length === 0) {
     return {
       pets: [],

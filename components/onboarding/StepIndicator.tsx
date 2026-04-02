@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   dot: {
     width: DOT_SIZE,

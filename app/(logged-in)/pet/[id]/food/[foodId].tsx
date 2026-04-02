@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
@@ -7,9 +9,11 @@ import {
   usePetDetailsQuery,
   useUpdatePetFoodMutation,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isTreatFood } from "@/lib/petFood";
 import type { UpsertPetFoodInput } from "@/services/petFoods";
+import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,6 +31,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
 const TIMES_QUICK = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+function formatPortionLabel(f: PetFood): string {
+  const size = f.portion_size?.trim() ?? "";
+  const unit = f.portion_unit?.trim() ?? "";
+  return [size, unit].filter(Boolean).join(" ") || "—";
+}
 
 export default function EditPetFoodScreen() {
   const { id: rawPetId, foodId: rawFoodId } = useLocalSearchParams<{
@@ -48,6 +58,7 @@ export default function EditPetFoodScreen() {
   }, [insets.top, insets.bottom, windowHeight]);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const insertMut = useInsertPetFoodMutation(petId ?? "");
   const updateMut = useUpdatePetFoodMutation(petId ?? "");
 
@@ -146,6 +157,100 @@ export default function EditPetFoodScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.backLink}>Go back</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (details && canManageFood === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (isNew && canManageFood === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Add food
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <Text style={styles.lead}>
+            Adding foods requires permission from the primary caretaker.
+          </Text>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (!isNew && existing && canManageFood === false) {
+    const meals =
+      existing.meals_per_day != null && existing.meals_per_day >= 1
+        ? String(existing.meals_per_day)
+        : "—";
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Food details
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow
+            label="Brand / name"
+            value={existing.brand?.trim() || ""}
+          />
+          <ReadOnlyFieldRow
+            label="Type"
+            value={isTreatFood(existing) ? "Treat" : "Meal"}
+          />
+          <ReadOnlyFieldRow
+            label="Portion"
+            value={formatPortionLabel(existing)}
+          />
+          <ReadOnlyFieldRow label="Times per day" value={meals} />
+          <ReadOnlyFieldRow
+            label="Notes"
+            value={existing.notes?.trim() || ""}
+          />
+        </ScrollView>
       </View>
     );
   }

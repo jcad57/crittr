@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import FormInput from "@/components/onboarding/FormInput";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -8,8 +10,10 @@ import {
   usePetDetailsQuery,
   useUpdatePetExerciseRequirementsMutation,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { PetFormData } from "@/types/database";
+import { formatEnergyLabel } from "@/utils/petDisplay";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -38,6 +42,7 @@ export default function ExerciseRequirementsScreen() {
   }, [insets.top, insets.bottom, windowHeight]);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
   const updateMut = useUpdatePetExerciseRequirementsMutation(petId ?? "");
 
   const [energyLevel, setEnergyLevel] = useState<PetFormData["energyLevel"]>(
@@ -118,6 +123,55 @@ export default function ExerciseRequirementsScreen() {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === undefined) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === false) {
+    const showEx = shouldShowExerciseField(details.pet_type ?? "");
+    const activitiesLabel =
+      details.exercises_per_day != null && details.exercises_per_day > 0
+        ? String(details.exercises_per_day)
+        : showEx
+          ? "—"
+          : "Not tracked for this species";
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Exercise requirements
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow
+            label="Energy level"
+            value={formatEnergyLabel(details.energy_level)}
+          />
+          <ReadOnlyFieldRow
+            label="Target activities per day"
+            value={activitiesLabel}
+          />
+        </ScrollView>
       </View>
     );
   }

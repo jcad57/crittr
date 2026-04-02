@@ -15,7 +15,7 @@ import type { Pet, Profile } from "@/types/database";
 import { formatPetTypeLabel } from "@/utils/petDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useCallback, useMemo, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
@@ -132,7 +132,7 @@ function SupportRow({
 export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push, replace, router } = useNavigationCooldown();
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -162,7 +162,7 @@ export default function UserProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.replace("/(auth)/welcome");
+    replace("/(auth)/welcome");
   };
 
   const userId = session?.user?.id;
@@ -230,12 +230,12 @@ export default function UserProfileScreen() {
     );
 
   const openEditAccount = useCallback(() => {
-    router.push("/(logged-in)/edit-account");
-  }, [router]);
+    push("/(logged-in)/edit-account");
+  }, [push]);
 
   const openForgotPassword = useCallback(() => {
-    router.push("/(logged-in)/forgot-password");
-  }, [router]);
+    push("/(logged-in)/forgot-password");
+  }, [push]);
 
   if (isProfileLoading && !profile) {
     return (
@@ -356,7 +356,7 @@ export default function UserProfileScreen() {
                     styles.petCard,
                     pressed && styles.petCardPressed,
                   ]}
-                  onPress={() => router.push(`/(logged-in)/pet/${pet.id}`)}
+                  onPress={() => push(`/(logged-in)/pet/${pet.id}`)}
                 >
                   <View style={styles.petCardAvatar}>
                     {uri ? (

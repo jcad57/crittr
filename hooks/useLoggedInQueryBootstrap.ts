@@ -1,8 +1,3 @@
-import { queryClient } from "@/lib/queryClient";
-import { fetchPetProfile, fetchUserPets } from "@/services/pets";
-import { fetchProfile } from "@/services/profiles";
-import { useAuthStore } from "@/stores/authStore";
-import { useEffect } from "react";
 import {
   healthSnapshotKey,
   petDetailsQueryKey,
@@ -10,6 +5,13 @@ import {
   profileQueryKey,
 } from "@/hooks/queries/queryKeys";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
+import { queryClient } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
+import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
+import { fetchProfile } from "@/services/profiles";
+import { useAuthStore } from "@/stores/authStore";
+import { usePetStore } from "@/stores/petStore";
+import { useEffect } from "react";
 
 /**
  * Warm TanStack Query cache on mount for the logged-in session:
@@ -35,7 +37,7 @@ export function useLoggedInQueryBootstrap() {
     void queryClient.prefetchQuery({
       queryKey: petsQueryKey(userId),
       queryFn: async () => {
-        const pets = await fetchUserPets(userId);
+        const pets = await fetchAccessiblePets(userId);
         for (const pet of pets) {
           const key = petDetailsQueryKey(pet.id);
           if (queryClient.getQueryData(key) != null) continue;
@@ -52,5 +54,41 @@ export function useLoggedInQueryBootstrap() {
       queryKey: healthSnapshotKey(userId),
       queryFn: () => fetchOwnerHealthSnapshot(userId),
     });
+  }, [userId]);
+
+  /** When co-care rows change (removed / invited), refresh pets + auth so UI and permissions stay in sync. */
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`pet_co_carers_bootstrap:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pet_co_carers",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: petsQueryKey(userId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: healthSnapshotKey(userId),
+          });
+          void useAuthStore.getState().refreshAuthSession();
+          void fetchAccessiblePets(userId)
+            .then((pets) => {
+              usePetStore.getState().initActivePetFromList(pets);
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [userId]);
 }

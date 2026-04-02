@@ -4,7 +4,7 @@ import type { Pet, PetRole } from "@/types/database";
 import { getPetListSublineParts } from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import {
   StyleSheet,
   Text,
@@ -31,7 +31,7 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
   const stackSubline = windowWidth < SUBLINE_STACK_WIDTH;
   const { primary: sublinePrimary, age: sublineAge } =
     getPetListSublineParts(pet);
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
   const isMemorial = variant === "memorial";
   const isOrange = variant === "orange";
   const bg = isMemorial
@@ -45,7 +45,7 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
     ? "rgba(255,255,255,0.75)"
     : "rgba(255,255,255,0.9)";
 
-  const goProfile = () => router.push(`/(logged-in)/pet/${pet.id}`);
+  const goProfile = () => push(`/(logged-in)/pet/${pet.id}`);
 
   return (
     <TouchableOpacity
@@ -66,15 +66,6 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
                 color={Colors.memorialGoldSoft}
               />
               <Text style={styles.memorialBadgeText}>In loving memory</Text>
-            </View>
-          ) : role === "co_carer" ? (
-            <View style={styles.coCarerBadge}>
-              <MaterialCommunityIcons
-                name="account-group-outline"
-                size={14}
-                color="rgba(255,255,255,0.9)"
-              />
-              <Text style={styles.coCarerBadgeText}>Co-carer</Text>
             </View>
           ) : null}
           <Text
@@ -110,6 +101,16 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
               {`${sublinePrimary} · ${sublineAge}`}
             </Text>
           )}
+          {!isMemorial && role === "co_carer" ? (
+            <View style={styles.coCarerBadge}>
+              <MaterialCommunityIcons
+                name="account-group-outline"
+                size={14}
+                color={Colors.lavenderDark}
+              />
+              <Text style={styles.coCarerBadgeText}>Co-carer</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.avatarChevron}>
           <View style={[styles.avatar, isMemorial && styles.avatarMemorial]}>
@@ -189,16 +190,18 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    marginBottom: 8,
+    backgroundColor: Colors.lavenderLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.lavender,
+    marginTop: 10,
   },
   coCarerBadgeText: {
     fontFamily: Font.uiSemiBold,
     fontSize: 11,
     letterSpacing: 0.4,
-    color: "rgba(255,255,255,0.9)",
+    color: Colors.lavenderDark,
   },
   name: {
     fontFamily: Font.displayBold,

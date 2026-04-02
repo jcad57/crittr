@@ -12,9 +12,9 @@ export function useCanPerformAction(
   petId: string | null | undefined,
   permission: PermissionKey,
 ): boolean | undefined {
-  const { data, isLoading } = useUserPetPermissionsQuery(petId);
+  const { data, isPending } = useUserPetPermissionsQuery(petId);
 
-  if (isLoading || !data) return undefined;
+  if (isPending || !data) return undefined;
   if (data.role === "owner") return true;
   return data.permissions[permission];
 }
@@ -23,11 +23,11 @@ export function useCanPerformAction(
  * Returns the full role and permissions for the current user on a pet.
  */
 export function usePetRole(petId: string | null | undefined) {
-  const { data, isLoading } = useUserPetPermissionsQuery(petId);
+  const { data, isPending } = useUserPetPermissionsQuery(petId);
   return {
     role: data?.role,
     permissions: data?.permissions,
-    isLoading,
+    isLoading: isPending,
     isOwner: data?.role === "owner",
     isCoCarer: data?.role === "co_carer",
   };

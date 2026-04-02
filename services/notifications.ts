@@ -50,3 +50,17 @@ export async function markAllNotificationsRead(
 
   if (error) throw error;
 }
+
+/** Clears unread co-care removal count used for session resolution / cold-start gating. */
+export async function markCoCareRemovalNotificationsRead(
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("user_id", userId)
+    .eq("type", "co_care_removed")
+    .eq("read", false);
+
+  if (error) throw error;
+}

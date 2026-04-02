@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -10,6 +12,7 @@ import {
   usePetDetailsQuery,
   useUpdatePetVaccinationMutation,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { getErrorMessage } from "@/lib/errorMessage";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -50,6 +53,10 @@ export default function EditPetVaccinationScreen() {
   const isNew = vaccinationId === "new";
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
+  const canManageVaccinations = useCanPerformAction(
+    petId,
+    "can_manage_vaccinations",
+  );
   const vaccination = useMemo(
     () =>
       !isNew && vaccinationId
@@ -171,6 +178,92 @@ export default function EditPetVaccinationScreen() {
     );
   }
 
+  if (details && canManageVaccinations === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (isNew && canManageVaccinations === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Add vaccination
+          </Text>
+          <View style={styles.navSpacerWide} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <Text style={styles.leadReadOnly}>
+            Adding vaccinations requires permission from the primary caretaker.
+          </Text>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (!isNew && vaccination && canManageVaccinations === false) {
+    const expLabel = vaccination.expires_on
+      ? new Date(`${vaccination.expires_on}T12:00:00`).toLocaleDateString(
+          "en-US",
+          { month: "short", day: "numeric", year: "numeric" },
+        )
+      : "—";
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={2}>
+            Vaccination details
+          </Text>
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Vaccination details for"
+          />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow label="Name" value={vaccination.name} />
+          <ReadOnlyFieldRow label="Expires" value={expLabel} />
+          <ReadOnlyFieldRow
+            label="Frequency"
+            value={vaccination.frequency_label?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Notes"
+            value={vaccination.notes?.trim() || ""}
+          />
+        </ScrollView>
+      </View>
+    );
+  }
+
   const saving = isNew ? insertMut.isPending : updateMut.isPending;
   const deleting = deleteMut.isPending;
   const nameError = validationAttempted && !name.trim();
@@ -288,6 +381,13 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  navSpacerWide: { width: 28 },
+  leadReadOnly: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
   },
   nav: {
     flexDirection: "row",

@@ -23,6 +23,7 @@ export default function FinishStep() {
     useOnboardingStore();
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
+  const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFinish = async () => {
@@ -44,6 +45,8 @@ export default function FinishStep() {
 
       if (petFlowMode === "onboarding") {
         await completeOnboarding();
+      } else {
+        await refreshAuthSession();
       }
 
       await queryClient.invalidateQueries({

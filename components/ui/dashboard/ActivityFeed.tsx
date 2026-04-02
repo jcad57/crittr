@@ -1,15 +1,15 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useProfilesByIdsQuery } from "@/hooks/queries";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import {
   buildActivityLoggerNameMap,
   resolveActivityLoggerLabel,
 } from "@/lib/profileDisplay";
-import type { PetActivity } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
+import type { PetActivity } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   FlatList,
@@ -31,14 +31,17 @@ type ActivityFeedProps = {
   activities: PetActivity[];
   onLogActivityPress?: () => void;
   onSeeAllPress?: () => void;
+  /** When false, hide log CTAs (e.g. co-carer without can_log_activities). */
+  showLogActivity?: boolean;
 };
 
 export default function ActivityFeed({
   activities,
   onLogActivityPress,
   onSeeAllPress,
+  showLogActivity = true,
 }: ActivityFeedProps) {
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
   const currentUserId = useAuthStore((s) => s.session?.user?.id);
   const [expanded, setExpanded] = useState(false);
 
@@ -86,23 +89,31 @@ export default function ActivityFeed({
         <View style={styles.listHeader}>
           <SectionLabel>Today's Activity</SectionLabel>
         </View>
-        <TouchableOpacity
-          style={styles.ctaCard}
-          activeOpacity={0.9}
-          onPress={onLogActivityPress}
-        >
-          <View style={styles.ctaTextBlock}>
-            <Text style={styles.ctaTitle}>Log an activity</Text>
-            <Text style={styles.ctaSubtitle}>No activities yet today</Text>
+        {showLogActivity ? (
+          <TouchableOpacity
+            style={styles.ctaCard}
+            activeOpacity={0.9}
+            onPress={onLogActivityPress}
+          >
+            <View style={styles.ctaTextBlock}>
+              <Text style={styles.ctaTitle}>Log an activity</Text>
+              <Text style={styles.ctaSubtitle}>No activities yet today</Text>
+            </View>
+            <View style={styles.ctaCircle}>
+              <MaterialCommunityIcons
+                name="plus"
+                size={28}
+                color={Colors.orange}
+              />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyReadOnly}>
+            <Text style={styles.emptyReadOnlyText}>
+              No activities yet today
+            </Text>
           </View>
-          <View style={styles.ctaCircle}>
-            <MaterialCommunityIcons
-              name="plus"
-              size={28}
-              color={Colors.orange}
-            />
-          </View>
-        </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -136,9 +147,7 @@ export default function ActivityFeed({
               currentUserId,
             )}
             onPress={() =>
-              router.push(
-                `/(logged-in)/manage-activity-item/${item.id}` as Href,
-              )
+              push(`/(logged-in)/manage-activity-item/${item.id}` as Href)
             }
           />
         )}
@@ -156,12 +165,11 @@ export default function ActivityFeed({
         </TouchableOpacity>
       )}
 
-      <OrangeButton
-        style={styles.logAnotherCta}
-        onPress={onLogActivityPress}
-      >
-        Log another activity
-      </OrangeButton>
+      {showLogActivity ? (
+        <OrangeButton style={styles.logAnotherCta} onPress={onLogActivityPress}>
+          Log another activity
+        </OrangeButton>
+      ) : null}
     </View>
   );
 }
@@ -247,5 +255,19 @@ const styles = StyleSheet.create({
   },
   logAnotherCta: {
     marginTop: 10,
+  },
+  emptyReadOnly: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  emptyReadOnlyText: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
 });

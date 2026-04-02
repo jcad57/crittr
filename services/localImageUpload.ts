@@ -30,16 +30,19 @@ export function extensionForContentType(contentType: string): string {
 }
 
 /**
- * Reads a local image URI (e.g. from expo-image-picker) into an ArrayBuffer.
+ * Reads a local file URI (images, PDFs, etc.) into an ArrayBuffer.
  * Use this instead of fetch(uri).blob() — that often yields empty blobs on RN and uploads 0-byte files.
  */
-export async function readLocalImageUriAsArrayBuffer(uri: string): Promise<ArrayBuffer> {
+export async function readLocalFileUriAsArrayBuffer(uri: string): Promise<ArrayBuffer> {
   const base64 = await FileSystem.readAsStringAsync(uri, {
     encoding: FileSystem.EncodingType.Base64,
   });
   const buffer = base64ToArrayBuffer(base64);
   if (buffer.byteLength === 0) {
-    throw new Error("Could not read image file (empty). Try picking the photo again.");
+    throw new Error("Could not read file (empty). Try picking again.");
   }
   return buffer;
 }
+
+/** @deprecated Use readLocalFileUriAsArrayBuffer */
+export const readLocalImageUriAsArrayBuffer = readLocalFileUriAsArrayBuffer;

@@ -6,13 +6,15 @@ import {
   usePetDetailsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -28,11 +30,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetMedicationsListScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
+  const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
 
@@ -93,6 +96,10 @@ export default function PetMedicationsListScreen() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.orange} />
         </View>
+      ) : details && canManageMeds === undefined ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.orange} />
+        </View>
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -104,28 +111,29 @@ export default function PetMedicationsListScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.lead}>
-            Tap a medication to edit it, add a new one below, or use ✕ to
-            remove it from this pet’s profile.
+            {canManageMeds
+              ? "Tap a medication to edit it, add a new one below, or use ✕ to remove it from this pet’s profile."
+              : "Tap a medication to view its details."}
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.addBtn,
-              pressed && styles.addBtnPressed,
-            ]}
-            onPress={() =>
-              router.push(
-                `/(logged-in)/pet/${petId}/medications/new` as Href,
-              )
-            }
-          >
-            <MaterialCommunityIcons
-              name="plus-circle-outline"
-              size={22}
-              color={Colors.orange}
-            />
-            <Text style={styles.addBtnText}>Add medication</Text>
-          </Pressable>
+          {canManageMeds ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                pressed && styles.addBtnPressed,
+              ]}
+              onPress={() =>
+                push(`/(logged-in)/pet/${petId}/medications/new` as Href)
+              }
+            >
+              <MaterialCommunityIcons
+                name="plus-circle-outline"
+                size={22}
+                color={Colors.orange}
+              />
+              <Text style={styles.addBtnText}>Add medication</Text>
+            </Pressable>
+          ) : null}
 
           {rows.length === 0 ? (
             <View style={styles.empty}>
@@ -142,11 +150,15 @@ export default function PetMedicationsListScreen() {
                   badgeKind={badge.kind}
                   badgeLabel={badge.label}
                   onPress={() =>
-                    router.push(
+                    push(
                       `/(logged-in)/pet/${petId}/medications/${m.id}` as Href,
                     )
                   }
-                  onDeletePress={() => confirmDelete(m.id, m.name)}
+                  onDeletePress={
+                    canManageMeds
+                      ? () => confirmDelete(m.id, m.name)
+                      : undefined
+                  }
                 />
               ))}
             </View>

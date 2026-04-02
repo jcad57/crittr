@@ -1,3 +1,4 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
@@ -15,6 +16,7 @@ import {
   useLogVetVisitMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { foodActivityFormForPet } from "@/lib/foodActivityMerge";
 import { useActivityFormStore } from "@/stores/activityFormStore";
@@ -88,6 +90,18 @@ export default function AddActivityScreen() {
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
+
+  const resolvedPetId = useMemo(() => {
+    if (activePetId && (allPets ?? []).some((p) => p.id === activePetId)) {
+      return activePetId;
+    }
+    return (allPets ?? [])[0]?.id ?? null;
+  }, [activePetId, allPets]);
+
+  const canLogActivities = useCanPerformAction(
+    resolvedPetId,
+    "can_log_activities",
+  );
 
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
@@ -210,6 +224,62 @@ export default function AddActivityScreen() {
     const topChrome = insets.top + 8 + 56 + 8 + 4;
     return Math.max(windowHeight - topChrome - insets.bottom, 240);
   }, [insets.top, insets.bottom, windowHeight]);
+
+  if (!(allPets ?? []).length) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
+        <Text style={styles.blockedHint}>Add a pet before logging activity.</Text>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Text style={styles.blockedBack}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (resolvedPetId && canLogActivities === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centeredFull, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (resolvedPetId && canLogActivities === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={Colors.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Log activity
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <Text style={styles.blockedLead}>
+            Logging activity requires permission from the primary caretaker.
+            Ask them to update co-care settings if you should be able to log
+            activities for this pet.
+          </Text>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -406,5 +476,31 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.textSecondary,
+  },
+  centeredFull: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  navSpacer: { width: 28 },
+  blockedHint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  blockedBack: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.orange,
+    paddingHorizontal: 24,
+  },
+  blockedLead: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginTop: 8,
   },
 });

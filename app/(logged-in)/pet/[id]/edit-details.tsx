@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
 import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
@@ -7,11 +9,19 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import { usePetDetailsQuery, useUpdatePetDetailsMutation } from "@/hooks/queries";
+import {
+  usePetDetailsQuery,
+  useUpdatePetDetailsMutation,
+} from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import type { PetFormData } from "@/types/database";
-import { parseDateOnlyYmd } from "@/utils/petDisplay";
+import {
+  formatDateOfBirth,
+  formatPetWeightDisplay,
+  parseDateOnlyYmd,
+} from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,6 +44,7 @@ export default function EditPetDetailsScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
   const updateMut = useUpdatePetDetailsMutation(petId ?? "");
 
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
@@ -133,6 +144,76 @@ export default function EditPetDetailsScreen() {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === undefined) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === false) {
+    const dobYmd = parseDateOnlyYmd(
+      typeof details.date_of_birth === "string"
+        ? details.date_of_birth
+        : details.date_of_birth != null
+          ? String(details.date_of_birth)
+          : "",
+    );
+    const dobFormatted = formatDateOfBirth(dobYmd);
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Pet details
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow
+            label="Breed"
+            value={details.breed?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Color"
+            value={details.color?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Vet clinic"
+            value={details.primary_vet_clinic?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Vet address"
+            value={details.primary_vet_address?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Weight"
+            value={formatPetWeightDisplay(details)}
+          />
+          <ReadOnlyFieldRow
+            label="Birthday"
+            value={dobFormatted ?? "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Gender"
+            value={details.sex === "female" ? "Female" : "Male"}
+          />
+        </ScrollView>
       </View>
     );
   }

@@ -4,8 +4,8 @@ import { shouldShowExerciseField } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import type { PetExercise, PetWithDetails } from "@/types/database";
 import { formatEnergyLabel } from "@/utils/petDisplay";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 /** Optional rows from `pet_exercises` when present (e.g. future imports or API). */
@@ -41,10 +41,15 @@ function SummaryRow({ label, value, isLast }: RowProps) {
 
 type Props = {
   details: PetWithDetails;
+  /** When false, hides the Edit link (e.g. co-carer without profile edit permission). */
+  canEdit?: boolean;
 };
 
-export default function PetExerciseRequirementsBlock({ details }: Props) {
-  const router = useRouter();
+export default function PetExerciseRequirementsBlock({
+  details,
+  canEdit = true,
+}: Props) {
+  const { push } = useNavigationCooldown();
   const showExerciseCount = shouldShowExerciseField(details.pet_type ?? "");
   const extrasLine = formatExerciseExtrasLine(details.exercise);
 
@@ -61,16 +66,20 @@ export default function PetExerciseRequirementsBlock({ details }: Props) {
         <SectionLabel style={styles.sectionLabelInline}>
           Exercise requirements
         </SectionLabel>
-        <TouchableOpacity
-          hitSlop={8}
-          onPress={() =>
-            router.push(
-              `/(logged-in)/pet/${details.id}/exercise-requirements` as Href,
-            )
-          }
-        >
-          <Text style={styles.sectionEditLink}>Edit</Text>
-        </TouchableOpacity>
+        {canEdit ? (
+          <TouchableOpacity
+            hitSlop={8}
+            onPress={() =>
+              push(
+                `/(logged-in)/pet/${details.id}/exercise-requirements` as Href,
+              )
+            }
+          >
+            <Text style={styles.sectionEditLink}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.editPlaceholder} />
+        )}
       </View>
       <View style={styles.detailsCard}>
         <SummaryRow
@@ -107,6 +116,10 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.orange,
+  },
+  editPlaceholder: {
+    minWidth: 36,
+    minHeight: 22,
   },
   detailsCard: {
     backgroundColor: Colors.white,

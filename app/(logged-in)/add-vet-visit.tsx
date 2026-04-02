@@ -1,3 +1,4 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
@@ -15,10 +16,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePetsQuery } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import type { Pet } from "@/types/database";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -77,6 +80,11 @@ export default function AddVetVisitScreen() {
   const schedulingPet = useMemo(
     () => (petId ? pets.find((p) => p.id === petId) ?? null : null),
     [pets, petId],
+  );
+
+  const canManageVetVisits = useCanPerformAction(
+    petId || null,
+    "can_manage_vet_visits",
   );
 
   const [title, setTitle] = useState("Vet visit");
@@ -177,6 +185,40 @@ export default function AddVetVisitScreen() {
         <Text style={styles.hint}>
           Add a pet before scheduling a visit.
         </Text>
+      </View>
+    );
+  }
+
+  if (petId && canManageVetVisits === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centeredFull, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (petId && canManageVetVisits === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <View style={styles.navSideLeft}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Text style={styles.navBack}>&lt; Back</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Schedule visit
+          </Text>
+          <View style={styles.navSideRight} />
+        </View>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+          <CoCareReadOnlyNotice />
+          <Text style={styles.hint}>
+            Scheduling vet visits requires permission from the primary caretaker.
+          </Text>
+        </View>
       </View>
     );
   }
@@ -295,6 +337,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+  centeredFull: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   nav: {
     flexDirection: "row",

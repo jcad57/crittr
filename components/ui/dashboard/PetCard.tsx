@@ -2,7 +2,7 @@ import { Colors } from "@/constants/colors";
 import type { Pet } from "@/data/mockDashboard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PetCardProps = {
@@ -21,14 +21,14 @@ function resolveAvatarUri(pet: PetCardProps["pet"]): string | null {
 }
 
 export default function PetCard({ pet }: PetCardProps) {
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
   const avatarUri = resolveAvatarUri(pet);
 
   return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.75}
-      onPress={() => router.push(`/(logged-in)/pet/${pet.id}`)}
+      onPress={() => push(`/(logged-in)/pet/${pet.id}`)}
     >
       <View style={styles.avatar}>
         {avatarUri ? (

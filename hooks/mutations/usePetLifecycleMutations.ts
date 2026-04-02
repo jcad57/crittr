@@ -7,7 +7,7 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import {
   deletePet,
-  fetchUserPets,
+  fetchAccessiblePets,
   memorializePet,
   unmemorializePet,
 } from "@/services/pets";
@@ -31,7 +31,7 @@ function invalidateSharedPetQueries(userId: string, petId: string) {
 async function syncActivePetFromServer(userId: string) {
   const pets = await queryClient.fetchQuery({
     queryKey: petsQueryKey(userId),
-    queryFn: () => fetchUserPets(userId),
+    queryFn: () => fetchAccessiblePets(userId),
   });
   usePetStore.getState().initActivePetFromList(pets);
 }

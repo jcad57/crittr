@@ -1,5 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import type { Pet, PetFormData, PetWithDetails, PetWithRole } from "@/types/database";
+import type {
+  CoCarePermissions,
+  Pet,
+  PetFormData,
+  PetWithDetails,
+  PetWithRole,
+} from "@/types/database";
 import { parseDateOnlyYmd } from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
@@ -37,6 +43,10 @@ export async function createPet(
     petData.isInsured === true && petData.insuranceProvider.trim()
       ? petData.insuranceProvider.trim()
       : null;
+  const policyNum =
+    petData.isInsured === true && petData.insurancePolicyNumber.trim()
+      ? petData.insurancePolicyNumber.trim()
+      : null;
 
   const { data: pet, error: petError } = await supabase
     .from("pets")
@@ -73,6 +83,7 @@ export async function createPet(
       primary_vet_address: petData.primaryVetAddress.trim() || null,
       is_insured: petData.isInsured,
       insurance_provider: insured,
+      insurance_policy_number: policyNum,
       is_active: isFirst,
     })
     .select()
@@ -178,7 +189,7 @@ export async function fetchUserPets(ownerId: string): Promise<Pet[]> {
 export async function fetchAccessiblePets(
   userId: string,
 ): Promise<PetWithRole[]> {
-  const [ownedRes, sharedRes] = await Promise.all([
+  const [ownedRes, coLinksRes] = await Promise.all([
     supabase
       .from("pets")
       .select("*")
@@ -186,24 +197,41 @@ export async function fetchAccessiblePets(
       .order("created_at", { ascending: true }),
     supabase
       .from("pet_co_carers")
-      .select("permissions, pets(*)")
+      .select("pet_id, permissions")
       .eq("user_id", userId),
   ]);
 
   if (ownedRes.error) throw ownedRes.error;
+  if (coLinksRes.error) throw coLinksRes.error;
 
   const owned: PetWithRole[] = (ownedRes.data ?? []).map((p) => ({
     ...p,
     role: "owner" as const,
   }));
 
-  const shared: PetWithRole[] = (sharedRes.data ?? [])
-    .filter((row: any) => row.pets)
-    .map((row: any) => ({
-      ...row.pets,
-      role: "co_carer" as const,
-      permissions: row.permissions,
-    }));
+  const links = coLinksRes.data ?? [];
+  if (links.length === 0) {
+    return owned;
+  }
+
+  const petIds = [...new Set(links.map((l) => l.pet_id))];
+  const permByPetId = new Map(
+    links.map((l) => [l.pet_id, l.permissions as CoCarePermissions]),
+  );
+
+  const { data: sharedPets, error: sharedPetsErr } = await supabase
+    .from("pets")
+    .select("*")
+    .in("id", petIds)
+    .order("created_at", { ascending: true });
+
+  if (sharedPetsErr) throw sharedPetsErr;
+
+  const shared: PetWithRole[] = (sharedPets ?? []).map((p) => ({
+    ...p,
+    role: "co_carer" as const,
+    permissions: permByPetId.get(p.id),
+  }));
 
   return [...owned, ...shared];
 }
@@ -285,6 +313,31 @@ export async function updatePetMicrochip(
     .eq("id", petId);
 
   if (error) throw error;
+}
+
+export type UpdatePetInsuranceInput = {
+  is_insured: boolean | null;
+  insurance_provider: string | null;
+  insurance_policy_number: string | null;
+};
+
+export async function updatePetInsurance(
+  petId: string,
+  fields: UpdatePetInsuranceInput,
+): Promise<Pet> {
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      is_insured: fields.is_insured,
+      insurance_provider: fields.insurance_provider,
+      insurance_policy_number: fields.insurance_policy_number,
+    })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
 }
 
 export type UpdatePetDetailsInput = {

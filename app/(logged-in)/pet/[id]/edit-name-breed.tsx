@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -8,6 +10,7 @@ import {
   usePetDetailsQuery,
   useUpdatePetNameAndBreedMutation,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -33,6 +36,7 @@ export default function EditPetNameAndBreedScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
   const updateMut = useUpdatePetNameAndBreedMutation(petId ?? "");
 
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
@@ -83,6 +87,45 @@ export default function EditPetNameAndBreedScreen() {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === undefined) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canEditProfile === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Name & breed
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollBody,
+            { paddingBottom: scrollInsetBottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow label="Name" value={details.name?.trim() || "—"} />
+          <ReadOnlyFieldRow
+            label={breedLabel}
+            value={details.breed?.trim() || "—"}
+          />
+        </ScrollView>
       </View>
     );
   }

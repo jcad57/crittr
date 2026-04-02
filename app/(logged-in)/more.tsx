@@ -1,14 +1,14 @@
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MorePlaceholderScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
 
   return (
     <View
@@ -25,7 +25,7 @@ export default function MorePlaceholderScreen() {
         Placeholder — settings, profile, and other tools.
       </Text>
       <Pressable
-        onPress={() => router.push("/(logged-in)/profile")}
+        onPress={() => push("/(logged-in)/profile")}
         style={styles.link}
       >
         <Text style={styles.linkText}>Open profile (existing screen)</Text>

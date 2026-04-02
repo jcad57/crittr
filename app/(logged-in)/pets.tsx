@@ -7,7 +7,7 @@ import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { sortPetsByCreatedAt } from "@/lib/petSort";
 import type { Pet, PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetsScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
   const { data, isLoading } = usePetsQuery();
   const dbPets: Pet[] | undefined = data;
   const ordered = useMemo(() => {
@@ -47,7 +47,7 @@ export default function PetsScreen() {
         </View>
         <Pressable
           style={styles.fab}
-          onPress={() => router.push("/(logged-in)/add-pet")}
+          onPress={() => push("/(logged-in)/add-pet")}
           accessibilityRole="button"
           accessibilityLabel="Add a pet"
         >

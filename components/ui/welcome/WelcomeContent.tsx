@@ -1,10 +1,12 @@
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import { Colors } from "@/constants/colors";
-import { LinearGradient } from "expo-linear-gradient";
+import { Font } from "@/constants/typography";
+import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  Image as RNImage,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -38,9 +40,20 @@ const FEATURES = [
 
 const AUTO_ADVANCE_MS = 5400;
 
+const WELCOME_BG = require("@/assets/images/temp_bg.png");
+
+/** Intrinsic ratio so we can size width = screen and height scales (contain in a matching box). */
+const WELCOME_BG_RESOLVED = RNImage.resolveAssetSource(WELCOME_BG);
+const WELCOME_BG_ASPECT =
+  WELCOME_BG_RESOLVED?.width && WELCOME_BG_RESOLVED.width > 0
+    ? WELCOME_BG_RESOLVED.height / WELCOME_BG_RESOLVED.width
+    : 1;
+
 export default function WelcomeContent() {
   const router = useRouter();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  /** Full-bleed width; height from aspect so `contain` isn’t limited by screen height (side gaps). */
+  const bgHeight = windowWidth * WELCOME_BG_ASPECT;
   const slideWidth =
     windowWidth -
     SCREEN_WRAPPER_PADDING_H * 2 -
@@ -98,16 +111,17 @@ export default function WelcomeContent() {
   );
 
   return (
-    <>
-      <LinearGradient
-        colors={["#FDB97E", "#F4845F", "#F27059"]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.gradient}
+    <View style={[styles.root, { minHeight: windowHeight }]}>
+      <Image
+        source={WELCOME_BG}
+        style={[styles.bgImage, { width: windowWidth, height: bgHeight }]}
+        contentFit="contain"
+        pointerEvents="none"
       />
       <ScreenWrapper>
         <View style={styles.container}>
-          <Text style={styles.headline}>Co-care for your best friend</Text>
+          <Text style={styles.logo}>Crittr</Text>
+          <Text style={styles.tagline}>Co-care for your best friend</Text>
 
           <View style={styles.carouselBlock}>
             <FlatList
@@ -130,7 +144,7 @@ export default function WelcomeContent() {
 
           <OrangeButton
             style={styles.ctaButton}
-            onPress={() => router.push("/(auth)/(onboarding)")}
+            onPress={() => router.push("/(auth)/(onboarding)?intent=signup")}
           >
             Create Account
           </OrangeButton>
@@ -142,11 +156,22 @@ export default function WelcomeContent() {
           </Link>
         </View>
       </ScreenWrapper>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bgImage: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+  },
   container: {
     flex: 1,
     justifyContent: "flex-end",
@@ -155,15 +180,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 32,
   },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  headline: {
-    fontFamily: "InstrumentSans-Bold",
-    fontSize: 32,
+  logo: {
+    fontFamily: Font.displayBold,
+    fontSize: 52,
+    lineHeight: 56,
+    letterSpacing: -0.3,
     textAlign: "center",
-    color: Colors.textPrimary,
-    marginBottom: 8,
+    color: Colors.orange,
+    marginBottom: 6,
+  },
+  tagline: {
+    fontFamily: "InstrumentSans-SemiBold",
+    fontSize: 20,
+    lineHeight: 26,
+    textAlign: "center",
+    color: Colors.textSecondary,
+    marginBottom: 12,
   },
   carouselBlock: {
     width: "100%",

@@ -14,11 +14,12 @@ import {
   useHealthSnapshotQuery,
   useTodayActivitiesForPetIdsQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetStore } from "@/stores/petStore";
-import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,7 +41,7 @@ function filterByPet<T extends { pet_id: string }>(
 export default function HealthScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push } = useNavigationCooldown();
   const activePetId = usePetStore((s) => s.activePetId);
   const initActivePetFromList = usePetStore((s) => s.initActivePetFromList);
   const { data, isLoading, isError, error } = useHealthSnapshotQuery();
@@ -55,6 +56,19 @@ export default function HealthScreen() {
 
   /** PetNavAvatar + lists use global active pet; fallback until store syncs. */
   const effectivePetId = activePetId ?? pets[0]?.id ?? null;
+
+  const canManageMedications = useCanPerformAction(
+    effectivePetId,
+    "can_manage_medications",
+  );
+  const canManageVaccinations = useCanPerformAction(
+    effectivePetId,
+    "can_manage_vaccinations",
+  );
+  const canManageVetVisits = useCanPerformAction(
+    effectivePetId,
+    "can_manage_vet_visits",
+  );
 
   const medications = data?.medications ?? [];
 
@@ -130,7 +144,7 @@ export default function HealthScreen() {
         iconBg: Colors.skyLight,
         iconColor: Colors.skyDark,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${effectivePetId}/microchip`),
+          push(`/(logged-in)/pet/${effectivePetId}/microchip`),
       },
       {
         id: "medical-records",
@@ -140,20 +154,20 @@ export default function HealthScreen() {
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${effectivePetId}/medical-records`),
+          push(`/(logged-in)/pet/${effectivePetId}/medical-records`),
       },
     ];
-  }, [effectivePetId, router]);
+  }, [effectivePetId, push]);
 
   const openAddVisit = () => {
     if (!effectivePetId) return;
-    router.push(`/(logged-in)/add-vet-visit?petId=${effectivePetId}`);
+    push(`/(logged-in)/add-vet-visit?petId=${effectivePetId}`);
   };
 
   const openManageVaccinations = useCallback(() => {
     if (!effectivePetId) return;
-    router.push(`/(logged-in)/pet/${effectivePetId}/vaccinations`);
-  }, [effectivePetId, router]);
+    push(`/(logged-in)/pet/${effectivePetId}/vaccinations`);
+  }, [effectivePetId, push]);
 
   if (isLoading && !data) {
     return (
@@ -232,11 +246,9 @@ export default function HealthScreen() {
         <HealthSectionHeader
           title="MEDICATIONS"
           onAddPress={
-            effectivePetId
+            effectivePetId && canManageMedications === true
               ? () =>
-                  router.push(
-                    `/(logged-in)/pet/${effectivePetId}/medications`,
-                  )
+                  push(`/(logged-in)/pet/${effectivePetId}/medications`)
               : undefined
           }
         />
@@ -256,7 +268,7 @@ export default function HealthScreen() {
                   item={m}
                   isLast={i === filteredMeds.length - 1}
                   onPress={() =>
-                    router.push(
+                    push(
                       `/(logged-in)/pet/${m.pet_id}/medications/${m.id}`,
                     )
                   }
@@ -277,7 +289,9 @@ export default function HealthScreen() {
         <HealthSectionHeader
           title="VACCINATIONS"
           onAddPress={
-            effectivePetId ? openManageVaccinations : undefined
+            effectivePetId && canManageVaccinations === true
+              ? openManageVaccinations
+              : undefined
           }
         />
         {filteredVacs.length > 0 ? (
@@ -288,9 +302,7 @@ export default function HealthScreen() {
                 item={v}
                 isLast={i === filteredVacs.length - 1}
                 onPress={() =>
-                  router.push(
-                    `/(logged-in)/pet/${v.pet_id}/vaccinations/${v.id}`,
-                  )
+                  push(`/(logged-in)/pet/${v.pet_id}/vaccinations/${v.id}`)
                 }
               />
             ))}
@@ -305,7 +317,11 @@ export default function HealthScreen() {
 
         <HealthSectionHeader
           title="UPCOMING VISITS"
-          onAddPress={effectivePetId ? openAddVisit : undefined}
+          onAddPress={
+            effectivePetId && canManageVetVisits === true
+              ? openAddVisit
+              : undefined
+          }
         />
         {filteredVisits.length > 0 ? (
           <HealthListCard>
@@ -315,7 +331,7 @@ export default function HealthScreen() {
                 item={v}
                 isLast={i === filteredVisits.length - 1}
                 onPress={() =>
-                  router.push(`/(logged-in)/pet/${v.pet_id}/vet-visits/${v.id}`)
+                  push(`/(logged-in)/pet/${v.pet_id}/vet-visits/${v.id}`)
                 }
               />
             ))}

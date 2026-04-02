@@ -279,19 +279,32 @@ export default function PetInfoStep() {
           updateCurrentPet({
             isInsured: v,
             insuranceProvider: v === true ? pet.insuranceProvider : "",
+            insurancePolicyNumber: v === true ? pet.insurancePolicyNumber : "",
           })
         }
       />
 
       {pet.isInsured === true ? (
-        <FormInput
-          label="Insurance provider"
-          placeholder="Provider name"
-          value={pet.insuranceProvider}
-          onChangeText={(v) => updateCurrentPet({ insuranceProvider: v })}
-          autoCapitalize="words"
-          containerStyle={styles.inputSpacing}
-        />
+        <>
+          <FormInput
+            label="Insurance company"
+            placeholder="e.g. Trupanion, Nationwide"
+            value={pet.insuranceProvider}
+            onChangeText={(v) => updateCurrentPet({ insuranceProvider: v })}
+            autoCapitalize="words"
+            containerStyle={styles.inputSpacing}
+          />
+          <FormInput
+            label="Policy number"
+            placeholder="Policy or member ID"
+            value={pet.insurancePolicyNumber}
+            onChangeText={(v) =>
+              updateCurrentPet({ insurancePolicyNumber: v })
+            }
+            autoCapitalize="none"
+            containerStyle={styles.inputSpacing}
+          />
+        </>
       ) : null}
 
       <Text style={styles.sectionTitle}>Allergies</Text>

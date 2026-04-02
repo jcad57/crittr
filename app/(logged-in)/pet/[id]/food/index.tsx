@@ -5,12 +5,14 @@ import {
   useDeletePetFoodMutation,
   usePetDetailsQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isTreatFood } from "@/lib/petFood";
 import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -32,11 +34,12 @@ function formatPortionLabel(f: PetFood): string {
 export default function PetFoodManagerScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
+  const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const deleteMut = useDeletePetFoodMutation(petId ?? "");
 
   const sortedFoods = useMemo(() => {
@@ -89,6 +92,16 @@ export default function PetFoodManagerScreen() {
     );
   }
 
+  if (canManageFood === undefined) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  const canEditFood = canManageFood === true;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.nav}>
@@ -115,26 +128,29 @@ export default function PetFoodManagerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Tap a food to edit it, or add a new meal or treat. Use ✕ to remove an
-          item.
+          {canEditFood
+            ? "Tap a food to edit it, or add a new meal or treat. Use ✕ to remove an item."
+            : "Tap a food to view its details."}
         </Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.addBtn,
-            pressed && styles.addBtnPressed,
-          ]}
-          onPress={() =>
-            router.push(`/(logged-in)/pet/${petId}/food/new` as Href)
-          }
-        >
-          <MaterialCommunityIcons
-            name="plus-circle-outline"
-            size={22}
-            color={Colors.orange}
-          />
-          <Text style={styles.addBtnText}>Add food or treat</Text>
-        </Pressable>
+        {canEditFood ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.addBtn,
+              pressed && styles.addBtnPressed,
+            ]}
+            onPress={() =>
+              router.push(`/(logged-in)/pet/${petId}/food/new` as Href)
+            }
+          >
+            <MaterialCommunityIcons
+              name="plus-circle-outline"
+              size={22}
+              color={Colors.orange}
+            />
+            <Text style={styles.addBtnText}>Add food or treat</Text>
+          </Pressable>
+        ) : null}
 
         {sortedFoods.length === 0 ? (
           <View style={styles.empty}>
@@ -143,7 +159,10 @@ export default function PetFoodManagerScreen() {
         ) : (
           <View style={styles.list}>
             {sortedFoods.map((f) => (
-              <View key={f.id} style={styles.rowWrap}>
+              <View
+                key={f.id}
+                style={[styles.rowWrap, !canEditFood && styles.rowWrapSingle]}
+              >
                 <Pressable
                   style={styles.rowMain}
                   onPress={() =>
@@ -158,19 +177,21 @@ export default function PetFoodManagerScreen() {
                     isTreat={isTreatFood(f)}
                   />
                 </Pressable>
-                <Pressable
-                  style={styles.deleteHit}
-                  onPress={() => confirmDelete(f)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${f.brand}`}
-                >
-                  <MaterialCommunityIcons
-                    name="close"
-                    size={26}
-                    color={Colors.error}
-                  />
-                </Pressable>
+                {canEditFood ? (
+                  <Pressable
+                    style={styles.deleteHit}
+                    onPress={() => confirmDelete(f)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${f.brand}`}
+                  >
+                    <MaterialCommunityIcons
+                      name="close"
+                      size={26}
+                      color={Colors.error}
+                    />
+                  </Pressable>
+                ) : null}
               </View>
             ))}
           </View>
@@ -244,6 +265,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+  },
+  rowWrapSingle: {
+    gap: 0,
   },
   rowMain: {
     flex: 1,

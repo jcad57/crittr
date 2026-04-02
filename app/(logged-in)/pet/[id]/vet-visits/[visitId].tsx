@@ -1,3 +1,5 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
+import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
@@ -8,6 +10,7 @@ import {
   usePetDetailsQuery,
   usePetVetVisitsQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { queryClient } from "@/lib/queryClient";
@@ -41,10 +44,14 @@ export default function EditVetVisitScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user?.id);
-  const { id: petId, visitId } = useLocalSearchParams<{
+  const { id: rawPetId, visitId: rawVisitId } = useLocalSearchParams<{
     id: string;
     visitId: string;
   }>();
+  const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId;
+  const visitId = Array.isArray(rawVisitId) ? rawVisitId[0] : rawVisitId;
+
+  const canManageVetVisits = useCanPerformAction(petId, "can_manage_vet_visits");
 
   const { data: visits, isLoading } = usePetVetVisitsQuery(petId);
   const { data: petDetails } = usePetDetailsQuery(petId);
@@ -193,6 +200,60 @@ export default function EditVetVisitScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.backLink}>Go back</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (canManageVetVisits === undefined) {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canManageVetVisits === false) {
+    const whenReadOnly = new Date(visit.visit_at).toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.navBack}>&lt; Back</Text>
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Visit details
+          </Text>
+          <View style={styles.navSpacer} />
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: scrollInsetBottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CoCareReadOnlyNotice />
+          <ReadOnlyFieldRow label="Title" value={visit.title} />
+          <ReadOnlyFieldRow label="When" value={whenReadOnly} />
+          <ReadOnlyFieldRow
+            label="Location"
+            value={visit.location?.trim() || "—"}
+          />
+          <ReadOnlyFieldRow
+            label="Notes"
+            value={visit.notes?.trim() || ""}
+          />
+        </ScrollView>
       </View>
     );
   }

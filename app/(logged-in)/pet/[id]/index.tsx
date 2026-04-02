@@ -13,7 +13,6 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import type {
@@ -24,10 +23,11 @@ import type {
 import {
   petDetailsQueryKey,
   petsQueryKey,
+  useLeaveCoCare,
   usePetDetailsQuery,
   useTodayActivitiesQuery,
 } from "@/hooks/queries";
-import { usePetRole, useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
@@ -53,8 +53,10 @@ import {
   formatPetWeightDisplay,
   parseDateOnlyYmd,
 } from "@/utils/petDisplay";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -184,6 +186,7 @@ function toProfile(
     primaryVetName: details.primary_vet_name ?? null,
     isInsured: details.is_insured,
     insuranceProvider: details.insurance_provider ?? null,
+    insurancePolicyNumber: details.insurance_policy_number ?? null,
     isSterilized: details.is_sterilized ?? null,
     exercisesPerDay: details.exercises_per_day,
     about: details.about ?? "",
@@ -219,14 +222,16 @@ function medicationSubline(m: Medication): string {
 
 export default function PetProfilePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const { push, replace, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const ownerId = useAuthStore((s) => s.session?.user?.id);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const { data: details, isLoading } = usePetDetailsQuery(id);
-  const { isOwner, isCoCarer } = usePetRole(id);
+
+  const { isOwner, isCoCarer, isLoading: roleLoading } = usePetRole(id);
+  const leaveCoCareMut = useLeaveCoCare(id ?? "");
   const canEditProfile = useCanPerformAction(id, "can_edit_pet_profile");
   const canManageFood = useCanPerformAction(id, "can_manage_food");
   const canManageMeds = useCanPerformAction(id, "can_manage_medications");
@@ -269,6 +274,33 @@ export default function PetProfilePage() {
     [details, todayActivities],
   );
 
+  const handleLeaveCoCare = useCallback(() => {
+    if (!id || !profile) return;
+    const petName = profile.name?.trim() || "this pet";
+    Alert.alert(
+      "Remove yourself as co-carer?",
+      `You will lose access to ${petName}'s profile and activities for this pet. The primary caretaker can invite you again later if needed.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () =>
+            leaveCoCareMut.mutate(undefined, {
+              onSuccess: () => {
+                replace("/(logged-in)/dashboard" as Href);
+              },
+              onError: (e) =>
+                Alert.alert(
+                  "Could not leave",
+                  e instanceof Error ? e.message : "Something went wrong.",
+                ),
+            }),
+        },
+      ],
+    );
+  }, [id, profile, leaveCoCareMut, replace]);
+
   const statItems = useMemo((): StatChipItem[] => {
     if (!profile) return [];
     const birthday = formatBirthdayChip(profile.dateOfBirth);
@@ -294,12 +326,18 @@ export default function PetProfilePage() {
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
-    const insSub =
-      profile.isInsured && profile.insuranceProvider?.trim()
-        ? `${profile.insuranceProvider.trim()} · Active`
-        : profile.isInsured
-          ? "Active"
-          : "Not set";
+    const insSub = (() => {
+      if (profile.isInsured === true) {
+        const co = profile.insuranceProvider?.trim();
+        const pol = profile.insurancePolicyNumber?.trim();
+        if (co && pol) return `${co} · #${pol}`;
+        if (co) return co;
+        if (pol) return `Policy #${pol}`;
+        return "On file";
+      }
+      if (profile.isInsured === false) return "No insurance";
+      return "Not set";
+    })();
     const chipSub = profile.microchipNumber?.trim()
       ? `${profile.microchipNumber.trim()} · on file`
       : "Add microchip number and registry info";
@@ -312,7 +350,7 @@ export default function PetProfilePage() {
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${profile.id}/medical-records` as Href),
+          push(`/(logged-in)/pet/${profile.id}/medical-records` as Href),
       },
       {
         id: "vaccinations",
@@ -322,7 +360,7 @@ export default function PetProfilePage() {
         iconBg: Colors.mintLight,
         iconColor: Colors.successDark,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${profile.id}/vaccinations` as Href),
+          push(`/(logged-in)/pet/${profile.id}/vaccinations` as Href),
       },
       {
         id: "microchip",
@@ -331,7 +369,7 @@ export default function PetProfilePage() {
         icon: "cellphone-nfc",
         iconBg: Colors.skyLight,
         iconColor: Colors.skyDark,
-        onPress: () => router.push(`/pet/${profile.id}/microchip`),
+        onPress: () => push(`/pet/${profile.id}/microchip`),
       },
       {
         id: "insurance",
@@ -340,6 +378,8 @@ export default function PetProfilePage() {
         icon: "shield-check",
         iconBg: Colors.lavenderLight,
         iconColor: Colors.lavenderDark,
+        onPress: () =>
+          push(`/(logged-in)/pet/${profile.id}/insurance` as Href),
       },
       {
         id: "activity",
@@ -349,15 +389,15 @@ export default function PetProfilePage() {
         iconBg: Colors.amberLight,
         iconColor: Colors.amberDark,
         onPress: () =>
-          router.push(
+          push(
             `/(logged-in)/activity?petId=${encodeURIComponent(profile.id)}` as Href,
           ),
       },
     ];
-  }, [profile, router]);
+  }, [profile, push]);
 
   const manageItems = useMemo((): RecordsNavItem[] => {
-    if (!profile) return [];
+    if (!profile || roleLoading) return [];
     const petName = profile.name?.trim() || "your pet";
     const items: RecordsNavItem[] = [];
 
@@ -370,27 +410,34 @@ export default function PetProfilePage() {
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
         onPress: () =>
-          router.push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
+          push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
+      });
+      items.push({
+        id: "invite",
+        title: `Co-carers for ${petName}`,
+        subtitle: "Manage co-carers and permissions",
+        icon: "account-heart-outline",
+        iconBg: Colors.lavenderLight,
+        iconColor: Colors.lavenderDark,
+        onPress: () =>
+          push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
+      });
+    } else if (isCoCarer) {
+      items.push({
+        id: "leave-co-care",
+        title: "Remove yourself as a co-carer",
+        subtitle: `Stop co-caring for ${petName}`,
+        icon: "account-remove-outline",
+        iconBg: Colors.white,
+        iconColor: Colors.error,
+        onPress: handleLeaveCoCare,
+        showChevron: false,
+        variant: "destructive",
       });
     }
 
-    items.push({
-      id: "invite",
-      title: isOwner
-        ? `Invite someone to care for ${petName}`
-        : `Co-carers for ${petName}`,
-      subtitle: isOwner
-        ? "Manage co-carers and permissions"
-        : "View who else cares for this pet",
-      icon: "account-heart-outline",
-      iconBg: Colors.lavenderLight,
-      iconColor: Colors.lavenderDark,
-      onPress: () =>
-        router.push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
-    });
-
     return items;
-  }, [profile, router, isOwner]);
+  }, [profile, push, isOwner, isCoCarer, roleLoading, handleLeaveCoCare]);
 
   if (isLoading) {
     return (
@@ -458,7 +505,7 @@ export default function PetProfilePage() {
           onEditNamePress={
             canEditProfile
               ? () =>
-                  router.push(
+                  push(
                     `/(logged-in)/pet/${profile.id}/edit-name-breed` as Href,
                   )
               : undefined
@@ -473,7 +520,7 @@ export default function PetProfilePage() {
             <TouchableOpacity
               hitSlop={8}
               onPress={() =>
-                router.push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
+                push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
               }
             >
               <Text style={styles.sectionEditLink}>Edit</Text>
@@ -494,14 +541,19 @@ export default function PetProfilePage() {
           />
         </View>
 
-        {details ? <PetExerciseRequirementsBlock details={details} /> : null}
+        {details ? (
+          <PetExerciseRequirementsBlock
+            details={details}
+            canEdit={canEditProfile === true}
+          />
+        ) : null}
 
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
           {canManageFood && (
             <TouchableOpacity
               onPress={() =>
-                router.push(`/(logged-in)/pet/${profile.id}/food` as Href)
+                push(`/(logged-in)/pet/${profile.id}/food` as Href)
               }
               hitSlop={8}
             >
@@ -516,9 +568,7 @@ export default function PetProfilePage() {
                 key={f.id}
                 activeOpacity={0.85}
                 onPress={() =>
-                  router.push(
-                    `/(logged-in)/pet/${profile.id}/food/${f.id}` as Href,
-                  )
+                  push(`/(logged-in)/pet/${profile.id}/food/${f.id}` as Href)
                 }
               >
                 <PetFoodProfileCard
@@ -540,7 +590,7 @@ export default function PetProfilePage() {
           {canManageMeds && (
             <TouchableOpacity
               onPress={() =>
-                router.push(`/(logged-in)/pet/${profile.id}/medications` as Href)
+                push(`/(logged-in)/pet/${profile.id}/medications` as Href)
               }
               hitSlop={8}
             >
@@ -559,7 +609,7 @@ export default function PetProfilePage() {
                 badgeLabel={m.badgeLabel}
                 isLast={i === profile.medications.length - 1}
                 onPress={() =>
-                  router.push(
+                  push(
                     `/(logged-in)/pet/${profile.id}/medications/${m.id}` as Href,
                   )
                 }
@@ -581,7 +631,7 @@ export default function PetProfilePage() {
                   key={v.id}
                   vaccination={v}
                   isLast={i === attentionVaccinations.length - 1}
-                  onPress={() => router.push("/(logged-in)/health" as Href)}
+                  onPress={() => push("/(logged-in)/health" as Href)}
                 />
               ))}
             </HealthListCard>
@@ -591,8 +641,12 @@ export default function PetProfilePage() {
         <SectionLabel style={styles.sectionFlush}>Records</SectionLabel>
         <RecordsNavCard items={recordsItems} />
 
-        <SectionLabel style={styles.sectionFlush}>Manage pet</SectionLabel>
-        <RecordsNavCard items={manageItems} />
+        {manageItems.length > 0 ? (
+          <>
+            <SectionLabel style={styles.sectionFlush}>Manage pet</SectionLabel>
+            <RecordsNavCard items={manageItems} />
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );

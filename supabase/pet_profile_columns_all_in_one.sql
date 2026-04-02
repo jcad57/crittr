@@ -12,7 +12,8 @@ alter table public.pets
   add column if not exists primary_vet_address text,
   add column if not exists primary_vet_name text,
   add column if not exists is_insured boolean,
-  add column if not exists insurance_provider text;
+  add column if not exists insurance_provider text,
+  add column if not exists insurance_policy_number text;
 
 alter table public.pets
   drop column if exists blood_type;

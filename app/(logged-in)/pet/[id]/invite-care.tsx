@@ -3,19 +3,22 @@ import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  coCarersForPetKey,
+  sentInvitesForPetKey,
   useCoCarersForPetQuery,
   usePetDetailsQuery,
-  useSendInviteMutation,
-  useSentInvitesForPetQuery,
   useRevokeInviteMutation,
+  useSentInvitesForPetQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { queryClient } from "@/lib/queryClient";
 import { type CoCarerWithProfile } from "@/services/coCare";
 import type { CoCarerInvite } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +26,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,10 +33,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetInviteCareScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const router = useRouter();
+  const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const [email, setEmail] = useState("");
 
   const { data: details, isLoading: detailsLoading } = usePetDetailsQuery(
     petId ?? null,
@@ -43,32 +44,25 @@ export default function PetInviteCareScreen() {
     useCoCarersForPetQuery(petId);
   const { data: sentInvites = [], isLoading: invitesLoading } =
     useSentInvitesForPetQuery(petId);
-  const sendInvite = useSendInviteMutation(petId ?? "");
   const revokeInvite = useRevokeInviteMutation(petId ?? "");
 
-  const pendingInvites = sentInvites.filter((i) => i.status === "pending");
-
-  const onInvite = useCallback(() => {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      Alert.alert("Email required", "Enter an email address to send an invite.");
-      return;
-    }
-    sendInvite.mutate(trimmed, {
-      onSuccess: ({ isRegistered }) => {
-        setEmail("");
-        Alert.alert(
-          "Invite sent",
-          isRegistered
-            ? "They'll see a notification in the app."
-            : "We'll email them an invitation to join Crittr.",
-        );
-      },
-      onError: (err) => {
-        Alert.alert("Error", err.message ?? "Failed to send invite.");
-      },
+  /** True pending only; hide stale rows where status is still “pending” but they already co-care. */
+  const pendingInvites = useMemo(() => {
+    const coCarerIds = new Set(coCarers.map((c) => c.user_id));
+    return sentInvites.filter((i) => {
+      if (i.status !== "pending") return false;
+      if (i.invited_user_id && coCarerIds.has(i.invited_user_id)) return false;
+      return true;
     });
-  }, [email, sendInvite]);
+  }, [sentInvites, coCarers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!petId) return;
+      void queryClient.invalidateQueries({ queryKey: sentInvitesForPetKey(petId) });
+      void queryClient.invalidateQueries({ queryKey: coCarersForPetKey(petId) });
+    }, [petId]),
+  );
 
   const onRevoke = useCallback(
     (inviteId: string) => {
@@ -126,32 +120,17 @@ export default function PetInviteCareScreen() {
         {/* Invite section */}
         <Text style={styles.sectionLabel}>INVITE SOMEONE</Text>
         <Text style={styles.lead}>
-          Invite someone by email to help care for {name}. You can manage what
-          they can do once they accept.
+          Invite someone by email to help care for {name}. You choose their access
+          before the invite is sent.
         </Text>
 
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="friend@example.com"
-          placeholderTextColor={Colors.gray400}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-        />
-
         <OrangeButton
-          onPress={onInvite}
-          disabled={sendInvite.isPending}
+          onPress={() =>
+            push(`/(logged-in)/pet/${petId}/invite-co-carer`)
+          }
           style={styles.sendBtn}
         >
-          {sendInvite.isPending ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            "Send invite"
-          )}
+          Invite someone to care for {name}
         </OrangeButton>
 
         {/* Pending invites */}
@@ -201,7 +180,7 @@ export default function PetInviteCareScreen() {
                 key={cc.id}
                 style={styles.row}
                 onPress={() =>
-                  router.push(
+                  push(
                     `/(logged-in)/pet/${petId}/co-carer-permissions?userId=${cc.user_id}`,
                   )
                 }
@@ -283,18 +262,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 22,
     marginBottom: 16,
-  },
-  input: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    marginBottom: 12,
   },
   sendBtn: { marginBottom: 0 },
   row: {

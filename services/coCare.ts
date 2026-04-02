@@ -1,19 +1,29 @@
 import { supabase } from "@/lib/supabase";
-import type {
-  CoCarePermissions,
-  CoCarerInvite,
-  PetCoCarer,
-  Profile,
+import {
+  DEFAULT_CO_CARE_PERMISSIONS,
+  type CoCarePermissions,
+  type CoCarerInvite,
+  type PetCoCarer,
+  type Profile,
 } from "@/types/database";
 
-const DEFAULT_PERMISSIONS: CoCarePermissions = {
-  can_log_activities: true,
-  can_edit_pet_profile: false,
-  can_manage_food: false,
-  can_manage_medications: false,
-  can_manage_vaccinations: false,
-  can_manage_vet_visits: false,
-};
+function permissionsForNewCoCarerRow(invite: {
+  permissions?: unknown;
+}): CoCarePermissions {
+  const raw = invite.permissions;
+  if (raw && typeof raw === "object" && raw !== null) {
+    return { ...DEFAULT_CO_CARE_PERMISSIONS, ...(raw as CoCarePermissions) };
+  }
+  return DEFAULT_CO_CARE_PERMISSIONS;
+}
+
+/** Coerce RPC `RETURNS TABLE` results (array, single object, or null). */
+function normalizeRpcRows<T extends { id?: string }>(data: unknown): T[] {
+  if (data == null) return [];
+  if (Array.isArray(data)) return data as T[];
+  if (typeof data === "object") return [data as T];
+  return [];
+}
 
 const FULL_PERMISSIONS: CoCarePermissions = {
   can_log_activities: true,
@@ -22,6 +32,7 @@ const FULL_PERMISSIONS: CoCarePermissions = {
   can_manage_medications: true,
   can_manage_vaccinations: true,
   can_manage_vet_visits: true,
+  can_manage_pet_records: true,
 };
 
 // ─── Invites ────────────────────────────────────────────────────────────────
@@ -30,15 +41,22 @@ export async function sendCoCareInvite(
   petId: string,
   inviterUserId: string,
   email: string,
+  permissions: CoCarePermissions = DEFAULT_CO_CARE_PERMISSIONS,
 ): Promise<{ invite: CoCarerInvite; isRegistered: boolean }> {
   const normalised = email.trim().toLowerCase();
 
   let invitedUserId: string | null = null;
-  const { data: authLookup } = await supabase.rpc("lookup_user_by_email", {
-    lookup_email: normalised,
-  });
-  if (authLookup && (authLookup as { id: string }[]).length > 0) {
-    invitedUserId = (authLookup as { id: string }[])[0].id;
+  const { data: authLookup, error: lookupError } = await supabase.rpc(
+    "lookup_user_by_email",
+    { lookup_email: normalised },
+  );
+  if (lookupError) {
+    console.warn("lookup_user_by_email failed:", lookupError.message);
+  }
+  // PostgREST usually returns an array of rows; a single row may come back as one object.
+  const lookupRows = normalizeRpcRows<{ id: string }>(authLookup);
+  if (lookupRows.length > 0) {
+    invitedUserId = lookupRows[0].id;
   }
 
   const { data: invite, error } = await supabase
@@ -48,6 +66,7 @@ export async function sendCoCareInvite(
       invited_by: inviterUserId,
       email: normalised,
       invited_user_id: invitedUserId,
+      permissions,
     })
     .select()
     .single();
@@ -70,15 +89,23 @@ export async function sendCoCareInvite(
     [inviter?.first_name, inviter?.last_name].filter(Boolean).join(" ") ||
     "Someone";
 
+  // In-app notification for existing users: insert as the inviter (authenticated).
+  // RLS policy allows that; a DB INSERT trigger often fails under SECURITY DEFINER
+  // because policies target `authenticated`, not the definer role.
   if (invitedUserId) {
-    await supabase.from("notifications").insert({
+    const { error: notifErr } = await supabase.from("notifications").insert({
       user_id: invitedUserId,
       type: "co_care_invite",
       title: "Co-care invitation",
       body: `${inviterName} invited you to co-care for ${pet?.name ?? "their pet"}.`,
       data: { pet_id: petId, invite_id: invite.id },
     });
-  } else {
+    if (notifErr) {
+      console.error("Failed to create co-care invite notification:", notifErr);
+    }
+  }
+
+  if (!invitedUserId) {
     try {
       await supabase.functions.invoke("send-co-care-invite", {
         body: {
@@ -152,7 +179,7 @@ export async function fetchSentInvitesForPet(
 export async function acceptInvite(
   inviteId: string,
   userId: string,
-): Promise<void> {
+): Promise<{ petId: string }> {
   const { data: invite, error: fetchErr } = await supabase
     .from("co_carer_invites")
     .select("*")
@@ -169,7 +196,7 @@ export async function acceptInvite(
       pet_id: invite.pet_id,
       user_id: userId,
       invited_by: invite.invited_by,
-      permissions: DEFAULT_PERMISSIONS,
+      permissions: permissionsForNewCoCarerRow(invite),
     });
 
   if (insertErr) throw insertErr;
@@ -204,6 +231,8 @@ export async function acceptInvite(
     body: `${accepterName} accepted your invitation to co-care for ${pet?.name ?? "your pet"}.`,
     data: { pet_id: invite.pet_id },
   });
+
+  return { petId: invite.pet_id as string };
 }
 
 export async function declineInvite(
@@ -272,7 +301,10 @@ export async function fetchUserPermissionsForPet(
 
   return {
     role: "co_carer",
-    permissions: coCarer.permissions as CoCarePermissions,
+    permissions: {
+      ...DEFAULT_CO_CARE_PERMISSIONS,
+      ...(coCarer.permissions as CoCarePermissions),
+    },
   };
 }
 
@@ -281,9 +313,13 @@ export async function updateCoCarerPermissions(
   coCarerUserId: string,
   permissions: CoCarePermissions,
 ): Promise<PetCoCarer> {
+  const merged: CoCarePermissions = {
+    ...DEFAULT_CO_CARE_PERMISSIONS,
+    ...permissions,
+  };
   const { data, error } = await supabase
     .from("pet_co_carers")
-    .update({ permissions })
+    .update({ permissions: merged })
     .eq("pet_id", petId)
     .eq("user_id", coCarerUserId)
     .select()

@@ -18,14 +18,16 @@ import {
   usePetsQuery,
   useProfilesByIdsQuery,
 } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,7 +48,7 @@ type Section = {
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { push, replace } = useNavigationCooldown();
   const { petId: petIdParam } = useLocalSearchParams<{
     petId?: string | string[];
   }>();
@@ -61,6 +63,23 @@ export default function ActivityScreen() {
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
 
   const effectivePetId = petIdFromRoute ?? activePetId ?? null;
+
+  const resolvedPetIdForPerm = useMemo(() => {
+    if (
+      effectivePetId &&
+      (dbPets ?? []).some(
+        (p) => p.id === effectivePetId && isPetActiveForDashboard(p),
+      )
+    ) {
+      return effectivePetId;
+    }
+    return (dbPets ?? []).find((p) => isPetActiveForDashboard(p))?.id ?? null;
+  }, [effectivePetId, dbPets]);
+
+  const canLogActivities = useCanPerformAction(
+    resolvedPetIdForPerm,
+    "can_log_activities",
+  );
 
   const { data: rawActivities, isLoading: isActivitiesLoading } =
     useAllActivitiesQuery(effectivePetId ?? undefined);
@@ -113,10 +132,10 @@ export default function ActivityScreen() {
     (id: string) => {
       setActivePet(id);
       if (petIdFromRoute) {
-        router.replace("/(logged-in)/activity" as Href);
+        replace("/(logged-in)/activity" as Href);
       }
     },
-    [setActivePet, router, petIdFromRoute],
+    [setActivePet, replace, petIdFromRoute],
   );
 
   const subtitleMonth = useMemo(
@@ -158,39 +177,18 @@ export default function ActivityScreen() {
   );
 
   const handleLogActivity = useCallback(() => {
-    router.push("/(logged-in)/add-activity");
-  }, [router]);
+    push("/(logged-in)/add-activity");
+  }, [push]);
 
   const openActivityEditor = useCallback(
     (activityId: string) => {
-      router.push(`/(logged-in)/manage-activity-item/${activityId}` as Href);
+      push(`/(logged-in)/manage-activity-item/${activityId}` as Href);
     },
-    [router],
+    [push],
   );
 
-  const listHeader = (
-    <>
-      <View style={styles.headerRow}>
-        <View style={styles.headerTitles}>
-          <Text style={styles.pageTitle}>Activity</Text>
-          <Text style={styles.pageSubtitle}>{subtitleMonth}</Text>
-        </View>
-        <Pressable
-          style={styles.fab}
-          onPress={handleLogActivity}
-          accessibilityRole="button"
-          accessibilityLabel="Log activity"
-        >
-          <MaterialCommunityIcons name="plus" size={28} color={Colors.white} />
-        </Pressable>
-      </View>
-
-      <PetPillSwitcher
-        pets={pets}
-        activePetId={effectivePetId}
-        onSwitchPet={handleSwitchPet}
-      />
-
+  const listScrollHeader = (
+    <View style={styles.listScrollHeader}>
       {weeklySummary ? (
         <>
           <Text style={styles.weekAtGlanceTitle}>Week at a glance</Text>
@@ -206,12 +204,46 @@ export default function ActivityScreen() {
         dateFilterYmd={dateFilterYmd}
         onDateFilterChange={setDateFilterYmd}
       />
-    </>
+    </View>
   );
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.root}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerInner}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTitles}>
+              <Text style={styles.pageTitle}>Activity</Text>
+              <Text style={styles.pageSubtitle}>{subtitleMonth}</Text>
+            </View>
+            {canLogActivities === true ? (
+              <Pressable
+                style={styles.fab}
+                onPress={handleLogActivity}
+                accessibilityRole="button"
+                accessibilityLabel="Log activity"
+              >
+                <MaterialCommunityIcons
+                  name="plus"
+                  size={28}
+                  color={Colors.white}
+                />
+              </Pressable>
+            ) : (
+              <View style={styles.fabSpacer} />
+            )}
+          </View>
+
+          <PetPillSwitcher
+            pets={pets}
+            activePetId={effectivePetId}
+            onSwitchPet={handleSwitchPet}
+          />
+        </View>
+      </View>
+
       <SectionList
+        style={styles.list}
         sections={sections}
         keyExtractor={(item) => item.id}
         stickySectionHeadersEnabled
@@ -230,9 +262,7 @@ export default function ActivityScreen() {
         )}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        ListHeaderComponent={
-          <View style={styles.listHeaderInner}>{listHeader}</View>
-        }
+        ListHeaderComponent={listScrollHeader}
         ListEmptyComponent={
           <View style={styles.emptyBlock}>
             {isActivitiesLoading ? (
@@ -259,12 +289,26 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  listHeaderInner: {
+  headerBar: {
+    backgroundColor: Colors.cream,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.creamDark,
+  },
+  headerInner: {
+    paddingHorizontal: 20,
     gap: 16,
+    paddingBottom: 12,
+  },
+  list: {
+    flex: 1,
+  },
+  listScrollHeader: {
+    gap: 16,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   headerRow: {
@@ -308,6 +352,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
+  },
+  fabSpacer: {
+    width: 52,
+    height: 52,
+    marginTop: 2,
   },
   listContent: {
     paddingHorizontal: 20,

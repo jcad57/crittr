@@ -1,11 +1,13 @@
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import type { Pet } from "@/types/database";
 import type { Href } from "expo-router";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
@@ -41,6 +43,34 @@ export default function AddVaccinationRedirectScreen() {
     );
   }
 
+  return <AddVaccinationWithPermission petId={petId} />;
+}
+
+function AddVaccinationWithPermission({ petId }: { petId: string }) {
+  const insets = useSafeAreaInsets();
+  const canManage = useCanPerformAction(petId, "can_manage_vaccinations");
+
+  if (canManage === undefined) {
+    return (
+      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
+
+  if (canManage === false) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
+        <CoCareReadOnlyNotice />
+        <Text style={styles.hint}>
+          Adding vaccinations requires permission from the primary caretaker. Ask
+          them to grant vaccination access in co-care settings if you should
+          record shots for this pet.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <Redirect href={`/(logged-in)/pet/${petId}/vaccinations/new` as Href} />
   );
@@ -50,6 +80,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   hint: {
     fontFamily: Font.uiRegular,

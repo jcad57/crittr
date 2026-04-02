@@ -1,6 +1,10 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
-import { petsQueryKey } from "@/hooks/queries";
+import {
+  coCarersForPetKey,
+  petsQueryKey,
+  sentInvitesForPetKey,
+} from "@/hooks/queries";
 import { queryClient } from "@/lib/queryClient";
 import {
   acceptInvite,
@@ -31,6 +35,7 @@ type InviteRow = {
 export default function PendingInvitesStep() {
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
+  const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
   const { nextStep, prevStep } = useOnboardingStore();
   const router = useRouter();
 
@@ -58,7 +63,16 @@ export default function PendingInvitesStep() {
       if (!session) return;
       setBusy(inviteId);
       try {
-        await acceptInvite(inviteId, session.user.id);
+        const result = await acceptInvite(inviteId, session.user.id);
+        if (result.petId) {
+          void queryClient.invalidateQueries({
+            queryKey: sentInvitesForPetKey(result.petId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: coCarersForPetKey(result.petId),
+          });
+        }
+        await refreshAuthSession();
         setInvites((prev) => prev.filter((i) => i.id !== inviteId));
         setAcceptedCount((c) => c + 1);
       } catch (err: any) {
@@ -67,7 +81,7 @@ export default function PendingInvitesStep() {
         setBusy(null);
       }
     },
-    [session],
+    [session, refreshAuthSession],
   );
 
   const handleDecline = useCallback(async (inviteId: string) => {

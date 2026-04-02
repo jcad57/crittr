@@ -16,6 +16,9 @@ export function useNotificationsQuery(): UseQueryResult<
     queryKey: notificationsKey(userId ?? ""),
     queryFn: () => fetchNotifications(userId!),
     enabled: !!userId,
+    /** Global default staleTime is 5m; unread count polls every 30s so the badge can be ahead of a stale list. */
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 
@@ -29,5 +32,8 @@ export function useUnreadNotificationCountQuery(): UseQueryResult<
     queryFn: () => fetchUnreadNotificationCount(userId!),
     enabled: !!userId,
     refetchInterval: 30_000,
+    /** Same reason as notifications list: stay aligned when opening the app or returning to dashboard. */
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }

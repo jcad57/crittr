@@ -1,11 +1,12 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { CO_CARE_PERMISSION_ROWS } from "@/constants/coCarePermissionRows";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useCoCarersForPetQuery,
   usePetDetailsQuery,
-  useUpdatePermissionsMutation,
   useRemoveCoCarerMutation,
+  useUpdatePermissionsMutation,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { CoCarePermissions } from "@/types/database";
@@ -24,52 +25,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-type PermissionRow = {
-  key: keyof CoCarePermissions;
-  label: string;
-  description: string;
-  icon: string;
-};
-
-const PERMISSION_ROWS: PermissionRow[] = [
-  {
-    key: "can_log_activities",
-    label: "Log activities",
-    description: "Log exercise, food, medication, and vet visit entries",
-    icon: "clipboard-text-outline",
-  },
-  {
-    key: "can_edit_pet_profile",
-    label: "Edit pet profile",
-    description: "Change name, breed, details, avatar, and exercise goals",
-    icon: "pencil-outline",
-  },
-  {
-    key: "can_manage_food",
-    label: "Manage food",
-    description: "Add, edit, or remove food and treat entries",
-    icon: "food-drumstick-outline",
-  },
-  {
-    key: "can_manage_medications",
-    label: "Manage medications",
-    description: "Add, edit, or remove medication entries",
-    icon: "pill",
-  },
-  {
-    key: "can_manage_vaccinations",
-    label: "Manage vaccinations",
-    description: "Add, edit, or remove vaccination records",
-    icon: "needle",
-  },
-  {
-    key: "can_manage_vet_visits",
-    label: "Manage vet visits",
-    description: "Create, edit, or delete scheduled vet visits",
-    icon: "hospital-box-outline",
-  },
-];
 
 export default function CoCarerPermissionsScreen() {
   const { id: rawId, userId: rawUserId } = useLocalSearchParams<{
@@ -150,7 +105,9 @@ export default function CoCarerPermissionsScreen() {
 
   if (!petId || !coCarerUserId || !coCarer || !perms) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -200,10 +157,12 @@ export default function CoCarerPermissionsScreen() {
               />
             </View>
           )}
-          <Text style={styles.displayName}>{displayName}</Text>
-          <Text style={styles.roleLabel}>
-            Co-carer for {details?.name ?? "this pet"}
-          </Text>
+          <View style={styles.displayNameContainer}>
+            <Text style={styles.displayName}>{displayName}</Text>
+            <Text style={styles.roleLabel}>
+              Co-carer for {details?.name ?? "this pet"}
+            </Text>
+          </View>
         </View>
 
         {/* Permission toggles */}
@@ -215,7 +174,7 @@ export default function CoCarerPermissionsScreen() {
           is always allowed.
         </Text>
 
-        {PERMISSION_ROWS.map((row) => (
+        {CO_CARE_PERMISSION_ROWS.map((row) => (
           <View key={row.key} style={styles.permRow}>
             <View style={styles.permIcon}>
               <MaterialCommunityIcons
@@ -277,7 +236,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  navSideLeft: { width: 72, alignItems: "flex-start", justifyContent: "center" },
+  navSideLeft: {
+    width: 72,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
   navSideRight: { width: 72 },
   navBack: { fontFamily: Font.uiSemiBold, fontSize: 16, color: Colors.orange },
   navTitle: {
@@ -290,12 +253,18 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 8 },
-  profileHeader: { alignItems: "center", marginBottom: 8 },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: 12,
+    marginBottom: 12,
+    marginTop: 8,
+  },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    marginBottom: 12,
   },
   avatarPlaceholder: {
     backgroundColor: Colors.gray100,
@@ -303,6 +272,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.gray200,
+  },
+  displayNameContainer: {
+    flexShrink: 1,
+    justifyContent: "center",
+    minHeight: AVATAR_SIZE,
   },
   displayName: {
     fontFamily: Font.displayBold,
