@@ -11,14 +11,7 @@ import {
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import Divider from "../ui/Divider";
 import SocialAuthContainer from "./SocialAuthContainer";
 
@@ -154,14 +147,10 @@ export default function SignUpStep() {
       {/* Create Account */}
       <OrangeButton
         onPress={handleCreateAccount}
-        disabled={isSubmitting}
+        loading={isSubmitting}
         style={styles.cta}
       >
-        {isSubmitting ? (
-          <ActivityIndicator color={Colors.white} />
-        ) : (
-          "Create Account"
-        )}
+        Create Account
       </OrangeButton>
 
       {/* Same layout + copy as welcome screen: inline “Sign In” link */}

@@ -18,7 +18,7 @@ export default function AuthBackToWelcome({
       <Pressable
         onPress={() => {
           onBeforeNavigate?.();
-          router.replace("/(auth)/welcome");
+          router.back();
         }}
         hitSlop={12}
         accessibilityLabel="Back to welcome"

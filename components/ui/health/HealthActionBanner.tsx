@@ -1,19 +1,31 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 type Props = {
   title: string;
   subtitle: string;
   onMarkDone: () => void;
+  /** While logging; disables the action. */
+  loading?: boolean;
+  disabled?: boolean;
 };
 
 export default function HealthActionBanner({
   title,
   subtitle,
   onMarkDone,
+  loading = false,
+  disabled = false,
 }: Props) {
+  const blocked = disabled || loading;
   return (
     <View style={styles.banner}>
       <View style={styles.iconCircle}>
@@ -25,8 +37,20 @@ export default function HealthActionBanner({
           {subtitle}
         </Text>
       </View>
-      <Pressable onPress={onMarkDone} hitSlop={8}>
-        <Text style={styles.markDone}>Mark done</Text>
+      <Pressable
+        onPress={onMarkDone}
+        hitSlop={8}
+        disabled={blocked}
+        accessibilityState={{ disabled: blocked, busy: loading }}
+        style={styles.markDoneSlot}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={Colors.orange} />
+        ) : (
+          <Text style={[styles.markDone, disabled && styles.markDoneDisabled]}>
+            Mark done
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -66,9 +90,19 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.72)",
     lineHeight: 18,
   },
+  /** Keeps layout stable when swapping label for spinner. */
+  markDoneSlot: {
+    minWidth: 76,
+    minHeight: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   markDone: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.orange,
+  },
+  markDoneDisabled: {
+    opacity: 0.45,
   },
 });

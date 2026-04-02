@@ -1,12 +1,18 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import type { Pet } from "@/data/mockDashboard";
+import type { PetSummary } from "@/types/ui";
 import { useProfileQuery } from "@/hooks/queries";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 function greetingLine(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -15,7 +21,7 @@ function greetingLine(hour: number): string {
 }
 
 type DashboardHeaderProps = {
-  pets: Pet[];
+  pets: PetSummary[];
   activePetId: string | null;
   onSwitchPet: (id: string) => void;
   onAddPet?: () => void;
@@ -33,8 +39,17 @@ export default function DashboardHeader({
   onProfilePress,
   unreadNotificationCount = 0,
 }: DashboardHeaderProps) {
+  const { width: windowWidth } = useWindowDimensions();
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
+
+  /** Smaller title on narrow screens so “Good morning” / “Good afternoon” isn’t clipped by flex layout. */
+  const greetingTitleSize = useMemo(() => {
+    if (windowWidth < 340) return 22;
+    if (windowWidth < 380) return 24;
+    return MAIN_SCREEN_TITLE_SIZE;
+  }, [windowWidth]);
+  const greetingLineHeight = greetingTitleSize + 6;
 
   const { greeting, dateLine } = useMemo(() => {
     const now = new Date();
@@ -51,9 +66,14 @@ export default function DashboardHeader({
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.greetingColumn}>
-          <View style={styles.greetingTitleRow}>
-            <Text style={styles.greeting}>{greeting}</Text>
-          </View>
+          <Text
+            style={[
+              styles.greeting,
+              { fontSize: greetingTitleSize, lineHeight: greetingLineHeight },
+            ]}
+          >
+            {greeting}
+          </Text>
           <Text style={styles.date}>{dateLine}</Text>
         </View>
         <View style={styles.rightIcons}>
@@ -127,14 +147,9 @@ const styles = StyleSheet.create({
   /** Greeting + date stacked tight; avoids row height following the 40px icon buttons. */
   greetingColumn: {
     flex: 1,
+    minWidth: 0,
     paddingRight: 8,
     gap: 2,
-  },
-  greetingTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 4,
   },
   greeting: {
     fontFamily: Font.displayBold,
@@ -142,9 +157,7 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     color: Colors.textPrimary,
     letterSpacing: -0.3,
-  },
-  pawIcon: {
-    marginRight: -2,
+    flexShrink: 1,
   },
   date: {
     fontFamily: Font.uiRegular,
@@ -158,6 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flexShrink: 0,
   },
   circleButton: {
     width: 40,

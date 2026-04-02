@@ -113,8 +113,7 @@ export default function PetInsuranceScreen() {
     );
   }, [baseline, isInsured, company, policyNumber]);
 
-  const canSave =
-    Boolean(petId) && Boolean(userId) && dirty && !updateMut.isPending;
+  const canSave = Boolean(petId) && Boolean(userId) && dirty;
 
   const openFile = useCallback(async (f: PetInsuranceFile) => {
     try {
@@ -508,14 +507,11 @@ export default function PetInsuranceScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={onSave}
-              disabled={!canSave || busy}
+              loading={updateMut.isPending}
+              disabled={!canSave || uploadMut.isPending || deleteMut.isPending}
               style={styles.saveBtn}
             >
-              {updateMut.isPending ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                "Save"
-              )}
+              Save
             </OrangeButton>
           </View>
         </View>

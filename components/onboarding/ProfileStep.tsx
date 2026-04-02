@@ -12,7 +12,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
@@ -173,10 +172,10 @@ export default function ProfileStep() {
 
       <OrangeButton
         onPress={handleContinue}
-        disabled={isSubmitting}
+        loading={isSubmitting}
         style={styles.cta}
       >
-        {isSubmitting ? <ActivityIndicator color={Colors.white} /> : "Continue"}
+        Continue
       </OrangeButton>
 
       <TouchableOpacity onPress={prevStep} style={styles.backButton}>

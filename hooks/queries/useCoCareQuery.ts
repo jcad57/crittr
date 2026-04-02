@@ -5,12 +5,9 @@ import {
   fetchUserPermissionsForPet,
   type CoCarerWithProfile,
 } from "@/services/coCare";
-import { queryClient } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import type { CoCarePermissions, CoCarerInvite } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { useEffect } from "react";
 import {
   coCarersForPetKey,
   pendingInvitesKey,
@@ -75,36 +72,11 @@ export function useUserPetPermissionsQuery(
     refetchOnWindowFocus: true,
   });
 
-  /** When the primary caretaker updates `pet_co_carers`, refetch on the co-carer's device. */
-  useEffect(() => {
-    if (!petId || !userId) return;
-
-    const channel = supabase
-      .channel(`pet_co_carers:${petId}:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "pet_co_carers",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const rowPetId =
-            (payload.new as { pet_id?: string } | null)?.pet_id ??
-            (payload.old as { pet_id?: string } | null)?.pet_id;
-          if (rowPetId !== petId) return;
-          void queryClient.invalidateQueries({
-            queryKey: userPetPermissionsKey(petId, userId),
-          });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [petId, userId]);
+  /**
+   * Realtime: only one `postgres_changes` subscription per table is safe on hosted Supabase
+   * (multiple channels → "mismatch between server and client bindings"). Co-care updates are
+   * handled in `useLoggedInQueryBootstrap`, which invalidates `petPermissions` queries.
+   */
 
   return query;
 }

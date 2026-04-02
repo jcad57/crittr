@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { Pet } from "@/data/mockDashboard";
+import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import {
@@ -13,13 +13,13 @@ import {
 
 const AVATAR_IN_PILL = 28;
 
-function avatarUriFromPet(pet: Pet): string | null {
+function avatarUriFromPet(pet: PetSummary): string | null {
   const u = pet.imageUrl?.trim();
   return u || null;
 }
 
 type PetPillSwitcherProps = {
-  pets: Pet[];
+  pets: PetSummary[];
   activePetId: string | null;
   onSwitchPet: (id: string) => void;
 };

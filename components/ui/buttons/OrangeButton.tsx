@@ -1,6 +1,7 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import {
+  ActivityIndicator,
   GestureResponderEvent,
   Pressable,
   StyleProp,
@@ -22,6 +23,7 @@ type OrangeButtonProps = {
   onPressIn?: ((e: GestureResponderEvent) => void) | null;
   onPressOut?: ((e: GestureResponderEvent) => void) | null;
   disabled?: boolean;
+  loading?: boolean;
 };
 
 const BUTTON_HEIGHT = 50;
@@ -35,6 +37,7 @@ export default function OrangeButton({
   onPressIn,
   onPressOut,
   disabled,
+  loading,
 }: OrangeButtonProps) {
   const translateY = useSharedValue(0);
 
@@ -47,7 +50,7 @@ export default function OrangeButton({
       <View style={styles.shadow} />
       <Pressable
         style={styles.hitArea}
-        disabled={disabled}
+        disabled={disabled || loading}
         onPress={onPress}
         onPressIn={(e) => {
           translateY.value = withTiming(SHADOW_OFFSET, { duration: SNAP_MS });
@@ -59,7 +62,11 @@ export default function OrangeButton({
         }}
       >
         <Animated.View style={[styles.button, animatedStyle]}>
-          <Text style={styles.label}>{children}</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Text style={styles.label}>{children}</Text>
+          )}
         </Animated.View>
       </Pressable>
     </View>

@@ -1,5 +1,5 @@
 import { Colors } from "@/constants/colors";
-import type { Pet } from "@/data/mockDashboard";
+import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
@@ -7,7 +7,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PetCardProps = {
   /** `avatar_url` optional when a raw DB row is passed instead of mapped `imageUrl`. */
-  pet: Pet & { avatar_url?: string | null };
+  pet: PetSummary & { avatar_url?: string | null };
 };
 
 const AVATAR_SIZE = 80;

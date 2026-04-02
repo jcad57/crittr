@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { DailyProgressCategory } from "@/data/mockDashboard";
+import type { DailyProgressCategory } from "@/types/ui";
 import { Image, ImageSource } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 import ProgressRing from "./ProgressRing";

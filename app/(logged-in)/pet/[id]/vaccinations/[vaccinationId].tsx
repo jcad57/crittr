@@ -342,14 +342,11 @@ export default function EditPetVaccinationScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={handleSave}
-              disabled={saving || deleting}
+              loading={saving}
+              disabled={deleting}
               style={styles.saveBtn}
             >
-              {saving
-                ? "Saving…"
-                : isNew
-                  ? "Add vaccination"
-                  : "Save changes"}
+              {isNew ? "Add vaccination" : "Save changes"}
             </OrangeButton>
 
             {!isNew ? (

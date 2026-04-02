@@ -18,11 +18,12 @@ import type { CoCarerInvite } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,13 +38,19 @@ export default function PetInviteCareScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
-  const { data: details, isLoading: detailsLoading } = usePetDetailsQuery(
-    petId ?? null,
-  );
-  const { data: coCarers = [], isLoading: carersLoading } =
-    useCoCarersForPetQuery(petId);
-  const { data: sentInvites = [], isLoading: invitesLoading } =
+  const {
+    data: details,
+    isLoading: detailsLoading,
+    refetch: refetchDetails,
+  } = usePetDetailsQuery(petId ?? null);
+  const {
+    data: coCarers = [],
+    isLoading: carersLoading,
+    refetch: refetchCoCarers,
+  } = useCoCarersForPetQuery(petId);
+  const { data: sentInvites = [], refetch: refetchSentInvites } =
     useSentInvitesForPetQuery(petId);
+  const [refreshing, setRefreshing] = useState(false);
   const revokeInvite = useRevokeInviteMutation(petId ?? "");
 
   /** True pending only; hide stale rows where status is still “pending” but they already co-care. */
@@ -63,6 +70,20 @@ export default function PetInviteCareScreen() {
       void queryClient.invalidateQueries({ queryKey: coCarersForPetKey(petId) });
     }, [petId]),
   );
+
+  const onRefresh = useCallback(async () => {
+    if (!petId) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchDetails(),
+        refetchCoCarers(),
+        refetchSentInvites(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [petId, refetchDetails, refetchCoCarers, refetchSentInvites]);
 
   const onRevoke = useCallback(
     (inviteId: string) => {
@@ -116,6 +137,14 @@ export default function PetInviteCareScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor={Colors.orange}
+            colors={[Colors.orange]}
+          />
+        }
       >
         {/* Invite section */}
         <Text style={styles.sectionLabel}>INVITE SOMEONE</Text>

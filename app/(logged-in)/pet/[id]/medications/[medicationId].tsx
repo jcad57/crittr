@@ -691,10 +691,11 @@ export default function EditPetMedicationScreen() {
             <View style={styles.actionsBlock}>
               <OrangeButton
                 onPress={handleSave}
-                disabled={saving || deleting}
+                loading={saving}
+                disabled={deleting}
                 style={styles.saveBtn}
               >
-                {saving ? "Saving…" : isNew ? "Add medication" : "Save changes"}
+                {isNew ? "Add medication" : "Save changes"}
               </OrangeButton>
 
               {!isNew ? (

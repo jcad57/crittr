@@ -333,10 +333,11 @@ export default function EditVetVisitScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={onSave}
-              disabled={busy || !title.trim()}
+              loading={saving}
+              disabled={deleting || !title.trim()}
               style={styles.saveBtn}
             >
-              {saving ? "Saving…" : "Save changes"}
+              Save changes
             </OrangeButton>
 
             <Pressable

@@ -10,19 +10,23 @@ import RecordsNavCard, {
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { useLogMedicationMutation } from "@/hooks/mutations/useLogActivityMutation";
 import {
   useHealthSnapshotQuery,
   useTodayActivitiesForPetIdsQuery,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { getErrorMessage } from "@/lib/errorMessage";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
+import { medicationActivityFormForQuickLog } from "@/lib/medicationQuickLogForm";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetStore } from "@/stores/petStore";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -46,8 +50,6 @@ export default function HealthScreen() {
   const initActivePetFromList = usePetStore((s) => s.initActivePetFromList);
   const { data, isLoading, isError, error } = useHealthSnapshotQuery();
 
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-
   const pets = data?.pets ?? [];
 
   useEffect(() => {
@@ -69,6 +71,12 @@ export default function HealthScreen() {
     effectivePetId,
     "can_manage_vet_visits",
   );
+  const canLogActivities = useCanPerformAction(
+    effectivePetId,
+    "can_log_activities",
+  );
+
+  const logMedicationMut = useLogMedicationMutation();
 
   const medications = data?.medications ?? [];
 
@@ -113,9 +121,33 @@ export default function HealthScreen() {
 
   const showBanner =
     todayActivitiesReady &&
-    !bannerDismissed &&
     dueTodayMeds.length > 0 &&
     filteredMeds.length > 0;
+
+  const handleMarkBannerDone = useCallback(async () => {
+    const med = dueTodayMeds[0];
+    if (!med) return;
+    if (canLogActivities === false) {
+      Alert.alert(
+        "Can't log activity",
+        "You don't have permission to log activities for this pet.",
+      );
+      return;
+    }
+    if (canLogActivities === undefined) return;
+    try {
+      await logMedicationMut.mutateAsync({
+        petId: med.pet_id,
+        form: medicationActivityFormForQuickLog(med),
+        loggedAtIso: new Date().toISOString(),
+      });
+    } catch (e) {
+      Alert.alert(
+        "Couldn't log dose",
+        getErrorMessage(e) ?? "Try again.",
+      );
+    }
+  }, [dueTodayMeds, canLogActivities, logMedicationMut]);
 
   const bannerSubtitle = useMemo(() => {
     const m = dueTodayMeds[0];
@@ -239,7 +271,11 @@ export default function HealthScreen() {
                 : `${dueTodayMeds.length} actions needed`
             }
             subtitle={bannerSubtitle}
-            onMarkDone={() => setBannerDismissed(true)}
+            onMarkDone={() => {
+              void handleMarkBannerDone();
+            }}
+            loading={logMedicationMut.isPending}
+            disabled={canLogActivities === false || canLogActivities === undefined}
           />
         ) : null}
 

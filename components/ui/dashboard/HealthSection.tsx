@@ -2,7 +2,7 @@ import HealthListCard from "@/components/ui/health/HealthListCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { Medication, VetVisit } from "@/data/mockDashboard";
+import type { MedicationSummary, VetVisitSummary } from "@/types/ui";
 import type { PetVaccination } from "@/types/database";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MedicationCard from "./MedicationCard";
@@ -11,8 +11,8 @@ import UpcomingVisitFeatureCard from "./UpcomingVisitFeatureCard";
 import VetVisitCard from "./VetVisitCard";
 
 type HealthSectionProps = {
-  medications: Medication[];
-  vetVisits: VetVisit[];
+  medications: MedicationSummary[];
+  vetVisits: VetVisitSummary[];
   onScheduleVisitPress?: () => void;
   /** Tapping a scheduled visit opens edit (same pattern as medications). */
   onVetVisitPress?: (visitId: string) => void;

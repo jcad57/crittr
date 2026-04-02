@@ -84,8 +84,6 @@ export default function MemorializePetScreen() {
     );
   }, [details?.name, unmemorializeMut, router]);
 
-  const busy = memorializeMut.isPending || unmemorializeMut.isPending;
-
   if (isLoading || !details || !petId) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
@@ -128,10 +126,11 @@ export default function MemorializePetScreen() {
             </Text>
             <OrangeButton
               onPress={confirmMemorialize}
-              disabled={busy}
+              loading={memorializeMut.isPending}
+              disabled={unmemorializeMut.isPending}
               style={styles.cta}
             >
-              {memorializeMut.isPending ? "Memorializing…" : "Memorialize pet"}
+              Memorialize pet
             </OrangeButton>
           </>
         ) : (
@@ -147,10 +146,11 @@ export default function MemorializePetScreen() {
             </Text>
             <OrangeButton
               onPress={confirmRestore}
-              disabled={busy}
+              loading={unmemorializeMut.isPending}
+              disabled={memorializeMut.isPending}
               style={styles.cta}
             >
-              {unmemorializeMut.isPending ? "Restoring…" : "Restore to active"}
+              Restore to active
             </OrangeButton>
           </>
         )}

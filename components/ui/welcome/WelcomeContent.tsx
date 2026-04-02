@@ -15,8 +15,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OrangeButton from "../buttons/OrangeButton";
-import ScreenWrapper from "../ScreenWrapper";
 
 /** Matches `ScreenWrapper` horizontal padding. */
 const SCREEN_WRAPPER_PADDING_H = 24;
@@ -81,6 +81,7 @@ const PAWS_ASPECT =
 
 export default function WelcomeContent() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { uiScale, verticalTight } = welcomeLayoutScale(
     windowWidth,
@@ -168,7 +169,12 @@ export default function WelcomeContent() {
         pointerEvents="none"
       />
       <View style={styles.screenLayer}>
-        <ScreenWrapper>
+        <View
+          style={[
+            styles.screenWrapper,
+            { paddingTop: insets.top, paddingBottom: insets.bottom },
+          ]}
+        >
           <View
             style={[styles.container, { paddingBottom: pawsBottomReserve }]}
           >
@@ -177,7 +183,7 @@ export default function WelcomeContent() {
               style={{
                 width: logoWidth,
                 height: logoHeight,
-                marginBottom: vs(8),
+                marginBottom: vs(24),
               }}
               contentFit="contain"
               accessibilityRole="image"
@@ -251,15 +257,13 @@ export default function WelcomeContent() {
                 <Text style={[styles.signInLink, { fontSize: fs(16) }]}>
                   I already have an account!{" "}
                 </Text>
-                <Text
-                  style={[styles.signInLinkBold, { fontSize: fs(16) }]}
-                >
+                <Text style={[styles.signInLinkBold, { fontSize: fs(16) }]}>
                   Sign In
                 </Text>
               </Pressable>
             </Link>
           </View>
-        </ScreenWrapper>
+        </View>
       </View>
 
       <View style={styles.pawsWrap} pointerEvents="none">
@@ -286,6 +290,10 @@ const styles = StyleSheet.create({
   screenLayer: {
     flex: 1,
     zIndex: 2,
+  },
+  screenWrapper: {
+    flex: 1,
+    paddingHorizontal: SCREEN_WRAPPER_PADDING_H,
   },
   bgImage: {
     position: "absolute",

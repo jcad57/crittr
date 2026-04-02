@@ -109,29 +109,42 @@ export default function PetNavAvatar({
   }
 
   const ringContent = (
-    <View
-      style={[
-        styles.ring,
-        displayPet.is_memorialized && styles.ringMemorial,
-      ]}
-    >
-      {displayPet.avatar_url?.trim() ? (
-        <Image
-          source={{ uri: displayPet.avatar_url.trim() }}
-          style={styles.image}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
-      ) : (
-        <MaterialCommunityIcons
-          name="paw"
-          size={20}
-          color={
-            displayPet.is_memorialized ? Colors.memorialGoldSoft : Colors.orange
-          }
-        />
-      )}
+    <View style={styles.avatarShell}>
+      <View
+        style={[
+          styles.ring,
+          displayPet.is_memorialized && styles.ringMemorial,
+        ]}
+      >
+        {displayPet.avatar_url?.trim() ? (
+          <Image
+            source={{ uri: displayPet.avatar_url.trim() }}
+            style={styles.image}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
+        ) : (
+          <MaterialCommunityIcons
+            name="paw"
+            size={20}
+            color={
+              displayPet.is_memorialized
+                ? Colors.memorialGoldSoft
+                : Colors.orange
+            }
+          />
+        )}
+      </View>
+      {canSwitch ? (
+        <View style={styles.switchHintBadge} pointerEvents="none">
+          <MaterialCommunityIcons
+            name="cached"
+            size={11}
+            color={Colors.orange}
+          />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -239,6 +252,31 @@ const styles = StyleSheet.create({
     height: RING_SIZE,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "visible",
+  },
+  avatarShell: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    position: "relative",
+  },
+  /** Material “cache” icon (`cached` glyph) — tap hint when multiple pets. */
+  switchHintBadge: {
+    position: "absolute",
+    right: -3,
+    bottom: -3,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.orange,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
   ring: {
     width: RING_SIZE,

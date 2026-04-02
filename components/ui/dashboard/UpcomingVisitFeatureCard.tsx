@@ -1,17 +1,17 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { VetVisit } from "@/data/mockDashboard";
+import type { VetVisitSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type UpcomingVisitFeatureCardProps = {
-  visit?: VetVisit;
+  visit?: VetVisitSummary;
   onPress?: () => void;
   /** When true, renders a dark placeholder encouraging the user to schedule. */
   empty?: boolean;
 };
 
-function badgeFromVisit(visit: VetVisit): string {
+function badgeFromVisit(visit: VetVisitSummary): string {
   if (visit.badgeLabel) return visit.badgeLabel;
   const t = Date.parse(visit.date);
   if (Number.isNaN(t)) return "";

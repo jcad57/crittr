@@ -11,6 +11,8 @@ type Props = {
 const greenFooter = "#15803D";
 const greyFooter = Colors.gray500;
 const coralNudge = Colors.signOutCoral;
+/** Worse than last week — fewer walks */
+const negativeDelta = Colors.error;
 
 export default function ActivityWeeklySummaryStrip({ summary }: Props) {
   const treatsOver = summary.treats > summary.weeklyTreatLimit;
@@ -19,6 +21,24 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
     : "On track";
   const treatFooterColor = treatsOver ? coralNudge : greenFooter;
 
+  const walksDelta = summary.walksDeltaVsLastWeek;
+  const walksUp = walksDelta > 0;
+  const walksDown = walksDelta < 0;
+  const walksDeltaColor = walksUp
+    ? greenFooter
+    : walksDown
+      ? negativeDelta
+      : greyFooter;
+  const walksDeltaIcon = walksUp
+    ? "arrow-up"
+    : walksDown
+      ? "arrow-down"
+      : "minus";
+  const walksDeltaLabel =
+    walksDelta === 0
+      ? "Same as last wk"
+      : `${walksDelta > 0 ? "+" : ""}${walksDelta} vs last wk`;
+
   return (
     <View style={styles.row}>
       <View style={styles.card}>
@@ -26,12 +46,12 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
         <Text style={styles.label}>Walks</Text>
         <View style={styles.footerRow}>
           <MaterialCommunityIcons
-            name="arrow-up"
+            name={walksDeltaIcon as "arrow-up" | "arrow-down" | "minus"}
             size={12}
-            color={greenFooter}
+            color={walksDeltaColor}
           />
-          <Text style={[styles.footer, { color: greenFooter }]}>
-            {summary.walksDeltaVsLastWeek} vs last wk
+          <Text style={[styles.footer, { color: walksDeltaColor }]}>
+            {walksDeltaLabel}
           </Text>
         </View>
       </View>

@@ -12,7 +12,7 @@ import {
   type ActivityFilterCategory,
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
-import type { Pet } from "@/data/mockDashboard";
+import type { PetSummary } from "@/types/ui";
 import {
   useAllActivitiesQuery,
   usePetsQuery,
@@ -117,7 +117,7 @@ export default function ActivityScreen() {
     if (p && isPetActiveForDashboard(p)) setActivePet(petIdFromRoute);
   }, [petIdFromRoute, dbPets, setActivePet]);
 
-  const pets: Pet[] = useMemo(
+  const pets: PetSummary[] = useMemo(
     () =>
       (dbPets ?? []).map((p) => ({
         id: p.id,

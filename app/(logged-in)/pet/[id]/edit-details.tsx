@@ -297,10 +297,10 @@ export default function EditPetDetailsScreen() {
 
         <OrangeButton
           onPress={handleSave}
-          disabled={updateMut.isPending}
+          loading={updateMut.isPending}
           style={styles.saveBtn}
         >
-          {updateMut.isPending ? "Saving…" : "Save changes"}
+          Save changes
         </OrangeButton>
       </ScrollView>
     </View>

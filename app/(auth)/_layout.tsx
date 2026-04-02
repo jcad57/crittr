@@ -1,5 +1,4 @@
 import { useAuth } from "@/context/auth";
-import { useAuthStore } from "@/stores/authStore";
 import {
   Redirect,
   Stack,
@@ -10,9 +9,6 @@ import {
 
 export default function AuthLayout() {
   const { isLoggedIn, needsOnboarding } = useAuth();
-  const requiresCoCareRemovedScreen = useAuthStore(
-    (s) => s.requiresCoCareRemovedScreen,
-  );
   const segments = useSegments();
   const pathname = usePathname();
   const params = useGlobalSearchParams<{ intent?: string | string[] }>();
@@ -22,19 +18,9 @@ export default function AuthLayout() {
   const isOnOnboarding =
     segments.some((s) => s === "(onboarding)") ||
     (pathname?.includes("(onboarding)") ?? false);
-  const isOnCoCareRemoved = pathname?.includes("co-care-removed") ?? false;
 
   if (isLoggedIn && !needsOnboarding) {
     return <Redirect href="/(logged-in)/dashboard" />;
-  }
-
-  if (
-    isLoggedIn &&
-    needsOnboarding &&
-    requiresCoCareRemovedScreen &&
-    !isOnCoCareRemoved
-  ) {
-    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
   }
 
   if (isLoggedIn && needsOnboarding && !isOnOnboarding) {
@@ -47,7 +33,7 @@ export default function AuthLayout() {
    * when explicitly opened from Welcome or Sign-in with `?intent=signup`.
    * Logged-in onboarding is handled above.
    */
-  if (!isLoggedIn && isOnOnboarding && !isOnCoCareRemoved && intent !== "signup") {
+  if (!isLoggedIn && isOnOnboarding && intent !== "signup") {
     return <Redirect href="/(auth)/welcome" />;
   }
 

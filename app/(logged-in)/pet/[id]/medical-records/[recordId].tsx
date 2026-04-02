@@ -228,10 +228,7 @@ export default function EditMedicalRecordScreen() {
   const titleDirty =
     titleDraft.trim() !== (record?.title ?? "").trim();
   const canSaveTitle =
-    canEdit &&
-    titleDraft.trim().length > 0 &&
-    titleDirty &&
-    !updateTitleMut.isPending;
+    canEdit && titleDraft.trim().length > 0 && titleDirty;
 
   const busy = updateTitleMut.isPending || deleteRecordMut.isPending;
 
@@ -371,14 +368,11 @@ export default function EditMedicalRecordScreen() {
             <View style={styles.actionsBlock}>
               <OrangeButton
                 onPress={saveTitle}
-                disabled={!canSaveTitle || busy}
+                loading={updateTitleMut.isPending}
+                disabled={!canSaveTitle || deleteRecordMut.isPending}
                 style={styles.saveBtn}
               >
-                {updateTitleMut.isPending ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  "Save"
-                )}
+                Save
               </OrangeButton>
 
               <Pressable

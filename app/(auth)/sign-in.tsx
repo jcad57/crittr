@@ -6,28 +6,27 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import Divider from "@/components/ui/Divider";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useAuthStore } from "@/stores/authStore";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useState } from "react";
 import { Alert, Keyboard, Pressable, StyleSheet, Text } from "react-native";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const router = useRouter();
+  const [signingIn, setSigningIn] = useState(false);
   const { signInWithEmail } = useAuthStore();
 
   const handleSignIn = async () => {
     Keyboard.dismiss();
+    setSigningIn(true);
     try {
       await signInWithEmail(email, password);
-      const { needsOnboarding } = useAuthStore.getState();
-      if (needsOnboarding) {
-        router.replace("/(auth)/(onboarding)");
-      } else {
-        router.replace("/(logged-in)/dashboard");
-      }
+      // Routing is handled automatically by auth state change in the layout
+      // redirects (AuthLayout / LoggedInLayout). No manual navigation needed.
     } catch (error: any) {
       Alert.alert("Sign In Failed", error.message ?? "Something went wrong.");
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -65,6 +64,7 @@ export default function SignIn() {
       <OrangeButton
         onPress={handleSignIn}
         disabled={!email || !password}
+        loading={signingIn}
         style={styles.cta}
       >
         Sign In

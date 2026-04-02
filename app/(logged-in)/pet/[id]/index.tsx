@@ -17,9 +17,9 @@ import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import type {
   FeedingSchedule,
-  Medication,
+  MedicationSummary,
   PetProfile,
-} from "@/data/mockDashboard";
+} from "@/types/ui";
 import {
   petDetailsQueryKey,
   petsQueryKey,
@@ -61,10 +61,10 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -97,7 +97,7 @@ function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
 function toMedications(
   details: PetWithDetails,
   todayActivities: PetActivity[],
-): Medication[] {
+): MedicationSummary[] {
   return details.medications.map((m) => {
     const prog = buildMedicationDosageProgress(m, todayActivities, details.id);
     const badge = getMedicationBadgeDisplay(m, prog);
@@ -211,7 +211,7 @@ function InfoRow({ label, value, isLast }: InfoRowProps) {
   );
 }
 
-function medicationSubline(m: Medication): string {
+function medicationSubline(m: MedicationSummary): string {
   const parts = [m.frequency, m.condition, m.dosageDesc].filter(
     (s) => s && String(s).trim(),
   );
@@ -460,13 +460,13 @@ export default function PetProfilePage() {
   return (
     <View style={styles.screen}>
       <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.back()}
           style={styles.navBack}
           hitSlop={8}
         >
           <Text style={styles.navBackText}>&lt; Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.navTitle} numberOfLines={1}>
           {profile.name}
         </Text>
@@ -517,14 +517,14 @@ export default function PetProfilePage() {
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Details</SectionLabel>
           {canEditProfile && (
-            <TouchableOpacity
+            <Pressable
               hitSlop={8}
               onPress={() =>
                 push(`/(logged-in)/pet/${profile.id}/edit-details` as Href)
               }
             >
               <Text style={styles.sectionEditLink}>Edit</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
         <View style={styles.detailsCard}>
@@ -551,20 +551,20 @@ export default function PetProfilePage() {
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
           {canManageFood && (
-            <TouchableOpacity
+            <Pressable
               onPress={() =>
                 push(`/(logged-in)/pet/${profile.id}/food` as Href)
               }
               hitSlop={8}
             >
               <Text style={styles.sectionEditLink}>Edit</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
         {sortedFoodsForProfile.length > 0 ? (
           <View style={styles.medList}>
             {sortedFoodsForProfile.map((f) => (
-              <TouchableOpacity
+              <Pressable
                 key={f.id}
                 activeOpacity={0.85}
                 onPress={() =>
@@ -576,7 +576,7 @@ export default function PetProfilePage() {
                   subline={formatPortionLabel(f)}
                   isTreat={isTreatFood(f)}
                 />
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         ) : (
@@ -588,14 +588,14 @@ export default function PetProfilePage() {
             Active medications
           </SectionLabel>
           {canManageMeds && (
-            <TouchableOpacity
+            <Pressable
               onPress={() =>
                 push(`/(logged-in)/pet/${profile.id}/medications` as Href)
               }
               hitSlop={8}
             >
               <Text style={styles.sectionEditLink}>Edit</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
         {profile.medications.length > 0 ? (

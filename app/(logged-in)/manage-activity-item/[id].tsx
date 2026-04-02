@@ -357,10 +357,11 @@ export default function ManageActivityItemScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={() => stepRef.current?.submit()}
-              disabled={busy}
+              loading={saving}
+              disabled={deleteMut.isPending}
               style={styles.saveBtn}
             >
-              {saving ? <ActivityIndicator color={Colors.white} /> : SAVE_LABEL}
+              {SAVE_LABEL}
             </OrangeButton>
 
             <Pressable

@@ -1,5 +1,5 @@
 import { Colors } from "@/constants/colors";
-import type { PetProfile } from "@/data/mockDashboard";
+import type { PetProfile } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 

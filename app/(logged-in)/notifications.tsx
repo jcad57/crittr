@@ -16,7 +16,7 @@ import type { AppNotification } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -63,15 +63,22 @@ export default function NotificationsScreen() {
     data: notifications = [],
     isLoading,
     refetch,
-    isRefetching,
   } = useNotificationsQuery();
 
+  /** Only for pull-to-refresh UI — not `isRefetching` (true on focus invalidation / remount too). */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
   const onRefresh = useCallback(async () => {
-    await refetch();
-    if (userId) {
-      void queryClient.invalidateQueries({
-        queryKey: unreadNotificationCountKey(userId),
-      });
+    setPullRefreshing(true);
+    try {
+      await refetch();
+      if (userId) {
+        void queryClient.invalidateQueries({
+          queryKey: unreadNotificationCountKey(userId),
+        });
+      }
+    } finally {
+      setPullRefreshing(false);
     }
   }, [refetch, userId]);
 
@@ -92,8 +99,10 @@ export default function NotificationsScreen() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  /** Row tap: open pet for non-invite notifications only. Co-care invites use Accept/Decline only. */
   const handlePress = useCallback(
     (n: AppNotification) => {
+      if (n.type === "co_care_invite") return;
       if (!n.read) markRead.mutate(n.id);
       const petId = (n.data as Record<string, unknown>)?.pet_id as
         | string
@@ -175,7 +184,7 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
+              refreshing={pullRefreshing}
               onRefresh={() => void onRefresh()}
               tintColor={Colors.orange}
               colors={[Colors.orange]}
@@ -199,59 +208,124 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
+              refreshing={pullRefreshing}
               onRefresh={() => void onRefresh()}
               tintColor={Colors.orange}
               colors={[Colors.orange]}
             />
           }
         >
-          {notifications.map((n) => (
-            <Pressable
-              key={n.id}
-              style={[styles.row, !n.read && styles.rowUnread]}
-              onPress={() => handlePress(n)}
-            >
-              <View
-                style={[
-                  styles.iconWrap,
-                  !n.read && styles.iconWrapUnread,
-                ]}
+          {notifications.map((n) => {
+            const isCoCareInvite = n.type === "co_care_invite";
+            const inviteId = isCoCareInvite
+              ? ((n.data as Record<string, unknown>)?.invite_id as
+                  | string
+                  | undefined) ?? undefined
+              : undefined;
+            const inviteSubmitting =
+              !!inviteId &&
+              ((acceptInvite.isPending &&
+                acceptInvite.variables === inviteId) ||
+                (declineInvite.isPending &&
+                  declineInvite.variables === inviteId));
+            const acceptBusy =
+              !!inviteId &&
+              acceptInvite.isPending &&
+              acceptInvite.variables === inviteId;
+            const declineBusy =
+              !!inviteId &&
+              declineInvite.isPending &&
+              declineInvite.variables === inviteId;
+            const inviteButtonsLocked = !inviteId || inviteSubmitting;
+
+            const rowInner = (
+              <>
+                <View
+                  style={[
+                    styles.iconWrap,
+                    !n.read && styles.iconWrapUnread,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={notificationIcon(n.type) as any}
+                    size={20}
+                    color={!n.read ? Colors.orange : Colors.gray500}
+                  />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowTitle}>{n.title}</Text>
+                  {n.body ? (
+                    <Text style={styles.rowBody} numberOfLines={2}>
+                      {n.body}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.rowTime}>{timeAgo(n.created_at)}</Text>
+                  {isCoCareInvite && !n.read && (
+                    <View style={styles.inviteActions}>
+                      <Pressable
+                        style={[
+                          styles.acceptBtn,
+                          inviteButtonsLocked &&
+                            styles.inviteBtnLocked,
+                        ]}
+                        onPress={() => handleAcceptInvite(n)}
+                        disabled={inviteButtonsLocked}
+                      >
+                        {acceptBusy ? (
+                          <ActivityIndicator
+                            color={Colors.white}
+                            size="small"
+                          />
+                        ) : (
+                          <Text style={styles.acceptBtnText}>Accept</Text>
+                        )}
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.declineBtn,
+                          inviteButtonsLocked &&
+                            styles.inviteBtnLocked,
+                        ]}
+                        onPress={() => handleDeclineInvite(n)}
+                        disabled={inviteButtonsLocked}
+                      >
+                        {declineBusy ? (
+                          <ActivityIndicator
+                            color={Colors.orange}
+                            size="small"
+                          />
+                        ) : (
+                          <Text style={styles.declineBtnText}>Decline</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+                {!n.read && <View style={styles.unreadDot} />}
+              </>
+            );
+
+            if (isCoCareInvite) {
+              return (
+                <View
+                  key={n.id}
+                  style={[styles.row, !n.read && styles.rowUnread]}
+                >
+                  {rowInner}
+                </View>
+              );
+            }
+
+            return (
+              <Pressable
+                key={n.id}
+                style={[styles.row, !n.read && styles.rowUnread]}
+                onPress={() => handlePress(n)}
               >
-                <MaterialCommunityIcons
-                  name={notificationIcon(n.type) as any}
-                  size={20}
-                  color={!n.read ? Colors.orange : Colors.gray500}
-                />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowTitle}>{n.title}</Text>
-                {n.body ? (
-                  <Text style={styles.rowBody} numberOfLines={2}>
-                    {n.body}
-                  </Text>
-                ) : null}
-                <Text style={styles.rowTime}>{timeAgo(n.created_at)}</Text>
-                {n.type === "co_care_invite" && !n.read && (
-                  <View style={styles.inviteActions}>
-                    <Pressable
-                      style={styles.acceptBtn}
-                      onPress={() => handleAcceptInvite(n)}
-                    >
-                      <Text style={styles.acceptBtnText}>Accept</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.declineBtn}
-                      onPress={() => handleDeclineInvite(n)}
-                    >
-                      <Text style={styles.declineBtnText}>Decline</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-              {!n.read && <View style={styles.unreadDot} />}
-            </Pressable>
-          ))}
+                {rowInner}
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -364,6 +438,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    minHeight: 36,
+    minWidth: 92,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteBtnLocked: {
+    opacity: 0.85,
   },
   acceptBtnText: {
     fontFamily: Font.uiSemiBold,
@@ -373,6 +454,10 @@ const styles = StyleSheet.create({
   declineBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: 36,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
   },
   declineBtnText: {
     fontFamily: Font.uiSemiBold,

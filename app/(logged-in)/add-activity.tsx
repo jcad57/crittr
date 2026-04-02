@@ -391,14 +391,10 @@ export default function AddActivityScreen() {
             <View style={styles.actionsBlock}>
               <OrangeButton
                 onPress={() => stepRef.current?.submit()}
-                disabled={saving}
+                loading={saving}
                 style={styles.saveBtn}
               >
-                {saving ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  SAVE_LABEL
-                )}
+                {SAVE_LABEL}
               </OrangeButton>
               <Pressable
                 style={({ pressed }) => [

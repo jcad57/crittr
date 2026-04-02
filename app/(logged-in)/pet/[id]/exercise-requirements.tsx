@@ -238,10 +238,10 @@ export default function ExerciseRequirementsScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={handleSave}
-              disabled={updateMut.isPending}
+              loading={updateMut.isPending}
               style={styles.saveBtn}
             >
-              {updateMut.isPending ? "Saving…" : "Save"}
+              Save
             </OrangeButton>
           </View>
         </View>

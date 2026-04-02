@@ -197,16 +197,10 @@ export default function PendingInvitesStep() {
 
       <OrangeButton
         onPress={handleContinue}
-        disabled={busy === "finishing"}
+        loading={busy === "finishing"}
         style={styles.cta}
       >
-        {busy === "finishing" ? (
-          <ActivityIndicator color={Colors.white} />
-        ) : acceptedCount > 0 ? (
-          "Go to Dashboard"
-        ) : (
-          "Skip, I'll add my own pet"
-        )}
+        {acceptedCount > 0 ? "Go to Dashboard" : "Skip, I'll add my own pet"}
       </OrangeButton>
 
       {acceptedCount > 0 && (

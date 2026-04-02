@@ -222,6 +222,8 @@ const loggedOutState = {
   needsOnboarding: false,
 } as const;
 
+let authListenerUnsub: (() => void) | null = null;
+
 type AuthState = {
   session: Session | null;
   profile: Profile | null;
@@ -306,53 +308,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (session) {
-          const stillRegistered = await isAuthUserStillRegistered();
-          if (!stillRegistered) {
-            await supabase.auth.signOut();
+      // Tear down any previous listener before registering a new one
+      authListenerUnsub?.();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (session) {
+            const stillRegistered = await isAuthUserStillRegistered();
+            if (!stillRegistered) {
+              await supabase.auth.signOut();
+              queryClient.clear();
+              set(loggedOutState);
+              return;
+            }
+            const resolved = await resolveSession(session);
+            const prev = get();
+            const requiresCoCareRemovedScreen =
+              nextRequiresCoCareRemovedScreen(
+                {
+                  hasPets: prev.hasPets,
+                  ownedPetCount: prev.ownedPetCount,
+                  coCarePetCount: prev.coCarePetCount,
+                  requiresCoCareRemovedScreen:
+                    prev.requiresCoCareRemovedScreen,
+                },
+                resolved,
+              );
+            set({
+              session,
+              profile: resolved.profile,
+              hasPets: resolved.hasPets,
+              ownedPetCount: resolved.ownedPetCount,
+              coCarePetCount: resolved.coCarePetCount,
+              onboardingResumeStep: resolved.onboardingResumeStep,
+              isLoggedIn: true,
+              needsOnboarding: resolved.needsOnboarding,
+              requiresCoCareRemovedScreen,
+            });
+            syncProfileRowToQuery(resolved.profile);
+          } else {
             queryClient.clear();
             set(loggedOutState);
-            return;
           }
-          const resolved = await resolveSession(session);
-          const prev = get();
-          const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
-            {
-              hasPets: prev.hasPets,
-              ownedPetCount: prev.ownedPetCount,
-              coCarePetCount: prev.coCarePetCount,
-              requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
-            },
-            resolved,
-          );
-          set({
-            session,
-            profile: resolved.profile,
-            hasPets: resolved.hasPets,
-            ownedPetCount: resolved.ownedPetCount,
-            coCarePetCount: resolved.coCarePetCount,
-            onboardingResumeStep: resolved.onboardingResumeStep,
-            isLoggedIn: true,
-            needsOnboarding: resolved.needsOnboarding,
-            requiresCoCareRemovedScreen,
-          });
-          syncProfileRowToQuery(resolved.profile);
-        } else {
-          queryClient.clear();
-          set({
-            session: null,
-            profile: null,
-            hasPets: false,
-            ownedPetCount: 0,
-            coCarePetCount: 0,
-            requiresCoCareRemovedScreen: false,
-            onboardingResumeStep: null,
-            isLoggedIn: false,
-            needsOnboarding: false,
-          });
-        }
-      });
+        },
+      );
+      authListenerUnsub = () => subscription.unsubscribe();
     } catch (error) {
       console.error("Auth initialization failed:", error);
     } finally {
@@ -377,35 +376,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
     });
     if (error) throw error;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      const resolved = await resolveSession(session);
-      const prev = get();
-      const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
-        {
-          hasPets: prev.hasPets,
-          ownedPetCount: prev.ownedPetCount,
-          coCarePetCount: prev.coCarePetCount,
-          requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
-        },
-        resolved,
-      );
-      set({
-        session,
-        profile: resolved.profile,
-        hasPets: resolved.hasPets,
-        ownedPetCount: resolved.ownedPetCount,
-        coCarePetCount: resolved.coCarePetCount,
-        onboardingResumeStep: resolved.onboardingResumeStep,
-        isLoggedIn: true,
-        needsOnboarding: resolved.needsOnboarding,
-        requiresCoCareRemovedScreen,
-      });
-      syncProfileRowToQuery(resolved.profile);
-    }
+    // Session resolution is handled by the onAuthStateChange listener
+    // registered in initialize(). No manual getSession/resolve needed.
   },
 
   signOut: async () => {

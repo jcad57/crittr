@@ -198,14 +198,10 @@ export default function CoCarerPermissionsScreen() {
 
         <OrangeButton
           onPress={handleSave}
-          disabled={updatePermissions.isPending}
+          loading={updatePermissions.isPending}
           style={styles.saveBtn}
         >
-          {updatePermissions.isPending ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            "Save changes"
-          )}
+          Save changes
         </OrangeButton>
 
         {/* Danger zone */}

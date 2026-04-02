@@ -1,5 +1,6 @@
 import {
   healthSnapshotKey,
+  pendingInvitesKey,
   petDetailsQueryKey,
   petsQueryKey,
   profileQueryKey,
@@ -60,6 +61,11 @@ export function useLoggedInQueryBootstrap() {
   useEffect(() => {
     if (!userId) return;
 
+    /**
+     * No `filter` on postgres_changes: filtered subs can trigger
+     * "mismatch between server and client bindings" on hosted Realtime (supabase-js #1917).
+     * RLS still applies — users only receive changes for rows they may access.
+     */
     const channel = supabase
       .channel(`pet_co_carers_bootstrap:${userId}`)
       .on(
@@ -68,7 +74,6 @@ export function useLoggedInQueryBootstrap() {
           event: "*",
           schema: "public",
           table: "pet_co_carers",
-          filter: `user_id=eq.${userId}`,
         },
         () => {
           void queryClient.invalidateQueries({
@@ -76,6 +81,21 @@ export function useLoggedInQueryBootstrap() {
           });
           void queryClient.invalidateQueries({
             queryKey: healthSnapshotKey(userId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: pendingInvitesKey(userId),
+          });
+          void queryClient.invalidateQueries({ queryKey: ["coCarers"] });
+          void queryClient.invalidateQueries({ queryKey: ["sentInvites"] });
+          void queryClient.invalidateQueries({
+            predicate: (query) => {
+              const k = query.queryKey;
+              return (
+                Array.isArray(k) &&
+                k[0] === "petPermissions" &&
+                k[2] === userId
+              );
+            },
           });
           void useAuthStore.getState().refreshAuthSession();
           void fetchAccessiblePets(userId)
@@ -85,7 +105,11 @@ export function useLoggedInQueryBootstrap() {
             .catch(() => {});
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" && err && __DEV__) {
+          console.warn("[Realtime] pet_co_carers channel:", err.message);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);

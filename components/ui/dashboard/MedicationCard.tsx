@@ -1,8 +1,8 @@
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import type { Medication } from "@/data/mockDashboard";
+import type { MedicationSummary } from "@/types/ui";
 
 type MedicationCardProps = {
-  medication: Medication;
+  medication: MedicationSummary;
   onPress?: () => void;
   /** When shown inside a grouped list (e.g. Health tab), omit bottom border on last row */
   isLast?: boolean;

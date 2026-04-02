@@ -17,7 +17,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const EXERCISE_TYPES = ["Walk", "Run", "Dog Park", "Home Playtime", "Other"];
 
@@ -238,10 +238,10 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       {(!embeddedInScreen || !hideEmbeddedSave) && (
         <OrangeButton
           onPress={handleSave}
-          disabled={saving}
+          loading={saving}
           style={embeddedInScreen ? styles.ctaScreen : styles.cta}
         >
-          {saving ? <ActivityIndicator color={Colors.white} /> : saveLabel}
+          {saveLabel}
         </OrangeButton>
       )}
 

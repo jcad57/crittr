@@ -32,6 +32,36 @@ export default function OnboardingCard({
     }
   }, [scrollKey, scrollBody]);
 
+  /**
+   * When a header (e.g. back) sits in normal flow above the ScrollView, `justifyContent:
+   * "center"` only centers in the region *below* the header — content looks shifted down.
+   * For scrollable cards (sign-in, onboarding steps), overlay the header and use symmetric
+   * vertical padding so the body centers on the screen. Non-scroll (finish step) keeps the
+   * header in flow so its layout stays unchanged.
+   */
+  const balancedPadWithHeader =
+    header && scrollBody
+      ? Math.max(insets.top + 12 + 56, insets.bottom + 24, scrollInsetBottom)
+      : 0;
+
+  /** Only scrollable screens overlay the header so the body can vertically center on the screen. */
+  const headerOverlay = Boolean(header && scrollBody);
+
+  const headerNode = header ? (
+    <View
+      pointerEvents="box-none"
+      style={[
+        headerOverlay ? styles.headerOverlay : styles.headerInFlow,
+        {
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 24,
+        },
+      ]}
+    >
+      {header}
+    </View>
+  ) : null;
+
   return (
     <View style={styles.screen}>
       <LinearGradient
@@ -41,19 +71,7 @@ export default function OnboardingCard({
         style={styles.gradient}
       />
 
-      {header ? (
-        <View
-          style={[
-            styles.header,
-            {
-              paddingTop: insets.top + 12,
-              paddingHorizontal: 24,
-            },
-          ]}
-        >
-          {header}
-        </View>
-      ) : null}
+      {headerNode}
 
       {scrollBody ? (
         <ScrollView
@@ -64,8 +82,12 @@ export default function OnboardingCard({
             {
               flexGrow: 1,
               justifyContent: "center",
-              paddingTop: header ? 8 : insets.top + 12,
-              paddingBottom: scrollInsetBottom,
+              paddingTop: headerOverlay
+                ? balancedPadWithHeader
+                : insets.top + 12,
+              paddingBottom: headerOverlay
+                ? balancedPadWithHeader
+                : scrollInsetBottom,
             },
           ]}
           showsVerticalScrollIndicator={false}
@@ -76,7 +98,7 @@ export default function OnboardingCard({
           <View
             style={[
               styles.content,
-              { paddingBottom: insets.bottom },
+              { paddingBottom: headerOverlay ? 0 : insets.bottom },
               !header && { paddingTop: 8 },
             ]}
           >
@@ -121,8 +143,15 @@ const styles = StyleSheet.create({
   gradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  header: {
+  headerInFlow: {
     zIndex: 1,
+  },
+  headerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
   },
   scrollContent: {
     paddingHorizontal: 24,

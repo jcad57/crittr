@@ -6,6 +6,7 @@ import {
   getFloatingNavSlideOutDistance,
   shouldShowFloatingNav,
 } from "@/constants/floatingNav";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { usePathname, useRouter, useSegments } from "expo-router";
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   tabLabel: {
-    fontFamily: "InstrumentSans-Medium",
+    fontFamily: Font.isMedium,
     fontSize: 10,
     color: Colors.gray400,
   },
   tabLabelActive: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.isSemiBold,
     color: Colors.orange,
   },
 });

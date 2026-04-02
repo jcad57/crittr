@@ -12,9 +12,9 @@ import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import { Colors } from "@/constants/colors";
 import type {
   DailyProgressCategory,
-  Medication,
-  Pet,
-} from "@/data/mockDashboard";
+  MedicationSummary,
+  PetSummary,
+} from "@/types/ui";
 import {
   usePetDetailsQuery,
   usePetVetVisitsQuery,
@@ -78,7 +78,7 @@ export default function Dashboard() {
     refetch: refetchVetVisits,
   } = usePetVetVisitsQuery(activePetId ?? undefined);
 
-  const pets: Pet[] = useMemo(
+  const pets: PetSummary[] = useMemo(
     () =>
       (dbPets ?? [])
         .filter(isPetActiveForDashboard)
@@ -211,7 +211,7 @@ export default function Dashboard() {
     resolvedPetIdForPerm,
     "can_manage_medications",
   );
-  const medications: Medication[] = useMemo(() => {
+  const medications: MedicationSummary[] = useMemo(() => {
     if (!activePetDetails || !activePetId) return [];
     const acts = todayActivities ?? [];
     return activePetDetails.medications.map((m) => {

@@ -20,20 +20,26 @@ async function persistActivePetInDb(petId: string): Promise<void> {
   if (!session) return;
 
   const ownerId = session.user.id;
-  const { error: clearErr } = await supabase
-    .from("pets")
-    .update({ is_active: false })
-    .eq("owner_id", ownerId);
-  if (clearErr) {
-    console.warn("persistActivePetInDb (clear):", clearErr.message);
-    return;
-  }
+
+  // Set the target pet active first so there's never a moment with zero active pets.
   const { error: setErr } = await supabase
     .from("pets")
     .update({ is_active: true })
     .eq("id", petId)
     .eq("owner_id", ownerId);
-  if (setErr) console.warn("persistActivePetInDb (set):", setErr.message);
+  if (setErr) {
+    console.warn("persistActivePetInDb (set):", setErr.message);
+    return;
+  }
+
+  const { error: clearErr } = await supabase
+    .from("pets")
+    .update({ is_active: false })
+    .eq("owner_id", ownerId)
+    .neq("id", petId);
+  if (clearErr) {
+    console.warn("persistActivePetInDb (clear):", clearErr.message);
+  }
 }
 
 export const usePetStore = create<PetState>((set, get) => ({

@@ -182,11 +182,8 @@ export default function EditPetNameAndBreedScreen() {
         <View
           style={[styles.saveFooter, { paddingBottom: scrollInsetBottom + 16 }]}
         >
-          <OrangeButton
-            onPress={handleSave}
-            disabled={updateMut.isPending}
-          >
-            {updateMut.isPending ? "Saving…" : "Save changes"}
+          <OrangeButton onPress={handleSave} loading={updateMut.isPending}>
+            Save changes
           </OrangeButton>
         </View>
       </KeyboardAvoidingView>

@@ -1,12 +1,12 @@
 import { Colors } from "@/constants/colors";
-import type { Pet } from "@/data/mockDashboard";
+import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import PetCard from "./PetCard";
 import SectionLabel from "./SectionLabel";
 
 type PetManagementProps = {
-  pets: Pet[];
+  pets: PetSummary[];
   onAddPet?: () => void;
 };
 

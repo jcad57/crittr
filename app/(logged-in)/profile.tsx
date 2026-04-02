@@ -26,7 +26,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -132,7 +131,7 @@ function SupportRow({
 export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const { push, replace, router } = useNavigationCooldown();
+  const { push, router } = useNavigationCooldown();
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -162,7 +161,6 @@ export default function UserProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
-    replace("/(auth)/welcome");
   };
 
   const userId = session?.user?.id;
@@ -546,10 +544,12 @@ export default function UserProfileScreen() {
         </View>
 
         {/* ── Sign out ───────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.signOutCard}
+        <Pressable
+          style={({ pressed }) => [
+            styles.signOutCard,
+            pressed && { opacity: 0.65 },
+          ]}
           onPress={handleSignOut}
-          activeOpacity={0.65}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
         >
@@ -566,7 +566,7 @@ export default function UserProfileScreen() {
             size={22}
             color={Colors.gray400}
           />
-        </TouchableOpacity>
+        </Pressable>
       </ScrollView>
     </View>
   );

@@ -423,10 +423,10 @@ export default function EditPetFoodScreen() {
           <View style={styles.actionsBlock}>
             <OrangeButton
               onPress={handleSave}
-              disabled={saving}
+              loading={saving}
               style={styles.saveBtn}
             >
-              {saving ? "Saving…" : isNew ? "Add food" : "Save changes"}
+              {isNew ? "Add food" : "Save changes"}
             </OrangeButton>
           </View>
         </View>

@@ -7,6 +7,8 @@ import {
 } from "@/services/activities";
 import {
   allActivitiesKey,
+  healthSnapshotKey,
+  petDetailsQueryKey,
   todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
@@ -89,6 +91,14 @@ export function useLogMedicationMutation() {
       });
       void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
       void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      void queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
+      if (userId) {
+        void queryClient.invalidateQueries({
+          queryKey: healthSnapshotKey(userId),
+        });
+      }
     },
   });
 }

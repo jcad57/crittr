@@ -8,6 +8,7 @@ import {
   ONBOARDING_INDICATED_STEP_COUNT,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
+import { Redirect } from "expo-router";
 import { useEffect } from "react";
 
 /**
@@ -21,6 +22,13 @@ export default function Onboarding() {
   const session = useAuthStore((s) => s.session);
   const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const resumeStep = useAuthStore((s) => s.onboardingResumeStep);
+  const requiresCoCareRemovedScreen = useAuthStore(
+    (s) => s.requiresCoCareRemovedScreen,
+  );
+
+  if (requiresCoCareRemovedScreen) {
+    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
+  }
 
   useEffect(() => {
     if (!session || !needsOnboarding || resumeStep == null) return;

@@ -40,7 +40,7 @@ export default function MorePlaceholderScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.cream,
     paddingHorizontal: 24,
   },
   title: {
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: "InstrumentSans-Regular",
+    fontFamily: Font.uiRegular,
     fontSize: 16,
     color: Colors.textSecondary,
     lineHeight: 24,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   linkText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.orange,
   },
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   backText: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.gray500,
   },

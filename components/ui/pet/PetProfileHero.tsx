@@ -41,11 +41,11 @@ export default function PetProfileHero({
   const uri = imageUrl?.trim() || null;
 
   const avatarCircle = (
-    <View style={styles.avatarClip}>
+    <View style={[styles.avatarClip, !uri && styles.avatarClipPlaceholder]}>
       {uri ? (
         <Image source={{ uri }} style={styles.avatarImg} contentFit="cover" />
       ) : (
-        <Text style={styles.avatarEmoji}>🐾</Text>
+        <MaterialCommunityIcons name="paw" size={32} color={Colors.orange} />
       )}
       {avatarUploading ? (
         <View style={styles.avatarOverlay}>
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     height: 80,
     position: "relative",
   },
-  /** Photo/emoji only — circular mask applied here (pencil is a sibling, not clipped). */
+  /** Photo / paw placeholder — same treatment as dashboard & My pets `PetCard`. */
   avatarClip: {
     position: "absolute",
     left: 0,
@@ -163,6 +163,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.95)",
+  },
+  avatarClipPlaceholder: {
+    backgroundColor: Colors.amberLight,
   },
   avatarPressed: {
     opacity: 0.92,
@@ -189,9 +192,6 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: "100%",
     height: "100%",
-  },
-  avatarEmoji: {
-    fontSize: 36,
   },
   textCol: {
     flex: 1,

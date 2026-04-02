@@ -303,9 +303,10 @@ export default function AddVetVisitScreen() {
         >
           <OrangeButton
             onPress={onSave}
-            disabled={submitting || !title.trim()}
+            loading={submitting}
+            disabled={!title.trim()}
           >
-            {submitting ? "Saving…" : "Save visit"}
+            Save visit
           </OrangeButton>
         </View>
       </View>

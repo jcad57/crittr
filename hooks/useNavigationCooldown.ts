@@ -2,10 +2,14 @@ import { useCallback, useRef } from "react";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 
-/**
- * Ignores a second navigation to the same href within this window (rapid double-taps).
- */
 const SAME_HREF_MS = 450;
+const CLEANUP_THRESHOLD = 50;
+
+function pruneStaleEntries(map: Map<string, number>, now: number) {
+  for (const [key, ts] of map) {
+    if (now - ts > SAME_HREF_MS * 2) map.delete(key);
+  }
+}
 
 /**
  * Wraps `router.push` / `router.replace` so duplicate navigations to the same
@@ -22,6 +26,9 @@ export function useNavigationCooldown() {
       const prev = lastAtByKey.current.get(key);
       if (prev !== undefined && now - prev < SAME_HREF_MS) return;
       lastAtByKey.current.set(key, now);
+      if (lastAtByKey.current.size > CLEANUP_THRESHOLD) {
+        pruneStaleEntries(lastAtByKey.current, now);
+      }
       router.push(href);
     },
     [router],
@@ -34,6 +41,9 @@ export function useNavigationCooldown() {
       const prev = lastAtByKey.current.get(key);
       if (prev !== undefined && now - prev < SAME_HREF_MS) return;
       lastAtByKey.current.set(key, now);
+      if (lastAtByKey.current.size > CLEANUP_THRESHOLD) {
+        pruneStaleEntries(lastAtByKey.current, now);
+      }
       router.replace(href);
     },
     [router],

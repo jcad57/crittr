@@ -76,6 +76,12 @@ export function useDeclineInviteMutation() {
         void queryClient.invalidateQueries({
           queryKey: pendingInvitesKey(userId),
         });
+        void queryClient.invalidateQueries({
+          queryKey: notificationsKey(userId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: unreadNotificationCountKey(userId),
+        });
       }
     },
   });

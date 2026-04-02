@@ -11,7 +11,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -150,10 +149,10 @@ export default function FinishStep() {
 
         <OrangeButton
           onPress={handleFinish}
-          disabled={isSubmitting}
+          loading={isSubmitting}
           style={styles.finishCta}
         >
-          {isSubmitting ? <ActivityIndicator color={Colors.white} /> : "Finish"}
+          Finish
         </OrangeButton>
       </ScrollView>
     </View>

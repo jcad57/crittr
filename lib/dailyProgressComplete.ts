@@ -1,4 +1,4 @@
-import type { DailyProgressCategory } from "@/data/mockDashboard";
+import type { DailyProgressCategory } from "@/types/ui";
 
 /** True when every category with a non-zero goal has met its target (zeros = N/A). */
 export function isDailyProgressComplete(

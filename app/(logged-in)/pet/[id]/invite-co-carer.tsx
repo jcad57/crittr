@@ -154,14 +154,10 @@ export default function InviteCoCarerScreen() {
 
         <OrangeButton
           onPress={onSend}
-          disabled={sendInvite.isPending}
+          loading={sendInvite.isPending}
           style={styles.sendBtn}
         >
-          {sendInvite.isPending ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            "Send invite"
-          )}
+          Send invite
         </OrangeButton>
       </ScrollView>
     </View>

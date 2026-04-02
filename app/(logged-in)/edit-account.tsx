@@ -200,10 +200,10 @@ export default function EditAccountScreen() {
 
         <OrangeButton
           onPress={handleSave}
-          disabled={saving}
+          loading={saving}
           style={styles.saveBtn}
         >
-          {saving ? "Saving…" : "Save changes"}
+          Save changes
         </OrangeButton>
       </ScrollView>
     </KeyboardAvoidingView>
