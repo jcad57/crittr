@@ -248,7 +248,9 @@ type AuthState = {
     password: string,
     firstName: string,
     lastName: string,
-  ) => Promise<void>;
+  ) => Promise<{ needsEmailVerification: boolean }>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
+  resendSignupOtp: (email: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setProfile: (profile: Profile) => void;
@@ -360,12 +362,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password, firstName, lastName) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { first_name: firstName, last_name: lastName },
       },
+    });
+    if (error) throw error;
+    return { needsEmailVerification: !data.session };
+  },
+
+  verifyEmailOtp: async (email, token) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "signup",
+    });
+    if (error) throw error;
+  },
+
+  resendSignupOtp: async (email) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
     });
     if (error) throw error;
   },

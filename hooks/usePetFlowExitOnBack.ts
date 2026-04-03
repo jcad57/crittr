@@ -1,5 +1,4 @@
 import {
-  FINISH_STEP_INDEX,
   PET_TYPE_STEP_INDEX,
   PROFILE_STEP_INDEX,
   useOnboardingStore,
@@ -8,9 +7,9 @@ import { useRouter } from "expo-router";
 import { useCallback } from "react";
 
 /**
- * Back from pet-type: return to finish when adding another pet from onboarding,
- * exit add-pet flow (reset + router.back), jump to profile if we auto-skipped
- * empty pending-invites, else normal prevStep.
+ * Back from pet-type: discard in-progress “add another pet” row and return to
+ * finish (`cancelAddAnotherPet`), exit add-pet flow (reset + router.back), jump
+ * to profile if we auto-skipped empty pending-invites, else normal prevStep.
  */
 export function usePetFlowExitOnBack() {
   const router = useRouter();
@@ -23,6 +22,7 @@ export function usePetFlowExitOnBack() {
   const prevStep = useOnboardingStore((s) => s.prevStep);
   const reset = useOnboardingStore((s) => s.reset);
   const goToStep = useOnboardingStore((s) => s.goToStep);
+  const cancelAddAnotherPet = useOnboardingStore((s) => s.cancelAddAnotherPet);
 
   return useCallback(() => {
     if (
@@ -30,7 +30,7 @@ export function usePetFlowExitOnBack() {
       currentStep === PET_TYPE_STEP_INDEX &&
       addingAnotherPet
     ) {
-      goToStep(FINISH_STEP_INDEX);
+      cancelAddAnotherPet();
       return;
     }
     if (petFlowMode === "add-pet" && currentStep === PET_TYPE_STEP_INDEX) {
@@ -56,5 +56,6 @@ export function usePetFlowExitOnBack() {
     prevStep,
     reset,
     goToStep,
+    cancelAddAnotherPet,
   ]);
 }

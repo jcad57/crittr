@@ -405,6 +405,10 @@ export default function UserProfileScreen() {
     }
   }, [userId, bioDraft, setProfile]);
 
+  const openSettings = useCallback(() => {
+    push("/(logged-in)/settings");
+  }, [push]);
+
   const placeholder = () =>
     Alert.alert(
       "Coming soon",
@@ -449,7 +453,7 @@ export default function UserProfileScreen() {
           style={styles.navButton}
           hitSlop={12}
           accessibilityLabel="Settings"
-          onPress={placeholder}
+          onPress={openSettings}
         >
           <MaterialCommunityIcons
             name="cog-outline"

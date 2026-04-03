@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
   Image,
@@ -26,8 +27,13 @@ export default function ProfileStep() {
     nextStep,
     prevStep,
     setSkippedPendingInvitesEmpty,
+    reset,
+    goToStep,
+    profileBackAfterProfile,
+    setSkipOnboardingGuestRedirect,
   } = useOnboardingStore();
   const session = useAuthStore((s) => s.session);
+  const signOut = useAuthStore((s) => s.signOut);
   const setProfile = useAuthStore((s) => s.setProfile);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);
@@ -89,6 +95,30 @@ export default function ProfileStep() {
       console.warn("Profile step error:", msg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Back from profile: never return to verify-email after OTP (session exists).
+   * - After OTP or unknown resume: sign out + welcome (auth layout blocks welcome while logged in).
+   * - Direct-to-profile (no OTP): back to signup (step 0) to edit account fields.
+   */
+  const handleBack = async () => {
+    if (!session) {
+      prevStep();
+      return;
+    }
+    if (profileBackAfterProfile === "signup") {
+      goToStep(0);
+      return;
+    }
+    setSkipOnboardingGuestRedirect(true);
+    try {
+      await signOut();
+      /** Relative to `(onboarding)` so the `(auth)` stack handles the screen — avoids REPLACE targeting the nested stack (no `welcome` route there). */
+      router.replace("../welcome");
+    } finally {
+      reset();
     }
   };
 
@@ -178,7 +208,7 @@ export default function ProfileStep() {
         Continue
       </OrangeButton>
 
-      <TouchableOpacity onPress={prevStep} style={styles.backButton}>
+      <TouchableOpacity onPress={handleBack} style={styles.backButton}>
         <Text style={authOnboardingStyles.backText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -200,7 +230,7 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: Colors.gray100,
+    backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: Colors.gray200,
     alignItems: "center",

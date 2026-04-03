@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/auth";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
   Redirect,
   Stack,
@@ -9,6 +10,12 @@ import {
 
 export default function AuthLayout() {
   const { isLoggedIn, needsOnboarding } = useAuth();
+  const emailVerificationPending = useOnboardingStore(
+    (s) => s.emailVerificationPending,
+  );
+  const skipOnboardingGuestRedirect = useOnboardingStore(
+    (s) => s.skipOnboardingGuestRedirect,
+  );
   const segments = useSegments();
   const pathname = usePathname();
   const params = useGlobalSearchParams<{ intent?: string | string[] }>();
@@ -33,7 +40,13 @@ export default function AuthLayout() {
    * when explicitly opened from Welcome or Sign-in with `?intent=signup`.
    * Logged-in onboarding is handled above.
    */
-  if (!isLoggedIn && isOnOnboarding && intent !== "signup") {
+  if (
+    !isLoggedIn &&
+    isOnOnboarding &&
+    intent !== "signup" &&
+    !emailVerificationPending &&
+    !skipOnboardingGuestRedirect
+  ) {
     return <Redirect href="/(auth)/welcome" />;
   }
 

@@ -15,6 +15,8 @@ type FormInputProps = TextInputProps & {
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   containerStyle?: StyleProp<ViewStyle>;
   error?: boolean;
+  /** Shown below the field when set (e.g. validation). */
+  errorMessage?: string;
   /** Renders above the input; use with `required` for a trailing * on the label only. */
   label?: string;
   required?: boolean;
@@ -25,6 +27,7 @@ export default function FormInput({
   containerStyle,
   style,
   error,
+  errorMessage,
   multiline,
   label,
   required,
@@ -38,7 +41,6 @@ export default function FormInput({
         styles.container,
         isMultiline && styles.containerMultiline,
         error && styles.containerError,
-        !label && containerStyle,
       ]}
     >
       {icon && (
@@ -63,6 +65,11 @@ export default function FormInput({
     </View>
   );
 
+  const errorText =
+    errorMessage && errorMessage.length > 0 ? (
+      <Text style={styles.errorMessage}>{errorMessage}</Text>
+    ) : null;
+
   if (label) {
     return (
       <View style={containerStyle}>
@@ -71,11 +78,17 @@ export default function FormInput({
           {required ? " *" : ""}
         </Text>
         {inputRow}
+        {errorText}
       </View>
     );
   }
 
-  return inputRow;
+  return (
+    <View style={containerStyle}>
+      {inputRow}
+      {errorText}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -96,7 +109,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     height: 50,
     paddingHorizontal: 16,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.white,
   },
   /** Taller field with icon pinned to top so placeholder/text align with phone row. */
   containerMultiline: {
@@ -131,5 +144,13 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 0,
     textAlignVertical: "top",
+  },
+  errorMessage: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.error,
+    marginTop: 6,
+    alignSelf: "stretch",
   },
 });

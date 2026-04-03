@@ -1,0 +1,7 @@
+# Supabase local / deploy config (minimal). Adjust project_id when linking CLI.
+
+[functions.create-subscription-payment-sheet]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

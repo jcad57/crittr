@@ -7,7 +7,8 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { isTreatFood } from "@/lib/petFood";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { formatPetFoodPortionSubline, isTreatFood } from "@/lib/petFood";
 import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
@@ -25,12 +26,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function formatPortionLabel(f: PetFood): string {
-  const size = f.portion_size?.trim() ?? "";
-  const unit = f.portion_unit?.trim() ?? "";
-  return [size, unit].filter(Boolean).join(" ") || "—";
-}
-
 export default function PetFoodManagerScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -41,6 +36,7 @@ export default function PetFoodManagerScreen() {
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const deleteMut = useDeletePetFoodMutation(petId ?? "");
+  const { canAddAnotherOrUpgrade } = useProGateNavigation();
 
   const sortedFoods = useMemo(() => {
     if (!details?.foods) return [];
@@ -140,7 +136,9 @@ export default function PetFoodManagerScreen() {
               pressed && styles.addBtnPressed,
             ]}
             onPress={() =>
-              router.push(`/(logged-in)/pet/${petId}/food/new` as Href)
+              canAddAnotherOrUpgrade(sortedFoods.length, () =>
+                router.push(`/(logged-in)/pet/${petId}/food/new` as Href),
+              )
             }
           >
             <MaterialCommunityIcons
@@ -173,7 +171,7 @@ export default function PetFoodManagerScreen() {
                 >
                   <PetFoodProfileCard
                     name={f.brand?.trim() || "Food"}
-                    subline={formatPortionLabel(f)}
+                    subline={formatPetFoodPortionSubline(f)}
                     isTreat={isTreatFood(f)}
                   />
                 </Pressable>

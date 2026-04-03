@@ -16,7 +16,13 @@ import Divider from "../ui/Divider";
 import SocialAuthContainer from "./SocialAuthContainer";
 
 export default function SignUpStep() {
-  const { accountData, setAccountData, goToStep } = useOnboardingStore();
+  const {
+    accountData,
+    setAccountData,
+    goToStep,
+    setEmailVerificationPending,
+    setProfileBackAfterProfile,
+  } = useOnboardingStore();
   const signUp = useAuthStore((s) => s.signUp);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);
@@ -39,13 +45,20 @@ export default function SignUpStep() {
     }
     setIsSubmitting(true);
     try {
-      await signUp(
+      const { needsEmailVerification } = await signUp(
         accountData.email.trim(),
         accountData.password,
         accountData.firstName.trim(),
         accountData.lastName.trim(),
       );
-      goToStep(ONBOARDING_STEPS.indexOf("profile"));
+      if (needsEmailVerification) {
+        setEmailVerificationPending(true);
+        setProfileBackAfterProfile(null);
+        goToStep(ONBOARDING_STEPS.indexOf("verify-email"));
+      } else {
+        setProfileBackAfterProfile("signup");
+        goToStep(ONBOARDING_STEPS.indexOf("profile"));
+      }
     } catch (error: any) {
       Alert.alert("Sign Up Failed", error.message ?? "Something went wrong.");
     } finally {

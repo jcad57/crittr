@@ -8,6 +8,7 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { getErrorMessage } from "@/lib/errorMessage";
@@ -38,6 +39,7 @@ export default function PetMedicationsListScreen() {
   const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
+  const { canAddAnotherOrUpgrade } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details || !petId) return [];
@@ -123,7 +125,9 @@ export default function PetMedicationsListScreen() {
                 pressed && styles.addBtnPressed,
               ]}
               onPress={() =>
-                push(`/(logged-in)/pet/${petId}/medications/new` as Href)
+                canAddAnotherOrUpgrade(details?.medications.length ?? 0, () =>
+                  push(`/(logged-in)/pet/${petId}/medications/new` as Href),
+                )
               }
             >
               <MaterialCommunityIcons

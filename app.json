@@ -58,7 +58,8 @@
           "cameraPermission": "Allow Crittr to use your camera to photograph medical documents and pet avatars."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@stripe/stripe-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -2,10 +2,13 @@ import AuthBackToWelcome from "@/components/onboarding/AuthBackToWelcome";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import StepIndicator from "@/components/onboarding/StepIndicator";
+import VerifyEmailBackHeader from "@/components/onboarding/VerifyEmailBackHeader";
 import { useAuthStore } from "@/stores/authStore";
 import {
   FINISH_STEP_INDEX,
   ONBOARDING_INDICATED_STEP_COUNT,
+  PROFILE_STEP_INDEX,
+  VERIFY_EMAIL_STEP_INDEX,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
 import { Redirect } from "expo-router";
@@ -37,11 +40,17 @@ export default function Onboarding() {
     goToStep(resumeStep);
   }, [session?.user.id, needsOnboarding, resumeStep, goToStep]);
 
+  /** If session exists, do not show verify-email (OTP already completed or stale step). */
+  useEffect(() => {
+    if (!session) return;
+    if (currentStep !== VERIFY_EMAIL_STEP_INDEX) return;
+    goToStep(PROFILE_STEP_INDEX);
+  }, [session, currentStep, goToStep]);
+
   const StepComponent =
     ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[0];
 
-  const showIndicator = currentStep > 0;
-  const indicatorIndex = currentStep - 1;
+  const showIndicator = currentStep >= PROFILE_STEP_INDEX;
 
   return (
     <OnboardingCard
@@ -50,10 +59,12 @@ export default function Onboarding() {
       header={
         currentStep === 0 ? (
           <AuthBackToWelcome onBeforeNavigate={resetOnboarding} />
+        ) : currentStep === VERIFY_EMAIL_STEP_INDEX ? (
+          <VerifyEmailBackHeader />
         ) : showIndicator ? (
           <StepIndicator
             totalSteps={ONBOARDING_INDICATED_STEP_COUNT}
-            currentStep={indicatorIndex}
+            currentStep={currentStep - PROFILE_STEP_INDEX}
           />
         ) : undefined
       }

@@ -8,6 +8,8 @@ import { createPet, fetchUserPets } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { UPGRADE_FROM_ONBOARDING_HREF } from "@/lib/proUpgradePaths";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -26,8 +28,7 @@ const HIGH_FIVE = require("@/assets/images/high-five.png");
 export default function FinishStep() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pets, addAnotherPet, editPetAtIndex, reset, petFlowMode } =
-    useOnboardingStore();
+  const { pets, editPetAtIndex, reset, petFlowMode } = useOnboardingStore();
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
@@ -63,6 +64,8 @@ export default function FinishStep() {
       if (petFlowMode === "add-pet" && createdIds.length > 0) {
         const lastId = createdIds[createdIds.length - 1];
         router.replace(`/(logged-in)/pet/${lastId}`);
+      } else if (petFlowMode === "onboarding") {
+        router.replace(UPGRADE_FROM_ONBOARDING_HREF as Href);
       } else {
         router.replace("/(logged-in)/dashboard");
       }
@@ -142,7 +145,10 @@ export default function FinishStep() {
           ))}
         </View>
 
-        <Pressable style={styles.addButton} onPress={addAnotherPet}>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => router.push(UPGRADE_FROM_ONBOARDING_HREF as Href)}
+        >
           <MaterialCommunityIcons name="plus" size={20} color={Colors.orange} />
           <Text style={styles.addButtonText}>Add Another Pet</Text>
         </Pressable>
@@ -193,7 +199,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.gray200,
     borderRadius: 14,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.white,
   },
   chipLeft: {
     flex: 1,

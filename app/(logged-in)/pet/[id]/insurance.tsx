@@ -6,9 +6,9 @@ import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  useDeletePetInsuranceFileMutation,
   usePetDetailsQuery,
   usePetInsuranceFilesQuery,
-  useDeletePetInsuranceFileMutation,
   useUpdatePetInsuranceMutation,
   useUploadPetInsuranceFileMutation,
 } from "@/hooks/queries";
@@ -23,8 +23,8 @@ import { createSignedPetInsuranceUrl } from "@/services/petInsurance";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetInsuranceFile } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -42,8 +42,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 function formatBytes(n: number | null): string {
   if (n == null || n <= 0) return "";
   if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024)
-    return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -53,12 +52,12 @@ function mimeKind(mime: string | null): "pdf" | "image" {
   return "image";
 }
 
-function insuranceStatusLabel(
-  isInsured: boolean | null,
-): { line1: string; line2?: string } {
+function insuranceStatusLabel(isInsured: boolean | null): {
+  line1: string;
+  line2?: string;
+} {
   if (isInsured === true) return { line1: "Yes" };
-  if (isInsured === false) return { line1: "No" };
-  return { line1: "Prefer not to say" };
+  return { line1: "No" };
 }
 
 export default function PetInsuranceScreen() {
@@ -79,13 +78,13 @@ export default function PetInsuranceScreen() {
   const uploadMut = useUploadPetInsuranceFileMutation(petId ?? "");
   const deleteMut = useDeletePetInsuranceFileMutation(petId ?? "");
 
-  const [isInsured, setIsInsured] = useState<boolean | null>(null);
+  const [isInsured, setIsInsured] = useState<boolean>(false);
   const [company, setCompany] = useState("");
   const [policyNumber, setPolicyNumber] = useState("");
 
   useEffect(() => {
     if (!details) return;
-    setIsInsured(details.is_insured ?? null);
+    setIsInsured(details.is_insured ?? false);
     setCompany(details.insurance_provider?.trim() ?? "");
     setPolicyNumber(details.insurance_policy_number?.trim() ?? "");
   }, [details]);
@@ -107,7 +106,7 @@ export default function PetInsuranceScreen() {
   const dirty = useMemo(() => {
     if (!baseline) return false;
     return (
-      isInsured !== baseline.is_insured ||
+      isInsured !== (baseline.is_insured ?? false) ||
       company.trim() !== baseline.insurance_provider ||
       policyNumber.trim() !== baseline.insurance_policy_number
     );
@@ -194,14 +193,11 @@ export default function PetInsuranceScreen() {
 
   const onSave = useCallback(async () => {
     if (!petId) return;
-    const insured = isInsured;
-    const providerTrim =
-      insured === true ? company.trim() || null : null;
-    const policyTrim =
-      insured === true ? policyNumber.trim() || null : null;
+    const providerTrim = isInsured === true ? company.trim() || null : null;
+    const policyTrim = isInsured === true ? policyNumber.trim() || null : null;
     try {
       await updateMut.mutateAsync({
-        is_insured: insured,
+        is_insured: isInsured,
         insurance_provider: providerTrim,
         insurance_policy_number: policyTrim,
       });
@@ -338,6 +334,11 @@ export default function PetInsuranceScreen() {
 
   const busy =
     updateMut.isPending || uploadMut.isPending || deleteMut.isPending;
+  const policyDocsUploading = uploadMut.isPending;
+  const deletingFileId =
+    deleteMut.isPending && deleteMut.variables?.id
+      ? deleteMut.variables.id
+      : null;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -382,124 +383,168 @@ export default function PetInsuranceScreen() {
 
             {isInsured === true ? (
               <>
-                <Text style={styles.label}>Insurance company</Text>
-                <TextInput
-                  style={styles.input}
-                  value={company}
-                  onChangeText={setCompany}
-                  placeholder="e.g. Trupanion, Nationwide"
-                  placeholderTextColor={Colors.gray400}
-                  autoCapitalize="words"
-                />
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Insurance company</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={company}
+                    onChangeText={setCompany}
+                    placeholder="e.g. Trupanion, Nationwide"
+                    placeholderTextColor={Colors.gray400}
+                    autoCapitalize="words"
+                  />
+                </View>
 
-                <Text style={styles.label}>Policy number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={policyNumber}
-                  onChangeText={setPolicyNumber}
-                  placeholder="Policy or member ID"
-                  placeholderTextColor={Colors.gray400}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Policy number</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={policyNumber}
+                    onChangeText={setPolicyNumber}
+                    placeholder="Policy or member ID"
+                    placeholderTextColor={Colors.gray400}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
 
-                <View style={styles.sectionHead}>
+                <View style={styles.policyDocsHeader}>
                   <Text style={styles.sectionTitle}>Policy documents</Text>
+                  <Text style={styles.policyDocsHelper}>
+                    Add PDFs or photos of your policy documents.
+                  </Text>
                   <Pressable
+                    style={({ pressed }) => [
+                      styles.addFileBtn,
+                      pressed && styles.addFileBtnPressed,
+                      busy && styles.addFileBtnDisabled,
+                    ]}
                     onPress={onAddFile}
-                    hitSlop={8}
                     disabled={busy}
                   >
-                    <Text style={styles.addLink}>Add file</Text>
+                    <MaterialCommunityIcons
+                      name="plus-circle-outline"
+                      size={22}
+                      color={Colors.orange}
+                    />
+                    <Text style={styles.addFileBtnText}>Add file</Text>
                   </Pressable>
                 </View>
 
                 {filesLoading ? (
                   <View style={styles.paddedCenter}>
                     <ActivityIndicator color={Colors.orange} />
+                    <Text style={styles.loadingDocsHint}>
+                      Loading documents…
+                    </Text>
                   </View>
-                ) : files.length === 0 ? (
-                  <Text style={styles.emptyFiles}>
-                    Add PDFs or photos of your policy card or summary.
-                  </Text>
                 ) : (
-                  <View style={styles.fileList}>
-                    {files.map((f, i) => (
-                      <View key={f.id} style={styles.fileRowWrap}>
-                        <Pressable
-                          style={[
-                            styles.fileRow,
-                            i < files.length - 1 && styles.fileRowBorder,
-                          ]}
-                          onPress={() => void openFile(f)}
-                        >
-                          <View
-                            style={[
-                              styles.fileIcon,
-                              mimeKind(f.mime_type) === "pdf" &&
-                                styles.fileIconPdf,
-                            ]}
-                          >
-                            <MaterialCommunityIcons
-                              name={
-                                mimeKind(f.mime_type) === "pdf"
-                                  ? "file-pdf-box"
-                                  : "image-outline"
-                              }
-                              size={22}
-                              color={
-                                mimeKind(f.mime_type) === "pdf"
-                                  ? Colors.orange
-                                  : Colors.skyDark
-                              }
-                            />
-                          </View>
-                          <View style={styles.fileMid}>
-                            <Text style={styles.fileName} numberOfLines={2}>
-                              {f.original_filename ?? "File"}
-                            </Text>
-                            <Text style={styles.fileMeta}>
-                              {new Date(f.created_at).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                },
-                              )}
-                              {formatBytes(f.file_size_bytes)
-                                ? ` · ${formatBytes(f.file_size_bytes)}`
-                                : ""}
-                            </Text>
-                          </View>
-                          <MaterialCommunityIcons
-                            name="open-in-new"
-                            size={20}
-                            color={Colors.gray400}
-                          />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => confirmDeleteFile(f)}
-                          hitSlop={10}
-                          style={styles.trashBtn}
-                          disabled={busy}
-                        >
-                          <MaterialCommunityIcons
-                            name="trash-can-outline"
-                            size={22}
-                            color={Colors.gray500}
-                          />
-                        </Pressable>
+                  <>
+                    {policyDocsUploading ? (
+                      <View style={styles.policyDocsLoadingBanner}>
+                        <ActivityIndicator size="small" color={Colors.orange} />
+                        <Text style={styles.policyDocsLoadingText}>
+                          Uploading…
+                        </Text>
                       </View>
-                    ))}
-                  </View>
+                    ) : null}
+                    {files.length > 0 ? (
+                      <View
+                        style={[
+                          styles.fileList,
+                          policyDocsUploading && styles.fileListMuted,
+                        ]}
+                      >
+                        {files.map((f, i) => (
+                          <View key={f.id} style={styles.fileRowWrap}>
+                            <Pressable
+                              style={[
+                                styles.fileRow,
+                                i < files.length - 1 && styles.fileRowBorder,
+                              ]}
+                              onPress={() => void openFile(f)}
+                              disabled={policyDocsUploading}
+                            >
+                              <View
+                                style={[
+                                  styles.fileIcon,
+                                  mimeKind(f.mime_type) === "pdf" &&
+                                    styles.fileIconPdf,
+                                ]}
+                              >
+                                <MaterialCommunityIcons
+                                  name={
+                                    mimeKind(f.mime_type) === "pdf"
+                                      ? "file-pdf-box"
+                                      : "image-outline"
+                                  }
+                                  size={22}
+                                  color={
+                                    mimeKind(f.mime_type) === "pdf"
+                                      ? Colors.orange
+                                      : Colors.skyDark
+                                  }
+                                />
+                              </View>
+                              <View style={styles.fileMid}>
+                                <Text style={styles.fileName} numberOfLines={2}>
+                                  {f.original_filename ?? "File"}
+                                </Text>
+                                <Text style={styles.fileMeta}>
+                                  {new Date(f.created_at).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    },
+                                  )}
+                                  {formatBytes(f.file_size_bytes)
+                                    ? ` · ${formatBytes(f.file_size_bytes)}`
+                                    : ""}
+                                </Text>
+                              </View>
+                              <MaterialCommunityIcons
+                                name="open-in-new"
+                                size={20}
+                                color={Colors.gray400}
+                              />
+                            </Pressable>
+                            {deletingFileId === f.id ? (
+                              <View
+                                style={styles.trashBtn}
+                                accessibilityState={{ busy: true }}
+                                accessibilityLabel="Removing file"
+                              >
+                                <ActivityIndicator
+                                  size="small"
+                                  color={Colors.orange}
+                                />
+                              </View>
+                            ) : (
+                              <Pressable
+                                onPress={() => confirmDeleteFile(f)}
+                                hitSlop={10}
+                                style={styles.trashBtn}
+                                disabled={busy}
+                              >
+                                <MaterialCommunityIcons
+                                  name="trash-can-outline"
+                                  size={22}
+                                  color={Colors.gray500}
+                                />
+                              </Pressable>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </>
                 )}
               </>
             ) : (
               <Text style={styles.hintWhenOff}>
-                {isInsured === false
-                  ? "You can turn this on anytime if you get coverage."
-                  : "You can add your plan details whenever you are ready."}
+                You can turn this on anytime if you get coverage.
               </Text>
             )}
           </View>
@@ -571,7 +616,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "space-between",
   },
-  formMain: { flexShrink: 0 },
+  formMain: {
+    flexShrink: 0,
+    gap: 20,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
   lead: {
     fontFamily: Font.uiRegular,
     fontSize: 15,
@@ -604,11 +655,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginTop: 8,
   },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
+  policyDocsHeader: {
+    marginTop: 4,
+    gap: 10,
   },
   sectionTitle: {
     fontFamily: Font.uiSemiBold,
@@ -617,20 +666,72 @@ const styles = StyleSheet.create({
     color: Colors.sectionLabel,
     textTransform: "uppercase",
   },
-  addLink: {
+  /** Matches vaccinations list “Add vaccination” control. */
+  addFileBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.orange,
+    backgroundColor: Colors.white,
+  },
+  addFileBtnPressed: {
+    opacity: 0.85,
+  },
+  addFileBtnDisabled: {
+    opacity: 0.55,
+  },
+  addFileBtnText: {
     fontFamily: Font.uiSemiBold,
-    fontSize: 14,
+    fontSize: 16,
     color: Colors.orange,
+  },
+  policyDocsHelper: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
   hintWhenOff: {
     fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+    marginTop: 4,
   },
   paddedCenter: {
     paddingVertical: 16,
     alignItems: "center",
+    gap: 10,
+  },
+  loadingDocsHint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  policyDocsLoadingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  policyDocsLoadingText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  fileListMuted: {
+    opacity: 0.55,
   },
   emptyFiles: {
     fontFamily: Font.uiRegular,

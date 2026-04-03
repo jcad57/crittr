@@ -14,6 +14,7 @@ import {
   useUploadMedicalRecordFileMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { createSignedMedicalRecordUrl } from "@/services/petMedicalRecords";
@@ -73,6 +74,7 @@ export default function EditMedicalRecordScreen() {
   } = usePetMedicalRecordDetailQuery(recordId);
 
   const canManage = useCanPerformAction(petId, "can_manage_pet_records");
+  const { runWithProOrUpgrade } = useProGateNavigation();
 
   const updateTitleMut = useUpdatePetMedicalRecordTitleMutation(petId ?? "");
   const deleteRecordMut = useDeletePetMedicalRecordMutation(petId ?? "");
@@ -285,7 +287,12 @@ export default function EditMedicalRecordScreen() {
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Files</Text>
               {canEdit ? (
-                <Pressable onPress={() => setAddOpen(true)} hitSlop={8}>
+                <Pressable
+                  onPress={() =>
+                    runWithProOrUpgrade(() => setAddOpen(true))
+                  }
+                  hitSlop={8}
+                >
                   <Text style={styles.addLink}>Add files</Text>
                 </Pressable>
               ) : null}

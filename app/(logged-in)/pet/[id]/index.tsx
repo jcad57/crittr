@@ -29,10 +29,11 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
-import { isTreatFood } from "@/lib/petFood";
+import { formatPetFoodPortionSubline, isTreatFood } from "@/lib/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
 import { queryClient } from "@/lib/queryClient";
 import { updatePetAvatar } from "@/services/pets";
@@ -65,17 +66,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─── Data mapping ────────────────────────────────────────────────────────────
-
-function formatPortionLabel(f: PetFood): string {
-  const size = f.portion_size?.trim() ?? "";
-  const unit = f.portion_unit?.trim() ?? "";
-  return [size, unit].filter(Boolean).join(" ") || "—";
-}
 
 function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
   const sorted = [...details.foods].sort((a, b) => {
@@ -86,7 +82,7 @@ function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
   return {
     items: sorted.map((f) => ({
       brand: f.brand?.trim() || "Food",
-      portionLabel: formatPortionLabel(f),
+      portionLabel: formatPetFoodPortionSubline(f),
       isTreat: isTreatFood(f),
       notes: f.notes?.trim() || undefined,
     })),
@@ -235,6 +231,7 @@ export default function PetProfilePage() {
   const canEditProfile = useCanPerformAction(id, "can_edit_pet_profile");
   const canManageFood = useCanPerformAction(id, "can_manage_food");
   const canManageMeds = useCanPerformAction(id, "can_manage_medications");
+  const { runWithProOrUpgrade } = useProGateNavigation();
 
   const sortedFoodsForProfile = useMemo(() => {
     if (!details?.foods) return [];
@@ -420,7 +417,9 @@ export default function PetProfilePage() {
         iconBg: Colors.lavenderLight,
         iconColor: Colors.lavenderDark,
         onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
+          runWithProOrUpgrade(() =>
+            push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
+          ),
       });
     } else if (isCoCarer) {
       items.push({
@@ -437,7 +436,15 @@ export default function PetProfilePage() {
     }
 
     return items;
-  }, [profile, push, isOwner, isCoCarer, roleLoading, handleLeaveCoCare]);
+  }, [
+    profile,
+    push,
+    isOwner,
+    isCoCarer,
+    roleLoading,
+    handleLeaveCoCare,
+    runWithProOrUpgrade,
+  ]);
 
   if (isLoading) {
     return (
@@ -564,7 +571,7 @@ export default function PetProfilePage() {
         {sortedFoodsForProfile.length > 0 ? (
           <View style={styles.medList}>
             {sortedFoodsForProfile.map((f) => (
-              <Pressable
+              <TouchableOpacity
                 key={f.id}
                 activeOpacity={0.85}
                 onPress={() =>
@@ -573,10 +580,10 @@ export default function PetProfilePage() {
               >
                 <PetFoodProfileCard
                   name={f.brand?.trim() || "Food"}
-                  subline={formatPortionLabel(f)}
+                  subline={formatPetFoodPortionSubline(f)}
                   isTreat={isTreatFood(f)}
                 />
-              </Pressable>
+              </TouchableOpacity>
             ))}
           </View>
         ) : (

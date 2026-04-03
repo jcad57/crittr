@@ -1,3 +1,4 @@
+import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
 import { FONT_FACES } from "@/constants/fonts";
 import { queryClient } from "@/lib/queryClient";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
@@ -12,12 +13,16 @@ import {
   Fraunces_600SemiBold,
   Fraunces_700Bold,
 } from "@expo-google-fonts/fraunces";
+import { StripeProvider } from "@stripe/stripe-react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
 import { useEffect, useRef } from "react";
 
 setupReactQueryFocusManager();
+
+const stripePublishableKey =
+  process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 export default function SessionGate() {
   const { isLoading: isAuthLoading, initialize } = useAuthStore();
@@ -48,8 +53,14 @@ export default function SessionGate() {
   if (!isReady) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Slot />
-    </QueryClientProvider>
+    <StripeProvider
+      publishableKey={stripePublishableKey}
+      urlScheme="crittr"
+    >
+      <QueryClientProvider client={queryClient}>
+        <StripeUrlHandler />
+        <Slot />
+      </QueryClientProvider>
+    </StripeProvider>
   );
 }

@@ -1,9 +1,8 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
+import { petCareStyles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -43,11 +42,9 @@ export default function PetVetClinicStep() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 8 }]}>
-        Vet clinic
-      </Text>
-      <Text style={styles.sub}>
+    <View style={petCareStyles.formContainer}>
+      <Text style={authOnboardingStyles.screenTitleForm}>Vet clinic</Text>
+      <Text style={authOnboardingStyles.screenSubtitleForm}>
         Primary clinic for {name} (optional details)
       </Text>
 
@@ -86,15 +83,6 @@ export default function PetVetClinicStep() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  sub: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-  },
   inputSpacing: {
     marginBottom: 12,
   },

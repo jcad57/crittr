@@ -1,7 +1,7 @@
 import FormInput from "@/components/onboarding/FormInput";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -22,9 +22,7 @@ export default function PetWeightFields({
 }: PetWeightFieldsProps) {
   return (
     <>
-      <Text
-        style={[styles.fieldLabel, weightError && styles.fieldLabelError]}
-      >
+      <Text style={[styles.fieldLabel, weightError && styles.fieldLabelError]}>
         Weight *
       </Text>
       <View style={styles.row}>
@@ -101,6 +99,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
   },
   unitToggle: {
     paddingHorizontal: 16,

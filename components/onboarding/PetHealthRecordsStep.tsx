@@ -1,10 +1,13 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
+import { petCareStyles } from "@/components/onboarding/petCareStyles";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { Colors } from "@/constants/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import type { PetFormData } from "@/types/database";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useState } from "react";
@@ -45,10 +48,23 @@ export default function PetHealthRecordsStep() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 16 }]}>
+    <View style={petCareStyles.formContainer}>
+      <Text style={authOnboardingStyles.screenTitleForm}>
         Health & identification
       </Text>
+      <Text style={authOnboardingStyles.screenSubtitleForm}>
+        Microchip and insurance (optional). You can skip anything you don&apos;t
+        have on hand.
+      </Text>
+
+      <View style={styles.proCallout}>
+        <Text style={styles.proCalloutLabel}>Crittr Pro</Text>
+        <Text style={styles.proCalloutBody}>
+          Upgrade to Pro to upload medical records and documents directly to{" "}
+          {name}&apos;s profile — visit summaries, lab results, and more in one
+          place.
+        </Text>
+      </View>
 
       <PetMicrochipToggle
         value={pet.isMicrochipped}
@@ -122,8 +138,29 @@ export default function PetHealthRecordsStep() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  proCallout: {
+    width: "100%",
+    marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM + 4,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.orange,
+    backgroundColor: Colors.orangeLight,
+  },
+  proCalloutLabel: {
+    fontFamily: Font.uiBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: Colors.orange,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  proCalloutBody: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.textPrimary,
   },
   inputSpacing: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,

@@ -7,6 +7,12 @@ export const petCareStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  /** Top-aligned onboarding form (not opt-in prompt): full width, no horizontal centering. */
+  formContainer: {
+    flex: 1,
+    width: "100%",
+    alignSelf: "stretch",
+  },
   iconCenter: {
     alignItems: "center",
     marginBottom: 20,
@@ -57,7 +63,6 @@ export const petCareStyles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   foodSection: {
-    zIndex: 120,
     marginBottom: 4,
   },
   foodNameRow: {
@@ -99,6 +104,7 @@ export const petCareStyles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     height: 50,
     minHeight: 50,
     maxHeight: 50,
@@ -109,6 +115,7 @@ export const petCareStyles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: Colors.white,
   },
   mealTreatToggleBorder: {
     borderRightWidth: 1,
@@ -148,6 +155,7 @@ export const petCareStyles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     height: 50,
     minHeight: 50,
     maxHeight: 50,
@@ -157,6 +165,7 @@ export const petCareStyles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: Colors.white,
   },
   portionToggleBorder: {
     borderRightWidth: 1,
@@ -213,6 +222,7 @@ export const petCareStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.gray500,
     borderRadius: 50,
+    backgroundColor: Colors.white,
     height: 36,
     alignItems: "center",
     justifyContent: "center",

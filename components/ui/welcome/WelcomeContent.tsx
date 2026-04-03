@@ -214,7 +214,12 @@ export default function WelcomeContent() {
               Co-care for your best friend
             </Text>
 
-            <View style={[styles.carouselBlock, { marginBottom: vs(12) }]}>
+            <View
+              style={[
+                styles.carouselBlock,
+                { marginBottom: vs(12), paddingTop: vs(8) },
+              ]}
+            >
               <FlatList
                 ref={listRef}
                 data={FEATURES}
@@ -243,7 +248,15 @@ export default function WelcomeContent() {
                 getItemLayout={getItemLayout}
                 onMomentumScrollEnd={onMomentumScrollEnd}
               />
-              <StepIndicator totalSteps={FEATURES.length} currentStep={index} />
+              <View
+                style={[styles.carouselDotsRow, { marginVertical: vs(14) }]}
+              >
+                <StepIndicator
+                  totalSteps={FEATURES.length}
+                  currentStep={index}
+                  style={styles.carouselStepIndicator}
+                />
+              </View>
             </View>
 
             <OrangeButton
@@ -320,6 +333,15 @@ const styles = StyleSheet.create({
   },
   carouselBlock: {
     width: "100%",
+  },
+  carouselDotsRow: {
+    width: "100%",
+    alignItems: "center",
+  },
+  /** Welcome controls vertical rhythm; default StepIndicator padding is for onboarding header. */
+  carouselStepIndicator: {
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   subheadline: {
     fontFamily: "InstrumentSans-Regular",

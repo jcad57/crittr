@@ -9,6 +9,7 @@ import PetVaccinationsStep from "@/components/onboarding/PetVaccinationsStep";
 import PetVetClinicStep from "@/components/onboarding/PetVetClinicStep";
 import ProfileStep from "@/components/onboarding/ProfileStep";
 import SignUpStep from "@/components/onboarding/SignUpStep";
+import VerifyEmailStep from "@/components/onboarding/VerifyEmailStep";
 import { ONBOARDING_STEPS } from "@/stores/onboardingStore";
 
 /**
@@ -17,6 +18,7 @@ import { ONBOARDING_STEPS } from "@/stores/onboardingStore";
  */
 export const ONBOARDING_STEP_COMPONENTS = [
   SignUpStep,
+  VerifyEmailStep,
   ProfileStep,
   PendingInvitesStep,
   PetTypeStep,

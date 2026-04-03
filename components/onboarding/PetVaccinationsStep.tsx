@@ -4,12 +4,10 @@ import OptInStep from "@/components/onboarding/OptInStep";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { VaccinationFormEntry } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Pressable, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 
 export default function PetVaccinationsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
@@ -22,46 +20,44 @@ export default function PetVaccinationsStep() {
   );
 
   const [vacName, setVacName] = useState("");
-  const [vacFrequencyLabel, setVacFrequencyLabel] = useState("");
   const [vacExpiresOn, setVacExpiresOn] = useState("");
   const [vacNotes, setVacNotes] = useState("");
 
-  const addVaccination = () => {
-    if (!vacName.trim()) return;
-    const entry: VaccinationFormEntry = {
-      localId: Date.now().toString(),
+  useEffect(() => {
+    const v = pet.vaccinations[0];
+    if (!v) {
+      setVacName("");
+      setVacExpiresOn("");
+      setVacNotes("");
+      return;
+    }
+    setVacName(v.name);
+    setVacExpiresOn(v.expiresOn);
+    setVacNotes(v.notes);
+  }, [pet.vaccinations[0]?.localId, currentPetIndex]);
+
+  const buildVaccinationEntry = useCallback((): VaccinationFormEntry => {
+    return {
+      localId: pet.vaccinations[0]?.localId ?? Date.now().toString(),
       name: vacName.trim(),
-      frequencyLabel: vacFrequencyLabel.trim(),
       expiresOn: vacExpiresOn.trim(),
       notes: vacNotes.trim(),
     };
-    updateCurrentPet({ vaccinations: [...pet.vaccinations, entry] });
-    setVacName("");
-    setVacFrequencyLabel("");
-    setVacExpiresOn("");
-    setVacNotes("");
-  };
+  }, [
+    pet.vaccinations[0]?.localId,
+    vacName,
+    vacExpiresOn,
+    vacNotes,
+  ]);
 
-  const removeVac = (localId: string) => {
-    updateCurrentPet({
-      vaccinations: pet.vaccinations.filter((v) => v.localId !== localId),
-    });
-  };
-
-  const formatVacSummary = (v: VaccinationFormEntry) => {
-    const parts: string[] = [];
-    if (v.frequencyLabel.trim()) parts.push(v.frequencyLabel.trim());
-    if (v.expiresOn.trim()) {
-      const d = new Date(`${v.expiresOn}T12:00:00`);
-      parts.push(
-        `Exp. ${d.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-        })}`,
-      );
+  const handleContinue = useCallback(() => {
+    if (vacName.trim()) {
+      updateCurrentPet({ vaccinations: [buildVaccinationEntry()] });
+    } else {
+      updateCurrentPet({ vaccinations: [] });
     }
-    return parts.length ? parts.join(" · ") : "No expiry on file";
-  };
+    nextStep();
+  }, [vacName, buildVaccinationEntry, updateCurrentPet, nextStep]);
 
   if (phase === "prompt") {
     return (
@@ -78,11 +74,11 @@ export default function PetVaccinationsStep() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 12 }]}>
+    <View style={styles.formContainer}>
+      <Text style={authOnboardingStyles.screenTitleForm}>
         Vaccinations for {name}
       </Text>
-      <Text style={styles.helperText}>
+      <Text style={authOnboardingStyles.formHelperText}>
         Optional — add shots on file so we can remind you before they expire
       </Text>
 
@@ -90,12 +86,6 @@ export default function PetVaccinationsStep() {
         placeholder="Vaccine name (e.g. Rabies, DHPP)"
         value={vacName}
         onChangeText={setVacName}
-        containerStyle={styles.inputSpacing}
-      />
-      <FormInput
-        placeholder="Schedule (e.g. Annual, 3-year)"
-        value={vacFrequencyLabel}
-        onChangeText={setVacFrequencyLabel}
         containerStyle={styles.inputSpacing}
       />
       <Text style={styles.fieldLabel}>Next expiry</Text>
@@ -111,33 +101,10 @@ export default function PetVaccinationsStep() {
         multiline
         containerStyle={styles.inputSpacing}
       />
-      <Pressable style={styles.addButton} onPress={addVaccination}>
-        <Text style={styles.addButtonText}>+ Add this vaccination</Text>
-      </Pressable>
-
-      {pet.vaccinations.length > 0 && (
-        <View style={styles.listCard}>
-          {pet.vaccinations.map((v) => (
-            <View key={v.localId} style={styles.listRow}>
-              <View style={styles.listRowText}>
-                <Text style={styles.listItemBold}>{v.name}</Text>
-                <Text style={styles.listItemSub}>{formatVacSummary(v)}</Text>
-              </View>
-              <TouchableOpacity onPress={() => removeVac(v.localId)}>
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={20}
-                  color={Colors.gray400}
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
 
       <View style={styles.spacer} />
 
-      <OrangeButton onPress={nextStep} style={styles.cta}>
+      <OrangeButton onPress={handleContinue} style={styles.cta}>
         Continue
       </OrangeButton>
 

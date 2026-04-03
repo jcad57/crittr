@@ -5,7 +5,7 @@ import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Pressable,
@@ -104,12 +104,19 @@ function CellIcon({ type, label }: { type: CellDisplay; label?: string }) {
 
 export default function UpgradeScreen() {
   const router = useRouter();
-  const { push } = useNavigationCooldown();
+  const { push, replace } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
   const [billing, setBilling] = useState<BillingPeriod>("annual");
+  const params = useLocalSearchParams<{ fromOnboarding?: string }>();
+  const fromOnboarding =
+    params.fromOnboarding === "1" || params.fromOnboarding === "true";
 
   const scrollCompact = windowH < 720;
+
+  const goToDashboard = () => {
+    replace("/(logged-in)/dashboard" as Href);
+  };
 
   return (
     <LinearGradient
@@ -173,7 +180,11 @@ export default function UpgradeScreen() {
         <ProTierCard
           billing={billing}
           onBillingChange={setBilling}
-          onCta={() => push("/(logged-in)/membership-mock" as Href)}
+          onCta={() =>
+            push(`/(logged-in)/pro-checkout?billing=${billing}` as Href)
+          }
+          showNoThanks={fromOnboarding}
+          onNoThanks={goToDashboard}
         />
       </ScrollView>
     </LinearGradient>
@@ -199,10 +210,14 @@ function ProTierCard({
   billing,
   onBillingChange,
   onCta,
+  showNoThanks,
+  onNoThanks,
 }: {
   billing: BillingPeriod;
   onBillingChange: (b: BillingPeriod) => void;
   onCta: () => void;
+  showNoThanks?: boolean;
+  onNoThanks?: () => void;
 }) {
   const isAnnual = billing === "annual";
 
@@ -295,6 +310,20 @@ function ProTierCard({
       <OrangeButton style={styles.cta} onPress={onCta}>
         Start free 7-day trial →
       </OrangeButton>
+
+      {showNoThanks && onNoThanks ? (
+        <Pressable
+          onPress={onNoThanks}
+          style={({ pressed }) => [
+            styles.noThanksBtn,
+            pressed && styles.noThanksBtnPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="No thanks, continue to the app"
+        >
+          <Text style={styles.noThanksText}>No thanks</Text>
+        </Pressable>
+      ) : null}
 
       <Text style={styles.disclaimerOnDark}>
         No charge until your trial ends · Cancel anytime
@@ -549,7 +578,22 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: 8,
+    marginBottom: 8,
+  },
+  noThanksBtn: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     marginBottom: 12,
+  },
+  noThanksBtnPressed: {
+    opacity: 0.7,
+  },
+  noThanksText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "center",
   },
   disclaimerOnDark: {
     fontFamily: Font.uiRegular,

@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -10,7 +10,11 @@ type PetSexToggleProps = {
   error: boolean;
 };
 
-export default function PetSexToggle({ sex, onChange, error }: PetSexToggleProps) {
+export default function PetSexToggle({
+  sex,
+  onChange,
+  error,
+}: PetSexToggleProps) {
   return (
     <>
       <Text style={[styles.fieldLabel, error && styles.fieldLabelError]}>
@@ -79,6 +83,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray200,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: Colors.white,
   },
   toggleActive: {
     backgroundColor: Colors.orangeLight,

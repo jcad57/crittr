@@ -1,9 +1,24 @@
 import { Colors } from "@/constants/colors";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import {
+  Image as RNImage,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const WELCOME_BG = require("@/assets/images/welcome-bg.png");
+const WELCOME_BG_RESOLVED = RNImage.resolveAssetSource(WELCOME_BG);
+const WELCOME_BG_ASPECT =
+  WELCOME_BG_RESOLVED?.width && WELCOME_BG_RESOLVED.width > 0
+    ? WELCOME_BG_RESOLVED.height / WELCOME_BG_RESOLVED.width
+    : 1;
 
 type OnboardingCardProps = {
   children: React.ReactNode;
@@ -14,6 +29,10 @@ type OnboardingCardProps = {
    * When false, the body is not wrapped in ScrollView (use for steps that manage their own scroll, e.g. finish).
    */
   scrollBody?: boolean;
+  /** Vertically center body content in the viewport (e.g. sign-in). */
+  centerContent?: boolean;
+  /** Top `welcome-bg` art like the welcome screen (sign-in). */
+  welcomeBackground?: boolean;
 };
 
 export default function OnboardingCard({
@@ -21,8 +40,12 @@ export default function OnboardingCard({
   header,
   scrollKey,
   scrollBody = true,
+  centerContent = false,
+  welcomeBackground = false,
 }: OnboardingCardProps) {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const welcomeBgHeight = welcomeBackground ? windowWidth * WELCOME_BG_ASPECT : 0;
   const scrollInsetBottom = useFloatingNavScrollInset();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -33,25 +56,41 @@ export default function OnboardingCard({
   }, [scrollKey, scrollBody]);
 
   /**
-   * When a header (e.g. back) sits in normal flow above the ScrollView, `justifyContent:
-   * "center"` only centers in the region *below* the header — content looks shifted down.
-   * For scrollable cards (sign-in, onboarding steps), overlay the header and use symmetric
-   * vertical padding so the body centers on the screen. Non-scroll (finish step) keeps the
-   * header in flow so its layout stays unchanged.
+   * Top padding clears the overlaid header (step indicator / back). Bottom padding is only
+   * safe-area + nav inset — not symmetric with top — so short steps don’t get extra scrollable
+   * blank space. No flexGrow/center on the scroll body: content height stays natural so the
+   * list only scrolls when it overflows.
    */
-  const balancedPadWithHeader =
-    header && scrollBody
-      ? Math.max(insets.top + 12 + 56, insets.bottom + 24, scrollInsetBottom)
-      : 0;
+  const scrollTopWithHeaderOverlay =
+    insets.top + 12 + 8 + 16 + 8;
+  /** Bottom inset only — do not mirror the large top reserve or content becomes taller than the viewport and scrolls with empty space. */
+  const scrollBottomPad = Math.max(insets.bottom + 16, scrollInsetBottom);
 
   /** Only scrollable screens overlay the header so the body can vertically center on the screen. */
   const headerOverlay = Boolean(header && scrollBody);
+
+  const scrollPaddingTop = headerOverlay
+    ? scrollTopWithHeaderOverlay
+    : insets.top + 12;
+
+  /**
+   * Lets `flex: 1` step content (e.g. loading spinners) fill the space between scroll
+   * padding so indicators sit in the visual center of the page.
+   */
+  const minScrollBodyHeight = Math.max(
+    0,
+    windowHeight - scrollPaddingTop - scrollBottomPad,
+  );
 
   const headerNode = header ? (
     <View
       pointerEvents="box-none"
       style={[
-        headerOverlay ? styles.headerOverlay : styles.headerInFlow,
+        headerOverlay
+          ? welcomeBackground
+            ? styles.headerOverlayWelcomeBg
+            : styles.headerOverlay
+          : styles.headerInFlow,
         {
           paddingTop: insets.top + 12,
           paddingHorizontal: 24,
@@ -71,35 +110,52 @@ export default function OnboardingCard({
         style={styles.gradient}
       />
 
+      {welcomeBackground ? (
+        <Image
+          source={WELCOME_BG}
+          style={[
+            styles.welcomeBgImage,
+            { width: windowWidth, height: welcomeBgHeight },
+          ]}
+          contentFit="contain"
+          pointerEvents="none"
+        />
+      ) : null}
+
       {headerNode}
 
       {scrollBody ? (
         <ScrollView
           ref={scrollRef}
-          style={styles.flex}
+          style={[styles.flex, welcomeBackground && styles.scrollAboveWelcomeBg]}
           contentContainerStyle={[
             styles.scrollContent,
             {
-              flexGrow: 1,
-              justifyContent: "center",
-              paddingTop: headerOverlay
-                ? balancedPadWithHeader
-                : insets.top + 12,
-              paddingBottom: headerOverlay
-                ? balancedPadWithHeader
-                : scrollInsetBottom,
+              paddingTop: scrollPaddingTop,
+              paddingBottom: scrollBottomPad,
+              ...(centerContent && {
+                flexGrow: 1,
+                justifyContent: "center" as const,
+              }),
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
+          alwaysBounceVertical={false}
+          removeClippedSubviews={!welcomeBackground}
+          {...(Platform.OS === "android"
+            ? ({ overScrollMode: "never" } as const)
+            : {})}
         >
           <View
             style={[
               styles.content,
+              !centerContent && { minHeight: minScrollBodyHeight },
               { paddingBottom: headerOverlay ? 0 : insets.bottom },
               !header && { paddingTop: 8 },
+              welcomeBackground && { overflow: "visible" as const },
             ]}
           >
             {children}
@@ -151,6 +207,26 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 3,
+    /** Opaque bar so ScrollView content does not show through when scrolling under the step indicator. */
+    backgroundColor: Colors.cream,
+  },
+  /** Transparent so `welcome-bg` shows behind the back control (sign-in). */
+  headerOverlayWelcomeBg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 3,
+    backgroundColor: "transparent",
+  },
+  welcomeBgImage: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 1,
+  },
+  scrollAboveWelcomeBg: {
     zIndex: 2,
   },
   scrollContent: {

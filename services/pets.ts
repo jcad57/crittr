@@ -13,6 +13,7 @@ import {
   inferImageContentType,
   readLocalImageUriAsArrayBuffer,
 } from "./localImageUpload";
+import { foodFormEntryToUpsertInput, insertPetFood } from "./petFoods";
 
 export async function createPet(
   ownerId: string,
@@ -91,27 +92,9 @@ export async function createPet(
 
   if (petError) throw petError;
 
-  // Insert foods
-  if (petData.foods.length > 0) {
-    const foodRows = petData.foods.map((f) => {
-      const times = parseInt(f.mealsPerDay.trim(), 10);
-      const mealsPerDay =
-        Number.isFinite(times) && times >= 1 ? times : null;
-      return {
-        pet_id: pet.id,
-        brand: f.brand,
-        portion_size: f.portionSize || null,
-        portion_unit: f.portionUnit || null,
-        meals_per_day: mealsPerDay,
-        is_treat: f.isTreat,
-        notes: f.notes.trim() || null,
-      };
-    });
-
-    const { error: foodError } = await supabase
-      .from("pet_foods")
-      .insert(foodRows);
-    if (foodError) throw foodError;
+  // Insert foods (treats + legacy fields, or meals with `pet_food_portions`)
+  for (const f of petData.foods) {
+    await insertPetFood(pet.id, foodFormEntryToUpsertInput(f));
   }
 
   // Insert vaccinations
@@ -120,7 +103,7 @@ export async function createPet(
       pet_id: pet.id,
       name: v.name.trim(),
       expires_on: v.expiresOn.trim() || null,
-      frequency_label: v.frequencyLabel.trim() || null,
+      frequency_label: null,
       notes: v.notes.trim() || null,
     }));
 
@@ -248,7 +231,7 @@ export async function fetchPetProfile(
   if (petError || !pet) return null;
 
   const [foodsRes, medsRes, vacsRes, exerciseRes] = await Promise.all([
-    supabase.from("pet_foods").select("*").eq("pet_id", petId),
+    supabase.from("pet_foods").select("*, pet_food_portions(*)").eq("pet_id", petId),
     supabase.from("pet_medications").select("*").eq("pet_id", petId),
     supabase.from("pet_vaccinations").select("*").eq("pet_id", petId),
     supabase

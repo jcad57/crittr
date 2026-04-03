@@ -36,7 +36,7 @@ import {
   mapPetVetVisitToDashboard,
 } from "@/lib/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { feedingTimesPerDayTarget, isTreatFood } from "@/lib/petFood";
+import { dailyProgressFoodTarget, isTreatFood } from "@/lib/petFood";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useCrittrProStore } from "@/stores/crittrProStore";
 import { usePetStore } from "@/stores/petStore";
@@ -108,12 +108,12 @@ export default function Dashboard() {
     const totalMeals = details
       ? details.foods
           .filter((f) => !isTreatFood(f))
-          .reduce((sum, f) => sum + feedingTimesPerDayTarget(f), 0)
+          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
       : 0;
     const totalTreats = details
       ? details.foods
           .filter((f) => isTreatFood(f))
-          .reduce((sum, f) => sum + feedingTimesPerDayTarget(f), 0)
+          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
       : 0;
     const totalExercise =
       details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;

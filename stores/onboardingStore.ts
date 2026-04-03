@@ -8,6 +8,7 @@ import { create } from "zustand";
 
 export const ONBOARDING_STEPS = [
   "signup",
+  "verify-email",
   "profile",
   "pending-invites",
   "pet-type",
@@ -36,8 +37,12 @@ export const FINISH_STEP_INDEX = ONBOARDING_STEPS.indexOf("finish");
 
 export const PROFILE_STEP_INDEX = ONBOARDING_STEPS.indexOf("profile");
 
-/** Dot indicator is hidden on signup; this is the count of steps that show dots (profile → finish). */
-export const ONBOARDING_INDICATED_STEP_COUNT = ONBOARDING_STEPS.length - 1;
+/** Dot indicator is hidden on signup + verify-email; dots cover profile → finish. */
+export const ONBOARDING_INDICATED_STEP_COUNT = ONBOARDING_STEPS.length - 2;
+
+/** Index of the email OTP step (after signup). */
+export const VERIFY_EMAIL_STEP_INDEX =
+  ONBOARDING_STEPS.indexOf("verify-email");
 
 type OnboardingState = {
   currentStep: number;
@@ -57,6 +62,22 @@ type OnboardingState = {
    * Cancel discards the new pet row and returns to finish.
    */
   addingAnotherPet: boolean;
+  /**
+   * True after sign-up when email confirmation is required (no session yet).
+   * Lets auth layout allow onboarding without `?intent=signup` if the URL loses it.
+   */
+  emailVerificationPending: boolean;
+  /**
+   * Where “Back” from profile should go when the user already has a session:
+   * `signup` = direct-to-profile (no OTP); `welcome` = after OTP (cannot return to OTP).
+   * `null` = unknown (e.g. cold resume) → treat like welcome (sign out + welcome).
+   */
+  profileBackAfterProfile: "signup" | "welcome" | null;
+  /**
+   * When true, `(auth)/_layout` skips its guest-onboarding → welcome `<Redirect>` so
+   * imperative `router.replace("/(auth)/welcome")` is the only navigation (avoids double stack).
+   */
+  skipOnboardingGuestRedirect: boolean;
 
   nextStep: () => void;
   prevStep: () => void;
@@ -73,6 +94,9 @@ type OnboardingState = {
   setSkippedPendingInvitesEmpty: (value: boolean) => void;
   /** Abandon the in-progress extra pet and return to the finish step. */
   cancelAddAnotherPet: () => void;
+  setEmailVerificationPending: (value: boolean) => void;
+  setProfileBackAfterProfile: (value: "signup" | "welcome" | null) => void;
+  setSkipOnboardingGuestRedirect: (value: boolean) => void;
   reset: () => void;
 };
 
@@ -99,6 +123,9 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   currentPetIndex: 0,
   skippedPendingInvitesEmpty: false,
   addingAnotherPet: false,
+  emailVerificationPending: false,
+  profileBackAfterProfile: null,
+  skipOnboardingGuestRedirect: false,
 
   nextStep: () => set((s) => ({ currentStep: s.currentStep + 1 })),
 
@@ -118,6 +145,9 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       currentPetIndex: 0,
       skippedPendingInvitesEmpty: false,
       addingAnotherPet: false,
+      emailVerificationPending: false,
+      profileBackAfterProfile: null,
+      skipOnboardingGuestRedirect: false,
     }),
 
   setAccountData: (data) =>
@@ -146,6 +176,15 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         addingAnotherPet: true,
       };
     }),
+
+  setEmailVerificationPending: (value) =>
+    set({ emailVerificationPending: value }),
+
+  setProfileBackAfterProfile: (value) =>
+    set({ profileBackAfterProfile: value }),
+
+  setSkipOnboardingGuestRedirect: (value) =>
+    set({ skipOnboardingGuestRedirect: value }),
 
   cancelAddAnotherPet: () => {
     const s = get();
@@ -180,5 +219,8 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       currentPetIndex: 0,
       skippedPendingInvitesEmpty: false,
       addingAnotherPet: false,
+      emailVerificationPending: false,
+      profileBackAfterProfile: null,
+      skipOnboardingGuestRedirect: false,
     }),
 }));

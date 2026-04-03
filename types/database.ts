@@ -77,6 +77,18 @@ export type Pet = {
   updated_at: string;
 };
 
+/** Scheduled meal portion (meals only); see `025_pet_food_portions.sql`. */
+export type PetFoodPortion = {
+  id: string;
+  pet_food_id: string;
+  portion_size: string | null;
+  portion_unit: string | null;
+  /** `HH:MM:SS` from Postgres `time`. */
+  feed_time: string;
+  sort_order: number;
+  created_at?: string;
+};
+
 export type PetFood = {
   id: string;
   pet_id: string;
@@ -88,6 +100,8 @@ export type PetFood = {
   /** Optional feeding notes (e.g. portion split across meals). */
   notes?: string | null;
   created_at: string;
+  /** Nested when using `select('*, pet_food_portions(*)')` — meals only. */
+  pet_food_portions?: PetFoodPortion[];
 };
 
 export type MedicationDosePeriod = "day" | "week" | "month";
@@ -376,15 +390,26 @@ export type ProfileFormData = {
   avatarUri: string | null;
 };
 
+/** Serialized meal portion for onboarding (meals only). */
+export type FoodMealPortionFormEntry = {
+  key: string;
+  portionSize: string;
+  portionUnit: string;
+  /** Postgres `time` as `HH:MM:SS` (see `dateToPgTime`). */
+  feedTimePg: string;
+};
+
 export type FoodFormEntry = {
   localId: string;
   brand: string;
   portionSize: string;
   portionUnit: string;
-  /** Times per day to serve this meal or treat (drives daily progress 0/N). */
+  /** Treats: times per day. Meals: mirrors `mealPortions.length` when portions are used. */
   mealsPerDay: string;
   isTreat: boolean;
   notes: string;
+  /** Meals only: scheduled portions; omit or leave empty for treats. */
+  mealPortions?: FoodMealPortionFormEntry[];
 };
 
 export type MedicationFormEntry = {
@@ -406,8 +431,6 @@ export type MedicationFormEntry = {
 export type VaccinationFormEntry = {
   localId: string;
   name: string;
-  /** e.g. Annual, 3-year — optional */
-  frequencyLabel: string;
   /** YYYY-MM-DD when known — drives due / overdue UI */
   expiresOn: string;
   notes: string;
@@ -472,7 +495,7 @@ export const EMPTY_PET_FORM: PetFormData = {
   isSterilized: null,
   primaryVetClinic: "",
   primaryVetAddress: "",
-  isInsured: null,
+  isInsured: false,
   insuranceProvider: "",
   insurancePolicyNumber: "",
 };

@@ -2,7 +2,6 @@ import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
 import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSection";
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
-import PetCoCarerInviteRow from "@/components/onboarding/petInfo/PetCoCarerInviteRow";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
@@ -11,12 +10,12 @@ import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import {
   getBreedLabelForPetType,
   PET_INFO_FIELD_MARGIN_BOTTOM,
   shouldShowExerciseField,
 } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
   EMPTY_ALLERGIES,
@@ -159,21 +158,6 @@ export default function PetDetailsStep() {
         error={!!err("breed")}
       />
 
-      <Text style={authOnboardingStyles.sectionTitle}>About</Text>
-      <Text style={styles.aboutHint}>Short bio (max 320 characters)</Text>
-      <View style={[styles.aboutBox, styles.inputSpacing]}>
-        <TextInput
-          style={styles.aboutInput}
-          placeholder="What makes your pet special?"
-          placeholderTextColor={Colors.gray400}
-          value={pet.about}
-          onChangeText={(v) => updateCurrentPet({ about: v })}
-          multiline
-          maxLength={320}
-          textAlignVertical="top"
-        />
-      </View>
-
       <PetAgeOrDobSection
         ageYears={pet.ageYears}
         ageMonths={pet.ageMonths}
@@ -248,12 +232,20 @@ export default function PetDetailsStep() {
         containerStyle={styles.inputSpacing}
       />
 
-      <PetCoCarerInviteRow
-        coCarerEmail={pet.coCarerEmail}
-        onChangeEmail={(v) => updateCurrentPet({ coCarerEmail: v })}
-      />
-
-      <View style={styles.spacer} />
+      <Text style={authOnboardingStyles.sectionTitle}>About</Text>
+      <Text style={styles.aboutHint}>Short bio (max 320 characters)</Text>
+      <View style={[styles.aboutBox, styles.inputSpacing]}>
+        <TextInput
+          style={styles.aboutInput}
+          placeholder="What makes your pet special?"
+          placeholderTextColor={Colors.gray400}
+          value={pet.about}
+          onChangeText={(v) => updateCurrentPet({ about: v })}
+          multiline
+          maxLength={320}
+          textAlignVertical="top"
+        />
+      </View>
 
       {attempted && !isValid ? (
         <Text style={styles.errorHint}>

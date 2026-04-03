@@ -1,58 +1,53 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
+import type { StyleProp, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type PetInsuranceToggleProps = {
   value: boolean | null;
-  onChange: (v: boolean | null) => void;
+  onChange: (v: boolean) => void;
+  /** Extra layout above the label (e.g. separate from page intro copy). */
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export default function PetInsuranceToggle({
   value,
   onChange,
+  containerStyle,
 }: PetInsuranceToggleProps) {
+  /** Unset / skipped during add-pet reads as “No” for display. */
+  const yesActive = value === true;
+  const noActive = value === false || value === null;
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, containerStyle]}>
       <Text style={styles.label}>Pet insurance?</Text>
       <View style={styles.row}>
         <Pressable
-          style={[styles.option, value === true && styles.optionActive]}
+          style={[styles.option, yesActive && styles.optionActive]}
           onPress={() => onChange(true)}
         >
           <Text
             style={[
               styles.optionText,
-              value === true && styles.optionTextActive,
+              yesActive && styles.optionTextActive,
             ]}
           >
             Yes
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.option, value === false && styles.optionActive]}
+          style={[styles.option, noActive && styles.optionActive]}
           onPress={() => onChange(false)}
         >
           <Text
             style={[
               styles.optionText,
-              value === false && styles.optionTextActive,
+              noActive && styles.optionTextActive,
             ]}
           >
             No
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.option, value === null && styles.optionActive]}
-          onPress={() => onChange(null)}
-        >
-          <Text
-            style={[
-              styles.optionText,
-              value === null && styles.optionTextActive,
-            ]}
-          >
-            Prefer not to say
           </Text>
         </Pressable>
       </View>
@@ -68,22 +63,17 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  hint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray400,
     marginBottom: 8,
   },
   row: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   option: {
+    flex: 1,
+    alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,

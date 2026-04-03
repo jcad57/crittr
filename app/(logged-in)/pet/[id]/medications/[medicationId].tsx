@@ -15,6 +15,7 @@ import {
   useUpdateMedicationMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/lib/errorMessage";
 import {
   buildMedicationFrequencyLabelForDb,
@@ -25,7 +26,7 @@ import {
 import type { MedicationDosePeriod, PetMedication } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -150,6 +151,7 @@ export default function EditPetMedicationScreen() {
   const insertMut = useInsertMedicationMutation(petId ?? "");
   const updateMut = useUpdateMedicationMutation(petId ?? "");
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
+  const { isPro, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
   const [dosageAmount, setDosageAmount] = useState("");
@@ -333,6 +335,20 @@ export default function EditPetMedicationScreen() {
       ],
     );
   }, [petId, medicationId, isNew, deleteMut, router]);
+
+  useLayoutEffect(() => {
+    if (!isNew || !details) return;
+    if (canManageMedications !== true) return;
+    if ((details.medications?.length ?? 0) >= 1 && !isPro) {
+      replaceWithUpgrade();
+    }
+  }, [
+    isNew,
+    details,
+    isPro,
+    replaceWithUpgrade,
+    canManageMedications,
+  ]);
 
   if (isLoading && !details) {
     return (

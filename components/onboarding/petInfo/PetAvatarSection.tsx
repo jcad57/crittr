@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import { AVATAR_SIZE } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -19,11 +19,7 @@ export default function PetAvatarSection({
         {avatarUri ? (
           <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
         ) : (
-          <MaterialCommunityIcons
-            name="paw"
-            size={40}
-            color={Colors.gray300}
-          />
+          <MaterialCommunityIcons name="paw" size={40} color={Colors.gray300} />
         )}
       </TouchableOpacity>
       <TouchableOpacity onPress={onPickImage}>

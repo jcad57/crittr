@@ -1,6 +1,9 @@
 import { Colors } from "@/constants/colors";
+import {
+  ENERGY_OPTIONS,
+  PET_INFO_FIELD_MARGIN_BOTTOM,
+} from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
-import { ENERGY_OPTIONS, PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -17,9 +20,7 @@ export default function PetEnergyLevelToggle({
 }: PetEnergyLevelToggleProps) {
   return (
     <>
-      <Text
-        style={[styles.sectionTitle, error && styles.sectionTitleError]}
-      >
+      <Text style={[styles.sectionTitle, error && styles.sectionTitleError]}>
         Energy Level *
       </Text>
       <View style={styles.row}>
@@ -69,6 +70,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.gray200,
+    backgroundColor: Colors.white,
     alignItems: "center",
     justifyContent: "center",
   },

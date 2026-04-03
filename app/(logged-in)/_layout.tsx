@@ -13,12 +13,15 @@ export default function LoggedInLayout() {
   const { isLoggedIn, needsOnboarding } = useAuth();
   const pathname = usePathname() ?? "";
   const isAddPetRoute = pathname.includes("add-pet");
+  /** Allow upgrade screen while onboarding (e.g. “Add another pet” → Pro) without leaving auth flow. */
+  const isUpgradeRoute =
+    pathname.includes("upgrade") || pathname.includes("pro-checkout");
 
   if (!isLoggedIn) {
     return <Redirect href="/(auth)/welcome" />;
   }
 
-  if (needsOnboarding && !isAddPetRoute) {
+  if (needsOnboarding && !isAddPetRoute && !isUpgradeRoute) {
     return <Redirect href="/(auth)/(onboarding)" />;
   }
 

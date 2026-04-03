@@ -8,10 +8,10 @@ export const BREED_LABELS: Partial<Record<PetType, string>> = {
   fish: "Species",
   bird: "Species",
   reptile: "Species",
-  other: "Type / Breed",
+  small_mammal: "Type / Breed",
 };
 
-export const EXERCISE_PET_TYPES = new Set<PetType>(["dog", "other"]);
+export const EXERCISE_PET_TYPES = new Set<PetType>(["dog", "small_mammal"]);
 
 export const AVATAR_SIZE = 100;
 

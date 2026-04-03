@@ -1,6 +1,6 @@
-import { StyleSheet } from "react-native";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { StyleSheet } from "react-native";
 
 /**
  * Shared typography + surfaces for auth stack and onboarding steps.
@@ -23,6 +23,35 @@ export const authOnboardingStyles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     marginBottom: 8,
+  },
+  /** Onboarding data-entry screens: title and copy align to top / start like standard forms. */
+  screenTitleForm: {
+    fontFamily: Font.displayBold,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.25,
+    color: Colors.textPrimary,
+    textAlign: "left",
+    marginBottom: 8,
+    alignSelf: "stretch",
+  },
+  screenSubtitleForm: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+    textAlign: "left",
+    marginBottom: 16,
+    alignSelf: "stretch",
+  },
+  formHelperText: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    lineHeight: 20,
+    color: Colors.textSecondary,
+    textAlign: "left",
+    marginBottom: 14,
+    alignSelf: "stretch",
   },
   socialLabel: {
     fontFamily: Font.uiRegular,
@@ -51,7 +80,7 @@ export const authOnboardingStyles = StyleSheet.create({
     justifyContent: "center",
     flexWrap: "wrap",
     gap: 4,
-    marginTop: 12,
+    marginTop: 18,
   },
   linkMuted: {
     fontFamily: Font.uiRegular,

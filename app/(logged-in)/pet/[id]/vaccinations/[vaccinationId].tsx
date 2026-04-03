@@ -13,11 +13,12 @@ import {
   useUpdatePetVaccinationMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/lib/errorMessage";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +37,6 @@ function hydrateFromVaccination(v: PetVaccination) {
   return {
     name: v.name?.trim() ?? "",
     expiresOn: v.expires_on?.trim() ?? "",
-    frequencyLabel: v.frequency_label?.trim() ?? "",
     notes: v.notes?.trim() ?? "",
   };
 }
@@ -68,10 +68,10 @@ export default function EditPetVaccinationScreen() {
   const insertMut = useInsertPetVaccinationMutation(petId ?? "");
   const updateMut = useUpdatePetVaccinationMutation(petId ?? "");
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
+  const { isPro, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
-  const [frequencyLabel, setFrequencyLabel] = useState("");
   const [notes, setNotes] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
 
@@ -80,7 +80,6 @@ export default function EditPetVaccinationScreen() {
     const h = hydrateFromVaccination(vaccination);
     setName(h.name);
     setExpiresOn(h.expiresOn);
-    setFrequencyLabel(h.frequencyLabel);
     setNotes(h.notes);
   }, [isNew, vaccination]);
 
@@ -92,7 +91,7 @@ export default function EditPetVaccinationScreen() {
     const payload = {
       name: name.trim(),
       expires_on: expiresOn.trim() || null,
-      frequency_label: frequencyLabel.trim() || null,
+      frequency_label: null,
       notes: notes.trim() || null,
     };
 
@@ -114,7 +113,6 @@ export default function EditPetVaccinationScreen() {
     petId,
     name,
     expiresOn,
-    frequencyLabel,
     notes,
     isNew,
     vaccinationId,
@@ -145,6 +143,20 @@ export default function EditPetVaccinationScreen() {
       ],
     );
   }, [petId, vaccinationId, isNew, deleteMut, router]);
+
+  useLayoutEffect(() => {
+    if (!isNew || !details) return;
+    if (canManageVaccinations !== true) return;
+    if ((details.vaccinations?.length ?? 0) >= 1 && !isPro) {
+      replaceWithUpgrade();
+    }
+  }, [
+    isNew,
+    details,
+    isPro,
+    replaceWithUpgrade,
+    canManageVaccinations,
+  ]);
 
   if (isLoading && !details) {
     return (
@@ -252,10 +264,6 @@ export default function EditPetVaccinationScreen() {
           <ReadOnlyFieldRow label="Name" value={vaccination.name} />
           <ReadOnlyFieldRow label="Expires" value={expLabel} />
           <ReadOnlyFieldRow
-            label="Frequency"
-            value={vaccination.frequency_label?.trim() || "—"}
-          />
-          <ReadOnlyFieldRow
             label="Notes"
             value={vaccination.notes?.trim() || ""}
           />
@@ -301,10 +309,16 @@ export default function EditPetVaccinationScreen() {
         >
           <FormInput
             label="Vaccination name"
+            required
             value={name}
             onChangeText={setName}
             containerStyle={styles.field}
             error={nameError}
+            errorMessage={
+              validationAttempted && nameError
+                ? "Please enter a vaccination name."
+                : undefined
+            }
           />
 
           <View style={styles.expiryBlock}>
@@ -318,26 +332,12 @@ export default function EditPetVaccinationScreen() {
           </View>
 
           <FormInput
-            label="Frequency"
-            value={frequencyLabel}
-            onChangeText={setFrequencyLabel}
-            placeholder="e.g. 1-year, 3-year"
-            containerStyle={styles.field}
-          />
-
-          <FormInput
             label="Notes"
             value={notes}
             onChangeText={setNotes}
             multiline
             containerStyle={styles.field}
           />
-
-          {validationAttempted && nameError ? (
-            <Text style={styles.formErrorHint}>
-              Please enter a vaccination name.
-            </Text>
-          ) : null}
 
           <View style={styles.actionsBlock}>
             <OrangeButton
@@ -420,13 +420,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
-  },
-  formErrorHint: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.error,
-    textAlign: "center",
-    marginBottom: 12,
   },
   actionsBlock: {
     marginTop: 20,

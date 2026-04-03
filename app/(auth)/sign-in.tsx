@@ -3,67 +3,171 @@ import FormInput from "@/components/onboarding/FormInput";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import Divider from "@/components/ui/Divider";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useAuthStore } from "@/stores/authStore";
+import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { useState } from "react";
-import { Alert, Keyboard, Pressable, StyleSheet, Text } from "react-native";
+import {
+  Keyboard,
+  Pressable,
+  Image as RNImage,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+
+/** Matches `WelcomeContent` — scale typography & spacing for consistency. */
+const REF_WIDTH = 390;
+const REF_HEIGHT = 844;
+
+function welcomeLayoutScale(width: number, height: number) {
+  const widthScale = Math.min(Math.max(width / REF_WIDTH, 0.86), 1.12);
+  const heightScale = Math.min(Math.max(height / REF_HEIGHT, 0.9), 1.06);
+  const uiScale = Math.min(widthScale, heightScale * 1.02);
+  const verticalTight = Math.min(1, height / 720);
+  return { uiScale, verticalTight };
+}
+
+function mapSignInError(message: string): string {
+  const m = message.toLowerCase();
+  if (
+    m.includes("invalid login") ||
+    m.includes("invalid credentials") ||
+    m.includes("invalid grant")
+  ) {
+    return "Incorrect email or password. Check your details and try again.";
+  }
+  if (m.includes("email not confirmed")) {
+    return "Please confirm your email before signing in.";
+  }
+  if (m.includes("too many requests") || m.includes("rate limit")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  return message.trim() || "Something went wrong. Please try again.";
+}
+
+const ANIMALS_PEAKING = require("@/assets/images/animals-peaking.png");
+const ANIMALS_PEAKING_RESOLVED = RNImage.resolveAssetSource(ANIMALS_PEAKING);
+const ANIMALS_PEAKING_ASPECT =
+  ANIMALS_PEAKING_RESOLVED?.width && ANIMALS_PEAKING_RESOLVED.width > 0
+    ? ANIMALS_PEAKING_RESOLVED.height / ANIMALS_PEAKING_RESOLVED.width
+    : 1;
 
 export default function SignIn() {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { uiScale, verticalTight } = welcomeLayoutScale(
+    windowWidth,
+    windowHeight,
+  );
+  const vs = (n: number) => Math.round(n * uiScale * verticalTight);
+
+  const HERO_SCALE = 0.8;
+  const heroWidth = Math.min(windowWidth * 0.52, 220) * HERO_SCALE;
+  const heroHeight = heroWidth * ANIMALS_PEAKING_ASPECT;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const { signInWithEmail } = useAuthStore();
 
   const handleSignIn = async () => {
     Keyboard.dismiss();
+    setAuthError(null);
+    setEmailError(null);
+    setPasswordError(null);
+
+    const trimmedEmail = email.trim();
+    let invalid = false;
+
+    if (!trimmedEmail) {
+      setEmailError("Please enter your email.");
+      invalid = true;
+    }
+    if (!password) {
+      setPasswordError("Please enter your password.");
+      invalid = true;
+    }
+    if (invalid) return;
+
     setSigningIn(true);
     try {
-      await signInWithEmail(email, password);
-      // Routing is handled automatically by auth state change in the layout
-      // redirects (AuthLayout / LoggedInLayout). No manual navigation needed.
-    } catch (error: any) {
-      Alert.alert("Sign In Failed", error.message ?? "Something went wrong.");
+      await signInWithEmail(trimmedEmail, password);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setAuthError(mapSignInError(msg));
     } finally {
       setSigningIn(false);
     }
   };
 
+  const emailHasErr = Boolean(emailError);
+  const passwordHasErr = Boolean(passwordError);
+  const authFailed = Boolean(authError);
+
   return (
-    <OnboardingCard header={<AuthBackToWelcome />}>
+    <OnboardingCard
+      header={<AuthBackToWelcome />}
+      centerContent
+      welcomeBackground
+    >
       <Text style={authOnboardingStyles.screenTitle}>Welcome Back!</Text>
 
       <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
       <SocialAuthContainer />
 
-      <Divider />
+      <View
+        style={[
+          styles.peekSection,
+          { marginTop: vs(32), marginBottom: vs(-5) },
+        ]}
+      >
+        <Image
+          source={ANIMALS_PEAKING}
+          style={{ width: heroWidth, height: heroHeight, opacity: 0.85 }}
+          contentFit="contain"
+          accessibilityRole="image"
+          accessibilityLabel="Decorative animals above the divider"
+        />
+      </View>
 
-      {/* Email */}
       <FormInput
         icon="email-outline"
         placeholder="Email"
         value={email}
-        onChangeText={(v) => setEmail(v)}
+        onChangeText={(v) => {
+          setEmail(v);
+          setEmailError(null);
+          setAuthError(null);
+        }}
         keyboardType="email-address"
         autoCapitalize="none"
         containerStyle={styles.inputSpacing}
+        error={emailHasErr || authFailed}
+        errorMessage={emailError ?? undefined}
       />
 
-      {/* Password */}
       <FormInput
         icon="lock-outline"
         placeholder="Password"
         value={password}
-        onChangeText={(v) => setPassword(v)}
+        onChangeText={(v) => {
+          setPassword(v);
+          setPasswordError(null);
+          setAuthError(null);
+        }}
         secureTextEntry
         containerStyle={styles.inputSpacing}
+        error={passwordHasErr || authFailed}
+        errorMessage={passwordError || authError || undefined}
       />
 
-      {/* Sign In */}
       <OrangeButton
         onPress={handleSignIn}
-        disabled={!email || !password}
         loading={signingIn}
         style={styles.cta}
       >
@@ -82,6 +186,11 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
+  peekSection: {
+    width: "100%",
+    alignItems: "center",
+    overflow: "visible",
+  },
   inputSpacing: {
     marginBottom: 12,
   },

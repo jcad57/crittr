@@ -13,6 +13,7 @@ import {
   usePetVetVisitsQuery,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import type {
@@ -115,6 +116,7 @@ export default function PetMedicalRecordsScreen() {
   );
 
   const createMut = useCreatePetMedicalRecordWithFilesMutation(petId ?? "");
+  const { runWithProOrUpgrade } = useProGateNavigation();
 
   const [addOpen, setAddOpen] = useState(false);
 
@@ -248,7 +250,9 @@ export default function PetMedicalRecordsScreen() {
               styles.addBtn,
               pressed && styles.addBtnPressed,
             ]}
-            onPress={() => setAddOpen(true)}
+            onPress={() => {
+              runWithProOrUpgrade(() => setAddOpen(true));
+            }}
           >
             <MaterialCommunityIcons
               name="plus-circle-outline"

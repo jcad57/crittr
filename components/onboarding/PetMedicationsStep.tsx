@@ -13,7 +13,7 @@ import type {
   MedicationFormEntry,
 } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
 
 const DOSAGE_TYPES = [
@@ -50,8 +50,41 @@ export default function PetMedicationsStep() {
   });
   const [medShowTimePicker, setMedShowTimePicker] = useState(false);
 
-  const addMedication = () => {
-    if (!medName.trim()) return;
+  useEffect(() => {
+    const m = pet.medications[0];
+    if (!m) {
+      setMedName("");
+      setMedDosageAmt("");
+      setMedDosageType("");
+      setMedFreq("");
+      setMedCustomFreq("");
+      setMedCondition("");
+      setMedNotes("");
+      const reset = new Date();
+      reset.setHours(9, 0, 0, 0);
+      setMedReminderDate(reset);
+      return;
+    }
+    setMedName(m.name);
+    setMedDosageAmt(m.dosageAmount);
+    setMedDosageType(m.dosageType);
+    setMedFreq(m.frequency);
+    setMedCustomFreq(m.customFrequency || "");
+    setMedCondition(m.condition);
+    setMedNotes(m.notes);
+    if (m.reminderTime?.trim()) {
+      const parts = m.reminderTime.split(":");
+      const h = parseInt(parts[0] ?? "", 10);
+      const min = parseInt(parts[1] ?? "", 10);
+      if (Number.isFinite(h) && Number.isFinite(min)) {
+        const d = new Date();
+        d.setHours(h, min, 0, 0);
+        setMedReminderDate(d);
+      }
+    }
+  }, [pet.medications[0]?.localId, currentPetIndex]);
+
+  const buildMedicationEntry = useCallback((): MedicationFormEntry => {
     const dosePeriod: MedicationDosePeriod | "" =
       medFreq === "Daily"
         ? "day"
@@ -66,8 +99,8 @@ export default function PetMedicationsStep() {
         : medFreq === "Weekly" || medFreq === "Monthly"
           ? "1"
           : "";
-    const entry: MedicationFormEntry = {
-      localId: Date.now().toString(),
+    return {
+      localId: pet.medications[0]?.localId ?? Date.now().toString(),
       name: medName.trim(),
       dosageAmount: medDosageAmt,
       dosageType: medDosageType,
@@ -79,49 +112,26 @@ export default function PetMedicationsStep() {
       reminderTime: formatReminderTimeHHmm(medReminderDate),
       notes: medNotes.trim(),
     };
-    updateCurrentPet({ medications: [...pet.medications, entry] });
-    setMedName("");
-    setMedDosageAmt("");
-    setMedDosageType("");
-    setMedFreq("");
-    setMedCustomFreq("");
-    setMedCondition("");
-    setMedNotes("");
-    const reset = new Date();
-    reset.setHours(9, 0, 0, 0);
-    setMedReminderDate(reset);
-  };
+  }, [
+    pet.medications[0]?.localId,
+    medName,
+    medDosageAmt,
+    medDosageType,
+    medFreq,
+    medCustomFreq,
+    medCondition,
+    medReminderDate,
+    medNotes,
+  ]);
 
-  const removeMed = (localId: string) => {
-    updateCurrentPet({
-      medications: pet.medications.filter((m) => m.localId !== localId),
-    });
-  };
-
-  const formatMedSummary = (m: MedicationFormEntry) => {
-    const dosage = [m.dosageAmount, m.dosageType].filter(Boolean).join(" ");
-    const freq =
-      m.frequency === "Custom" && m.customFrequency
-        ? m.customFrequency
-        : m.frequency;
-    const scheduleParts: string[] = [];
-    if (m.dosePeriod === "day") {
-      const n = parseInt(m.dosesPerPeriod?.trim() ?? "1", 10);
-      if (Number.isFinite(n) && n > 1) {
-        scheduleParts.push(`${n}×/day`);
-      } else {
-        scheduleParts.push("daily");
-      }
-    } else if (m.dosePeriod === "week") {
-      scheduleParts.push("weekly");
-    } else if (m.dosePeriod === "month") {
-      scheduleParts.push("monthly");
+  const handleContinue = useCallback(() => {
+    if (medName.trim()) {
+      updateCurrentPet({ medications: [buildMedicationEntry()] });
+    } else {
+      updateCurrentPet({ medications: [] });
     }
-    if (m.reminderTime?.trim()) {
-      scheduleParts.push(m.reminderTime.trim());
-    }
-    return [dosage, freq, ...scheduleParts].filter(Boolean).join(" · ");
-  };
+    nextStep();
+  }, [medName, buildMedicationEntry, updateCurrentPet, nextStep]);
 
   if (phase === "prompt") {
     return (
@@ -138,11 +148,11 @@ export default function PetMedicationsStep() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 12 }]}>
+    <View style={styles.formContainer}>
+      <Text style={authOnboardingStyles.screenTitleForm}>
         Medications for {name}
       </Text>
-      <Text style={styles.helperText}>
+      <Text style={authOnboardingStyles.formHelperText}>
         List medications your pet is currently on here
       </Text>
 
@@ -226,33 +236,9 @@ export default function PetMedicationsStep() {
         containerStyle={styles.inputSpacing}
       />
 
-      <Pressable style={styles.addButton} onPress={addMedication}>
-        <Text style={styles.addButtonText}>+ Add this medication</Text>
-      </Pressable>
-
-      {pet.medications.length > 0 && (
-        <View style={styles.listCard}>
-          {pet.medications.map((m) => (
-            <View key={m.localId} style={styles.listRow}>
-              <View style={styles.listRowText}>
-                <Text style={styles.listItemBold}>{m.name}</Text>
-                <Text style={styles.listItemSub}>{formatMedSummary(m)}</Text>
-              </View>
-              <TouchableOpacity onPress={() => removeMed(m.localId)}>
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={20}
-                  color={Colors.gray400}
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-
       <View style={styles.spacer} />
 
-      <OrangeButton onPress={nextStep} style={styles.cta}>
+      <OrangeButton onPress={handleContinue} style={styles.cta}>
         Continue
       </OrangeButton>
 

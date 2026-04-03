@@ -7,6 +7,7 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { vaccinationTraffic } from "@/lib/healthTraffic";
 import type { PetVaccination } from "@/types/database";
@@ -50,6 +51,7 @@ export default function PetVaccinationsListScreen() {
     "can_manage_vaccinations",
   );
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
+  const { canAddAnotherOrUpgrade } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details?.vaccinations?.length) return [];
@@ -139,7 +141,9 @@ export default function PetVaccinationsListScreen() {
                 pressed && styles.addBtnPressed,
               ]}
               onPress={() =>
-                push(`/(logged-in)/pet/${petId}/vaccinations/new` as Href)
+                canAddAnotherOrUpgrade(details?.vaccinations?.length ?? 0, () =>
+                  push(`/(logged-in)/pet/${petId}/vaccinations/new` as Href),
+                )
               }
             >
               <MaterialCommunityIcons
