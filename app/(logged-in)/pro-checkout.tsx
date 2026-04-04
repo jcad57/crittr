@@ -2,14 +2,16 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/auth";
+import { useAuthStore } from "@/stores/authStore";
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
 import {
   fetchSubscriptionPaymentSheetParams,
+  waitForProActivation,
   type ProBillingParam,
 } from "@/lib/stripeCheckout";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -21,6 +23,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type Phase = "loading" | "ready" | "dismissed" | "confirming" | "error";
 
 export default function ProCheckoutScreen() {
   const router = useRouter();
@@ -35,16 +39,23 @@ export default function ProCheckoutScreen() {
     billingParam === "annual" ? "annual" : "monthly";
 
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const initRef = useRef(initPaymentSheet);
+  initRef.current = initPaymentSheet;
+  const presentRef = useRef(presentPaymentSheet);
+  presentRef.current = presentPaymentSheet;
 
-  const [phase, setPhase] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
+  const [phase, setPhase] = useState<Phase>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const presentedRef = useRef(false);
+  const [paymentDone, setPaymentDone] = useState(false);
+  const sheetReadyRef = useRef(false);
 
+  // ── Step 1: fetch params + init PaymentSheet ────────────────────────
   const prepare = useCallback(async () => {
     setPhase("loading");
     setErrorMessage(null);
+    setPaymentDone(false);
+    sheetReadyRef.current = false;
+
     try {
       if (!process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
         throw new Error(
@@ -53,6 +64,7 @@ export default function ProCheckoutScreen() {
       }
 
       const params = await fetchSubscriptionPaymentSheetParams(billing);
+
       const base = {
         merchantDisplayName: "Crittr",
         customerId: params.customerId,
@@ -61,115 +73,179 @@ export default function ProCheckoutScreen() {
         returnURL: "crittr://stripe-redirect",
       } as const;
 
-      let initResult;
-      if (params.setupIntentClientSecret) {
-        initResult = await initPaymentSheet({
-          ...base,
-          setupIntentClientSecret: params.setupIntentClientSecret,
-        });
-      } else if (params.paymentIntentClientSecret) {
-        initResult = await initPaymentSheet({
-          ...base,
-          paymentIntentClientSecret: params.paymentIntentClientSecret,
-        });
-      } else {
-        throw new Error("No payment secret returned from server.");
-      }
-      const { error: initError } = initResult;
+      const initResult = params.setupIntentClientSecret
+        ? await initRef.current({
+            ...base,
+            setupIntentClientSecret: params.setupIntentClientSecret,
+          })
+        : params.paymentIntentClientSecret
+          ? await initRef.current({
+              ...base,
+              paymentIntentClientSecret: params.paymentIntentClientSecret,
+            })
+          : { error: { message: "No payment secret returned from server." } };
 
-      if (initError) {
-        setErrorMessage(initError.message);
-        setPhase("error");
-        return;
+      if ("error" in initResult && initResult.error) {
+        throw new Error(initResult.error.message);
       }
+
+      sheetReadyRef.current = true;
       setPhase("ready");
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : "Something went wrong");
       setPhase("error");
     }
-  }, [billing, initPaymentSheet]);
+  }, [billing]);
 
   useEffect(() => {
     void prepare();
   }, [prepare]);
 
-  const onSuccess = useCallback(async () => {
-    const uid = session?.user?.id;
-    if (uid) {
-      await queryClient.invalidateQueries({ queryKey: profileQueryKey(uid) });
-    }
-    Alert.alert("Crittr Pro", "Your trial is active. Enjoy Crittr Pro!", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
-  }, [queryClient, router, session?.user?.id]);
+  // ── Present the Stripe PaymentSheet ─────────────────────────────────
+  const openPaymentSheet = useCallback(async () => {
+    if (!sheetReadyRef.current) return;
 
-  useEffect(() => {
-    if (phase !== "ready" || presentedRef.current) return;
-    presentedRef.current = true;
-    void (async () => {
-      const { error: presentError } = await presentPaymentSheet();
+    try {
+      const { error: presentError } = await presentRef.current();
       if (presentError) {
         if (presentError.code === "Canceled") {
-          router.back();
+          setPhase("dismissed");
           return;
         }
         Alert.alert("Payment", presentError.message);
-        setPhase("error");
         setErrorMessage(presentError.message);
-        presentedRef.current = false;
+        setPhase("error");
         return;
       }
-      await onSuccess();
-    })();
-  }, [phase, presentPaymentSheet, router, onSuccess]);
+      setPaymentDone(true);
+      setPhase("confirming");
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error ? e.message : "Payment could not be completed.",
+      );
+      setPhase("error");
+    }
+  }, []);
 
-  const retry = () => {
-    presentedRef.current = false;
-    void prepare();
-  };
+  // Auto-present when first ready
+  useEffect(() => {
+    if (phase !== "ready") return;
+    void openPaymentSheet();
+  }, [phase, openPaymentSheet]);
+
+  // ── Confirm Pro status via DB poll ──────────────────────────────────
+  useEffect(() => {
+    if (phase !== "confirming") return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await waitForProActivation();
+        if (cancelled) return;
+
+        const uid =
+          useAuthStore.getState().session?.user?.id ?? session?.user?.id;
+        if (uid) {
+          await queryClient.invalidateQueries({
+            queryKey: profileQueryKey(uid),
+          });
+        }
+        router.replace("/(logged-in)/welcome-to-pro" as Href);
+      } catch (e) {
+        if (cancelled) return;
+        setErrorMessage(
+          e instanceof Error
+            ? e.message
+            : "Could not confirm your subscription.",
+        );
+        setPhase("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, queryClient, router, session?.user?.id]);
+
+  // ── Retry handler ───────────────────────────────────────────────────
+  const retry = useCallback(() => {
+    if (paymentDone) {
+      setPhase("confirming");
+    } else {
+      void prepare();
+    }
+  }, [paymentDone, prepare]);
+
+  const goBack = useCallback(() => {
+    router.back();
+  }, [router]);
 
   return (
     <View
-      style={[styles.screen, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom + 24 },
+      ]}
     >
-      <View style={styles.topRow}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={26}
-            color={Colors.gray900}
-          />
-        </Pressable>
-      </View>
-
-      <Text style={styles.title}>Secure checkout</Text>
-      <Text style={styles.sub}>
-        {billing === "annual"
-          ? "Annual billing — $39.99/yr after your 7-day trial"
-          : "Monthly billing — $4.99/mo after your 7-day trial"}
-      </Text>
-
-      {phase === "loading" ? (
-        <View style={styles.centerBlock}>
+      {/* ── Loading: centered spinner ─────────────────────────────── */}
+      {phase === "loading" && (
+        <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.orange} />
-          <Text style={styles.hint}>Preparing Stripe…</Text>
+          <Text style={styles.hint}>Getting your payment ready…</Text>
         </View>
-      ) : null}
+      )}
 
-      {phase === "error" && errorMessage ? (
-        <View style={styles.centerBlock}>
-          <Text style={styles.err}>{errorMessage}</Text>
-          <OrangeButton style={styles.retry} onPress={retry}>
-            Try again
-          </OrangeButton>
+      {/* ── Confirming: centered spinner ──────────────────────────── */}
+      {phase === "confirming" && (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.orange} />
+          <Text style={styles.hint}>Activating Crittr Pro…</Text>
         </View>
-      ) : null}
+      )}
+
+      {/* ── Dismissed: user closed Stripe modal ───────────────────── */}
+      {phase === "dismissed" && (
+        <View style={styles.centered}>
+          <Text style={styles.title}>Ready to checkout?</Text>
+          <Text style={styles.sub}>
+            {billing === "annual"
+              ? "$39.99/yr after your 7-day free trial"
+              : "$4.99/mo after your 7-day free trial"}
+          </Text>
+
+          <View style={styles.actions}>
+            <OrangeButton onPress={openPaymentSheet}>
+              Open payment screen
+            </OrangeButton>
+            <Pressable
+              style={styles.secondaryBtn}
+              onPress={goBack}
+              accessibilityRole="button"
+            >
+              <Text style={styles.secondaryLabel}>Go back to dashboard</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── Error ─────────────────────────────────────────────────── */}
+      {phase === "error" && errorMessage && (
+        <View style={styles.centered}>
+          <Text style={styles.err}>{errorMessage}</Text>
+          <View style={styles.actions}>
+            <OrangeButton onPress={retry}>
+              {paymentDone ? "Retry activation" : "Try again"}
+            </OrangeButton>
+            <Pressable
+              style={styles.secondaryBtn}
+              onPress={goBack}
+              accessibilityRole="button"
+            >
+              <Text style={styles.secondaryLabel}>Go back to dashboard</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -177,56 +253,55 @@ export default function ProCheckoutScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: 20,
     backgroundColor: Colors.background,
   },
-  topRow: {
-    marginBottom: 16,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    alignItems: "center",
+  centered: {
+    flex: 1,
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    alignItems: "center",
+    paddingHorizontal: 32,
   },
   title: {
     fontFamily: Font.displayBold,
     fontSize: 26,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    textAlign: "center",
+    marginBottom: 10,
   },
   sub: {
     fontFamily: Font.uiRegular,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     color: Colors.gray600,
-    marginBottom: 24,
-  },
-  centerBlock: {
-    alignItems: "center",
-    gap: 16,
-    marginTop: 24,
+    textAlign: "center",
+    marginBottom: 8,
   },
   hint: {
     fontFamily: Font.uiMedium,
     fontSize: 15,
     color: Colors.gray500,
-    marginTop: 8,
+    marginTop: 14,
+  },
+  actions: {
+    width: "100%",
+    marginTop: 28,
+    gap: 14,
+  },
+  secondaryBtn: {
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  secondaryLabel: {
+    fontFamily: Font.uiMedium,
+    fontSize: 15,
+    color: Colors.gray600,
   },
   err: {
     fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.error,
     textAlign: "center",
-  },
-  retry: {
-    alignSelf: "stretch",
+    marginBottom: 4,
   },
 });

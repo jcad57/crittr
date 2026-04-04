@@ -1,7 +1,13 @@
 # Supabase local / deploy config (minimal). Adjust project_id when linking CLI.
 
+# When the dashboard has “Verify JWT with legacy secret” enabled, the gateway
+# can reject access tokens signed with the newer JWT Signing Keys (401 before
+# this function runs). Auth is still enforced inside the handler via getUser().
 [functions.create-subscription-payment-sheet]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+[functions.sync-crittr-pro-entitlement]
 verify_jwt = false

@@ -15,7 +15,9 @@ export default function LoggedInLayout() {
   const isAddPetRoute = pathname.includes("add-pet");
   /** Allow upgrade screen while onboarding (e.g. “Add another pet” → Pro) without leaving auth flow. */
   const isUpgradeRoute =
-    pathname.includes("upgrade") || pathname.includes("pro-checkout");
+    pathname.includes("upgrade") ||
+    pathname.includes("pro-checkout") ||
+    pathname.includes("welcome-to-pro");
 
   if (!isLoggedIn) {
     return <Redirect href="/(auth)/welcome" />;

@@ -21,6 +21,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import Stripe from "npm:stripe@17.7.0";
+import { computeCrittrProUntil } from "../_shared/crittrProEntitlement.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-11-20.acacia",
@@ -35,10 +36,17 @@ Deno.serve(async (req: Request) => {
   const signature = req.headers.get("stripe-signature");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!signature || !webhookSecret) {
-    return new Response(JSON.stringify({ error: "missing_webhook_config" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "missing_webhook_config",
+        hint:
+          "Set STRIPE_WEBHOOK_SECRET in Supabase Edge Function secrets to the signing secret from Stripe Dashboard → Webhooks → your endpoint (whsec_…).",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const body = await req.text();
@@ -47,10 +55,17 @@ Deno.serve(async (req: Request) => {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("[stripe-webhook] signature", err);
-    return new Response(JSON.stringify({ error: "invalid_signature" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "invalid_signature",
+        hint:
+          "STRIPE_WEBHOOK_SECRET must match the signing secret for this exact webhook URL in Stripe. Rotate the secret in Stripe and update Supabase if you recreated the endpoint.",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const supabaseAdmin = createClient(
@@ -87,35 +102,6 @@ Deno.serve(async (req: Request) => {
     headers: { "Content-Type": "application/json" },
   });
 });
-
-function computeCrittrProUntil(sub: Stripe.Subscription): string | null {
-  const st = sub.status;
-  if (st === "trialing" && sub.trial_end) {
-    return new Date(sub.trial_end * 1000).toISOString();
-  }
-  if (st === "active" && sub.current_period_end) {
-    return new Date(sub.current_period_end * 1000).toISOString();
-  }
-  if (st === "past_due" && sub.current_period_end) {
-    return new Date(sub.current_period_end * 1000).toISOString();
-  }
-  if (st === "canceled" && sub.current_period_end) {
-    const endMs = sub.current_period_end * 1000;
-    if (endMs > Date.now()) {
-      return new Date(endMs).toISOString();
-    }
-    return null;
-  }
-  if (
-    st === "unpaid" ||
-    st === "incomplete" ||
-    st === "incomplete_expired" ||
-    st === "paused"
-  ) {
-    return null;
-  }
-  return null;
-}
 
 async function syncSubscription(admin: SupabaseClient, sub: Stripe.Subscription) {
   const userId = sub.metadata?.supabase_user_id;
