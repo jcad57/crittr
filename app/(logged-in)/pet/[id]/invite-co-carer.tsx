@@ -13,13 +13,13 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function InviteCoCarerScreen() {
@@ -97,12 +97,13 @@ export default function InviteCoCarerScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           { paddingBottom: scrollInsetBottom + 24 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -159,7 +160,7 @@ export default function InviteCoCarerScreen() {
         >
           Send invite
         </OrangeButton>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

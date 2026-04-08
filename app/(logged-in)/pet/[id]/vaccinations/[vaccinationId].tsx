@@ -28,6 +28,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -68,7 +69,7 @@ export default function EditPetVaccinationScreen() {
   const insertMut = useInsertPetVaccinationMutation(petId ?? "");
   const updateMut = useUpdatePetVaccinationMutation(petId ?? "");
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
-  const { isPro, replaceWithUpgrade } = useProGateNavigation();
+  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
@@ -147,6 +148,7 @@ export default function EditPetVaccinationScreen() {
   useLayoutEffect(() => {
     if (!isNew || !details) return;
     if (canManageVaccinations !== true) return;
+    if (!isProfileReady) return;
     if ((details.vaccinations?.length ?? 0) >= 1 && !isPro) {
       replaceWithUpgrade();
     }
@@ -154,6 +156,7 @@ export default function EditPetVaccinationScreen() {
     isNew,
     details,
     isPro,
+    isProfileReady,
     replaceWithUpgrade,
     canManageVaccinations,
   ]);
@@ -299,10 +302,10 @@ export default function EditPetVaccinationScreen() {
       </View>
 
       <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
-          contentInsetAdjustmentBehavior="never"
+          bottomOffset={20}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
@@ -364,7 +367,7 @@ export default function EditPetVaccinationScreen() {
               </Pressable>
             ) : null}
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );

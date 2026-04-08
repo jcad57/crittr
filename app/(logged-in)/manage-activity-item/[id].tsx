@@ -33,12 +33,12 @@ import {
   Alert,
   BackHandler,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function navTitleForActivityType(t: string | null | undefined): string {
@@ -296,16 +296,16 @@ export default function ManageActivityItemScreen() {
         <Text style={styles.loggedAtHint}>{loggedAtLabel}</Text>
       ) : null}
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -382,7 +382,7 @@ export default function ManageActivityItemScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

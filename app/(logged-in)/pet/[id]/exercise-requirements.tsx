@@ -26,6 +26,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ExerciseRequirementsScreen() {
@@ -188,16 +189,16 @@ export default function ExerciseRequirementsScreen() {
         <View style={styles.navSpacer} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -245,7 +246,7 @@ export default function ExerciseRequirementsScreen() {
             </OrangeButton>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

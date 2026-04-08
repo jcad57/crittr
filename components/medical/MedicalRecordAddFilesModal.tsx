@@ -26,7 +26,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SHEET_SLIDE_DISTANCE = Math.min(480, Dimensions.get("window").height * 0.55);
+const SHEET_SLIDE_DISTANCE = Math.min(
+  480,
+  Dimensions.get("window").height * 0.55,
+);
 
 export type PendingMedicalFile = {
   key: string;
@@ -59,7 +62,9 @@ export default function MedicalRecordAddFilesModal({
   /** Keeps Modal mounted until exit animation finishes. */
   const [modalMounted, setModalMounted] = useState(false);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(SHEET_SLIDE_DISTANCE)).current;
+  const sheetTranslateY = useRef(
+    new Animated.Value(SHEET_SLIDE_DISTANCE),
+  ).current;
   const openAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   const closeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   /** True once user has opened the modal at least once this session (skip close anim on cold start). */
@@ -194,7 +199,7 @@ export default function MedicalRecordAddFilesModal({
 
         <KeyboardAvoidingView
           style={styles.keyboardWrap}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           pointerEvents="box-none"
         >
           <Animated.View

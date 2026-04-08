@@ -9,6 +9,7 @@ import DateTimePicker, {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -61,6 +62,7 @@ export default function MealPortionEditorModal({
     setAttempted(true);
     if (!portionSize.trim()) return;
     if (!initial) return;
+    Keyboard.dismiss();
     onSave({
       ...initial,
       portionSize: portionSize.trim(),
@@ -94,19 +96,35 @@ export default function MealPortionEditorModal({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        onClose();
+      }}
     >
       <View style={styles.modalRoot}>
         <View style={styles.overlay}>
           <Pressable
             style={styles.backdrop}
-            onPress={onClose}
+            onPress={() => {
+              Keyboard.dismiss();
+              onClose();
+            }}
             accessibilityLabel="Dismiss"
           />
-          <View style={styles.sheet}>
+          <Pressable
+            style={styles.sheet}
+            onPress={Keyboard.dismiss}
+          >
             <View style={styles.header}>
               <Text style={styles.headerTitle}>{title}</Text>
-              <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
+              <Pressable
+                onPress={() => {
+                  Keyboard.dismiss();
+                  onClose();
+                }}
+                hitSlop={12}
+                accessibilityLabel="Close"
+              >
                 <MaterialCommunityIcons
                   name="close"
                   size={24}
@@ -154,7 +172,10 @@ export default function MealPortionEditorModal({
             <Text style={styles.fieldLabel}>Feeding time</Text>
             <Pressable
               style={styles.timeRow}
-              onPress={() => setTimePickerOpen(true)}
+              onPress={() => {
+                Keyboard.dismiss();
+                setTimePickerOpen(true);
+              }}
             >
               <MaterialCommunityIcons
                 name="clock-outline"
@@ -172,7 +193,7 @@ export default function MealPortionEditorModal({
             <OrangeButton style={styles.saveBtn} onPress={handleSave}>
               Save portion
             </OrangeButton>
-          </View>
+          </Pressable>
         </View>
 
         {/*

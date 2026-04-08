@@ -34,6 +34,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,6 +42,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
@@ -69,7 +71,7 @@ export default function EditPetFoodScreen() {
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const insertMut = useInsertPetFoodMutation(petId ?? "");
   const updateMut = useUpdatePetFoodMutation(petId ?? "");
-  const { isPro, replaceWithUpgrade } = useProGateNavigation();
+  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const existing = !isNew
     ? details?.foods.find((f) => f.id === foodIdParam)
@@ -204,10 +206,18 @@ export default function EditPetFoodScreen() {
   useLayoutEffect(() => {
     if (!isNew || !details) return;
     if (canManageFood !== true) return;
+    if (!isProfileReady) return;
     if ((details.foods?.length ?? 0) >= 1 && !isPro) {
       replaceWithUpgrade();
     }
-  }, [isNew, details, isPro, replaceWithUpgrade, canManageFood]);
+  }, [
+    isNew,
+    details,
+    isPro,
+    isProfileReady,
+    replaceWithUpgrade,
+    canManageFood,
+  ]);
 
   if (isLoading && !details) {
     return (
@@ -404,20 +414,21 @@ export default function EditPetFoodScreen() {
         <View style={styles.navSpacer} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <View
+        <Pressable
           style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
+          onPress={Keyboard.dismiss}
         >
           <View>
             <Text style={styles.lead}>
@@ -651,8 +662,8 @@ export default function EditPetFoodScreen() {
               {isNew ? "Add food" : "Save changes"}
             </OrangeButton>
           </View>
-        </View>
-      </ScrollView>
+        </Pressable>
+      </KeyboardAwareScrollView>
 
       <MealPortionEditorModal
         visible={portionModalVisible}

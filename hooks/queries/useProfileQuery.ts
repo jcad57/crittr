@@ -11,15 +11,14 @@ export function useProfileQuery() {
   const userId = useAuthStore((s) => s.session?.user?.id);
   const profileFromAuth = useAuthStore((s) => s.profile);
 
-  const initial =
+  /** Zustand snapshot only — `isPlaceholderData` stays true until the first server fetch completes. */
+  const placeholder =
     userId && profileFromAuth?.id === userId ? profileFromAuth : undefined;
 
   return useQuery({
     queryKey: profileQueryKey(userId ?? ""),
     queryFn: () => fetchProfile(userId!),
     enabled: !!userId,
-    initialData: initial,
-    /** Treat hydrated Zustand snapshot as stale so we still sync from the server on mount. */
-    initialDataUpdatedAt: initial ? 0 : undefined,
+    placeholderData: placeholder,
   });
 }

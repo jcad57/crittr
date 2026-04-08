@@ -3,8 +3,8 @@ import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/constants/colors";
+import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   usePetDetailsQuery,
@@ -18,14 +18,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetNameAndBreedScreen() {
@@ -85,7 +84,9 @@ export default function EditPetNameAndBreedScreen() {
 
   if (isLoading || !details) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -93,7 +94,9 @@ export default function EditPetNameAndBreedScreen() {
 
   if (canEditProfile === undefined) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -142,18 +145,13 @@ export default function EditPetNameAndBreedScreen() {
         <View style={styles.navSpacer} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
+      <KeyboardAwareScrollView
+        style={[styles.keyboardAvoid, styles.scroll]}
+        contentContainerStyle={styles.scrollBody}
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollBody}
-          contentInsetAdjustmentBehavior="never"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
           <Text style={styles.lead}>
             Update how this pet appears on their profile and around the app.
           </Text>
@@ -177,8 +175,6 @@ export default function EditPetNameAndBreedScreen() {
             suggestions={breedNames}
             containerStyle={styles.field}
           />
-        </ScrollView>
-
         <View
           style={[styles.saveFooter, { paddingBottom: scrollInsetBottom + 16 }]}
         >
@@ -186,7 +182,7 @@ export default function EditPetNameAndBreedScreen() {
             Save changes
           </OrangeButton>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

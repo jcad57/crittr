@@ -37,6 +37,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function formatBytes(n: number | null): string {
@@ -359,13 +360,14 @@ export default function PetInsuranceScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
@@ -375,8 +377,8 @@ export default function PetInsuranceScreen() {
         >
           <View style={styles.formMain}>
             <Text style={styles.lead}>
-              Keep your carrier, policy number, and a copy of your policy PDF or
-              photos in one place.
+              Keep your pet's insurance policy number, and a copy of your policy
+              PDF or photos in one place.
             </Text>
 
             <PetInsuranceToggle value={isInsured} onChange={setIsInsured} />
@@ -542,11 +544,7 @@ export default function PetInsuranceScreen() {
                   </>
                 )}
               </>
-            ) : (
-              <Text style={styles.hintWhenOff}>
-                You can turn this on anytime if you get coverage.
-              </Text>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.actionsBlock}>
@@ -560,7 +558,7 @@ export default function PetInsuranceScreen() {
             </OrangeButton>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

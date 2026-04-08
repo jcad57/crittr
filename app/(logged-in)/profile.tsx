@@ -37,12 +37,12 @@ import {
   Linking,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -463,12 +463,14 @@ export default function UserProfileScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: scrollInsetBottom },
         ]}
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ───────────────────────────────────────── */}
@@ -822,7 +824,7 @@ export default function UserProfileScreen() {
             color={Colors.gray400}
           />
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

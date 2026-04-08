@@ -1,22 +1,64 @@
 import type { Pet } from "@/types/database";
+import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
-  formatPetAgeYearsOld,
   formatPetTypeLabel,
   formatPetWeightDisplay,
+  parseDateOnlyYmd,
 } from "@/utils/petDisplay";
+
+/** Breed line (custom breed or pet type label). */
+export function getPetListBreedLabel(pet: Pet): string {
+  const b = pet.breed?.trim();
+  if (b) return b;
+  return formatPetTypeLabel(pet.pet_type);
+}
+
+/**
+ * Compact age for pet list cards, e.g. "6 yrs", "1 yr", "<1 yr", or "—".
+ * Uses stored `age` / `age_months` when present; otherwise derives from `date_of_birth`.
+ */
+export function getPetAgeCompactYrs(pet: Pet): string {
+  const storedY = pet.age;
+  const storedM = pet.age_months;
+  const hasStored =
+    storedY != null || (storedM != null && storedM > 0);
+
+  if (hasStored) {
+    const y = storedY ?? 0;
+    const mo = storedM ?? 0;
+    if (y === 0 && mo > 0) return "<1 yr";
+    if (y === 0 && mo === 0) return "<1 yr";
+    if (y === 1) return "1 yr";
+    return `${y} yrs`;
+  }
+
+  const dobRaw =
+    typeof pet.date_of_birth === "string"
+      ? pet.date_of_birth
+      : pet.date_of_birth != null
+        ? String(pet.date_of_birth)
+        : "";
+  const ymd = parseDateOnlyYmd(dobRaw);
+  if (ymd) {
+    const { years, months } = yearsMonthsFromBirthDate(ymd);
+    if (years === 0) return "<1 yr";
+    if (years === 1) return "1 yr";
+    return `${years} yrs`;
+  }
+
+  return "—";
+}
 
 /** Breed · sex and age separately so My Pets can stack age on narrow screens. */
 export function getPetListSublineParts(pet: Pet): { primary: string; age: string } {
-  const breed = pet.breed?.trim() || formatPetTypeLabel(pet.pet_type);
+  const breed = getPetListBreedLabel(pet);
   const sex =
     pet.sex === "female"
       ? "Female"
       : pet.sex === "male"
         ? "Male"
         : "—";
-  const hasAge =
-    pet.age != null || (pet.age_months != null && pet.age_months > 0);
-  const age = hasAge ? formatPetAgeYearsOld(pet) : "—";
+  const age = getPetAgeCompactYrs(pet);
   return {
     primary: `${breed} · ${sex}`,
     age,

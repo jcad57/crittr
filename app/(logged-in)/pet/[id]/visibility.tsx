@@ -28,7 +28,9 @@ export default function PetVisibilityScreen() {
 
   if (isLoading || !details || !petId) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -65,30 +67,27 @@ export default function PetVisibilityScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Choose how {name} appears across Crittr. Active companions show on
-          Dashboard and in flows where you pick a pet to log something.
-          Memorializing keeps their profile in My pets with a gentle
-          remembrance style, and they won&apos;t appear in those active
-          pickers.
+          Choose how {name} appears across Crittr. Memorializing keeps their
+          profile in My pets with a gentle remembrance style, and they
+          won&apos;t appear in those active pickers.
         </Text>
+        <View style={styles.ctaContainer}>
+          <OrangeButton
+            onPress={() =>
+              push(`/(logged-in)/pet/${petId}/memorialize-pet` as Href)
+            }
+            style={styles.cta}
+          >
+            Memorialize or restore
+          </OrangeButton>
 
-        <OrangeButton
-          onPress={() =>
-            push(`/(logged-in)/pet/${petId}/memorialize-pet` as Href)
-          }
-          style={styles.cta}
-        >
-          Memorialize or restore
-        </OrangeButton>
-
-        <Pressable
-          style={styles.deleteLink}
-          onPress={() =>
-            push(`/(logged-in)/pet/${petId}/delete-pet` as Href)
-          }
-        >
-          <Text style={styles.deleteLinkText}>Delete pet permanently…</Text>
-        </Pressable>
+          <Pressable
+            style={styles.deleteLink}
+            onPress={() => push(`/(logged-in)/pet/${petId}/delete-pet` as Href)}
+          >
+            <Text style={styles.deleteLinkText}>Delete pet permanently…</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -136,6 +135,8 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     paddingTop: 8,
+    justifyContent: "space-between",
+    flex: 1,
   },
   lead: {
     fontFamily: Font.uiRegular,
@@ -144,12 +145,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
   },
+  ctaContainer: {
+    alignItems: "center",
+  },
   cta: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   deleteLink: {
     alignSelf: "flex-start",
-    paddingVertical: 8,
+    paddingTop: 8,
+    alignItems: "center",
+    width: "100%",
   },
   deleteLinkText: {
     fontFamily: Font.uiSemiBold,

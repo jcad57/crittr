@@ -9,17 +9,17 @@ import { StyleSheet, Text, View } from "react-native";
 export default function CoCareReadOnlyNotice() {
   return (
     <View style={styles.box} accessibilityRole="alert">
-      <MaterialCommunityIcons
-        name="lock-outline"
-        size={20}
-        color={Colors.lavenderDark}
-        style={styles.icon}
-      />
-      <Text style={styles.title}>View only</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <MaterialCommunityIcons
+          name="lock-outline"
+          size={20}
+          color={Colors.lavenderDark}
+          style={styles.icon}
+        />
+        <Text style={styles.title}>View only</Text>
+      </View>
       <Text style={styles.body}>
-        You don't have permission to update these details. Ask the primary
-        caretaker to adjust your co-care permissions if you need to make
-        changes.
+        You don't have permission to update these details.
       </Text>
     </View>
   );
@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "rgba(107, 92, 163, 0.2)",
+    flexDirection: "column",
   },
   icon: {
     marginBottom: 8,

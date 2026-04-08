@@ -4,13 +4,13 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import {
-  Image as RNImage,
   Platform,
-  ScrollView,
+  Image as RNImage,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const WELCOME_BG = require("@/assets/images/welcome-bg.png");
@@ -45,9 +45,11 @@ export default function OnboardingCard({
 }: OnboardingCardProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const welcomeBgHeight = welcomeBackground ? windowWidth * WELCOME_BG_ASPECT : 0;
+  const welcomeBgHeight = welcomeBackground
+    ? windowWidth * WELCOME_BG_ASPECT
+    : 0;
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
 
   useEffect(() => {
     if (scrollBody) {
@@ -61,8 +63,7 @@ export default function OnboardingCard({
    * blank space. No flexGrow/center on the scroll body: content height stays natural so the
    * list only scrolls when it overflows.
    */
-  const scrollTopWithHeaderOverlay =
-    insets.top + 12 + 8 + 16 + 8;
+  const scrollTopWithHeaderOverlay = insets.top + 12;
   /** Bottom inset only — do not mirror the large top reserve or content becomes taller than the viewport and scrolls with empty space. */
   const scrollBottomPad = Math.max(insets.bottom + 16, scrollInsetBottom);
 
@@ -125,9 +126,12 @@ export default function OnboardingCard({
       {headerNode}
 
       {scrollBody ? (
-        <ScrollView
+        <KeyboardAwareScrollView
           ref={scrollRef}
-          style={[styles.flex, welcomeBackground && styles.scrollAboveWelcomeBg]}
+          style={[
+            styles.flex,
+            welcomeBackground && styles.scrollAboveWelcomeBg,
+          ]}
           contentContainerStyle={[
             styles.scrollContent,
             {
@@ -139,10 +143,10 @@ export default function OnboardingCard({
               }),
             },
           ]}
+          bottomOffset={20}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets
           alwaysBounceVertical={false}
           removeClippedSubviews={!welcomeBackground}
           {...(Platform.OS === "android"
@@ -160,7 +164,7 @@ export default function OnboardingCard({
           >
             {children}
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       ) : (
         <View
           style={[

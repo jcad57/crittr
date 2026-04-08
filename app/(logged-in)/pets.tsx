@@ -3,12 +3,12 @@ import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { sortPetsByCreatedAt } from "@/lib/petSort";
 import type { Pet, PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useCrittrProStore } from "@/stores/crittrProStore";
 import type { Href } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
@@ -25,14 +25,12 @@ export default function PetsScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
-  const isMockPro = useCrittrProStore((s) => s.isMockPro);
+  const { runWithProOrUpgrade } = useProGateNavigation();
   const goToAddPet = useCallback(() => {
-    if (isMockPro) {
+    runWithProOrUpgrade(() => {
       push("/(logged-in)/add-pet" as Href);
-    } else {
-      push("/(logged-in)/upgrade" as Href);
-    }
-  }, [isMockPro, push]);
+    });
+  }, [runWithProOrUpgrade, push]);
   const { data, isLoading } = usePetsQuery();
   const dbPets: Pet[] | undefined = data;
   const ordered = useMemo(() => {

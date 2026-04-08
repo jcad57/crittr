@@ -17,11 +17,11 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { isMedicationDueToday } from "@/lib/healthTraffic";
 import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
 import { medicationActivityFormForQuickLog } from "@/lib/medicationQuickLogForm";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetStore } from "@/stores/petStore";
 import { useCallback, useEffect, useMemo } from "react";
 import {
@@ -120,9 +120,7 @@ export default function HealthScreen() {
   const todayActivitiesReady = petIds.length === 0 || todayActivitiesFetched;
 
   const showBanner =
-    todayActivitiesReady &&
-    dueTodayMeds.length > 0 &&
-    filteredMeds.length > 0;
+    todayActivitiesReady && dueTodayMeds.length > 0 && filteredMeds.length > 0;
 
   const handleMarkBannerDone = useCallback(async () => {
     const med = dueTodayMeds[0];
@@ -142,10 +140,7 @@ export default function HealthScreen() {
         loggedAtIso: new Date().toISOString(),
       });
     } catch (e) {
-      Alert.alert(
-        "Couldn't log dose",
-        getErrorMessage(e) ?? "Try again.",
-      );
+      Alert.alert("Couldn't log dose", getErrorMessage(e) ?? "Try again.");
     }
   }, [dueTodayMeds, canLogActivities, logMedicationMut]);
 
@@ -175,8 +170,7 @@ export default function HealthScreen() {
         icon: "cellphone-nfc",
         iconBg: Colors.skyLight,
         iconColor: Colors.skyDark,
-        onPress: () =>
-          push(`/(logged-in)/pet/${effectivePetId}/microchip`),
+        onPress: () => push(`/(logged-in)/pet/${effectivePetId}/microchip`),
       },
       {
         id: "medical-records",
@@ -203,9 +197,7 @@ export default function HealthScreen() {
 
   if (isLoading && !data) {
     return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
-      >
+      <View style={[styles.screen, styles.centered]}>
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -213,9 +205,7 @@ export default function HealthScreen() {
 
   if (isError) {
     return (
-      <View
-        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
-      >
+      <View style={[styles.screen, styles.centered]}>
         <Text style={styles.errorText}>
           {error?.message ?? "Could not load health data. Try again."}
         </Text>
@@ -275,7 +265,9 @@ export default function HealthScreen() {
               void handleMarkBannerDone();
             }}
             loading={logMedicationMut.isPending}
-            disabled={canLogActivities === false || canLogActivities === undefined}
+            disabled={
+              canLogActivities === false || canLogActivities === undefined
+            }
           />
         ) : null}
 
@@ -283,8 +275,7 @@ export default function HealthScreen() {
           title="MEDICATIONS"
           onAddPress={
             effectivePetId && canManageMedications === true
-              ? () =>
-                  push(`/(logged-in)/pet/${effectivePetId}/medications`)
+              ? () => push(`/(logged-in)/pet/${effectivePetId}/medications`)
               : undefined
           }
         />
@@ -304,9 +295,7 @@ export default function HealthScreen() {
                   item={m}
                   isLast={i === filteredMeds.length - 1}
                   onPress={() =>
-                    push(
-                      `/(logged-in)/pet/${m.pet_id}/medications/${m.id}`,
-                    )
+                    push(`/(logged-in)/pet/${m.pet_id}/medications/${m.id}`)
                   }
                   dosageLabel={dosageLabel}
                   dosageComplete={dosageLabel ? prog.isComplete : undefined}

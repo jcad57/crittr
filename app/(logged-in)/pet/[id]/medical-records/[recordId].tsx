@@ -28,13 +28,13 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function formatBytes(n: number | null): string {
@@ -259,13 +259,14 @@ export default function EditMedicalRecordScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
@@ -397,7 +398,7 @@ export default function EditMedicalRecordScreen() {
             </View>
           ) : null}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <MedicalRecordAddFilesModal
         visible={addOpen}

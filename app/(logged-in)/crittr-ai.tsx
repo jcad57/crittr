@@ -5,15 +5,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ChatTurn = { role: "user" | "assistant"; text: string };
@@ -36,18 +34,22 @@ export default function CrittrAiScreen() {
   const send = () => {
     const t = input.trim();
     if (!t) return;
-    setMessages((m) => [...m, { role: "user", text: t }, { role: "assistant", text: MOCK_REPLY }]);
+    setMessages((m) => [
+      ...m,
+      { role: "user", text: t },
+      { role: "assistant", text: MOCK_REPLY },
+    ]);
     setInput("");
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={insets.top}
-    >
+    <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backHit}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.backHit}
+        >
           <MaterialCommunityIcons
             name="chevron-left"
             size={28}
@@ -60,16 +62,21 @@ export default function CrittrAiScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollInner,
           { paddingBottom: scrollInsetBottom + 100 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.betaPill}>
-          <MaterialCommunityIcons name="flask-outline" size={14} color={Colors.orange} />
+          <MaterialCommunityIcons
+            name="flask-outline"
+            size={14}
+            color={Colors.orange}
+          />
           <Text style={styles.betaText}>Preview</Text>
         </View>
         {messages.map((msg, i) => (
@@ -90,7 +97,7 @@ export default function CrittrAiScreen() {
             </Text>
           </View>
         ))}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View
         style={[
@@ -109,12 +116,15 @@ export default function CrittrAiScreen() {
         />
         <Pressable
           onPress={send}
-          style={({ pressed }) => [styles.sendBtn, pressed && styles.sendBtnPressed]}
+          style={({ pressed }) => [
+            styles.sendBtn,
+            pressed && styles.sendBtnPressed,
+          ]}
         >
           <MaterialCommunityIcons name="send" size={22} color={Colors.white} />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

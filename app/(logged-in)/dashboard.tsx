@@ -38,7 +38,7 @@ import {
 import { isPetActiveForDashboard } from "@/lib/petParticipation";
 import { dailyProgressFoodTarget, isTreatFood } from "@/lib/petFood";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useCrittrProStore } from "@/stores/crittrProStore";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
@@ -49,15 +49,13 @@ export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
-  const isMockPro = useCrittrProStore((s) => s.isMockPro);
+  const { runWithProOrUpgrade } = useProGateNavigation();
 
   const goToAddPet = useCallback(() => {
-    if (isMockPro) {
+    runWithProOrUpgrade(() => {
       push("/(logged-in)/add-pet" as Href);
-    } else {
-      push("/(logged-in)/upgrade" as Href);
-    }
-  }, [isMockPro, push]);
+    });
+  }, [runWithProOrUpgrade, push]);
 
   const {
     data: dbPets,

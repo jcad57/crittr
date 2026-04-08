@@ -14,14 +14,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditAccountScreen() {
@@ -111,10 +109,7 @@ export default function EditAccountScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.screen}>
       <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
         <Pressable
           style={styles.navButton}
@@ -134,12 +129,13 @@ export default function EditAccountScreen() {
         <View style={styles.navButton} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: scrollInsetBottom + 24 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -205,8 +201,8 @@ export default function EditAccountScreen() {
         >
           Save changes
         </OrangeButton>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

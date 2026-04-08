@@ -1,37 +1,36 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { usePetsQuery } from "@/hooks/queries";
 import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
 } from "@/hooks/queries/queryKeys";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
 import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { usePetsQuery } from "@/hooks/queries";
-import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import type { Pet } from "@/types/database";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -52,7 +51,9 @@ export default function AddVetVisitScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const { petId: rawPetIdParam } = useLocalSearchParams<{ petId?: string }>();
-  const petIdParam = Array.isArray(rawPetIdParam) ? rawPetIdParam[0] : rawPetIdParam;
+  const petIdParam = Array.isArray(rawPetIdParam)
+    ? rawPetIdParam[0]
+    : rawPetIdParam;
   const userId = useAuthStore((s) => s.session?.user?.id);
   const activePetId = usePetStore((s) => s.activePetId);
   const setActivePet = usePetStore((s) => s.setActivePet);
@@ -78,7 +79,7 @@ export default function AddVetVisitScreen() {
   }, [activePetId, pets]);
 
   const schedulingPet = useMemo(
-    () => (petId ? pets.find((p) => p.id === petId) ?? null : null),
+    () => (petId ? (pets.find((p) => p.id === petId) ?? null) : null),
     [pets, petId],
   );
 
@@ -182,9 +183,7 @@ export default function AddVetVisitScreen() {
           </Text>
           <View style={styles.navSideRight} />
         </View>
-        <Text style={styles.hint}>
-          Add a pet before scheduling a visit.
-        </Text>
+        <Text style={styles.hint}>Add a pet before scheduling a visit.</Text>
       </View>
     );
   }
@@ -216,7 +215,8 @@ export default function AddVetVisitScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           <CoCareReadOnlyNotice />
           <Text style={styles.hint}>
-            Scheduling vet visits requires permission from the primary caretaker.
+            Scheduling vet visits requires permission from the primary
+            caretaker.
           </Text>
         </View>
       </View>
@@ -224,10 +224,7 @@ export default function AddVetVisitScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardRoot}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.keyboardRoot}>
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <View style={styles.nav}>
           <View style={styles.navSideLeft}>
@@ -246,9 +243,10 @@ export default function AddVetVisitScreen() {
           </View>
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollBody}
+          bottomOffset={20}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
@@ -263,10 +261,7 @@ export default function AddVetVisitScreen() {
           />
 
           <Text style={styles.label}>When</Text>
-          <Pressable
-            style={styles.whenBtn}
-            onPress={() => setPickerOpen(true)}
-          >
+          <Pressable style={styles.whenBtn} onPress={() => setPickerOpen(true)}>
             <MaterialCommunityIcons
               name="calendar-clock"
               size={22}
@@ -293,7 +288,7 @@ export default function AddVetVisitScreen() {
             multiline
             textAlignVertical="top"
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         <View
           style={[
@@ -327,7 +322,7 @@ export default function AddVetVisitScreen() {
         cancelTextIOS="Cancel"
         buttonTextColorIOS={Colors.orange}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

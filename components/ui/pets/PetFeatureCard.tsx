@@ -1,17 +1,15 @@
 import { Colors } from "@/constants/colors";
+import { petTypeMaterialIcon } from "@/constants/petTypeIcons";
 import { Font } from "@/constants/typography";
 import type { Pet, PetRole } from "@/types/database";
-import { getPetListSublineParts } from "@/utils/petListHelpers";
+import {
+  getPetAgeCompactYrs,
+  getPetListBreedLabel,
+} from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export type PetFeatureVariant = "orange" | "dark" | "memorial";
 
@@ -23,14 +21,9 @@ type PetFeatureCardProps = {
 
 const RADIUS = 28;
 
-/** Below this width, breed/sex stay on line 1 and age moves to line 2. */
-const SUBLINE_STACK_WIDTH = 400;
-
 export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardProps) {
-  const { width: windowWidth } = useWindowDimensions();
-  const stackSubline = windowWidth < SUBLINE_STACK_WIDTH;
-  const { primary: sublinePrimary, age: sublineAge } =
-    getPetListSublineParts(pet);
+  const breedLabel = getPetListBreedLabel(pet);
+  const ageLabel = getPetAgeCompactYrs(pet);
   const { push } = useNavigationCooldown();
   const isMemorial = variant === "memorial";
   const isOrange = variant === "orange";
@@ -45,6 +38,11 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
     ? "rgba(255,255,255,0.75)"
     : "rgba(255,255,255,0.9)";
 
+  const metaIconColor = isMemorial
+    ? Colors.memorialTextMuted
+    : "rgba(255,255,255,0.88)";
+  const typeIcon = petTypeMaterialIcon(pet.pet_type);
+
   const goProfile = () => push(`/(logged-in)/pet/${pet.id}`);
 
   return (
@@ -53,7 +51,7 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
       onPress={goProfile}
       activeOpacity={0.88}
       accessibilityRole="button"
-      accessibilityLabel={`${pet.name}`}
+      accessibilityLabel={`${pet.name}, ${breedLabel}, ${ageLabel}`}
       accessibilityHint="Opens profile"
     >
       <View style={styles.topRow}>
@@ -74,33 +72,42 @@ export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardPro
           >
             {pet.name}
           </Text>
-          {stackSubline ? (
-            <View>
+
+          <View style={styles.metaRow}>
+            <View style={styles.metaChip}>
+              <MaterialCommunityIcons
+                name={typeIcon}
+                size={16}
+                color={metaIconColor}
+              />
               <Text
-                style={[styles.subline, isMemorial && styles.sublineMemorial]}
-                numberOfLines={2}
-              >
-                {sublinePrimary}
-              </Text>
-              <Text
-                style={[
-                  styles.subline,
-                  styles.sublineAgeSecondLine,
-                  isMemorial && styles.sublineMemorial,
-                ]}
+                style={[styles.metaText, isMemorial && styles.metaTextMemorial]}
                 numberOfLines={1}
               >
-                {sublineAge}
+                {breedLabel}
               </Text>
             </View>
-          ) : (
+
             <Text
-              style={[styles.subline, isMemorial && styles.sublineMemorial]}
-              numberOfLines={2}
+              style={[styles.metaDot, isMemorial && styles.metaDotMemorial]}
             >
-              {`${sublinePrimary} · ${sublineAge}`}
+              ·
             </Text>
-          )}
+            <View style={styles.metaChip}>
+              <MaterialCommunityIcons
+                name="cake-variant"
+                size={16}
+                color={metaIconColor}
+              />
+              <Text
+                style={[styles.metaText, isMemorial && styles.metaTextMemorial]}
+                numberOfLines={1}
+              >
+                {ageLabel}
+              </Text>
+            </View>
+          </View>
+
           {!isMemorial && role === "co_carer" ? (
             <View style={styles.coCarerBadge}>
               <MaterialCommunityIcons
@@ -213,18 +220,38 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255,255,255,0.96)",
   },
-  subline: {
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    maxWidth: "100%",
+    flexShrink: 1,
+  },
+  metaText: {
     fontFamily: Font.uiRegular,
     fontSize: 14,
-    color: "rgba(255,255,255,0.82)",
-    marginTop: 6,
-    lineHeight: 14,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 18,
+    flexShrink: 1,
   },
-  sublineMemorial: {
+  metaTextMemorial: {
     color: Colors.memorialTextMuted,
   },
-  sublineAgeSecondLine: {
-    marginTop: 4,
+  metaDot: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.45)",
+    lineHeight: 18,
+  },
+  metaDotMemorial: {
+    color: "rgba(255,255,255,0.35)",
   },
   avatar: {
     width: 72,

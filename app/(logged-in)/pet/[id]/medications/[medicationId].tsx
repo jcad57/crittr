@@ -26,7 +26,13 @@ import {
 import type { MedicationDosePeriod, PetMedication } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +42,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -151,7 +158,7 @@ export default function EditPetMedicationScreen() {
   const insertMut = useInsertMedicationMutation(petId ?? "");
   const updateMut = useUpdateMedicationMutation(petId ?? "");
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
-  const { isPro, replaceWithUpgrade } = useProGateNavigation();
+  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
   const [dosageAmount, setDosageAmount] = useState("");
@@ -339,6 +346,7 @@ export default function EditPetMedicationScreen() {
   useLayoutEffect(() => {
     if (!isNew || !details) return;
     if (canManageMedications !== true) return;
+    if (!isProfileReady) return;
     if ((details.medications?.length ?? 0) >= 1 && !isPro) {
       replaceWithUpgrade();
     }
@@ -346,6 +354,7 @@ export default function EditPetMedicationScreen() {
     isNew,
     details,
     isPro,
+    isProfileReady,
     replaceWithUpgrade,
     canManageMedications,
   ]);
@@ -519,10 +528,10 @@ export default function EditPetMedicationScreen() {
       </View>
 
       <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
-          contentInsetAdjustmentBehavior="never"
+          bottomOffset={20}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
@@ -730,7 +739,7 @@ export default function EditPetMedicationScreen() {
               ) : null}
             </View>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );

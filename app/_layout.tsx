@@ -1,6 +1,7 @@
 import SessionGate from "@/components/auth/SessionGate";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
@@ -8,8 +9,10 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <SessionGate />
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+        <StatusBar style="dark" />
+        <SessionGate />
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

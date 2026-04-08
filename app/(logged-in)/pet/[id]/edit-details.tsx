@@ -34,6 +34,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetDetailsScreen() {
@@ -230,13 +231,13 @@ export default function EditPetDetailsScreen() {
         <View style={styles.navSpacer} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           { paddingBottom: scrollInsetBottom + 24 },
         ]}
-        contentInsetAdjustmentBehavior="never"
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -302,7 +303,7 @@ export default function EditPetDetailsScreen() {
         >
           Save changes
         </OrangeButton>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

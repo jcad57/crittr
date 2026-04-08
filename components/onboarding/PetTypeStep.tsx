@@ -3,6 +3,10 @@ import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
+import {
+  PET_TYPE_ICON_MAP,
+  PET_TYPE_OPTIONS,
+} from "@/constants/petTypeIcons";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
 import type { PetType } from "@/types/database";
@@ -17,19 +21,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const PET_TYPES: {
-  id: PetType;
-  label: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-}[] = [
-  { id: "dog", label: "Dog", icon: "dog" },
-  { id: "cat", label: "Cat", icon: "cat" },
-  { id: "fish", label: "Fish", icon: "fish" },
-  { id: "bird", label: "Bird", icon: "bird" },
-  { id: "reptile", label: "Reptile", icon: "snake" },
-  { id: "small_mammal", label: "Small Mammal", icon: "paw" },
-];
 
 export default function PetTypeStep() {
   const {
@@ -86,7 +77,7 @@ export default function PetTypeStep() {
         Pet type *
       </Text>
       <View style={[styles.grid, typeMissing && styles.gridError]}>
-        {PET_TYPES.map((pt) => {
+        {PET_TYPE_OPTIONS.map((pt) => {
           const isActive = pet.petType === pt.id;
           return (
             <Pressable
@@ -98,7 +89,7 @@ export default function PetTypeStep() {
                 style={[styles.iconCircle, isActive && styles.iconCircleActive]}
               >
                 <MaterialCommunityIcons
-                  name={pt.icon}
+                  name={PET_TYPE_ICON_MAP[pt.id]}
                   size={28}
                   color={isActive ? Colors.orange : Colors.gray400}
                 />

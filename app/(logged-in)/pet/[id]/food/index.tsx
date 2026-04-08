@@ -1,18 +1,15 @@
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import {
-  useDeletePetFoodMutation,
-  usePetDetailsQuery,
-} from "@/hooks/queries";
+import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/lib/petFood";
 import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
@@ -74,7 +71,9 @@ export default function PetFoodManagerScreen() {
 
   if (isLoading && !details) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -90,7 +89,9 @@ export default function PetFoodManagerScreen() {
 
   if (canManageFood === undefined) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -125,7 +126,7 @@ export default function PetFoodManagerScreen() {
       >
         <Text style={styles.lead}>
           {canEditFood
-            ? "Tap a food to edit it, or add a new meal or treat. Use ✕ to remove an item."
+            ? `Keep track of all your pet's meals and treats here. You can use these saved foods when logging activities for ${details.name}.`
             : "Tap a food to view its details."}
         </Text>
 

@@ -35,6 +35,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SAVE_LABEL = "Save";
@@ -64,7 +65,7 @@ export default function AddActivityScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
 
   const step = useActivityFormStore((s) => s.step);
@@ -297,7 +298,7 @@ export default function AddActivityScreen() {
         <PetNavAvatar accessibilityLabelPrefix="Logging activity for" />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[
@@ -305,9 +306,9 @@ export default function AddActivityScreen() {
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
         {step === "type" ? (
@@ -411,7 +412,7 @@ export default function AddActivityScreen() {
             </View>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

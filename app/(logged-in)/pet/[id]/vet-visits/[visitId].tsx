@@ -35,6 +35,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -272,16 +273,16 @@ export default function EditVetVisitScreen() {
         <View style={styles.navSpacer} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           styles.scrollContentGrow,
           { paddingBottom: scrollInsetBottom + 32 },
         ]}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -354,7 +355,7 @@ export default function EditVetVisitScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <DateTimePickerModal
         isVisible={pickerOpen}

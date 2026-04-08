@@ -1,9 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import {
-  useDeletePetMutation,
-  usePetDetailsQuery,
-} from "@/hooks/queries";
+import { useDeletePetMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback } from "react";
@@ -57,7 +54,9 @@ export default function DeletePetScreen() {
 
   if (isLoading || !details || !petId) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
@@ -84,18 +83,22 @@ export default function DeletePetScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lead}>
-          Permanently deleting removes {details.name} from My pets and deletes
-          their profile and related records from our database. Use this only if
-          you want every trace of this pet removed from the app.
-        </Text>
-        <Text style={styles.bullet}>
-          If your pet passed away and you want to keep their profile for
-          remembrance, use Memorialize instead (from My pets).
-        </Text>
-
+        <View>
+          <Text style={styles.lead}>
+            Permanently deleting removes {details.name} from My pets and deletes
+            their profile and related records from our database. This is not
+            reversible.
+          </Text>
+          <Text style={styles.bullet}>
+            If your pet passed away and you want to keep their profile for
+            remembrance, use Memorialize instead (from My pets).
+          </Text>
+        </View>
         <Pressable
-          style={[styles.deleteBtn, deleteMut.isPending && styles.deleteBtnDisabled]}
+          style={[
+            styles.deleteBtn,
+            deleteMut.isPending && styles.deleteBtnDisabled,
+          ]}
           onPress={confirmDelete}
           disabled={deleteMut.isPending}
         >
@@ -142,6 +145,8 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     paddingTop: 8,
+    justifyContent: "space-between",
+    flex: 1,
   },
   lead: {
     fontFamily: Font.uiRegular,

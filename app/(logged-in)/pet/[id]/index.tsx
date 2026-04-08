@@ -15,11 +15,6 @@ import RecordsNavCard, {
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import type {
-  FeedingSchedule,
-  MedicationSummary,
-  PetProfile,
-} from "@/types/ui";
 import {
   petDetailsQueryKey,
   petsQueryKey,
@@ -29,6 +24,7 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
 import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
@@ -40,10 +36,14 @@ import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   PetActivity,
-  PetFood,
   PetVaccination,
   PetWithDetails,
 } from "@/types/database";
+import type {
+  FeedingSchedule,
+  MedicationSummary,
+  PetProfile,
+} from "@/types/ui";
 import {
   formatBirthdayChip,
   formatDateOfBirth,
@@ -55,7 +55,6 @@ import {
   parseDateOnlyYmd,
 } from "@/utils/petDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -336,13 +335,13 @@ export default function PetProfilePage() {
       return "Not set";
     })();
     const chipSub = profile.microchipNumber?.trim()
-      ? `${profile.microchipNumber.trim()} · on file`
+      ? `ID: ${profile.microchipNumber.trim()}`
       : "Add microchip number and registry info";
     return [
       {
         id: "medical",
         title: "Medical records",
-        subtitle: "Visits, vaccinations, labs",
+        subtitle: "Upload and view medical records",
         icon: "clipboard-check-outline",
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
@@ -352,7 +351,7 @@ export default function PetProfilePage() {
       {
         id: "vaccinations",
         title: "Vaccinations",
-        subtitle: "View and add shots",
+        subtitle: "Add your pet's vaccination history",
         icon: "calendar-month",
         iconBg: Colors.mintLight,
         iconColor: Colors.successDark,
@@ -371,17 +370,16 @@ export default function PetProfilePage() {
       {
         id: "insurance",
         title: "Insurance",
-        subtitle: insSub,
+        subtitle: "Add or view insurance details",
         icon: "shield-check",
         iconBg: Colors.lavenderLight,
         iconColor: Colors.lavenderDark,
-        onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/insurance` as Href),
+        onPress: () => push(`/(logged-in)/pet/${profile.id}/insurance` as Href),
       },
       {
         id: "activity",
         title: "Activity history",
-        subtitle: "Walks, meals, treats",
+        subtitle: `View ${profile.name}'s activity history`,
         icon: "clock-outline",
         iconBg: Colors.amberLight,
         iconColor: Colors.amberDark,
@@ -402,7 +400,7 @@ export default function PetProfilePage() {
       items.push({
         id: "visibility",
         title: "Visibility",
-        subtitle: "Memorial, delete, and how this pet appears",
+        subtitle: "Memorialize or delete a pet permanently",
         icon: "eye-outline",
         iconBg: Colors.orangeLight,
         iconColor: Colors.orange,
@@ -512,9 +510,7 @@ export default function PetProfilePage() {
           onEditNamePress={
             canEditProfile
               ? () =>
-                  push(
-                    `/(logged-in)/pet/${profile.id}/edit-name-breed` as Href,
-                  )
+                  push(`/(logged-in)/pet/${profile.id}/edit-name-breed` as Href)
               : undefined
           }
         />

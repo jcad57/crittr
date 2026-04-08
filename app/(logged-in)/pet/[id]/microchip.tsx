@@ -1,10 +1,12 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { petDetailsQueryKey, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { updatePetMicrochip } from "@/services/pets";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,9 +19,9 @@ import {
   Switch,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetMicrochipScreen() {
@@ -27,6 +29,7 @@ export default function PetMicrochipScreen() {
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scrollInsetBottom = useFloatingNavScrollInset();
   const queryClient = useQueryClient();
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
@@ -153,21 +156,21 @@ export default function PetMicrochipScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={styles.scrollContent}
+        bottomOffset={20}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Say whether your companion is microchipped. When they are, you can add
-          the ID number from their paperwork or registry.
+          If {details.name} is microchipped, you can add the ID number here.
         </Text>
 
         <View style={styles.toggleCard}>
-          <Text style={styles.toggleLabel}>Pet has a microchip</Text>
+          <Text style={styles.toggleLabel}>
+            {details.name} has a microchip
+          </Text>
           <Switch
             value={hasMicrochip}
             onValueChange={setHasMicrochip}
@@ -193,19 +196,23 @@ export default function PetMicrochipScreen() {
             />
           </>
         ) : null}
+      </KeyboardAwareScrollView>
 
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+      <View
+        style={[
+          styles.saveFooter,
+          { paddingBottom: Math.max(scrollInsetBottom, 12) },
+        ]}
+      >
+        <OrangeButton
           onPress={onSave}
+          loading={saving}
           disabled={saving}
+          style={styles.saveBtn}
         >
-          {saving ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
+          Save
+        </OrangeButton>
+      </View>
     </View>
   );
 }
@@ -255,6 +262,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 16,
     paddingTop: 8,
+    paddingBottom: 16,
+  },
+  saveFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.gray200,
+    backgroundColor: Colors.cream,
   },
   lead: {
     fontFamily: Font.uiRegular,
@@ -300,16 +315,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray200,
   },
   saveBtn: {
-    backgroundColor: Colors.orange,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  saveBtnDisabled: { opacity: 0.7 },
-  saveText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.white,
+    marginTop: 0,
   },
 });
