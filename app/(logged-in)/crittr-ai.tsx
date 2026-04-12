@@ -274,7 +274,10 @@ export default function CrittrAiScreen() {
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
-          onPress={() => router.replace("/(logged-in)/dashboard" as Href)}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(logged-in)/dashboard" as Href);
+          }}
           hitSlop={12}
           style={styles.backHit}
         >

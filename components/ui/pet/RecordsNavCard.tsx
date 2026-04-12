@@ -1,15 +1,20 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import type { ImageSourcePropType } from "react-native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export type RecordsNavItem = {
   id: string;
   title: string;
   subtitle: string;
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  /** Vector icon — omit when `iconImage` is set. */
+  icon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  /** PNG asset (e.g. pet profile records); matches food row icon sizing. */
+  iconImage?: ImageSourcePropType;
   iconBg: string;
-  iconColor: string;
+  iconColor?: string;
   onPress?: () => void;
   /** Default true. Set false for in-place actions (no navigation). */
   showChevron?: boolean;
@@ -41,11 +46,19 @@ export default function RecordsNavCard({ items }: RecordsNavCardProps) {
             disabled={!item.onPress}
           >
             <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
-              <MaterialCommunityIcons
-                name={item.icon}
-                size={22}
-                color={item.iconColor}
-              />
+              {item.iconImage != null ? (
+                <Image
+                  source={item.iconImage}
+                  style={styles.iconImage}
+                  contentFit="contain"
+                />
+              ) : (
+                <MaterialCommunityIcons
+                  name={item.icon!}
+                  size={24}
+                  color={item.iconColor ?? Colors.gray400}
+                />
+              )}
             </View>
             <View style={styles.textCol}>
               <Text
@@ -113,12 +126,17 @@ const styles = StyleSheet.create({
   chevronSpacer: {
     width: 22,
   },
+  /** Matches `PetFoodProfileCard` icon column (40×40, 26×26 artwork). */
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  iconImage: {
+    width: 26,
+    height: 26,
   },
   textCol: {
     flex: 1,

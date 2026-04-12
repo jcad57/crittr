@@ -67,7 +67,7 @@ const TABS: TabItem[] = [
   },
 ];
 
-/** True when `pathname` is already the tab’s root screen (same destination as `router.replace(href)`). */
+/** True when `pathname` is already the tab’s root screen (tapping again should no-op). */
 function isAlreadyOnTabRoot(tabId: TabId, pathname: string): boolean {
   const p = pathname.replace(/\/$/, "") || "/";
   switch (tabId) {
@@ -169,7 +169,15 @@ export default function FloatingBottomNav() {
               ]}
               onPress={() => {
                 if (isAlreadyOnTabRoot(tab.id, pathname)) return;
-                router.replace(tab.href);
+                if (tab.id === "more") {
+                  router.push(tab.href);
+                  return;
+                }
+                if (router.canDismiss()) {
+                  router.dismissTo(tab.href);
+                } else {
+                  router.navigate(tab.href);
+                }
               }}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}

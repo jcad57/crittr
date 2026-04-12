@@ -8,6 +8,7 @@ export {
   petInsuranceFilesQueryKey,
   petsQueryKey,
   profileQueryKey,
+  subscriptionDetailsQueryKey,
   profilesByIdsQueryKey,
   todayActivitiesForPetIdsKey,
   todayActivitiesForPetIdsPrefixKey,
@@ -30,6 +31,7 @@ export { usePetMedicalRecordsQuery } from "./usePetMedicalRecordsQuery";
 export { usePetMedicalRecordDetailQuery } from "./usePetMedicalRecordDetailQuery";
 export { usePetInsuranceFilesQuery } from "./usePetInsuranceFilesQuery";
 export { useProfileQuery } from "./useProfileQuery";
+export { useSubscriptionDetailsQuery } from "./useSubscriptionDetailsQuery";
 export { useProfilesByIdsQuery } from "./useProfilesByIdsQuery";
 export {
   useTodayActivitiesQuery,

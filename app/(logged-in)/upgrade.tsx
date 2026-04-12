@@ -108,7 +108,10 @@ export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
   const [billing, setBilling] = useState<BillingPeriod>("annual");
-  const params = useLocalSearchParams<{ fromOnboarding?: string }>();
+  const params = useLocalSearchParams<{
+    fromOnboarding?: string;
+    returnTo?: string;
+  }>();
   const fromOnboarding =
     params.fromOnboarding === "1" || params.fromOnboarding === "true";
 
@@ -180,9 +183,12 @@ export default function UpgradeScreen() {
         <ProTierCard
           billing={billing}
           onBillingChange={setBilling}
-          onCta={() =>
-            push(`/(logged-in)/pro-checkout?billing=${billing}` as Href)
-          }
+          onCta={() => {
+            const q = new URLSearchParams();
+            q.set("billing", billing);
+            if (params.returnTo) q.set("returnTo", params.returnTo);
+            push(`/(logged-in)/pro-checkout?${q.toString()}` as Href);
+          }}
           showNoThanks={fromOnboarding}
           onNoThanks={goToDashboard}
         />

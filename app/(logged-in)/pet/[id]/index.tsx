@@ -70,6 +70,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Pet profile Records / Manage rows — matches food-section PNG sizing via `RecordsNavCard`. */
+const PET_PROFILE_RECORD_ICONS = {
+  medicalRecords: require("@/assets/icons/medical-records-icon.png"),
+  calendar: require("@/assets/icons/calendar-icon.png"),
+  microchip: require("@/assets/icons/microchip-icon.png"),
+  insurance: require("@/assets/icons/insurance-icon.png"),
+  activity: require("@/assets/icons/pet-walk-icon.png"),
+  visibility: require("@/assets/icons/visibility-icon.png"),
+  coCare: require("@/assets/icons/co-care-icon.png"),
+} as const;
+
 // ─── Data mapping ────────────────────────────────────────────────────────────
 
 function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
@@ -342,9 +353,8 @@ export default function PetProfilePage() {
         id: "medical",
         title: "Medical records",
         subtitle: "Upload and view medical records",
-        icon: "clipboard-check-outline",
+        iconImage: PET_PROFILE_RECORD_ICONS.medicalRecords,
         iconBg: Colors.orangeLight,
-        iconColor: Colors.orange,
         onPress: () =>
           push(`/(logged-in)/pet/${profile.id}/medical-records` as Href),
       },
@@ -352,9 +362,8 @@ export default function PetProfilePage() {
         id: "vaccinations",
         title: "Vaccinations",
         subtitle: "Add your pet's vaccination history",
-        icon: "calendar-month",
+        iconImage: PET_PROFILE_RECORD_ICONS.calendar,
         iconBg: Colors.mintLight,
-        iconColor: Colors.successDark,
         onPress: () =>
           push(`/(logged-in)/pet/${profile.id}/vaccinations` as Href),
       },
@@ -362,27 +371,24 @@ export default function PetProfilePage() {
         id: "microchip",
         title: "Microchip details",
         subtitle: chipSub,
-        icon: "cellphone-nfc",
+        iconImage: PET_PROFILE_RECORD_ICONS.microchip,
         iconBg: Colors.skyLight,
-        iconColor: Colors.skyDark,
         onPress: () => push(`/pet/${profile.id}/microchip`),
       },
       {
         id: "insurance",
         title: "Insurance",
         subtitle: "Add or view insurance details",
-        icon: "shield-check",
+        iconImage: PET_PROFILE_RECORD_ICONS.insurance,
         iconBg: Colors.lavenderLight,
-        iconColor: Colors.lavenderDark,
         onPress: () => push(`/(logged-in)/pet/${profile.id}/insurance` as Href),
       },
       {
         id: "activity",
         title: "Activity history",
         subtitle: `View ${profile.name}'s activity history`,
-        icon: "clock-outline",
+        iconImage: PET_PROFILE_RECORD_ICONS.activity,
         iconBg: Colors.amberLight,
-        iconColor: Colors.amberDark,
         onPress: () =>
           push(
             `/(logged-in)/activity?petId=${encodeURIComponent(profile.id)}` as Href,
@@ -401,9 +407,8 @@ export default function PetProfilePage() {
         id: "visibility",
         title: "Visibility",
         subtitle: "Memorialize or delete a pet permanently",
-        icon: "eye-outline",
+        iconImage: PET_PROFILE_RECORD_ICONS.visibility,
         iconBg: Colors.orangeLight,
-        iconColor: Colors.orange,
         onPress: () =>
           push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
       });
@@ -411,9 +416,8 @@ export default function PetProfilePage() {
         id: "invite",
         title: `Co-carers for ${petName}`,
         subtitle: "Manage co-carers and permissions",
-        icon: "account-heart-outline",
+        iconImage: PET_PROFILE_RECORD_ICONS.coCare,
         iconBg: Colors.lavenderLight,
-        iconColor: Colors.lavenderDark,
         onPress: () =>
           runWithProOrUpgrade(() =>
             push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),

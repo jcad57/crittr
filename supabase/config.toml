@@ -14,3 +14,15 @@ verify_jwt = false
 
 [functions.crittr-ai-chat]
 verify_jwt = false
+
+[functions.submit-feedback]
+verify_jwt = false
+
+[functions.get-subscription-details]
+verify_jwt = false
+
+[functions.cancel-subscription]
+verify_jwt = false
+
+[functions.create-billing-portal-session]
+verify_jwt = false

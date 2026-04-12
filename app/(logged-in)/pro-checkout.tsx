@@ -3,7 +3,10 @@ import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/auth";
 import { useAuthStore } from "@/stores/authStore";
-import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import {
+  profileQueryKey,
+  subscriptionDetailsQueryKey,
+} from "@/hooks/queries/queryKeys";
 import {
   fetchSubscriptionPaymentSheetParams,
   waitForProActivation,
@@ -31,8 +34,9 @@ export default function ProCheckoutScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { session } = useAuth();
-  const { billing: billingParam } = useLocalSearchParams<{
+  const { billing: billingParam, returnTo } = useLocalSearchParams<{
     billing?: string;
+    returnTo?: string;
   }>();
 
   const billing: ProBillingParam =
@@ -149,8 +153,17 @@ export default function ProCheckoutScreen() {
           await queryClient.invalidateQueries({
             queryKey: profileQueryKey(uid),
           });
+          await queryClient.invalidateQueries({
+            queryKey: subscriptionDetailsQueryKey(uid),
+          });
         }
-        router.replace("/(logged-in)/welcome-to-pro" as Href);
+        const nextHref =
+          returnTo === "subscriptions"
+            ? "/(logged-in)/subscriptions"
+            : returnTo === "billing"
+              ? "/(logged-in)/billing"
+              : "/(logged-in)/welcome-to-pro";
+        router.replace(nextHref as Href);
       } catch (e) {
         if (cancelled) return;
         setErrorMessage(
@@ -165,7 +178,7 @@ export default function ProCheckoutScreen() {
     return () => {
       cancelled = true;
     };
-  }, [phase, queryClient, router, session?.user?.id]);
+  }, [phase, queryClient, router, returnTo, session?.user?.id]);
 
   // ── Retry handler ───────────────────────────────────────────────────
   const retry = useCallback(() => {

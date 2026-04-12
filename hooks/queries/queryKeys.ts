@@ -5,6 +5,9 @@
 export const profileQueryKey = (userId: string) =>
   ["profile", userId] as const;
 
+export const subscriptionDetailsQueryKey = (userId: string) =>
+  ["subscriptionDetails", userId] as const;
+
 /** Sorted ids string for stable cache keys. */
 export const profilesByIdsQueryKey = (sortedUserIds: string[]) =>
   ["profiles", "byIds", sortedUserIds.join(",")] as const;

@@ -34,6 +34,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Same assets as pet profile Records (`PET_PROFILE_RECORD_ICONS`). */
+const HEALTH_RECORDS_ICONS = {
+  medicalRecords: require("@/assets/icons/medical-records-icon.png"),
+  microchip: require("@/assets/icons/microchip-icon.png"),
+} as const;
+
 function filterByPet<T extends { pet_id: string }>(
   rows: T[],
   petId: string | null,
@@ -167,18 +173,16 @@ export default function HealthScreen() {
         id: "microchip",
         title: "Microchip details",
         subtitle: "Registry and ID",
-        icon: "cellphone-nfc",
+        iconImage: HEALTH_RECORDS_ICONS.microchip,
         iconBg: Colors.skyLight,
-        iconColor: Colors.skyDark,
         onPress: () => push(`/(logged-in)/pet/${effectivePetId}/microchip`),
       },
       {
         id: "medical-records",
         title: "Medical Records",
         subtitle: "Visit notes and your uploads",
-        icon: "clipboard-text-outline",
+        iconImage: HEALTH_RECORDS_ICONS.medicalRecords,
         iconBg: Colors.orangeLight,
-        iconColor: Colors.orange,
         onPress: () =>
           push(`/(logged-in)/pet/${effectivePetId}/medical-records`),
       },
