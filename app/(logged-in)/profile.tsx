@@ -409,6 +409,10 @@ export default function UserProfileScreen() {
     push("/(logged-in)/settings");
   }, [push]);
 
+  const openPushNotifications = useCallback(() => {
+    push("/(logged-in)/manage-notifications");
+  }, [push]);
+
   const placeholder = () =>
     Alert.alert(
       "Coming soon",
@@ -766,6 +770,28 @@ export default function UserProfileScreen() {
           />
           <View style={styles.rowDivider} />
           <AccountRow icon="lock-outline" label="Password" value="••••••••" />
+        </View>
+
+        {/* ── Settings ────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>Settings</Text>
+        </View>
+        <View style={styles.whiteCard}>
+          <SupportRow
+            icon="cog-outline"
+            title="App settings"
+            iconBg={Colors.orangeLight}
+            iconColor={Colors.orange}
+            onPress={openSettings}
+          />
+          <View style={styles.rowDivider} />
+          <SupportRow
+            icon="bell-outline"
+            title="Push notifications"
+            iconBg={Colors.mintLight}
+            iconColor={Colors.successDark}
+            onPress={openPushNotifications}
+          />
         </View>
 
         {/* ── Support ─────────────────────────────────────── */}

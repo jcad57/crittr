@@ -47,6 +47,7 @@ export {
   useNotificationsQuery,
   useUnreadNotificationCountQuery,
 } from "./useNotificationsQuery";
+export { useCrittrAiThreadQuery } from "./useCrittrAiThreadQuery";
 export { useLoggedInQueryBootstrap } from "../useLoggedInQueryBootstrap";
 export {
   useDeleteMedicationMutation,

@@ -1,3 +1,4 @@
+import { ensureCrittrProSyncedFromStripe } from "@/lib/crittrProEntitlementSync";
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
@@ -259,7 +260,14 @@ type AuthState = {
   completeOnboarding: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set, get) => {
+  const reconcileCrittrProWithStripe = () => {
+    void ensureCrittrProSyncedFromStripe().then((r) => {
+      if (r === "synced") void get().refreshAuthSession();
+    });
+  };
+
+  return {
   session: null,
   profile: null,
   hasPets: false,
@@ -307,13 +315,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             requiresCoCareRemovedScreen,
           });
           syncProfileRowToQuery(resolved.profile);
+          reconcileCrittrProWithStripe();
         }
       }
 
       // Tear down any previous listener before registering a new one
       authListenerUnsub?.();
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
+        async (event, session) => {
           if (session) {
             const stillRegistered = await isAuthUserStillRegistered();
             if (!stillRegistered) {
@@ -347,6 +356,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               requiresCoCareRemovedScreen,
             });
             syncProfileRowToQuery(resolved.profile);
+            if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+              reconcileCrittrProWithStripe();
+            }
           } else {
             queryClient.clear();
             set(loggedOutState);
@@ -485,4 +497,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await get().refreshAuthSession();
   },
-}));
+};
+});

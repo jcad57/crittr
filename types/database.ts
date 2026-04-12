@@ -282,6 +282,23 @@ export type AppNotification = {
   created_at: string;
 };
 
+// ─── CrittrAI chat ───────────────────────────────────────────────────────────
+
+export type CrittrAiConversation = {
+  id: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrittrAiMessage = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
 // ─── Pet Activity (unified activity log) ────────────────────────────────────
 
 export type ActivityType = "exercise" | "food" | "medication" | "vet_visit";

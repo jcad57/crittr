@@ -39,8 +39,7 @@ Daily progress bar:
 Daily progress bar:
 
 1. Feeding: Tracks daily feeding
-
-Weekly progress bar: 3. Maintence: Checking water temp, filter status, water replacement 4. Cleaning: Tracks tank cleanings
+2. Maintenence: Tank cleaning, filter status, plant trimming, water changing, etc. This can be set to daily/weekly
 
 # Reptile
 

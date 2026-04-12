@@ -1,6 +1,6 @@
 /** Font family names from useFonts() — must match @expo-google-fonts keys. */
 
-/** Tab roots: Dashboard greeting, Activity, My pets, Health (and More). */
+/** Tab roots: Dashboard greeting, Activity, My pets, Health, Crittr AI. */
 export const MAIN_SCREEN_TITLE_SIZE = 28;
 
 /** Stack flows: edit/add pet, activities, vet visits, medications, food, etc. */

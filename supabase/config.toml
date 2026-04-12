@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sync-crittr-pro-entitlement]
 verify_jwt = false
+
+[functions.crittr-ai-chat]
+verify_jwt = false

@@ -79,3 +79,8 @@ export const notificationsKey = (userId: string) =>
 
 export const unreadNotificationCountKey = (userId: string) =>
   ["notificationCount", userId] as const;
+
+// ─── CrittrAI ────────────────────────────────────────────────────────────────
+
+export const crittrAiThreadKey = (userId: string) =>
+  ["crittrAi", "thread", userId] as const;

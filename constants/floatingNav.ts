@@ -23,8 +23,8 @@ export function getContentInsetWithoutFloatingNav(safeBottom: number): number {
 }
 
 /**
- * True on the five main tab surfaces (home, activity, pets list, health, more) and on
- * the pet profile screen `/pet/:id`. Hidden on add-pet, nested pet stack screens
+ * True on the five main tab surfaces (home, activity, pets list, health) and on
+ * the pet profile screen `/pet/:id`. Hidden on Crittr AI, add-pet, nested pet stack screens
  * (`/pet/:id/food`, etc.), profile, and other stack screens.
  */
 export function shouldShowFloatingNav(
@@ -38,11 +38,13 @@ export function shouldShowFloatingNav(
   if (s.includes("add-activity")) return false;
   if (s.includes("add-vet-visit")) return false;
   if (s.includes("profile")) return false;
+  if (s.includes("crittr-ai")) return false;
 
   if (p.includes("add-pet")) return false;
   if (p.includes("add-activity")) return false;
   if (p.includes("add-vet-visit")) return false;
   if (p.includes("profile")) return false;
+  if (p.includes("crittr-ai")) return false;
 
   if (p.includes("upgrade")) return false;
   if (p.includes("pro-checkout")) return false;

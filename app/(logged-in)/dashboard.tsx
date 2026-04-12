@@ -1,3 +1,4 @@
+import PostOnboardingPushPrompt from "@/components/push/PostOnboardingPushPrompt";
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import ActivityFeedSkeleton from "@/components/ui/dashboard/ActivityFeedSkeleton";
 import DailyProgress from "@/components/ui/dashboard/DailyProgress";
@@ -317,6 +318,7 @@ export default function Dashboard() {
 
   return (
     <View style={styles.root}>
+      <PostOnboardingPushPrompt />
       <View style={styles.screen}>
         <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerInner}>

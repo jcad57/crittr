@@ -2,6 +2,7 @@ import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
 import { FONT_FACES } from "@/constants/fonts";
 import { queryClient } from "@/lib/queryClient";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
+import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
 import {
   DMSans_400Regular,
@@ -43,6 +44,10 @@ export default function SessionGate() {
       initialize();
     }
   }, [initialize]);
+
+  useEffect(() => {
+    return setupSupabaseAuthAutoRefresh();
+  }, []);
 
   const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
 

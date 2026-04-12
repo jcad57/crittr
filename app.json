@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.jcadeichmann.crittr"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "statusBar": {
         "barStyle": "dark-content",
         "backgroundColor": "#FDF8F3"
@@ -65,7 +66,16 @@
           "merchantIdentifier": "",
           "enableGooglePay": false
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/app-icon-temp.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ],
+      "react-native-enriched-markdown"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -60,10 +60,10 @@ const TABS: TabItem[] = [
   },
   {
     id: "more",
-    label: "More",
-    href: "/(logged-in)/more",
-    icon: "menu",
-    iconActive: "menu",
+    label: "CrittrAI",
+    href: "/(logged-in)/crittr-ai",
+    icon: "dog",
+    iconActive: "dog",
   },
 ];
 
@@ -80,7 +80,7 @@ function isAlreadyOnTabRoot(tabId: TabId, pathname: string): boolean {
     case "health":
       return /\/health$/.test(p);
     case "more":
-      return /\/more$/.test(p);
+      return /\/crittr-ai$/.test(p);
     default:
       return false;
   }
@@ -92,7 +92,13 @@ function resolveActiveTab(pathname: string, segments: string[]): TabId {
   if (segments.includes("pets")) return "pets";
   if (segments.includes("pet")) return "pets";
   if (segments.includes("health")) return "health";
-  if (segments.includes("more") || segments.includes("profile")) return "more";
+  if (
+    segments.includes("crittr-ai") ||
+    segments.includes("more") ||
+    segments.includes("profile")
+  ) {
+    return "more";
+  }
   if (segments.includes("add-pet")) return "pets";
   if (segments.includes("add-vet-visit")) return "health";
 
@@ -101,7 +107,13 @@ function resolveActiveTab(pathname: string, segments: string[]): TabId {
   if (pathname.includes("/pets") && !pathname.includes("/pet/")) return "pets";
   if (pathname.includes("/pet/")) return "pets";
   if (pathname.includes("health")) return "health";
-  if (pathname.includes("more") || pathname.includes("profile")) return "more";
+  if (
+    pathname.includes("crittr-ai") ||
+    pathname.includes("more") ||
+    pathname.includes("profile")
+  ) {
+    return "more";
+  }
   if (pathname.includes("add-pet")) return "pets";
   if (pathname.includes("add-vet-visit")) return "health";
   return "home";
@@ -109,12 +121,13 @@ function resolveActiveTab(pathname: string, segments: string[]): TabId {
 
 export default function FloatingBottomNav() {
   const insets = useSafeAreaInsets();
+  const safeBottomInset = Number.isFinite(insets.bottom) ? insets.bottom : 0;
   const router = useRouter();
   const pathname = usePathname();
   const segments = useSegments();
   const active = resolveActiveTab(pathname, segments as string[]);
   const navVisible = shouldShowFloatingNav(segments, pathname);
-  const slideDistance = getFloatingNavSlideOutDistance(insets.bottom);
+  const slideDistance = getFloatingNavSlideOutDistance(safeBottomInset);
 
   const translateY = useSharedValue(navVisible ? 0 : slideDistance);
 
@@ -125,7 +138,11 @@ export default function FloatingBottomNav() {
   }, [navVisible, slideDistance]);
 
   const animatedOuterStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      {
+        translateY: Number.isFinite(translateY.value) ? translateY.value : 0,
+      },
+    ],
   }));
 
   return (
@@ -135,7 +152,7 @@ export default function FloatingBottomNav() {
         styles.outer,
         animatedOuterStyle,
         {
-          paddingBottom: insets.bottom + FLOATING_NAV_OUTER_BOTTOM_GAP,
+          paddingBottom: safeBottomInset + FLOATING_NAV_OUTER_BOTTOM_GAP,
           paddingHorizontal: FLOATING_NAV_HORIZONTAL_MARGIN_PERCENT,
         },
       ]}

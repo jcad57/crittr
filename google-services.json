@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "807902378237",
+    "project_id": "crittr-ae81f",
+    "storage_bucket": "crittr-ae81f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:807902378237:android:af14a92ab22ff53e4fa694",
+        "android_client_info": {
+          "package_name": "com.jcadeichmann.crittr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2x9TUMqnp9QcV1WwiKMFYsr1lIMvWjqE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

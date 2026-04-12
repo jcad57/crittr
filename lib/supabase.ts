@@ -19,4 +19,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  /** Abort PostgREST requests that stall (bad network / half-open TCP) instead of hanging forever. */
+  db: { timeout: 60_000 },
 });

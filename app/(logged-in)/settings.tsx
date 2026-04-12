@@ -2,7 +2,6 @@ import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -14,12 +13,9 @@ export default function SettingsScreen() {
   const { push } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const { runWithProOrUpgrade } = useProGateNavigation();
 
   const openNotifications = () => {
-    runWithProOrUpgrade(() => {
-      push("/(logged-in)/manage-notifications" as Href);
-    });
+    push("/(logged-in)/manage-notifications" as Href);
   };
 
   return (
@@ -46,7 +42,7 @@ export default function SettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionLabel}>Account</Text>
+        <Text style={styles.sectionLabel}>Notifications</Text>
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           onPress={openNotifications}
@@ -59,9 +55,9 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Manage notifications</Text>
+            <Text style={styles.rowTitle}>Push notifications</Text>
             <Text style={styles.rowSub}>
-              Reminders and co-care activity alerts (Crittr Pro)
+              Reminders, activities, and system permission
             </Text>
           </View>
           <MaterialCommunityIcons

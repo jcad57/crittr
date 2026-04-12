@@ -1,3 +1,5 @@
+import PushNotificationBootstrap from "@/components/push/PushNotificationBootstrap";
+import PushNotificationNavigationListener from "@/components/push/PushNotificationNavigationListener";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
 import { useAuth } from "@/context/auth";
 import { useLoggedInQueryBootstrap } from "@/hooks/useLoggedInQueryBootstrap";
@@ -29,6 +31,8 @@ export default function LoggedInLayout() {
 
   return (
     <View style={styles.shell}>
+      <PushNotificationBootstrap />
+      <PushNotificationNavigationListener />
       <LoggedInQueryBootstrap />
       <Stack screenOptions={{ headerShown: false }} />
       <View style={styles.navOverlay} pointerEvents="box-none">

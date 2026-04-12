@@ -1,0 +1,33 @@
+-- CrittrAI — optional SQL for support / analytics (run in Supabase SQL Editor).
+-- RLS applies to the anon/authenticated role; use service role or owner context as needed.
+
+-- Recent conversations with message counts
+-- SELECT
+--   c.id,
+--   c.user_id,
+--   c.created_at,
+--   c.updated_at,
+--   COUNT(m.id) AS message_count
+-- FROM public.crittr_ai_conversations c
+-- LEFT JOIN public.crittr_ai_messages m ON m.conversation_id = c.id
+-- GROUP BY c.id
+-- ORDER BY c.updated_at DESC
+-- LIMIT 50;
+
+-- Full thread for one conversation
+-- SELECT id, role, left(content, 200) AS preview, created_at
+-- FROM public.crittr_ai_messages
+-- WHERE conversation_id = '00000000-0000-0000-0000-000000000000'
+-- ORDER BY created_at ASC;
+
+-- Storage size per user (rough)
+-- SELECT
+--   c.user_id,
+--   COUNT(DISTINCT c.id) AS threads,
+--   COUNT(m.id) AS messages,
+--   SUM(char_length(m.content)) AS approx_chars
+-- FROM public.crittr_ai_conversations c
+-- JOIN public.crittr_ai_messages m ON m.conversation_id = c.id
+-- GROUP BY c.user_id
+-- ORDER BY approx_chars DESC NULLS LAST
+-- LIMIT 100;

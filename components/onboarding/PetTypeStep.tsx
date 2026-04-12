@@ -4,14 +4,14 @@ import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
 import {
+  getPetTypeOptionsForPicker,
   PET_TYPE_ICON_MAP,
-  PET_TYPE_OPTIONS,
 } from "@/constants/petTypeIcons";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useReferenceStore } from "@/stores/referenceStore";
 import type { PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   BackHandler,
@@ -35,6 +35,10 @@ export default function PetTypeStep() {
   const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
+  const typeOptions = useMemo(
+    () => getPetTypeOptionsForPicker(pet.petType),
+    [pet.petType],
+  );
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -77,7 +81,7 @@ export default function PetTypeStep() {
         Pet type *
       </Text>
       <View style={[styles.grid, typeMissing && styles.gridError]}>
-        {PET_TYPE_OPTIONS.map((pt) => {
+        {typeOptions.map((pt) => {
           const isActive = pet.petType === pt.id;
           return (
             <Pressable
