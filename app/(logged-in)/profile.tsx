@@ -11,6 +11,7 @@ import {
   initialsFromProfile,
 } from "@/components/profile";
 import { Colors } from "@/constants/colors";
+import { normalizeProBannerThemeId } from "@/constants/proBannerThemes";
 import {
   profileQueryKey,
   usePetsQuery,
@@ -25,6 +26,7 @@ import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { useCallback, useMemo, useState } from "react";
+import type { Href } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -136,6 +138,10 @@ export default function UserProfileScreen() {
     push("/(logged-in)/edit-account");
   }, [push]);
 
+  const openProBannerTheme = useCallback(() => {
+    push("/(logged-in)/pro-banner-theme" as Href);
+  }, [push]);
+
   if (isProfileLoading && !profile) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -166,6 +172,10 @@ export default function UserProfileScreen() {
       >
         <ProfileHero
           isPro={isPro}
+          proBannerThemeId={normalizeProBannerThemeId(
+            profile?.crittr_pro_banner_theme,
+          )}
+          onProBannerPress={isPro ? openProBannerTheme : undefined}
           titleName={titleName}
           email={email}
           memberLine={memberLine}

@@ -8,6 +8,7 @@ import type {
 } from "@/types/database";
 import { parseDateOnlyYmd } from "@/utils/petDisplay";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
+import { sendCoCareInvite } from "./coCare";
 import {
   extensionForContentType,
   inferImageContentType,
@@ -142,13 +143,9 @@ export async function createPet(
     if (medError) throw medError;
   }
 
-  // Insert co-carer invite if provided
-  if (petData.coCarerEmail) {
-    await supabase.from("co_carer_invites").insert({
-      pet_id: pet.id,
-      invited_by: ownerId,
-      email: petData.coCarerEmail,
-    });
+  // Insert co-carer invite if provided (same rules as pet profile invite flow)
+  if (petData.coCarerEmail?.trim()) {
+    await sendCoCareInvite(pet.id, ownerId, petData.coCarerEmail);
   }
 
   return pet;

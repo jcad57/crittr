@@ -1,3 +1,7 @@
+import {
+  type ProBannerThemeId,
+  resolveProBannerTheme,
+} from "@/constants/proBannerThemes";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -15,6 +19,8 @@ const HERO_RADIUS = 24;
 
 type Props = {
   isPro: boolean;
+  proBannerThemeId?: ProBannerThemeId;
+  onProBannerPress?: () => void;
   titleName: string;
   email: string;
   memberLine: string | null;
@@ -26,6 +32,8 @@ type Props = {
 
 export default function ProfileHero({
   isPro,
+  proBannerThemeId = "slate",
+  onProBannerPress,
   titleName,
   email,
   memberLine,
@@ -34,6 +42,7 @@ export default function ProfileHero({
   avatarUploading,
   onAvatarPress,
 }: Props) {
+  const bannerTheme = resolveProBannerTheme(proBannerThemeId);
   const avatarBlock = (
     <Pressable
       onPress={onAvatarPress}
@@ -98,15 +107,33 @@ export default function ProfileHero({
 
   if (isPro) {
     return (
-      <ProHeroWithShine>
+      <ProHeroWithShine
+        themeId={proBannerThemeId}
+        onBannerPress={onProBannerPress}
+      >
         <View style={styles.proMemberPillRow}>
-          <View style={styles.proMemberPill}>
+          <View
+            style={[
+              styles.proMemberPill,
+              {
+                backgroundColor: bannerTheme.memberPillBackground,
+                borderColor: bannerTheme.memberPillBorder,
+              },
+            ]}
+          >
             <MaterialCommunityIcons
               name="crown-outline"
               size={15}
-              color={Colors.black}
+              color={bannerTheme.crownIconColor}
             />
-            <Text style={styles.proMemberPillText}>Crittr Pro Member</Text>
+            <Text
+              style={[
+                styles.proMemberPillText,
+                { color: bannerTheme.memberPillText },
+              ]}
+            >
+              Crittr Pro Member
+            </Text>
           </View>
         </View>
         <View style={styles.heroTopRow}>
@@ -149,20 +176,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: "hsla(46, 92.30%, 64.50%, 0.25)",
     borderWidth: 1,
-    borderColor: "hsla(46, 92.30%, 64.50%, 0.35)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     elevation: 2,
   },
   proMemberPillText: {
     fontFamily: Font.uiSemiBold,
     fontSize: 13,
     letterSpacing: 0.2,
-    color: Colors.black,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -228,10 +252,10 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   heroNamePro: {
-    color: "#2a2210",
-    textShadowColor: "rgba(255,255,255,0.35)",
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 1,
+    color: "#f8fafc",
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   heroEmail: {
     fontFamily: Font.uiRegular,
@@ -239,7 +263,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
   },
   heroEmailPro: {
-    color: "rgba(42,34,16,0.78)",
+    color: "rgba(248,250,252,0.82)",
   },
   heroMember: {
     fontFamily: Font.uiRegular,
@@ -248,6 +272,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   heroMemberPro: {
-    color: "rgba(58,48,28,0.65)",
+    color: "rgba(248,250,252,0.58)",
   },
 });

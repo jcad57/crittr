@@ -1,4 +1,5 @@
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
+import { syncCrittrProAfterCheckout } from "@/lib/crittrProEntitlementSync";
 import { supabase } from "@/lib/supabase";
 
 export type ProBillingParam = "monthly" | "annual";
@@ -10,7 +11,53 @@ export type SubscriptionPaymentSheetResponse = {
   setupIntentClientSecret: string | null;
   paymentIntentClientSecret: string | null;
   billing: string;
+  /** First invoice amount still due (e.g. 0 with a 100% promo); from Stripe `latest_invoice.amount_due`. */
+  amountDueCents?: number | null;
+  currency?: string | null;
+  /** Pending cancel was cleared server-side; no PaymentSheet — go straight to activation. */
+  resumed?: boolean;
+  /** Re-subscribe flow: show payment on file before confirming resume. */
+  resumePaymentReview?: boolean;
+  paymentMethodLabel?: string | null;
+  /** Client passes to finalize resume after collecting a new card. */
+  setupIntentId?: string | null;
+  /** Server returned only a SetupIntent for “use different card” on resume. */
+  resumeCardSetup?: boolean;
+  /** False when user already had a Crittr Pro subscription in Stripe (no 7-day intro). */
+  introTrialApplied?: boolean;
 };
+
+export type FetchSubscriptionPaymentSheetOptions = {
+  confirmSubscriptionResume?: boolean;
+  createResumeCardSetupIntent?: boolean;
+  finalizeResumeSetupIntentId?: string;
+};
+
+/** Lightweight: whether this account qualifies for the 7-day intro trial (never had Crittr Pro in Stripe). */
+export async function fetchIntroTrialEligibility(
+  billing: ProBillingParam,
+): Promise<boolean> {
+  const { data, error } = await supabase.functions.invoke(
+    "create-subscription-payment-sheet",
+    {
+      body: { billing, previewIntroTrialOnly: true },
+      timeout: 20_000,
+    },
+  );
+  if (error) {
+    return true;
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "eligibleForIntroTrial" in data &&
+    typeof (data as { eligibleForIntroTrial?: unknown }).eligibleForIntroTrial ===
+      "boolean"
+  ) {
+    return (data as { eligibleForIntroTrial: boolean }).eligibleForIntroTrial;
+  }
+  return true;
+}
 
 /**
  * Calls Supabase Edge Function to create a trialing subscription and return
@@ -19,36 +66,80 @@ export type SubscriptionPaymentSheetResponse = {
  */
 export async function fetchSubscriptionPaymentSheetParams(
   billing: ProBillingParam,
+  promotionCode?: string,
+  /** YYYY-MM-DD (UTC) — future cancel-at-period-end access end; aligns new trial end in checkout. */
+  billingAnchor?: string,
+  resumeOptions?: FetchSubscriptionPaymentSheetOptions,
 ): Promise<SubscriptionPaymentSheetResponse> {
+  const trimmed = promotionCode?.trim();
+  const anchor =
+    typeof billingAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(billingAnchor.trim())
+      ? billingAnchor.trim()
+      : undefined;
+  const body: Record<string, unknown> = {
+    billing,
+  };
+  if (trimmed) body.promotionCode = trimmed;
+  if (anchor) body.billingAnchor = anchor;
+  if (resumeOptions?.confirmSubscriptionResume) {
+    body.confirmSubscriptionResume = true;
+  }
+  if (resumeOptions?.createResumeCardSetupIntent) {
+    body.createResumeCardSetupIntent = true;
+  }
+  const fin = resumeOptions?.finalizeResumeSetupIntentId?.trim();
+  if (fin) body.finalizeResumeSetupIntentId = fin;
+
   const { data, error } = await supabase.functions.invoke(
     "create-subscription-payment-sheet",
-    { body: { billing }, timeout: 30_000 },
+    { body, timeout: 30_000 },
   );
 
   if (error) {
-    const msg = await extractErrorMessage(error);
+    const fromBody =
+      data &&
+      typeof data === "object" &&
+      "message" in data &&
+      typeof (data as { message: unknown }).message === "string"
+        ? (data as { message: string }).message
+        : null;
+    const msg = fromBody ?? (await extractErrorMessage(error));
     throw new Error(msg);
   }
 
   return data as SubscriptionPaymentSheetResponse;
 }
 
+export type WaitForProActivationOptions = {
+  /** From `fetchSubscriptionPaymentSheetParams` — lets Edge Function sync without waiting on webhooks. */
+  subscriptionId?: string | null;
+};
+
 /**
- * After PaymentSheet completes, poll the user's profile row until
- * `crittr_pro_until` is set (written by the Edge Function during subscription
- * creation or by the Stripe webhook). No second Edge Function call needed.
+ * After PaymentSheet completes, periodically asks the Edge Function to reconcile Stripe
+ * (webhook fallback) and polls until `crittr_pro_until` reflects active Pro.
  */
-export async function waitForProActivation(maxWaitMs = 12_000): Promise<void> {
+export async function waitForProActivation(
+  maxWaitMs = 28_000,
+  options?: WaitForProActivationOptions,
+): Promise<void> {
   const start = Date.now();
-  const pollInterval = 600;
+  const pollInterval = 500;
+  let lastSync = 0;
 
   while (Date.now() - start < maxWaitMs) {
     if (await profileShowsActivePro()) {
       return;
     }
+    const now = Date.now();
+    if (now - lastSync >= 2_000) {
+      lastSync = now;
+      await syncCrittrProAfterCheckout(options?.subscriptionId);
+    }
     await sleep(pollInterval);
   }
 
+  await syncCrittrProAfterCheckout(options?.subscriptionId);
   if (await profileShowsActivePro()) {
     return;
   }

@@ -65,7 +65,7 @@ export default function FinishStep() {
         const lastId = createdIds[createdIds.length - 1];
         router.replace(`/(logged-in)/pet/${lastId}`);
       } else if (petFlowMode === "onboarding") {
-        router.replace(UPGRADE_FROM_ONBOARDING_HREF as Href);
+        router.push(UPGRADE_FROM_ONBOARDING_HREF as Href);
       } else {
         router.replace("/(logged-in)/dashboard");
       }

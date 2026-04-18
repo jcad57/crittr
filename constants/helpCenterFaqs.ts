@@ -28,7 +28,7 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     id: "crittr-pro",
     question: "What is Crittr Pro?",
     answer:
-      "Crittr Pro unlocks premium features such as CrittrAI chat that uses your saved pet context. You can manage membership from the upgrade flow in the app.",
+      "Crittr Pro unlocks premium features such as CrittrAI chat that uses your pet's profile to give you personalized answers. You can invite other Crittr users to co-care your pets and see their activity in your notifications. You can manage membership from the upgrade flow in the app.",
   },
   {
     id: "notifications",

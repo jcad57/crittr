@@ -7,9 +7,11 @@ export function getErrorMessage(e: unknown): string {
   if (typeof e === "string") return e;
   if (typeof e === "object" && e !== null) {
     const o = e as Record<string, unknown>;
-    if (typeof o.message === "string" && o.message.length > 0) return o.message;
-    if (typeof o.details === "string" && o.details.length > 0) return o.details;
-    if (typeof o.hint === "string" && o.hint.length > 0) return o.hint;
+    const parts: string[] = [];
+    if (typeof o.message === "string" && o.message.length > 0) parts.push(o.message);
+    if (typeof o.details === "string" && o.details.length > 0) parts.push(o.details);
+    if (typeof o.hint === "string" && o.hint.length > 0) parts.push(o.hint);
+    if (parts.length > 0) return parts.join("\n");
   }
   try {
     return JSON.stringify(e);

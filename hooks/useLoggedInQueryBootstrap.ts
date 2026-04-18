@@ -1,9 +1,11 @@
 import {
   healthSnapshotKey,
+  notificationsKey,
   pendingInvitesKey,
   petDetailsQueryKey,
   petsQueryKey,
   profileQueryKey,
+  unreadNotificationCountKey,
 } from "@/hooks/queries/queryKeys";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
 import { queryClient } from "@/lib/queryClient";
@@ -12,7 +14,9 @@ import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { fetchProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
+import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
+import { AppState, Platform } from "react-native";
 
 /**
  * Warm TanStack Query cache on mount for the logged-in session:
@@ -108,6 +112,70 @@ export function useLoggedInQueryBootstrap() {
       .subscribe((status, err) => {
         if (status === "CHANNEL_ERROR" && err && __DEV__) {
           console.warn("[Realtime] pet_co_carers channel:", err.message);
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  /** New in-app notification rows (e.g. co-care invite): refresh list + badge; optional OS banner when backgrounded. */
+  useEffect(() => {
+    if (!userId) return;
+    if (Platform.OS === "web") return;
+
+    const channel = supabase
+      .channel(`notifications_bootstrap:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        (payload) => {
+          const eventType = (payload as { eventType?: string }).eventType;
+          const rowNew = payload.new as {
+            user_id?: string;
+            title?: string;
+            body?: string | null;
+            data?: Record<string, unknown>;
+          } | null;
+          const rowOld = payload.old as { user_id?: string } | null;
+          const uid = rowNew?.user_id ?? rowOld?.user_id;
+          if (uid !== userId) return;
+
+          void queryClient.invalidateQueries({
+            queryKey: notificationsKey(userId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: unreadNotificationCountKey(userId),
+          });
+
+          if (
+            eventType === "INSERT" &&
+            rowNew &&
+            AppState.currentState !== "active"
+          ) {
+            const href = rowNew.data?.href;
+            void Notifications.scheduleNotificationAsync({
+              content: {
+                title: rowNew.title ?? "Crittr",
+                body: rowNew.body?.trim() || "You have a new notification.",
+                data:
+                  typeof href === "string"
+                    ? { href }
+                    : rowNew.data ?? undefined,
+              },
+              trigger: null,
+            }).catch(() => {});
+          }
+        },
+      )
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" && err && __DEV__) {
+          console.warn("[Realtime] notifications channel:", err.message);
         }
       });
 

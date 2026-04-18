@@ -1,6 +1,8 @@
 import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
 import { FONT_FACES } from "@/constants/fonts";
+import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
+import { fetchProPricing } from "@/services/proPricing";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
 import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
@@ -53,6 +55,14 @@ export default function SessionGate() {
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
+  }, [isReady]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    void queryClient.prefetchQuery({
+      queryKey: proPricingQueryKey,
+      queryFn: fetchProPricing,
+    });
   }, [isReady]);
 
   if (!isReady) return null;

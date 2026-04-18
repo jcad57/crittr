@@ -1,15 +1,46 @@
 import { ensureCrittrProSyncedFromStripe } from "@/lib/crittrProEntitlementSync";
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabase";
-import { ONBOARDING_STEPS } from "@/stores/onboardingStore";
+import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
+import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
+import { usePetStore } from "@/stores/petStore";
 import type { Profile } from "@/types/database";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 
 const PROFILE_STEP = ONBOARDING_STEPS.indexOf("profile");
 const PENDING_INVITES_STEP = ONBOARDING_STEPS.indexOf("pending-invites");
 const PET_TYPE_STEP = ONBOARDING_STEPS.indexOf("pet-type");
+
+const AUTH_EMAIL_ACTION_TIMEOUT_MS = 45_000;
+
+/** Avoid hanging the whole Supabase client on a stuck `refreshSession()` (blocks sign-out & DB). */
+const AUTH_REFRESH_BUDGET_MS = 12_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(
+        new Error(
+          `${label} timed out. Check your connection and try again.`,
+        ),
+      );
+    }, ms);
+    promise
+      .then((v) => {
+        clearTimeout(t);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(t);
+        reject(e);
+      });
+  });
+}
 
 /** Profile onboarding step: home address and phone required; bio is optional. */
 function isProfileStepComplete(profile: Profile | null): boolean {
@@ -192,23 +223,90 @@ function nextRequiresCoCareRemovedScreen(
   return prev.requiresCoCareRemovedScreen;
 }
 
-/**
- * `getSession()` only reads the persisted JWT. After a user is removed in Supabase,
- * that token can still be present until expiry, which incorrectly routes to onboarding.
- * `getUser()` validates with the Auth server; 401/403 means the session is invalid.
- */
-async function isAuthUserStillRegistered(): Promise<boolean> {
-  const { data, error } = await supabase.auth.getUser();
+function isLikelyTransientAuthFailure(error: unknown): boolean {
   const status = (error as { status?: number })?.status;
+  const message = String((error as Error)?.message ?? "").toLowerCase();
+  const name = (error as { name?: string })?.name;
 
-  if (error && (status === 401 || status === 403 || status === 404)) {
+  if (name === "AuthRetryableFetchError") return true;
+
+  if (
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("internet") ||
+    message.includes("timeout") ||
+    message.includes("connection") ||
+    message.includes("offline")
+  ) {
+    return true;
+  }
+  if (status === 0) return true;
+  if (typeof status === "number" && status >= 500) return true;
+  if (status === 429) return true;
+  return false;
+}
+
+/**
+ * `getSession()` only reads persisted tokens. After auth user deletion, the access JWT can
+ * still verify locally while `profiles` is gone — `resolveSession` then sends users to
+ * onboarding. `refreshSession()` hits the Auth server with the refresh token; deleted
+ * users lose valid refresh tokens, so this reliably detects removal.
+ *
+ * If refresh fails for **any** reason that is not clearly transient (network / 5xx / 429),
+ * we treat the session as invalid — do **not** fall back to `getUser()` alone, because
+ * `getUser()` can still succeed on a locally-valid JWT while the account is gone.
+ * Only on transient refresh failures do we fall back to `getUser()` for offline tolerance.
+ *
+ * `INITIAL_SESSION` must not call `refreshSession()`: `initialize()` already refreshed on
+ * cold start, and a second refresh here serializes behind the same GoTrue lock and can
+ * stall sign-out and PostgREST across the app.
+ */
+async function isAuthUserStillRegistered(
+  event?: AuthChangeEvent,
+): Promise<boolean> {
+  /**
+   * Session is already server-valid for these events, or was validated in `initialize()`
+   * before this listener ran (`INITIAL_SESSION`).
+   */
+  if (
+    event === "TOKEN_REFRESHED" ||
+    event === "USER_UPDATED" ||
+    event === "SIGNED_IN" ||
+    event === "INITIAL_SESSION"
+  ) {
+    return true;
+  }
+
+  const refreshRace = await Promise.race([
+    supabase.auth.refreshSession().then((r) => ({ tag: "refresh" as const, r })),
+    sleep(AUTH_REFRESH_BUDGET_MS).then(() => ({ tag: "timeout" as const })),
+  ]);
+
+  if (refreshRace.tag === "timeout") {
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (!userError && !data?.user) return false;
+    if (userError && !isLikelyTransientAuthFailure(userError)) return false;
+    return true;
+  }
+
+  const { data: refreshed, error: refreshError } = refreshRace.r;
+
+  if (!refreshError && refreshed?.session) {
+    return true;
+  }
+
+  if (!refreshError && !refreshed?.session) {
     return false;
   }
-  if (!error && data && !data.user) {
-    return false;
+
+  if (refreshError && isLikelyTransientAuthFailure(refreshError)) {
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (!userError && !data?.user) return false;
+    if (userError && !isLikelyTransientAuthFailure(userError)) return false;
+    return true;
   }
-  // Network / transient errors: keep local session so offline use still works.
-  return true;
+
+  return false;
 }
 
 const loggedOutState = {
@@ -267,6 +365,18 @@ export const useAuthStore = create<AuthState>((set, get) => {
     });
   };
 
+  const clearAuxiliarySessionState = () => {
+    queryClient.clear();
+    usePetStore.getState().clear();
+    useOnboardingStore.getState().reset();
+  };
+
+  const purgeInvalidSession = async () => {
+    await wipeSupabaseAuthFromDevice();
+    clearAuxiliarySessionState();
+    set(loggedOutState);
+  };
+
   return {
   session: null,
   profile: null,
@@ -288,11 +398,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (session) {
         const stillRegistered = await isAuthUserStillRegistered();
         if (!stillRegistered) {
-          await supabase.auth.signOut();
-          queryClient.clear();
-          set(loggedOutState);
+          await purgeInvalidSession();
         } else {
-          const resolved = await resolveSession(session);
+          const {
+            data: { session: latestSession },
+          } = await supabase.auth.getSession();
+          const activeSession = latestSession ?? session;
+          const resolved = await resolveSession(activeSession);
           const prev = get();
           const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
             {
@@ -304,7 +416,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
             resolved,
           );
           set({
-            session,
+            session: activeSession,
             profile: resolved.profile,
             hasPets: resolved.hasPets,
             ownedPetCount: resolved.ownedPetCount,
@@ -324,14 +436,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (session) {
-            const stillRegistered = await isAuthUserStillRegistered();
+            const stillRegistered = await isAuthUserStillRegistered(event);
             if (!stillRegistered) {
-              await supabase.auth.signOut();
-              queryClient.clear();
-              set(loggedOutState);
+              await purgeInvalidSession();
               return;
             }
-            const resolved = await resolveSession(session);
+            const {
+              data: { session: latestSession },
+            } = await supabase.auth.getSession();
+            const activeSession = latestSession ?? session;
+            const resolved = await resolveSession(activeSession);
             const prev = get();
             const requiresCoCareRemovedScreen =
               nextRequiresCoCareRemovedScreen(
@@ -345,7 +459,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
                 resolved,
               );
             set({
-              session,
+              session: activeSession,
               profile: resolved.profile,
               hasPets: resolved.hasPets,
               ownedPetCount: resolved.ownedPetCount,
@@ -360,7 +474,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
               reconcileCrittrProWithStripe();
             }
           } else {
-            queryClient.clear();
+            clearAuxiliarySessionState();
             set(loggedOutState);
           }
         },
@@ -386,19 +500,27 @@ export const useAuthStore = create<AuthState>((set, get) => {
   },
 
   verifyEmailOtp: async (email, token) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "signup",
-    });
+    const { error } = await withTimeout(
+      supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "signup",
+      }),
+      AUTH_EMAIL_ACTION_TIMEOUT_MS,
+      "Confirm email",
+    );
     if (error) throw error;
   },
 
   resendSignupOtp: async (email) => {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
+    const { error } = await withTimeout(
+      supabase.auth.resend({
+        type: "signup",
+        email,
+      }),
+      AUTH_EMAIL_ACTION_TIMEOUT_MS,
+      "Resend code",
+    );
     if (error) throw error;
   },
 
@@ -415,7 +537,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    queryClient.clear();
+    clearAuxiliarySessionState();
     set({
       session: null,
       profile: null,

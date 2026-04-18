@@ -1,4 +1,21 @@
 import { supabase } from "@/lib/supabase";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+
+async function messageFromFunctionsError(error: unknown): Promise<string | null> {
+  if (!(error instanceof FunctionsHttpError)) return null;
+  try {
+    const body = (await error.context.json()) as {
+      error?: string;
+      message?: string;
+    };
+    if (typeof body.message === "string" && body.message.length > 0) {
+      return body.message;
+    }
+  } catch {
+    /* non-JSON body */
+  }
+  return null;
+}
 
 export type FeedbackCategory = "bug" | "feature" | "general";
 
@@ -35,11 +52,12 @@ export async function submitFeedback(
   });
 
   if (error) {
-    const msg =
+    const fromBody = await messageFromFunctionsError(error);
+    const fallback =
       typeof error.message === "string" && error.message.length > 0
         ? error.message
         : "Could not send feedback. Try again later.";
-    return { ok: false, message: msg };
+    return { ok: false, message: fromBody ?? fallback };
   }
 
   const payload = data as Record<string, unknown> | null;
@@ -53,6 +71,15 @@ export async function submitFeedback(
         typeof payload.message === "string"
           ? payload.message
           : "Invalid message.",
+    };
+  }
+  if (payload?.error === "invalid_from_config") {
+    return {
+      ok: false,
+      message:
+        typeof payload.message === "string"
+          ? payload.message
+          : "Email sender is misconfigured. Ask your developer to fix FROM_EMAIL.",
     };
   }
   if (payload?.error === "send_failed") {

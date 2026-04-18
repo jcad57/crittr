@@ -21,7 +21,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import Stripe from "npm:stripe@17.7.0";
-import { computeCrittrProUntil } from "../_shared/crittrProEntitlement.ts";
+import { applyCrittrProDowngradeCleanup } from "../_shared/crittrProDowngradeCleanup.ts";
+import { deriveCrittrProUntilForProfile } from "../_shared/crittrProEntitlement.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-11-20.acacia",
@@ -103,14 +104,48 @@ Deno.serve(async (req: Request) => {
   });
 });
 
+async function resolveProfileUserId(
+  admin: SupabaseClient,
+  sub: Stripe.Subscription,
+): Promise<string | null> {
+  const fromMeta = sub.metadata?.supabase_user_id;
+  if (fromMeta) return fromMeta;
+
+  const customerId = typeof sub.customer === "string"
+    ? sub.customer
+    : sub.customer.id;
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+
+  if (profile?.id) {
+    return profile.id as string;
+  }
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if ("deleted" in customer && customer.deleted) return null;
+    const uid = customer.metadata?.supabase_user_id;
+    return uid ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function syncSubscription(admin: SupabaseClient, sub: Stripe.Subscription) {
-  const userId = sub.metadata?.supabase_user_id;
+  const userId = await resolveProfileUserId(admin, sub);
   if (!userId) {
-    console.warn("[stripe-webhook] missing supabase_user_id on subscription", sub.id);
+    console.warn(
+      "[stripe-webhook] cannot resolve Supabase user for subscription",
+      sub.id,
+    );
     return;
   }
 
-  const proUntil = computeCrittrProUntil(sub);
+  const proUntil = deriveCrittrProUntilForProfile(sub);
   const customerId = typeof sub.customer === "string"
     ? sub.customer
     : sub.customer.id;
@@ -131,19 +166,33 @@ async function syncSubscription(admin: SupabaseClient, sub: Stripe.Subscription)
 }
 
 async function clearPro(admin: SupabaseClient, sub: Stripe.Subscription) {
-  const userId = sub.metadata?.supabase_user_id;
+  const userId = await resolveProfileUserId(admin, sub);
   if (!userId) return;
+
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+
+  await applyCrittrProDowngradeCleanup(admin, userId);
 
   const { error } = await admin
     .from("profiles")
     .update({
       crittr_pro_until: null,
       stripe_subscription_id: null,
+      stripe_customer_id: null,
     })
     .eq("id", userId);
 
   if (error) {
     console.error("[stripe-webhook] clear pro", error);
     throw error;
+  }
+
+  if (customerId) {
+    try {
+      await stripe.customers.del(customerId);
+    } catch (e) {
+      console.warn("[stripe-webhook] stripe customer delete (non-fatal)", e);
+    }
   }
 }

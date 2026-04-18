@@ -57,7 +57,7 @@ const FEATURES = [
 const AUTO_ADVANCE_MS = 5400;
 
 const WELCOME_BG = require("@/assets/images/welcome-bg.png");
-const DOG_CAT_LOGO = require("@/assets/images/dog-cat-img 1.png");
+const DOG_CAT_LOGO = require("@/assets/images/dog-cat-img.png");
 const PET_PAWS = require("@/assets/images/pet-paws-img.png");
 
 /** Intrinsic ratio so we can size width = screen and height scales (contain in a matching box). */

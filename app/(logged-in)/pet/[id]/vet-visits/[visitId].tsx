@@ -14,12 +14,14 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { queryClient } from "@/lib/queryClient";
+import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {
   hydrateVetVisitLocationState,
   resolveVetVisitLocation,
 } from "@/lib/vetVisitLocationUi";
 import { deleteVetVisit, updateVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
+import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -107,6 +109,13 @@ export default function EditVetVisitScreen() {
       await queryClient.invalidateQueries({
         queryKey: petVetVisitsQueryKey(petId),
       });
+    }
+    const profile = useAuthStore.getState().profile;
+    if (userId && profile) {
+      void syncCrittrReminderNotifications(
+        userId,
+        notificationPrefsFromProfile(profile),
+      );
     }
   }, [userId, petId]);
 

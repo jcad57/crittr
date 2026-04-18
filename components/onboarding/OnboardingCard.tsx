@@ -2,8 +2,16 @@ import { Colors } from "@/constants/colors";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef } from "react";
 import {
+  type ComponentRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  LayoutChangeEvent,
   Platform,
   Image as RNImage,
   StyleSheet,
@@ -49,7 +57,9 @@ export default function OnboardingCard({
     ? windowWidth * WELCOME_BG_ASPECT
     : 0;
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const scrollRef = useRef<KeyboardAwareScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof KeyboardAwareScrollView>>(null);
+  /** Measured height of the absolute header (safe-area padding + back row or step dots). */
+  const [overlayHeaderHeight, setOverlayHeaderHeight] = useState(0);
 
   useEffect(() => {
     if (scrollBody) {
@@ -57,35 +67,59 @@ export default function OnboardingCard({
     }
   }, [scrollKey, scrollBody]);
 
-  /**
-   * Top padding clears the overlaid header (step indicator / back). Bottom padding is only
-   * safe-area + nav inset — not symmetric with top — so short steps don’t get extra scrollable
-   * blank space. No flexGrow/center on the scroll body: content height stays natural so the
-   * list only scrolls when it overflows.
-   */
-  const scrollTopWithHeaderOverlay = insets.top + 12;
+  /** Reset measure when step changes so we don’t briefly use the previous header’s height. */
+  useLayoutEffect(() => {
+    setOverlayHeaderHeight(0);
+  }, [scrollKey]);
+
+  const onOverlayHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    setOverlayHeaderHeight((prev) => (Math.abs(prev - h) < 0.5 ? prev : h));
+  }, []);
+
   /** Bottom inset only — do not mirror the large top reserve or content becomes taller than the viewport and scrolls with empty space. */
   const scrollBottomPad = Math.max(insets.bottom + 16, scrollInsetBottom);
 
   /** Only scrollable screens overlay the header so the body can vertically center on the screen. */
   const headerOverlay = Boolean(header && scrollBody);
 
-  const scrollPaddingTop = headerOverlay
-    ? scrollTopWithHeaderOverlay
+  /**
+   * Top padding must clear the full overlaid header (not just its `paddingTop`), otherwise
+   * step dots / back chevron overlap the first lines of form content.
+   */
+  const overlayScrollTopFallback = insets.top + 12 + 32;
+  const scrollPaddingTopRaw = headerOverlay
+    ? Math.max(overlayHeaderHeight, overlayScrollTopFallback)
     : insets.top + 12;
+  const scrollPaddingTop = Number.isFinite(scrollPaddingTopRaw)
+    ? scrollPaddingTopRaw
+    : overlayScrollTopFallback;
 
   /**
    * Lets `flex: 1` step content (e.g. loading spinners) fill the space between scroll
    * padding so indicators sit in the visual center of the page.
    */
-  const minScrollBodyHeight = Math.max(
-    0,
-    windowHeight - scrollPaddingTop - scrollBottomPad,
-  );
+  const scrollBottomPadSafe = Number.isFinite(scrollBottomPad)
+    ? scrollBottomPad
+    : 0;
+  const minBodyRaw = windowHeight - scrollPaddingTop - scrollBottomPadSafe;
+  const minScrollBodyHeight = Number.isFinite(minBodyRaw)
+    ? Math.max(0, minBodyRaw)
+    : 0;
+
+  /**
+   * With `justifyContent: "center"`, flex centers in the area inside padding. If top padding
+   * (header reserve) is larger than bottom, the block sits low. Mirror with equal vertical
+   * padding so the midpoint matches the screen; `max` keeps nav/keyboard bottom inset.
+   */
+  const symmetricVerticalPad = centerContent
+    ? Math.max(scrollPaddingTop, scrollBottomPadSafe)
+    : null;
 
   const headerNode = header ? (
     <View
       pointerEvents="box-none"
+      onLayout={headerOverlay ? onOverlayHeaderLayout : undefined}
       style={[
         headerOverlay
           ? welcomeBackground
@@ -135,8 +169,8 @@ export default function OnboardingCard({
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: scrollPaddingTop,
-              paddingBottom: scrollBottomPad,
+              paddingTop: symmetricVerticalPad ?? scrollPaddingTop,
+              paddingBottom: symmetricVerticalPad ?? scrollBottomPad,
               ...(centerContent && {
                 flexGrow: 1,
                 justifyContent: "center" as const,

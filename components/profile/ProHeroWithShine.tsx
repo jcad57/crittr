@@ -1,13 +1,15 @@
 import {
+  PRO_BANNER_SHINE_BORDER_LOCATIONS,
   PRO_GRADIENT_END,
   PRO_GRADIENT_START,
-  PRO_HERO_INNER_GRADIENT,
-} from "@/constants/proHeroGoldGradient";
+  type ProBannerThemeId,
+  resolveProBannerTheme,
+} from "@/constants/proBannerThemes";
 import { useDeviceTiltShared } from "@/hooks/useDeviceTiltShared";
 import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -20,33 +22,20 @@ const HERO_RADIUS = 24;
 const INNER_GRADIENT_OVERSCAN = 0.42;
 const HERO_BORDER = 3;
 
-const PRO_SHINE_BORDER_COLORS = [
-  "#5C4008",
-  "#8B6914",
-  "#C9A012",
-  "#FFF8DC",
-  "#FFE566",
-  "#FFF8DC",
-  "#C9A012",
-  "#8B6914",
-  "#5C4008",
-] as const;
-const PRO_SHINE_LOCATIONS = [
-  0, 0.12, 0.28, 0.45, 0.52, 0.6, 0.75, 0.88, 1,
-] as const;
-
 const styles = StyleSheet.create({
   heroProWrapper: {
     marginBottom: 22,
     position: "relative",
   },
+  heroProWrapperCompact: {
+    marginBottom: 12,
+  },
   heroCardProBorder: {
     borderRadius: HERO_RADIUS,
     position: "relative",
-    shadowColor: "#FF8F00",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.26,
-    shadowRadius: 26,
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
     elevation: 10,
   },
   heroCardProRing: {
@@ -72,9 +61,28 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 1,
   },
+  heroCardProInnerContentCompact: {
+    padding: 14,
+    gap: 10,
+  },
 });
 
-export default function ProHeroWithShine({ children }: { children: ReactNode }) {
+type Props = {
+  children: ReactNode;
+  themeId?: ProBannerThemeId;
+  /** When set, the hero area is tappable (child avatar `Pressable` still receives its own taps). */
+  onBannerPress?: () => void;
+  /** Smaller padding/margins for theme-picker previews. */
+  compact?: boolean;
+};
+
+export default function ProHeroWithShine({
+  children,
+  themeId = "slate",
+  onBannerPress,
+  compact = false,
+}: Props) {
+  const theme = resolveProBannerTheme(themeId);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const rotation = useSharedValue(0);
   const { tiltX, tiltY } = useDeviceTiltShared(Platform.OS !== "web");
@@ -102,10 +110,40 @@ export default function ProHeroWithShine({ children }: { children: ReactNode }) 
   const spinLeft = box.w > 0 ? (box.w - spinSize) / 2 : 0;
   const spinTop = box.h > 0 ? (box.h - spinSize) / 2 : 0;
 
+  const innerContentStyle = [
+    styles.heroCardProInnerContent,
+    compact && styles.heroCardProInnerContentCompact,
+  ];
+
+  const innerBody = onBannerPress ? (
+    <Pressable
+      onPress={onBannerPress}
+      style={innerContentStyle}
+      accessibilityRole="button"
+      accessibilityLabel="Customize Pro banner appearance"
+      android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+    >
+      {children}
+    </Pressable>
+  ) : (
+    <View style={innerContentStyle}>{children}</View>
+  );
+
   return (
-    <View style={styles.heroProWrapper}>
+    <View
+      style={[
+        styles.heroProWrapper,
+        compact && styles.heroProWrapperCompact,
+      ]}
+    >
       <View
-        style={[styles.heroCardProBorder, styles.heroCardProRing]}
+        style={[
+          styles.heroCardProBorder,
+          styles.heroCardProRing,
+          {
+            shadowColor: theme.cardShadowColor,
+          },
+        ]}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
           setBox({ w: width, h: height });
@@ -126,8 +164,16 @@ export default function ProHeroWithShine({ children }: { children: ReactNode }) 
             ]}
           >
             <LinearGradient
-              colors={[...PRO_SHINE_BORDER_COLORS]}
-              locations={[...PRO_SHINE_LOCATIONS]}
+              colors={
+                [...theme.shineBorderColors] as [string, string, ...string[]]
+              }
+              locations={
+                [...PRO_BANNER_SHINE_BORDER_LOCATIONS] as [
+                  number,
+                  number,
+                  ...number[],
+                ]
+              }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFillObject}
@@ -150,10 +196,10 @@ export default function ProHeroWithShine({ children }: { children: ReactNode }) 
           >
             <LinearGradient
               colors={
-                PRO_HERO_INNER_GRADIENT.colors as [string, string, ...string[]]
+                theme.innerGradient.colors as [string, string, ...string[]]
               }
               locations={
-                PRO_HERO_INNER_GRADIENT.locations as [
+                theme.innerGradient.locations as [
                   number,
                   number,
                   ...number[],
@@ -165,7 +211,7 @@ export default function ProHeroWithShine({ children }: { children: ReactNode }) 
               dither
             />
           </Animated.View>
-          <View style={styles.heroCardProInnerContent}>{children}</View>
+          {innerBody}
         </View>
       </View>
     </View>

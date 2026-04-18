@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jcadeichmann.crittr"
+      "bundleIdentifier": "com.jcadeichmann.crittr",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -75,7 +78,15 @@
           "defaultChannel": "default"
         }
       ],
-      "react-native-enriched-markdown"
+      "react-native-enriched-markdown",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

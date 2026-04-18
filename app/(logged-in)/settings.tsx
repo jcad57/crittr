@@ -75,7 +75,8 @@ export default function SettingsScreen() {
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Push notifications</Text>
             <Text style={styles.rowSub}>
-              Reminders, activities, and system permission
+              Meals, meds, vet visits, co-care activity nudges, and system
+              permission
             </Text>
           </View>
           <MaterialCommunityIcons

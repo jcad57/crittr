@@ -1,46 +1,36 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Profile } from "@/types/database";
 
-const PREFS_KEY = "crittr_push_notification_prefs_v1";
 const ONBOARDING_PROMPT_KEY = "crittr_push_onboarding_prompt_shown_v1";
 
-export type PushNotificationPrefs = {
-  remindersEnabled: boolean;
-  activitiesEnabled: boolean;
+/** Mirrors `profiles` notification columns (manage-notifications UI). */
+export type NotificationCategoryPrefs = {
+  notify_meals_treats: boolean;
+  notify_co_care_activities: boolean;
+  notify_medications: boolean;
+  notify_vet_visits: boolean;
 };
 
-const DEFAULT_PREFS: PushNotificationPrefs = {
-  remindersEnabled: true,
-  activitiesEnabled: true,
-};
-
-export function getDefaultPushPrefs(): PushNotificationPrefs {
-  return { ...DEFAULT_PREFS };
+export function defaultNotificationCategoryPrefs(): NotificationCategoryPrefs {
+  return {
+    notify_meals_treats: true,
+    notify_co_care_activities: true,
+    notify_medications: true,
+    notify_vet_visits: true,
+  };
 }
 
-export async function loadPushNotificationPrefs(): Promise<PushNotificationPrefs> {
-  try {
-    const raw = await AsyncStorage.getItem(PREFS_KEY);
-    if (!raw) return getDefaultPushPrefs();
-    const parsed = JSON.parse(raw) as Partial<PushNotificationPrefs>;
-    return {
-      remindersEnabled:
-        typeof parsed.remindersEnabled === "boolean"
-          ? parsed.remindersEnabled
-          : DEFAULT_PREFS.remindersEnabled,
-      activitiesEnabled:
-        typeof parsed.activitiesEnabled === "boolean"
-          ? parsed.activitiesEnabled
-          : DEFAULT_PREFS.activitiesEnabled,
-    };
-  } catch {
-    return getDefaultPushPrefs();
-  }
-}
-
-export async function savePushNotificationPrefs(
-  prefs: PushNotificationPrefs,
-): Promise<void> {
-  await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+export function notificationPrefsFromProfile(
+  p: Profile | null | undefined,
+): NotificationCategoryPrefs {
+  const d = defaultNotificationCategoryPrefs();
+  if (!p) return d;
+  return {
+    notify_meals_treats: p.notify_meals_treats !== false,
+    notify_co_care_activities: p.notify_co_care_activities !== false,
+    notify_medications: p.notify_medications !== false,
+    notify_vet_visits: p.notify_vet_visits !== false,
+  };
 }
 
 export async function hasShownPostOnboardingPushPrompt(): Promise<boolean> {

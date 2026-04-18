@@ -3,8 +3,9 @@ import { Colors } from "@/constants/colors";
 import {
   PRO_GRADIENT_END,
   PRO_GRADIENT_START,
-  PRO_HERO_INNER_GRADIENT,
-} from "@/constants/proHeroGoldGradient";
+  normalizeProBannerThemeId,
+  resolveProBannerTheme,
+} from "@/constants/proBannerThemes";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
@@ -50,6 +51,9 @@ export default function DashboardHeader({
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
   const isPro = useIsCrittrPro(profile);
+  const proBannerTheme = resolveProBannerTheme(
+    normalizeProBannerThemeId(profile?.crittr_pro_banner_theme),
+  );
 
   /** Smaller title on narrow screens so “Good morning” / “Good afternoon” isn’t clipped by flex layout. */
   const greetingTitleSize = useMemo(() => {
@@ -135,14 +139,14 @@ export default function DashboardHeader({
             {isPro ? (
               <LinearGradient
                 colors={
-                  PRO_HERO_INNER_GRADIENT.colors as [
+                  proBannerTheme.innerGradient.colors as [
                     string,
                     string,
                     ...string[],
                   ]
                 }
                 locations={
-                  PRO_HERO_INNER_GRADIENT.locations as [
+                  proBannerTheme.innerGradient.locations as [
                     number,
                     number,
                     ...number[],
@@ -150,13 +154,19 @@ export default function DashboardHeader({
                 }
                 start={PRO_GRADIENT_START}
                 end={PRO_GRADIENT_END}
-                style={styles.proCrownBadge}
+                style={[
+                  styles.proCrownBadge,
+                  {
+                    borderColor: proBannerTheme.crownBadgeBorder,
+                    shadowColor: proBannerTheme.crownBadgeShadowColor,
+                  },
+                ]}
                 dither
               >
                 <MaterialCommunityIcons
                   name="crown"
                   size={13}
-                  color={Colors.black}
+                  color={proBannerTheme.crownIconColor}
                 />
               </LinearGradient>
             ) : null}
@@ -218,7 +228,7 @@ const styles = StyleSheet.create({
     height: 40,
     position: "relative",
   },
-  /** Shiny gold pill behind crown; sits on avatar rim (top-right). */
+  /** Shiny pill behind crown; sits on avatar rim (top-right). */
   proCrownBadge: {
     position: "absolute",
     right: -8,
@@ -230,8 +240,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.55)",
-    shadowColor: "#8B6914",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.45,
     shadowRadius: 3,

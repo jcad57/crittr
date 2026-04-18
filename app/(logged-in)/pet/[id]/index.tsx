@@ -390,9 +390,7 @@ export default function PetProfilePage() {
         iconImage: PET_PROFILE_RECORD_ICONS.activity,
         iconBg: Colors.amberLight,
         onPress: () =>
-          push(
-            `/(logged-in)/activity?petId=${encodeURIComponent(profile.id)}` as Href,
-          ),
+          push(`/(logged-in)/pet/${profile.id}/activity-log` as Href),
       },
     ];
   }, [profile, push]);

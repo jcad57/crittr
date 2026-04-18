@@ -9,6 +9,7 @@ export {
   petsQueryKey,
   profileQueryKey,
   subscriptionDetailsQueryKey,
+  proPricingQueryKey,
   profilesByIdsQueryKey,
   todayActivitiesForPetIdsKey,
   todayActivitiesForPetIdsPrefixKey,
@@ -32,6 +33,7 @@ export { usePetMedicalRecordDetailQuery } from "./usePetMedicalRecordDetailQuery
 export { usePetInsuranceFilesQuery } from "./usePetInsuranceFilesQuery";
 export { useProfileQuery } from "./useProfileQuery";
 export { useSubscriptionDetailsQuery } from "./useSubscriptionDetailsQuery";
+export { useProPricingQuery } from "./useProPricingQuery";
 export { useProfilesByIdsQuery } from "./useProfilesByIdsQuery";
 export {
   useTodayActivitiesQuery,

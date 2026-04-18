@@ -8,13 +8,19 @@ import {
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsQuery,
+  useProfileQuery,
 } from "@/hooks/queries";
+import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { UPGRADE_HREF } from "@/lib/proUpgradePaths";
 import { queryClient } from "@/lib/queryClient";
+import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { Image } from "expo-image";
+import type { Href } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -29,10 +35,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function notificationIcon(type: string): string {
+const HIGH_FIVE = require("@/assets/images/high-five.png");
+
+function notificationIcon(type: string, isPro: boolean): string {
+  if (type === "co_care_invite_requires_pro" && isPro) {
+    return "account-plus-outline";
+  }
   switch (type) {
     case "co_care_invite":
       return "account-plus-outline";
+    case "co_care_invite_requires_pro":
+      return "star-circle-outline";
     case "co_care_accepted":
       return "account-check-outline";
     case "co_care_removed":
@@ -64,6 +77,8 @@ export default function NotificationsScreen() {
     isLoading,
     refetch,
   } = useNotificationsQuery();
+  const { data: profile } = useProfileQuery();
+  const isPro = useIsCrittrPro(profile);
 
   /** Only for pull-to-refresh UI — not `isRefetching` (true on focus invalidation / remount too). */
   const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -86,7 +101,9 @@ export default function NotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
-      void queryClient.invalidateQueries({ queryKey: notificationsKey(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: notificationsKey(userId),
+      });
       void queryClient.invalidateQueries({
         queryKey: unreadNotificationCountKey(userId),
       });
@@ -103,7 +120,15 @@ export default function NotificationsScreen() {
   const handlePress = useCallback(
     (n: AppNotification) => {
       if (n.type === "co_care_invite") return;
+      if (n.type === "co_care_invite_requires_pro" && isPro) return;
       if (!n.read) markRead.mutate(n.id);
+      if (n.type === "co_care_invite_requires_pro") {
+        const href = (n.data as Record<string, unknown>)?.href as
+          | string
+          | undefined;
+        push((href ?? UPGRADE_HREF) as Href);
+        return;
+      }
       const petId = (n.data as Record<string, unknown>)?.pet_id as
         | string
         | undefined;
@@ -111,7 +136,7 @@ export default function NotificationsScreen() {
         push(`/(logged-in)/pet/${petId}` as any);
       }
     },
-    [markRead, push],
+    [markRead, push, isPro],
   );
 
   const handleAcceptInvite = useCallback(
@@ -125,8 +150,15 @@ export default function NotificationsScreen() {
           if (!n.read) markRead.mutate(n.id);
           Alert.alert("Accepted", "You are now co-caring for this pet!");
         },
-        onError: (err) =>
-          Alert.alert("Error", err.message ?? "Could not accept invite."),
+        onError: (err) => {
+          const msg = err.message ?? "Could not accept invite.";
+          Alert.alert(
+            msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
+              ? "Crittr Pro required"
+              : "Error",
+            msg,
+          );
+        },
       });
     },
     [acceptInvite, markRead],
@@ -191,10 +223,11 @@ export default function NotificationsScreen() {
             />
           }
         >
-          <MaterialCommunityIcons
-            name="bell-check-outline"
-            size={48}
-            color={Colors.gray300}
+          <Image
+            source={HIGH_FIVE}
+            style={styles.emptyIllustration}
+            contentFit="contain"
+            accessibilityLabel="No notifications"
           />
           <Text style={styles.emptyText}>No notifications yet</Text>
         </ScrollView>
@@ -216,13 +249,16 @@ export default function NotificationsScreen() {
           }
         >
           {notifications.map((n) => {
-            const isCoCareInvite = n.type === "co_care_invite";
-            const inviteId = isCoCareInvite
-              ? ((n.data as Record<string, unknown>)?.invite_id as
-                  | string
-                  | undefined) ?? undefined
-              : undefined;
+            const inviteId = (n.data as Record<string, unknown>)?.invite_id as
+              | string
+              | undefined;
+            const showCoCareInviteActions =
+              n.type === "co_care_invite" ||
+              (n.type === "co_care_invite_requires_pro" && isPro);
+            const isCoCareUpgradeNudge =
+              n.type === "co_care_invite_requires_pro" && !isPro;
             const inviteSubmitting =
+              showCoCareInviteActions &&
               !!inviteId &&
               ((acceptInvite.isPending &&
                 acceptInvite.variables === inviteId) ||
@@ -236,18 +272,16 @@ export default function NotificationsScreen() {
               !!inviteId &&
               declineInvite.isPending &&
               declineInvite.variables === inviteId;
-            const inviteButtonsLocked = !inviteId || inviteSubmitting;
+            const inviteButtonsLocked =
+              !showCoCareInviteActions || !inviteId || inviteSubmitting;
 
             const rowInner = (
               <>
                 <View
-                  style={[
-                    styles.iconWrap,
-                    !n.read && styles.iconWrapUnread,
-                  ]}
+                  style={[styles.iconWrap, !n.read && styles.iconWrapUnread]}
                 >
                   <MaterialCommunityIcons
-                    name={notificationIcon(n.type) as any}
+                    name={notificationIcon(n.type, isPro) as any}
                     size={20}
                     color={!n.read ? Colors.orange : Colors.gray500}
                   />
@@ -260,13 +294,12 @@ export default function NotificationsScreen() {
                     </Text>
                   ) : null}
                   <Text style={styles.rowTime}>{timeAgo(n.created_at)}</Text>
-                  {isCoCareInvite && !n.read && (
+                  {showCoCareInviteActions && !n.read && (
                     <View style={styles.inviteActions}>
                       <Pressable
                         style={[
                           styles.acceptBtn,
-                          inviteButtonsLocked &&
-                            styles.inviteBtnLocked,
+                          inviteButtonsLocked && styles.inviteBtnLocked,
                         ]}
                         onPress={() => handleAcceptInvite(n)}
                         disabled={inviteButtonsLocked}
@@ -283,8 +316,7 @@ export default function NotificationsScreen() {
                       <Pressable
                         style={[
                           styles.declineBtn,
-                          inviteButtonsLocked &&
-                            styles.inviteBtnLocked,
+                          inviteButtonsLocked && styles.inviteBtnLocked,
                         ]}
                         onPress={() => handleDeclineInvite(n)}
                         disabled={inviteButtonsLocked}
@@ -305,7 +337,7 @@ export default function NotificationsScreen() {
               </>
             );
 
-            if (isCoCareInvite) {
+            if (showCoCareInviteActions) {
               return (
                 <View
                   key={n.id}
@@ -313,6 +345,20 @@ export default function NotificationsScreen() {
                 >
                   {rowInner}
                 </View>
+              );
+            }
+
+            if (isCoCareUpgradeNudge) {
+              return (
+                <Pressable
+                  key={n.id}
+                  style={[styles.row, !n.read && styles.rowUnread]}
+                  onPress={() => handlePress(n)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Crittr Pro upgrade"
+                >
+                  {rowInner}
+                </Pressable>
               );
             }
 
@@ -372,6 +418,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 8,
+  },
+  emptyIllustration: {
+    width: 120,
+    height: 120,
   },
   body: { paddingHorizontal: 20, paddingTop: 8 },
   emptyText: {

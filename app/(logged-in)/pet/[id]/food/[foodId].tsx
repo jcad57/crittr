@@ -562,10 +562,9 @@ export default function EditPetFoodScreen() {
               <>
                 <Text style={styles.fieldLabel}>Feeding schedule</Text>
                 <Text style={styles.mealHint}>
-                  Add multiple portions if you feed your pet multiple times a
-                  day. Each includes amount, unit, and the time you usually feed
-                  — Pro members get reminders when it's time to feed{" "}
-                  {petNameForTitle}!
+                  Add multiple portions if you feed {petNameForTitle} this
+                  meal/treat multiple times a day. Each input includes amount,
+                  unit, and the time you usually feed them!
                 </Text>
                 {mealPortions.map((row, index) => (
                   <View key={row.key} style={styles.portionCard}>

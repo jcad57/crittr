@@ -10,6 +10,7 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import {
   acceptInvite,
+  CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE,
   declineInvite,
   fetchPendingInvitesForUser,
 } from "@/services/coCare";
@@ -89,7 +90,13 @@ export default function PendingInvitesStep() {
         setInvites((prev) => prev.filter((i) => i.id !== inviteId));
         setAcceptedCount((c) => c + 1);
       } catch (err: any) {
-        Alert.alert("Error", err.message ?? "Could not accept invite.");
+        const msg = err.message ?? "Could not accept invite.";
+        Alert.alert(
+          msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
+            ? "Crittr Pro required"
+            : "Error",
+          msg,
+        );
       } finally {
         setBusy(null);
       }

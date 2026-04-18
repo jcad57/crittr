@@ -8,7 +8,7 @@ import {
   ONBOARDING_STEPS,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -27,6 +27,21 @@ function mapOtpError(message: string): string {
   if (m.includes("invalid") || m.includes("token")) {
     return "That code doesn’t match. Check the email and try again.";
   }
+  if (
+    m.includes("rate") ||
+    m.includes("too many") ||
+    m.includes("only request") ||
+    m.includes("email rate limit")
+  ) {
+    return "Please wait a minute before requesting another code.";
+  }
+  if (
+    m.includes("already registered") ||
+    m.includes("already confirmed") ||
+    m.includes("user already")
+  ) {
+    return "This email may already be confirmed. Try signing in.";
+  }
   return message || "Something went wrong. Please try again.";
 }
 
@@ -42,10 +57,23 @@ export default function VerifyEmailStep() {
 
   const email = accountData.email.trim();
   const [otp, setOtp] = useState("");
+  const [otpFieldKey, setOtpFieldKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+
+  const clearCooldownInterval = useCallback(() => {
+    if (cooldownIntervalRef.current) {
+      clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearCooldownInterval(), [clearCooldownInterval]);
 
   const canConfirm = otp.length === OTP_LENGTH && !submitting;
 
@@ -60,17 +88,18 @@ export default function VerifyEmailStep() {
   }, [email]);
 
   const tickCooldown = useCallback(() => {
+    clearCooldownInterval();
     setCooldown(RESEND_COOLDOWN_SEC);
-    const t = setInterval(() => {
+    cooldownIntervalRef.current = setInterval(() => {
       setCooldown((c) => {
         if (c <= 1) {
-          clearInterval(t);
+          clearCooldownInterval();
           return 0;
         }
         return c - 1;
       });
     }, 1000);
-  }, []);
+  }, [clearCooldownInterval]);
 
   const handleConfirm = async () => {
     if (!canConfirm || !email) return;
@@ -82,7 +111,12 @@ export default function VerifyEmailStep() {
       setProfileBackAfterProfile("welcome");
       goToStep(ONBOARDING_STEPS.indexOf("profile"));
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e && "message" in e
+            ? String((e as { message: unknown }).message)
+            : String(e);
       setError(mapOtpError(msg));
     } finally {
       setSubmitting(false);
@@ -91,13 +125,21 @@ export default function VerifyEmailStep() {
 
   const handleResend = async () => {
     if (!email || cooldown > 0 || resending) return;
-    setResending(true);
+    setOtp("");
+    setOtpFieldKey((k) => k + 1);
     setError(null);
+    setSubmitting(false);
+    setResending(true);
     try {
       await resendSignupOtp(email);
       tickCooldown();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e && "message" in e
+            ? String((e as { message: unknown }).message)
+            : String(e);
       setError(mapOtpError(msg));
     } finally {
       setResending(false);
@@ -115,6 +157,7 @@ export default function VerifyEmailStep() {
 
       <Text style={styles.label}>Verification code</Text>
       <OtpDigitsInput
+        key={otpFieldKey}
         value={otp}
         onChange={(v) => {
           setOtp(v.replace(/\D/g, "").slice(0, OTP_LENGTH));

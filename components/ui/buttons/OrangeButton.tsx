@@ -24,6 +24,8 @@ type OrangeButtonProps = {
   onPressOut?: ((e: GestureResponderEvent) => void) | null;
   disabled?: boolean;
   loading?: boolean;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 };
 
 const BUTTON_HEIGHT = 50;
@@ -38,6 +40,8 @@ export default function OrangeButton({
   onPressOut,
   disabled,
   loading,
+  accessibilityLabel,
+  accessibilityHint,
 }: OrangeButtonProps) {
   const translateY = useSharedValue(0);
 
@@ -51,6 +55,8 @@ export default function OrangeButton({
       <Pressable
         style={styles.hitArea}
         disabled={disabled || loading}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
         onPress={onPress}
         onPressIn={(e) => {
           translateY.value = withTiming(SHADOW_OFFSET, { duration: SNAP_MS });

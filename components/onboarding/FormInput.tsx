@@ -2,6 +2,7 @@ import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
+  Platform,
   StyleProp,
   StyleSheet,
   Text,
@@ -55,12 +56,15 @@ export default function FormInput({
         style={[
           styles.input,
           icon && styles.inputWithIcon,
-          isMultiline && styles.inputMultiline,
+          isMultiline ? styles.inputMultiline : styles.inputSingleLine,
           style,
         ]}
         placeholderTextColor={error ? Colors.error : Colors.gray400}
         multiline={multiline}
         {...rest}
+        {...(!isMultiline && Platform.OS === "android"
+          ? { textAlignVertical: "center" as const }
+          : {})}
       />
     </View>
   );
@@ -133,7 +137,10 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
-    height: "100%",
+  },
+  /** Avoid `height: "100%"` — it can become NaN during keyboard/layout and trigger CoreGraphics warnings on iOS. */
+  inputSingleLine: {
+    paddingVertical: 0,
   },
   inputWithIcon: {
     paddingLeft: 0,

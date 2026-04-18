@@ -1,7 +1,11 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
-import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
+import {
+  profileQueryKey,
+  subscriptionDetailsQueryKey,
+  useProfileQuery,
+} from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
@@ -44,6 +48,9 @@ export default function BillingScreen() {
       await WebBrowser.openBrowserAsync(url);
       if (userId) {
         await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+        await queryClient.invalidateQueries({
+          queryKey: subscriptionDetailsQueryKey(userId),
+        });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -79,27 +86,16 @@ export default function BillingScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.body,
-          { paddingBottom: scrollInsetBottom + 24 },
-        ]}
+        contentContainerStyle={styles.scrollBody}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {!isPro ? (
-          <>
-            <Text style={styles.lead}>
-              Billing management is available for Crittr Pro members. Upgrade to
-              update the card on file, change your billing address, and manage
-              invoices in Stripe&apos;s secure portal.
-            </Text>
-            <OrangeButton
-              onPress={() =>
-                push("/(logged-in)/upgrade?returnTo=billing" as Href)
-              }
-            >
-              Upgrade to Crittr Pro
-            </OrangeButton>
-          </>
+          <Text style={styles.lead}>
+            Billing management is available for Crittr Pro members. Upgrade to
+            update the card on file, change your billing address, and manage
+            invoices in Stripe&apos;s secure portal.
+          </Text>
         ) : (
           <>
             <Text style={styles.lead}>
@@ -132,18 +128,37 @@ export default function BillingScreen() {
                 <Text style={styles.bulletText}>Invoices & receipt history</Text>
               </View>
             </View>
+          </>
+        )}
+      </ScrollView>
 
+      <View
+        style={[
+          styles.footer,
+          /** `scrollInsetBottom` already includes safe-area bottom + nav/tab clearance. */
+          { paddingBottom: scrollInsetBottom },
+        ]}
+      >
+        {!isPro ? (
+          <OrangeButton
+            onPress={() =>
+              push("/(logged-in)/upgrade?returnTo=billing" as Href)
+            }
+          >
+            Upgrade to Crittr Pro
+          </OrangeButton>
+        ) : (
+          <>
             <OrangeButton onPress={openPortal} loading={opening} disabled={opening}>
               Manage billing
             </OrangeButton>
-
             <Text style={styles.footnote}>
               You will leave the app briefly. When you are done, you will return
               to Crittr automatically.
             </Text>
           </>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -172,10 +187,18 @@ const styles = StyleSheet.create({
   },
   navSpacer: { width: 28 },
   scroll: { flex: 1 },
-  body: {
+  scrollBody: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 16,
     gap: 16,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    gap: 12,
+    backgroundColor: Colors.cream,
   },
   lead: {
     fontFamily: Font.uiRegular,
@@ -206,6 +229,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: Colors.gray500,
-    marginTop: 4,
+    textAlign: "center",
   },
 });

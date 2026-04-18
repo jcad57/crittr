@@ -49,6 +49,11 @@ export async function updateProfile(
       | "phone_number"
       | "avatar_url"
       | "onboarding_complete"
+      | "notify_meals_treats"
+      | "notify_co_care_activities"
+      | "notify_medications"
+      | "notify_vet_visits"
+      | "crittr_pro_banner_theme"
     >
   >,
 ): Promise<Profile | null> {

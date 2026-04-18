@@ -55,7 +55,7 @@ export const privacyPolicySections: PrivacySection[] = [
   {
     title: "Contact",
     paragraphs: [
-      "Questions about privacy can be sent to crittrsupport@gmail.com. This mock policy is for layout and product iteration only and is not legal advice.",
+      "Questions about privacy can be sent to support@crittrapp.com. This mock policy is for layout and product iteration only and is not legal advice.",
     ],
   },
 ];

@@ -10,5 +10,7 @@ export function useSubscriptionDetailsQuery(enabled: boolean) {
     queryKey: subscriptionDetailsQueryKey(userId ?? ""),
     queryFn: fetchSubscriptionDetails,
     enabled: Boolean(userId) && enabled,
+    /** Billing can change in Stripe (portal/dashboard); global staleTime is 5m — avoid stale UI. */
+    staleTime: 0,
   });
 }

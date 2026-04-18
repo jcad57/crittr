@@ -52,14 +52,15 @@ export default function InviteCoCarerScreen() {
     sendInvite.mutate(
       { email: trimmed, permissions: perms },
       {
-        onSuccess: ({ isRegistered }) => {
-          Alert.alert(
-            "Invite sent",
-            isRegistered
+        onSuccess: ({ isRegistered, inviteeNeedsPro }) => {
+          const message = inviteeNeedsPro
+            ? "They'll get an in-app notification with a link to upgrade to Crittr Pro. After they upgrade, they can accept the invite from Notifications."
+            : isRegistered
               ? "They'll see a notification in the app."
-              : "We'll email them an invitation to join Crittr.",
-            [{ text: "OK", onPress: () => router.back() }],
-          );
+              : "We'll email them an invitation to join Crittr. They'll need Crittr Pro to accept co-care.";
+          Alert.alert("Invite sent", message, [
+            { text: "OK", onPress: () => router.back() },
+          ]);
         },
         onError: (err) => {
           Alert.alert("Error", err.message ?? "Failed to send invite.");
@@ -108,8 +109,9 @@ export default function InviteCoCarerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Choose their email and what they can do for {petName}. These settings
-          apply as soon as they accept.
+          You and the person you invite both need Crittr Pro. Choose their email
+          and what they can do for {petName}. These settings apply as soon as they
+          accept.
         </Text>
 
         <Text style={styles.sectionLabel}>EMAIL</Text>

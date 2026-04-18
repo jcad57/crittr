@@ -9,7 +9,7 @@ export default function Index() {
   );
 
   if (isLoggedIn && !needsOnboarding) {
-    return <Redirect href="/(logged-in)/dashboard" />;
+    return <Redirect href="/(logged-in)/(tabs)/dashboard" />;
   }
 
   if (isLoggedIn && needsOnboarding && requiresCoCareRemovedScreen) {

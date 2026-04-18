@@ -7,6 +7,44 @@ import {
   type Profile,
 } from "@/types/database";
 
+/** Shown when the invitee tries to accept without active Pro (matches RLS on `pet_co_carers`). */
+export const CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE =
+  "Crittr Pro is required to co-care. Upgrade to accept this invitation.";
+
+const CO_CARE_INVITE_VALIDATION_MESSAGES: Record<string, string> = {
+  email_required: "Enter an email address to send an invite.",
+  not_owner: "You can only invite co-carers for pets you own.",
+  inviter_not_pro: "Crittr Pro is required to invite co-carers.",
+};
+
+function messageForCoCareInviteValidation(code: string | undefined): string {
+  if (!code) return "Could not send this invite.";
+  return CO_CARE_INVITE_VALIDATION_MESSAGES[code] ?? "Could not send this invite.";
+}
+
+/** PostgREST sometimes returns jsonb RPC results as a JSON string. */
+function parseCoCareInviteValidation(raw: unknown): {
+  ok: boolean;
+  code?: string;
+} | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw) as { ok?: unknown; code?: string };
+      return typeof p.ok === "boolean"
+        ? { ok: p.ok, code: p.code }
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    const o = raw as { ok?: unknown; code?: string };
+    return typeof o.ok === "boolean" ? { ok: o.ok, code: o.code } : null;
+  }
+  return null;
+}
+
 function permissionsForNewCoCarerRow(invite: {
   permissions?: unknown;
 }): CoCarePermissions {
@@ -42,8 +80,26 @@ export async function sendCoCareInvite(
   inviterUserId: string,
   email: string,
   permissions: CoCarePermissions = DEFAULT_CO_CARE_PERMISSIONS,
-): Promise<{ invite: CoCarerInvite; isRegistered: boolean }> {
+): Promise<{
+  invite: CoCarerInvite;
+  isRegistered: boolean;
+  inviteeNeedsPro: boolean;
+}> {
   const normalised = email.trim().toLowerCase();
+
+  const { data: validation, error: validationError } = await supabase.rpc(
+    "validate_co_care_invite_send",
+    { p_pet_id: petId, p_invitee_email: normalised },
+  );
+  if (validationError) throw validationError;
+
+  const verdict = parseCoCareInviteValidation(validation);
+  if (!verdict?.ok) {
+    throw new Error(messageForCoCareInviteValidation(verdict?.code));
+  }
+
+  const validationCode = verdict.code ?? "";
+  const inviteeNeedsPro = validationCode === "registered_needs_pro";
 
   let invitedUserId: string | null = null;
   const { data: authLookup, error: lookupError } = await supabase.rpc(
@@ -89,21 +145,8 @@ export async function sendCoCareInvite(
     [inviter?.first_name, inviter?.last_name].filter(Boolean).join(" ") ||
     "Someone";
 
-  // In-app notification for existing users: insert as the inviter (authenticated).
-  // RLS policy allows that; a DB INSERT trigger often fails under SECURITY DEFINER
-  // because policies target `authenticated`, not the definer role.
-  if (invitedUserId) {
-    const { error: notifErr } = await supabase.from("notifications").insert({
-      user_id: invitedUserId,
-      type: "co_care_invite",
-      title: "Co-care invitation",
-      body: `${inviterName} invited you to co-care for ${pet?.name ?? "their pet"}.`,
-      data: { pet_id: petId, invite_id: invite.id },
-    });
-    if (notifErr) {
-      console.error("Failed to create co-care invite notification:", notifErr);
-    }
-  }
+  // In-app notifications for registered invitees: DB trigger
+  // `notify_co_carer_invite_after_insert` (handles Pro vs non‑Pro).
 
   if (!invitedUserId) {
     try {
@@ -119,7 +162,11 @@ export async function sendCoCareInvite(
     }
   }
 
-  return { invite: invite as CoCarerInvite, isRegistered: !!invitedUserId };
+  return {
+    invite: invite as CoCarerInvite,
+    isRegistered: !!invitedUserId,
+    inviteeNeedsPro: !!invitedUserId && inviteeNeedsPro,
+  };
 }
 
 export async function fetchPendingInvitesForUser(
@@ -187,6 +234,13 @@ export async function acceptInvite(
     .single();
 
   if (fetchErr || !invite) throw fetchErr ?? new Error("Invite not found");
+
+  const { data: accepterHasPro, error: proErr } =
+    await supabase.rpc("user_has_crittr_pro");
+  if (proErr) throw proErr;
+  if (!accepterHasPro) {
+    throw new Error(CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE);
+  }
 
   // Insert co-carer row first (while invite is still "pending") so the RLS
   // policy on pet_co_carers can verify the invite exists.

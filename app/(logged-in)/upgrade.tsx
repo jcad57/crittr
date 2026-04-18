@@ -1,12 +1,16 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { Font } from "@/constants/typography";
+import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { fetchIntroTrialEligibility } from "@/lib/stripeCheckout";
+import type { ProPricing } from "@/services/proPricing";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -41,18 +45,6 @@ const COMPARISON_ROWS: CompareRow[] = [
     subtitle: "Food, treats, medications, vaccinations",
     free: { type: "pill", label: "1 each" },
     pro: { type: "pill", label: "Unlimited" },
-  },
-  {
-    title: "Activity logs",
-    subtitle: "Walks, play, notes",
-    free: { type: "check" },
-    pro: { type: "check" },
-  },
-  {
-    title: "Full pet profile",
-    subtitle: "Details and history",
-    free: { type: "check" },
-    pro: { type: "check" },
   },
   {
     title: "Upload pet records",
@@ -108,17 +100,56 @@ export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
   const [billing, setBilling] = useState<BillingPeriod>("annual");
+  const [introTrialEligible, setIntroTrialEligible] = useState<boolean | null>(
+    null,
+  );
   const params = useLocalSearchParams<{
     fromOnboarding?: string;
     returnTo?: string;
+    /** YYYY-MM-DD — aligns checkout trial end with existing cancel-at-period-end access. */
+    billingAnchor?: string;
   }>();
   const fromOnboarding =
     params.fromOnboarding === "1" || params.fromOnboarding === "true";
+
+  const { data: pricingData } = useProPricingQuery();
+  const pricing = pricingData ?? PRO_PRICING_FALLBACK;
+
+  const billingAnchorActive = useMemo(() => {
+    const a =
+      typeof params.billingAnchor === "string"
+        ? params.billingAnchor.trim()
+        : "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(a);
+  }, [params.billingAnchor]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const ok = await fetchIntroTrialEligibility(billing);
+        if (!cancelled) setIntroTrialEligible(ok);
+      } catch {
+        if (!cancelled) setIntroTrialEligible(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [billing]);
 
   const scrollCompact = windowH < 720;
 
   const goToDashboard = () => {
     replace("/(logged-in)/dashboard" as Href);
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    goToDashboard();
   };
 
   return (
@@ -144,7 +175,7 @@ export default function UpgradeScreen() {
           <View style={styles.topBarRow}>
             <Pressable
               style={styles.backInRow}
-              onPress={() => router.back()}
+              onPress={handleBack}
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Back"
@@ -181,12 +212,22 @@ export default function UpgradeScreen() {
         bounces={scrollCompact}
       >
         <ProTierCard
+          pricing={pricing}
           billing={billing}
           onBillingChange={setBilling}
+          billingAnchorActive={billingAnchorActive}
+          introTrialEligible={introTrialEligible}
           onCta={() => {
             const q = new URLSearchParams();
             q.set("billing", billing);
             if (params.returnTo) q.set("returnTo", params.returnTo);
+            const anchor =
+              typeof params.billingAnchor === "string"
+                ? params.billingAnchor.trim()
+                : "";
+            if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
+              q.set("billingAnchor", anchor);
+            }
             push(`/(logged-in)/pro-checkout?${q.toString()}` as Href);
           }}
           showNoThanks={fromOnboarding}
@@ -213,19 +254,29 @@ const GRADIENT_COLORS = [
 const GRADIENT_LOCATIONS = [0, 0.15, 0.35, 0.52, 0.68, 0.86, 1] as const;
 
 function ProTierCard({
+  pricing,
   billing,
   onBillingChange,
   onCta,
   showNoThanks,
   onNoThanks,
+  billingAnchorActive,
+  introTrialEligible,
 }: {
+  pricing: ProPricing;
   billing: BillingPeriod;
   onBillingChange: (b: BillingPeriod) => void;
   onCta: () => void;
   showNoThanks?: boolean;
   onNoThanks?: () => void;
+  billingAnchorActive: boolean;
+  introTrialEligible: boolean | null;
 }) {
   const isAnnual = billing === "annual";
+  const curUpper = pricing.monthly.currency.toUpperCase();
+  const showSaveBadge =
+    pricing.annual.savingsVsMonthlyPercent != null &&
+    pricing.annual.savingsVsMonthlyPercent > 0;
 
   return (
     <View style={styles.cardShell}>
@@ -270,23 +321,35 @@ function ProTierCard({
             <View style={styles.priceColumn}>
               <View style={styles.priceRow}>
                 <Text style={[styles.priceHuge, styles.priceOnDark]}>
-                  $39.99
+                  {pricing.annual.formatted}
                 </Text>
                 <View style={styles.priceSide}>
-                  <Text style={styles.billingCadenceOnDark}>/ year (USD)</Text>
+                  <Text style={styles.billingCadenceOnDark}>
+                    / year ({curUpper})
+                  </Text>
                   <Text style={styles.billedYearlyOnDark}>billed yearly</Text>
                 </View>
               </View>
-              <Text style={styles.equivalentLine}>$3.33 / mo</Text>
+              <Text style={styles.equivalentLine}>
+                {pricing.annual.equivalentMonthlyFormatted} / mo
+              </Text>
             </View>
-            <View style={styles.saveBadgePrice}>
-              <Text style={styles.saveBadgePriceText}>Save 33%</Text>
-            </View>
+            {showSaveBadge ? (
+              <View style={styles.saveBadgePrice}>
+                <Text style={styles.saveBadgePriceText}>
+                  Save {pricing.annual.savingsVsMonthlyPercent}%
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : (
           <View style={styles.priceRow}>
-            <Text style={[styles.priceHuge, styles.priceOnDark]}>$4.99</Text>
-            <Text style={styles.billingCadenceDark}>/ month (USD)</Text>
+            <Text style={[styles.priceHuge, styles.priceOnDark]}>
+              {pricing.monthly.formatted}
+            </Text>
+            <Text style={styles.billingCadenceDark}>
+              / month ({curUpper})
+            </Text>
           </View>
         )}
       </View>
@@ -313,8 +376,22 @@ function ProTierCard({
         </View>
       ))}
 
+      <View style={styles.featuresEndSpacer} />
+
+      <Text style={styles.disclaimerOnDark}>
+        {billingAnchorActive
+          ? "Renewal timing follows your current paid-through date with Stripe."
+          : introTrialEligible === false
+            ? "No free intro trial — this account already has a Crittr Pro billing history. You are charged when you finish checkout."
+            : "No charge until your trial ends · Cancel anytime"}
+      </Text>
+
       <OrangeButton style={styles.cta} onPress={onCta}>
-        Start free 7-day trial →
+        {billingAnchorActive
+          ? "Continue to checkout →"
+          : introTrialEligible === false
+            ? "Continue to Crittr Pro →"
+            : "Start free 7-day trial →"}
       </OrangeButton>
 
       {showNoThanks && onNoThanks ? (
@@ -330,10 +407,6 @@ function ProTierCard({
           <Text style={styles.noThanksText}>No thanks</Text>
         </Pressable>
       ) : null}
-
-      <Text style={styles.disclaimerOnDark}>
-        No charge until your trial ends · Cancel anytime
-      </Text>
     </View>
   );
 }
@@ -554,6 +627,10 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.55)",
     marginTop: 2,
   },
+  /** Space between feature list and trial disclaimer / CTAs */
+  featuresEndSpacer: {
+    height: 24,
+  },
   checkBubble: {
     width: 22,
     height: 22,
@@ -583,7 +660,7 @@ const styles = StyleSheet.create({
     color: Colors.orangeDark,
   },
   cta: {
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 8,
   },
   noThanksBtn: {
@@ -606,5 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.55)",
     textAlign: "center",
+    marginBottom: 4,
   },
 });

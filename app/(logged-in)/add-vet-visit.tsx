@@ -12,11 +12,14 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
+import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -160,10 +163,16 @@ export default function AddVetVisitScreen() {
       await queryClient.invalidateQueries({
         queryKey: petVetVisitsQueryKey(petId),
       });
+      const profile = useAuthStore.getState().profile;
+      if (userId && profile) {
+        void syncCrittrReminderNotifications(
+          userId,
+          notificationPrefsFromProfile(profile),
+        );
+      }
       router.back();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Could not save visit.";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", getErrorMessage(e) || "Could not save visit.");
     } finally {
       setSubmitting(false);
     }

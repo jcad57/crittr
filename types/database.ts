@@ -36,8 +36,15 @@ export type Profile = {
   onboarding_complete: boolean;
   /** Pro access valid until this ISO time; null = no Pro. Set server-side (Stripe / admin). */
   crittr_pro_until: string | null;
+  /** Pro profile hero + dashboard crown palette: `slate` | `gold` | `purple`. */
+  crittr_pro_banner_theme?: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  /** Local / FCM reminder categories (manage-notifications). Omitted until migration applied. */
+  notify_meals_treats?: boolean;
+  notify_co_care_activities?: boolean;
+  notify_medications?: boolean;
+  notify_vet_visits?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -268,6 +275,7 @@ export type PetWithRole = Pet & {
 
 export type NotificationType =
   | "co_care_invite"
+  | "co_care_invite_requires_pro"
   | "co_care_accepted"
   | "co_care_removed";
 

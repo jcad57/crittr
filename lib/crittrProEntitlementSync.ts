@@ -4,23 +4,12 @@ export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
 
 let inFlight: Promise<CrittrProEntitlementSyncResult> | null = null;
 
-/**
- * Reconciles `crittr_pro_until` with Stripe via Edge Function (webhook fallback).
- * Concurrent callers share one request so cold start + INITIAL_SESSION do not double-hit Stripe.
- */
-export function ensureCrittrProSyncedFromStripe(): Promise<CrittrProEntitlementSyncResult> {
-  if (!inFlight) {
-    inFlight = invokeSyncCrittrProEntitlement().finally(() => {
-      inFlight = null;
-    });
-  }
-  return inFlight;
-}
-
-async function invokeSyncCrittrProEntitlement(): Promise<CrittrProEntitlementSyncResult> {
+async function requestCrittrProEntitlementSync(
+  body: Record<string, unknown>,
+): Promise<CrittrProEntitlementSyncResult> {
   const { error } = await supabase.functions.invoke(
     "sync-crittr-pro-entitlement",
-    { body: {}, timeout: 25_000 },
+    { body, timeout: 25_000 },
   );
 
   if (!error) {
@@ -44,6 +33,32 @@ async function invokeSyncCrittrProEntitlement(): Promise<CrittrProEntitlementSyn
     console.warn("[sync-crittr-pro-entitlement]", msg);
   }
   return "failed";
+}
+
+/**
+ * Reconciles `crittr_pro_until` with Stripe via Edge Function (webhook fallback).
+ * Concurrent callers share one request so cold start + INITIAL_SESSION do not double-hit Stripe.
+ */
+export function ensureCrittrProSyncedFromStripe(): Promise<CrittrProEntitlementSyncResult> {
+  if (!inFlight) {
+    inFlight = requestCrittrProEntitlementSync({}).finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+/**
+ * After PaymentSheet success: pass the subscription id from checkout so Supabase can sync
+ * even if the Stripe webhook is delayed or metadata is missing.
+ */
+export function syncCrittrProAfterCheckout(
+  subscriptionId?: string | null,
+): Promise<CrittrProEntitlementSyncResult> {
+  const sid = subscriptionId?.trim();
+  return requestCrittrProEntitlementSync(
+    sid ? { subscriptionId: sid } : {},
+  );
 }
 
 async function parseFunctionsErrorPayload(

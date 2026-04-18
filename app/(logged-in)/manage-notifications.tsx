@@ -12,6 +12,7 @@ import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  Alert,
   Linking,
   Platform,
   Pressable,
@@ -46,24 +47,25 @@ export default function ManageNotificationsScreen() {
   );
 
   const allEnabled =
-    !!prefs?.remindersEnabled && !!prefs?.activitiesEnabled;
+    prefs.notify_meals_treats &&
+    prefs.notify_co_care_activities &&
+    prefs.notify_medications &&
+    prefs.notify_vet_visits;
+
+  /**
+   * RN controlled Switch can desync thumb position vs track on the instance that
+   * received the tap when `value` updates in the same frame as the gesture.
+   * Remount when the value changes so native state matches React props.
+   */
+  const switchKeyAll = `${prefs.notify_meals_treats}-${prefs.notify_co_care_activities}-${prefs.notify_medications}-${prefs.notify_vet_visits}`;
 
   const setAll = async (on: boolean) => {
-    if (!prefs) return;
     await updatePrefs({
-      remindersEnabled: on,
-      activitiesEnabled: on,
+      notify_meals_treats: on,
+      notify_co_care_activities: on,
+      notify_medications: on,
+      notify_vet_visits: on,
     });
-  };
-
-  const setReminders = async (on: boolean) => {
-    if (!prefs) return;
-    await updatePrefs({ ...prefs, remindersEnabled: on });
-  };
-
-  const setActivities = async (on: boolean) => {
-    if (!prefs) return;
-    await updatePrefs({ ...prefs, activitiesEnabled: on });
   };
 
   const requestOsPermission = async () => {
@@ -74,6 +76,16 @@ export default function ManageNotificationsScreen() {
 
   const openSystemSettings = () => {
     void Linking.openSettings();
+  };
+
+  const showSystemNotificationHelp = () => {
+    const title = "Turn off notifications in system settings";
+    const message =
+      Platform.OS === "ios"
+        ? "To stop Crittr from sending alerts entirely, open the Settings app, scroll to Crittr, tap Notifications, then turn off Allow Notifications.\n\nYou can also open Settings → Notifications → Crittr and disable alerts there."
+        : "To stop Crittr from sending alerts entirely, open Settings, then Apps (or Notifications). Tap Crittr, open Notifications, and turn off all notification categories or the main toggle.\n\nExact steps vary slightly by device (Samsung, Pixel, etc.) but Crittr’s app settings screen always includes a Notifications section.";
+
+    Alert.alert(title, message, [{ text: "OK" }]);
   };
 
   const permissionLabel =
@@ -110,10 +122,7 @@ export default function ManageNotificationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Choose which alerts Crittr may send. Your device still controls sounds
-          and banners. Reminders cover feeds, medications, vaccinations, and vet
-          visits. Activities include co-care logs and nudges based on your daily
-          progress.
+          Choose which reminders Crittr may schedule on this device.
         </Text>
 
         {Platform.OS !== "web" ? (
@@ -122,36 +131,54 @@ export default function ManageNotificationsScreen() {
               <Text style={styles.cardTitle}>System permission</Text>
               <Text style={styles.cardSub}>{permissionLabel}</Text>
             </View>
-            <View style={styles.permissionActions}>
-              {permStatus !== Notifications.PermissionStatus.GRANTED ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.textBtn,
-                    pressed && styles.textBtnPressed,
-                  ]}
-                  onPress={requestOsPermission}
-                >
-                  <Text style={styles.textBtnLabel}>Allow</Text>
-                </Pressable>
-              ) : null}
-              {permStatus === Notifications.PermissionStatus.DENIED ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.textBtn,
-                    pressed && styles.textBtnPressed,
-                  ]}
-                  onPress={openSystemSettings}
-                >
-                  <Text style={styles.textBtnLabel}>Open settings</Text>
-                </Pressable>
-              ) : null}
+            <View style={styles.permissionRowRight}>
+              <View style={styles.permissionActions}>
+                {permStatus !== Notifications.PermissionStatus.GRANTED ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.textBtn,
+                      pressed && styles.textBtnPressed,
+                    ]}
+                    onPress={requestOsPermission}
+                  >
+                    <Text style={styles.textBtnLabel}>Allow</Text>
+                  </Pressable>
+                ) : null}
+                {permStatus === Notifications.PermissionStatus.DENIED ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.textBtn,
+                      pressed && styles.textBtnPressed,
+                    ]}
+                    onPress={openSystemSettings}
+                  >
+                    <Text style={styles.textBtnLabel}>Open settings</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={showSystemNotificationHelp}
+                hitSlop={12}
+                style={({ pressed }) => [
+                  styles.permissionInfoBtn,
+                  pressed && styles.permissionInfoBtnPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="How to turn off notifications in system settings"
+              >
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={22}
+                  color={Colors.gray500}
+                />
+              </Pressable>
             </View>
           </View>
         ) : null}
 
-        <Text style={styles.sectionLabel}>In-app categories</Text>
+        <Text style={styles.sectionLabel}>Reminders & activity</Text>
 
-        {loading || !prefs ? (
+        {loading ? (
           <Text style={styles.loadingText}>Loading preferences…</Text>
         ) : (
           <>
@@ -159,10 +186,11 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>All</Text>
                 <Text style={styles.cardSub}>
-                  Turn every Crittr notification type on or off
+                  Turn every notification category on or off
                 </Text>
               </View>
               <Switch
+                key={`notif-all-${switchKeyAll}`}
                 value={allEnabled}
                 onValueChange={(v) => void setAll(v)}
                 trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
@@ -172,34 +200,83 @@ export default function ManageNotificationsScreen() {
 
             <View style={styles.card}>
               <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>Reminders</Text>
+                <Text style={styles.cardTitle}>Meals & treats</Text>
                 <Text style={styles.cardSub}>
-                  Feeding, medications, vaccinations, and vet visits
+                  Daily alerts from each scheduled portion time (treats without
+                  times use an evening reminder)
                 </Text>
               </View>
               <Switch
-                value={prefs.remindersEnabled}
-                onValueChange={(v) => void setReminders(v)}
+                key={`notif-meals-${prefs.notify_meals_treats}`}
+                value={prefs.notify_meals_treats}
+                onValueChange={(v) =>
+                  void updatePrefs({ notify_meals_treats: v })
+                }
                 trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
                 thumbColor={
-                  prefs.remindersEnabled ? Colors.orange : Colors.gray400
+                  prefs.notify_meals_treats ? Colors.orange : Colors.gray400
                 }
               />
             </View>
 
             <View style={styles.card}>
               <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>Activities</Text>
+                <Text style={styles.cardTitle}>Co-care activities</Text>
                 <Text style={styles.cardSub}>
-                  Co-care activity, daily logging nudges, and progress prompts
+                  Afternoon check-in when exercise goals for the day are not met
                 </Text>
               </View>
               <Switch
-                value={prefs.activitiesEnabled}
-                onValueChange={(v) => void setActivities(v)}
+                key={`notif-cocare-${prefs.notify_co_care_activities}`}
+                value={prefs.notify_co_care_activities}
+                onValueChange={(v) =>
+                  void updatePrefs({ notify_co_care_activities: v })
+                }
                 trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
                 thumbColor={
-                  prefs.activitiesEnabled ? Colors.orange : Colors.gray400
+                  prefs.notify_co_care_activities
+                    ? Colors.orange
+                    : Colors.gray400
+                }
+              />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Medications</Text>
+                <Text style={styles.cardSub}>
+                  Heads-up shortly before each medication’s reminder time
+                </Text>
+              </View>
+              <Switch
+                key={`notif-meds-${prefs.notify_medications}`}
+                value={prefs.notify_medications}
+                onValueChange={(v) =>
+                  void updatePrefs({ notify_medications: v })
+                }
+                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
+                thumbColor={
+                  prefs.notify_medications ? Colors.orange : Colors.gray400
+                }
+              />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Vet visits</Text>
+                <Text style={styles.cardSub}>
+                  Upcoming visits from your pet’s health calendar
+                </Text>
+              </View>
+              <Switch
+                key={`notif-vet-${prefs.notify_vet_visits}`}
+                value={prefs.notify_vet_visits}
+                onValueChange={(v) =>
+                  void updatePrefs({ notify_vet_visits: v })
+                }
+                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
+                thumbColor={
+                  prefs.notify_vet_visits ? Colors.orange : Colors.gray400
                 }
               />
             </View>
@@ -242,6 +319,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  leadEm: {
+    fontFamily: Font.uiSemiBold,
+    color: Colors.textPrimary,
+  },
   sectionLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 12,
@@ -281,11 +362,21 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  permissionRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   permissionActions: {
     flexDirection: "column",
     alignItems: "flex-end",
     gap: 8,
   },
+  permissionInfoBtn: {
+    padding: 6,
+    marginLeft: 2,
+  },
+  permissionInfoBtnPressed: { opacity: 0.65 },
   textBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,

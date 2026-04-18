@@ -43,13 +43,38 @@ async function extractErrorMessage(error: unknown): Promise<string> {
   return "Something went wrong. Please try again.";
 }
 
-export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails> {
+async function invokeErrorBody(
+  error: unknown,
+  data: unknown,
+): Promise<Record<string, unknown> | null> {
+  if (data && typeof data === "object") {
+    return data as Record<string, unknown>;
+  }
+  if (error && typeof error === "object" && "context" in error) {
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      try {
+        return (await ctx.json()) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/** `null` when the user has no Stripe subscription on file (not an error). */
+export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | null> {
   const { data, error } = await supabase.functions.invoke(
     "get-subscription-details",
     { body: {}, timeout: 30_000 },
   );
 
   if (error) {
+    const body = await invokeErrorBody(error, data);
+    if (body?.error === "no_subscription") {
+      return null;
+    }
     throw new Error(await extractErrorMessage(error));
   }
 

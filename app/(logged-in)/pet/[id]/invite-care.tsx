@@ -10,7 +10,6 @@ import {
   useRevokeInviteMutation,
   useSentInvitesForPetQuery,
 } from "@/hooks/queries";
-import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { queryClient } from "@/lib/queryClient";
 import { type CoCarerWithProfile } from "@/services/coCare";
@@ -31,12 +30,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Matches `OrangeButton` wrapper height (50 + 5). See activity-log screen. */
+const ORANGE_BUTTON_WRAPPER_HEIGHT = 55;
+const BOTTOM_BAR_PADDING_TOP = 8;
+
 export default function PetInviteCareScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
-  const scrollInsetBottom = useFloatingNavScrollInset();
 
   const {
     data: details,
@@ -109,6 +111,9 @@ export default function PetInviteCareScreen() {
 
   const name = details.name?.trim() || "your pet";
 
+  const scrollPaddingBottom =
+    BOTTOM_BAR_PADDING_TOP + ORANGE_BUTTON_WRAPPER_HEIGHT + insets.bottom;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       {/* Nav */}
@@ -133,7 +138,7 @@ export default function PetInviteCareScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.body,
-          { paddingBottom: scrollInsetBottom + 24 },
+          { paddingBottom: scrollPaddingBottom },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -146,26 +151,16 @@ export default function PetInviteCareScreen() {
           />
         }
       >
-        {/* Invite section */}
-        <Text style={styles.sectionLabel}>INVITE SOMEONE</Text>
         <Text style={styles.lead}>
-          Invite someone by email to help care for {name}. You choose their access
-          before the invite is sent.
+          Invite someone by email to help care for {name}. Co-care requires Crittr
+          Pro for you and for them before they can accept. You choose their access
+          on the next screen.
         </Text>
-
-        <OrangeButton
-          onPress={() =>
-            push(`/(logged-in)/pet/${petId}/invite-co-carer`)
-          }
-          style={styles.sendBtn}
-        >
-          Invite someone to care for {name}
-        </OrangeButton>
 
         {/* Pending invites */}
         {pendingInvites.length > 0 && (
           <>
-            <Text style={[styles.sectionLabel, styles.sectionGap]}>
+            <Text style={styles.sectionLabel}>
               PENDING INVITES
             </Text>
             {pendingInvites.map((inv: CoCarerInvite) => (
@@ -248,6 +243,22 @@ export default function PetInviteCareScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <View
+        style={[
+          styles.bottomBar,
+          { paddingBottom: insets.bottom },
+        ]}
+      >
+        <OrangeButton
+          onPress={() =>
+            push(`/(logged-in)/pet/${petId}/invite-co-carer`)
+          }
+          accessibilityLabel={`Invite someone to care for ${name}`}
+        >
+          Invite someone to care for {name}
+        </OrangeButton>
+      </View>
     </View>
   );
 }
@@ -262,6 +273,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.creamDark,
+    backgroundColor: Colors.cream,
   },
   navSideLeft: { width: 72, alignItems: "flex-start", justifyContent: "center" },
   navSideRight: { width: 72, alignItems: "center", justifyContent: "center" },
@@ -275,7 +289,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   scroll: { flex: 1 },
-  body: { paddingHorizontal: 20, paddingTop: 8 },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    flexGrow: 1,
+  },
   sectionLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 11,
@@ -290,9 +308,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  sendBtn: { marginBottom: 0 },
+  bottomBar: {
+    paddingHorizontal: 20,
+    paddingTop: BOTTOM_BAR_PADDING_TOP,
+    backgroundColor: Colors.cream,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.creamDark,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
