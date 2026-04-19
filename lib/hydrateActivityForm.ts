@@ -4,6 +4,7 @@ import {
   type FoodActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
+  type TrainingActivityFormData,
   type VetVisitActivityFormData,
 } from "@/types/database";
 
@@ -95,6 +96,18 @@ export function petActivityToMedicationForm(
     medicationName: a.label ?? "",
     amount: a.med_amount != null ? String(a.med_amount) : "",
     unit: a.med_unit ?? "",
+    notes: a.notes ?? "",
+  };
+}
+
+export function petActivityToTrainingForm(
+  a: PetActivity,
+): TrainingActivityFormData {
+  return {
+    label: a.label ?? "",
+    location: a.location ?? "",
+    durationMinutes:
+      a.duration_minutes != null ? String(a.duration_minutes) : "",
     notes: a.notes ?? "",
   };
 }

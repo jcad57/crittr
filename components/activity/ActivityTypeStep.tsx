@@ -37,11 +37,11 @@ const OPTIONS: Option[] = [
     bg: Colors.progressMedsTrack,
   },
   {
-    type: "vet_visit",
-    label: "Vet Visit",
-    icon: "stethoscope",
-    color: Colors.progressTreats,
-    bg: Colors.progressTreatsTrack,
+    type: "training",
+    label: "Training",
+    icon: "school",
+    color: Colors.progressExercise,
+    bg: Colors.progressExerciseTrack,
   },
 ];
 

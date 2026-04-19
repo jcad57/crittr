@@ -6,12 +6,15 @@ import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
+  allActivitiesKey,
   healthSnapshotKey,
   petVetVisitsQueryKey,
+  todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
+import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
@@ -157,12 +160,20 @@ export default function AddVetVisitScreen() {
         location,
         notes: notes.trim() || null,
       });
+      await syncTodayVetVisitMirrorsToActivities(userId);
       await queryClient.invalidateQueries({
         queryKey: healthSnapshotKey(userId),
       });
       await queryClient.invalidateQueries({
         queryKey: petVetVisitsQueryKey(petId),
       });
+      await queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: allActivitiesKey(petId),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       const profile = useAuthStore.getState().profile;
       if (userId && profile) {
         void syncCrittrReminderNotifications(

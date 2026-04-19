@@ -309,7 +309,12 @@ export type CrittrAiMessage = {
 
 // ─── Pet Activity (unified activity log) ────────────────────────────────────
 
-export type ActivityType = "exercise" | "food" | "medication" | "vet_visit";
+export type ActivityType =
+  | "exercise"
+  | "food"
+  | "medication"
+  | "vet_visit"
+  | "training";
 
 export type PetActivity = {
   id: string;
@@ -338,6 +343,8 @@ export type PetActivity = {
 
   vet_location: string | null;
   other_pet_ids: string[] | null;
+  /** Populated when this row mirrors `pet_vet_visits` (scheduled visit). */
+  vet_visit_id?: string | null;
 
   notes: string | null;
   created_at: string;
@@ -387,6 +394,14 @@ export type VetVisitActivityFormData = {
   vetLocation: string;
   customVetLocation: string;
   otherPetIds: string[];
+  notes: string;
+};
+
+/** Training / enrichment session — time via `activityOccurredAt`; duration in minutes. */
+export type TrainingActivityFormData = {
+  label: string;
+  location: string;
+  durationMinutes: string;
   notes: string;
 };
 

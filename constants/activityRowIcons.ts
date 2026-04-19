@@ -31,6 +31,11 @@ export const ACTIVITY_ROW_ICONS: Record<
     ring: Colors.progressTreats,
     track: Colors.progressTreatsTrack,
   },
+  training: {
+    source: require("@/assets/icons/walk-dog-icon.png"),
+    ring: Colors.progressExercise,
+    track: Colors.progressExerciseTrack,
+  },
 };
 
 export const ACTIVITY_ROW_ICON_BOX = 48;

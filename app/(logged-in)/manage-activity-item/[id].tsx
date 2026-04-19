@@ -2,6 +2,7 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
+import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
@@ -11,15 +12,25 @@ import {
   useUpdateExerciseActivityMutation,
   useUpdateFoodActivityMutation,
   useUpdateMedicationActivityMutation,
+  useUpdateTrainingActivityMutation,
   useUpdateVetVisitActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
 import { useActivityQuery, usePetDetailsQuery } from "@/hooks/queries";
+import {
+  allActivitiesKey,
+  healthSnapshotKey,
+  petVetVisitsQueryKey,
+  todayActivitiesPrefixKey,
+} from "@/hooks/queries/queryKeys";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { queryClient } from "@/lib/queryClient";
+import { deleteVetVisit } from "@/services/health";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { PetWithDetails } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -51,6 +62,8 @@ function navTitleForActivityType(t: string | null | undefined): string {
       return "Edit medication";
     case "vet_visit":
       return "Edit vet visit";
+    case "training":
+      return "Edit training";
     default:
       return "Edit activity";
   }
@@ -74,6 +87,13 @@ export default function ManageActivityItemScreen() {
     error,
   } = useActivityQuery(activityId);
 
+  useEffect(() => {
+    if (!activity?.vet_visit_id || !activity.pet_id) return;
+    router.replace(
+      `/(logged-in)/pet/${activity.pet_id}/vet-visits/${activity.vet_visit_id}` as Href,
+    );
+  }, [activity?.vet_visit_id, activity?.pet_id, activity, router]);
+
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: petDetails } = usePetDetailsQuery(activity?.pet_id ?? null);
 
@@ -91,7 +111,9 @@ export default function ManageActivityItemScreen() {
   const foodForm = useActivityFormStore((s) => s.foodForm);
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const vetForm = useActivityFormStore((s) => s.vetVisitForm);
+  const trainingForm = useActivityFormStore((s) => s.trainingForm);
   const activityType = useActivityFormStore((s) => s.activityType);
+  const userId = useAuthStore((s) => s.session?.user?.id);
 
   const petId = activity?.pet_id ?? null;
 
@@ -99,6 +121,7 @@ export default function ManageActivityItemScreen() {
   const updateFood = useUpdateFoodActivityMutation(petId);
   const updateMed = useUpdateMedicationActivityMutation(petId);
   const updateVet = useUpdateVetVisitActivityMutation(petId);
+  const updateTraining = useUpdateTrainingActivityMutation(petId);
   const deleteMut = useDeleteActivityMutation(petId);
 
   const [hydrated, setHydrated] = useState(false);
@@ -115,6 +138,11 @@ export default function ManageActivityItemScreen() {
       usePetStore.getState().setActivePet(activity.pet_id);
     }
 
+    if (activity.vet_visit_id) {
+      setHydrated(false);
+      return;
+    }
+
     const needsPetContext =
       activity.activity_type === "food" ||
       activity.activity_type === "medication";
@@ -123,7 +151,11 @@ export default function ManageActivityItemScreen() {
       return;
     }
 
-    if (activity.activity_type === "vet_visit" && !petDetails) {
+    if (
+      activity.activity_type === "vet_visit" &&
+      !activity.vet_visit_id &&
+      !petDetails
+    ) {
       setHydrated(false);
       return;
     }
@@ -180,6 +212,18 @@ export default function ManageActivityItemScreen() {
     finish();
   }, [activityId, updateVet, vetForm, finish]);
 
+  const saveTraining = useCallback(async () => {
+    if (!activityId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString();
+    await updateTraining.mutateAsync({
+      activityId,
+      form: trainingForm,
+      loggedAtIso,
+    });
+    finish();
+  }, [activityId, updateTraining, trainingForm, finish]);
+
   const goBack = useCallback(() => {
     reset();
     router.back();
@@ -194,7 +238,8 @@ export default function ManageActivityItemScreen() {
   }, [goBack]);
 
   const confirmDelete = useCallback(() => {
-    if (!activityId) return;
+    if (!activityId || !activity) return;
+    const act = activity;
     Alert.alert("Delete activity?", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -202,7 +247,27 @@ export default function ManageActivityItemScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await deleteMut.mutateAsync(activityId);
+            if (act.vet_visit_id) {
+              await deleteVetVisit(act.vet_visit_id);
+              if (act.pet_id) {
+                void queryClient.invalidateQueries({
+                  queryKey: petVetVisitsQueryKey(act.pet_id),
+                });
+                void queryClient.invalidateQueries({
+                  queryKey: todayActivitiesPrefixKey(act.pet_id),
+                });
+                void queryClient.invalidateQueries({
+                  queryKey: allActivitiesKey(act.pet_id),
+                });
+              }
+              if (userId) {
+                void queryClient.invalidateQueries({
+                  queryKey: healthSnapshotKey(userId),
+                });
+              }
+            } else {
+              await deleteMut.mutateAsync(activityId);
+            }
             finish();
           } catch {
             Alert.alert("Could not delete", "Please try again.");
@@ -210,13 +275,14 @@ export default function ManageActivityItemScreen() {
         },
       },
     ]);
-  }, [activityId, deleteMut, finish]);
+  }, [activityId, activity, deleteMut, finish, userId]);
 
   const saving =
     updateEx.isPending ||
     updateFood.isPending ||
     updateMed.isPending ||
-    updateVet.isPending;
+    updateVet.isPending ||
+    updateTraining.isPending;
   const busy = saving || deleteMut.isPending;
 
   const loggedAtLabel = activity
@@ -262,6 +328,16 @@ export default function ManageActivityItemScreen() {
         <Pressable onPress={goBack}>
           <Text style={styles.backLink}>Go back</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (activity.vet_visit_id && activity.pet_id) {
+    return (
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
   }
@@ -341,6 +417,15 @@ export default function ManageActivityItemScreen() {
                 embeddedInScreen
                 hideEmbeddedSave
                 showBatchPets={false}
+              />
+            ) : activityType === "training" ? (
+              <TrainingDetailStep
+                ref={stepRef}
+                onSave={saveTraining}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
               />
             ) : activityType === "vet_visit" ? (
               <VetVisitDetailStep

@@ -39,6 +39,14 @@ function buildRightValue(a: PetActivity): string {
       return formatMedicationDosageDisplay(a.med_amount, a.med_unit);
     case "vet_visit":
       return "";
+    case "training": {
+      const h = a.duration_hours ?? 0;
+      const m = a.duration_minutes ?? 0;
+      if (h > 0 && m > 0) return `${h}h ${m} min`;
+      if (h > 0) return `${h}h`;
+      if (m > 0) return `${m} min`;
+      return "";
+    }
     default:
       return "";
   }

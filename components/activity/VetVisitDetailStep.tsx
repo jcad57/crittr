@@ -39,187 +39,199 @@ const VetVisitDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
-  const form = useActivityFormStore((s) => s.vetVisitForm);
-  const update = useActivityFormStore((s) => s.updateVetVisit);
-  const [saving, setSaving] = useState(false);
-  const [attempted, setAttempted] = useState(false);
+    const form = useActivityFormStore((s) => s.vetVisitForm);
+    const update = useActivityFormStore((s) => s.updateVetVisit);
+    const [saving, setSaving] = useState(false);
+    const [attempted, setAttempted] = useState(false);
 
-  const activePetId = usePetStore((s) => s.activePetId);
-  const { data: petDetails } = usePetDetailsQuery(activePetId);
-  const { data: allPets } = usePetsQuery();
+    const activePetId = usePetStore((s) => s.activePetId);
+    const { data: petDetails } = usePetDetailsQuery(activePetId);
+    const { data: allPets } = usePetsQuery();
 
-  const vetClinic = petDetails
-    ? ((
-        petDetails as { primary_vet_clinic?: string | null }
-      ).primary_vet_clinic?.trim() ?? "")
-    : "";
+    const vetClinic = petDetails
+      ? ((
+          petDetails as { primary_vet_clinic?: string | null }
+        ).primary_vet_clinic?.trim() ?? "")
+      : "";
 
-  const locationOptions = useMemo(() => {
-    const opts: string[] = [];
-    if (vetClinic) opts.push(vetClinic);
-    opts.push("Other");
-    return opts;
-  }, [vetClinic]);
+    const locationOptions = useMemo(() => {
+      const opts: string[] = [];
+      if (vetClinic) opts.push(vetClinic);
+      opts.push("Other");
+      return opts;
+    }, [vetClinic]);
 
-  const petNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const p of allPets ?? []) {
-      m.set(p.id, p.name?.trim() || "Pet");
-    }
-    return m;
-  }, [allPets]);
+    const petNameById = useMemo(() => {
+      const m = new Map<string, string>();
+      for (const p of allPets ?? []) {
+        m.set(p.id, p.name?.trim() || "Pet");
+      }
+      return m;
+    }, [allPets]);
 
-  const selectableVetPets = useMemo(() => {
-    if (!allPets || !activePetId) return [];
-    const taken = new Set<string>([activePetId, ...form.otherPetIds]);
-    return allPets.filter(
-      (p) =>
-        isPetActiveForDashboard(p) && !taken.has(p.id),
+    const selectableVetPets = useMemo(() => {
+      if (!allPets || !activePetId) return [];
+      const taken = new Set<string>([activePetId, ...form.otherPetIds]);
+      return allPets.filter(
+        (p) => isPetActiveForDashboard(p) && !taken.has(p.id),
+      );
+    }, [allPets, activePetId, form.otherPetIds]);
+
+    const isValid =
+      form.label.trim().length > 0 &&
+      form.vetLocation !== "" &&
+      (form.vetLocation !== "Other" ||
+        form.customVetLocation.trim().length > 0);
+
+    const handleSave = useCallback(async () => {
+      if (!isValid) {
+        setAttempted(true);
+        return;
+      }
+      setSaving(true);
+      try {
+        await onSave();
+      } finally {
+        setSaving(false);
+      }
+    }, [isValid, onSave]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        submit: () => {
+          void handleSave();
+        },
+      }),
+      [handleSave],
     );
-  }, [allPets, activePetId, form.otherPetIds]);
 
-  const isValid =
-    form.label.trim().length > 0 &&
-    form.vetLocation !== "" &&
-    (form.vetLocation !== "Other" || form.customVetLocation.trim().length > 0);
-
-  const handleSave = useCallback(async () => {
-    if (!isValid) {
-      setAttempted(true);
-      return;
-    }
-    setSaving(true);
-    try {
-      await onSave();
-    } finally {
-      setSaving(false);
-    }
-  }, [isValid, onSave]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      submit: () => {
-        void handleSave();
+    const addOtherPet = useCallback(
+      (petId: string) => {
+        if (form.otherPetIds.includes(petId)) return;
+        update({ otherPetIds: [...form.otherPetIds, petId] });
       },
-    }),
-    [handleSave],
-  );
+      [form.otherPetIds, update],
+    );
 
-  const addOtherPet = useCallback(
-    (petId: string) => {
-      if (form.otherPetIds.includes(petId)) return;
-      update({ otherPetIds: [...form.otherPetIds, petId] });
-    },
-    [form.otherPetIds, update],
-  );
+    const removeOtherPet = useCallback(
+      (petId: string) => {
+        update({
+          otherPetIds: form.otherPetIds.filter((id) => id !== petId),
+        });
+      },
+      [form.otherPetIds, update],
+    );
 
-  const removeOtherPet = useCallback(
-    (petId: string) => {
-      update({
-        otherPetIds: form.otherPetIds.filter((id) => id !== petId),
-      });
-    },
-    [form.otherPetIds, update],
-  );
+    const fieldLabelStyle = embeddedInScreen
+      ? styles.fieldLabelScreen
+      : styles.fieldLabel;
+    const blockSpacing = embeddedInScreen
+      ? styles.spacingScreen
+      : styles.spacing;
 
-  const fieldLabelStyle = embeddedInScreen
-    ? styles.fieldLabelScreen
-    : styles.fieldLabel;
-  const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
+    const locationError = attempted && !form.vetLocation;
+    const customLocationError =
+      attempted &&
+      form.vetLocation === "Other" &&
+      !form.customVetLocation.trim();
 
-  const locationError = attempted && !form.vetLocation;
-  const customLocationError =
-    attempted && form.vetLocation === "Other" && !form.customVetLocation.trim();
-
-  return (
-    <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
-      {!embeddedInScreen ? (
-        <Text style={styles.title}>Vet Visit Details</Text>
-      ) : null}
-
-      <FormInput
-        label="Label"
-        required
-        placeholder="Checkup, hot spot, vaccinations…"
-        value={form.label}
-        onChangeText={(v) => update({ label: v })}
-        containerStyle={blockSpacing}
-        error={attempted && !form.label.trim()}
-      />
-
-      <Text style={fieldLabelStyle}>Location *</Text>
+    return (
       <View
-        style={{
-          zIndex: 80,
-          marginBottom: embeddedInScreen ? 16 : 12,
-        }}
+        style={embeddedInScreen ? styles.containerEmbedded : styles.container}
       >
-        <DropdownSelect
-          placeholder="Select location"
-          value={form.vetLocation}
-          options={locationOptions}
-          onSelect={(v) => update({ vetLocation: v })}
-        />
-      </View>
-
-      {form.vetLocation === "Other" && (
+        {!embeddedInScreen ? (
+          <Text style={styles.title}>Vet Visit Details</Text>
+        ) : null}
+        <Text style={styles.hint}>
+          Manually add a vet visit for today if you never scheduled it.
+        </Text>
         <FormInput
-          placeholder="Clinic name or address"
-          value={form.customVetLocation}
-          onChangeText={(v) => update({ customVetLocation: v })}
+          label="Label"
+          required
+          placeholder="Checkup, hot spot, vaccinations…"
+          value={form.label}
+          onChangeText={(v) => update({ label: v })}
           containerStyle={blockSpacing}
-          error={attempted && !form.customVetLocation.trim()}
+          error={attempted && !form.label.trim()}
         />
-      )}
 
-      <ActivityOccurredTimeRow
-        containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
-      />
-      <FormInput
-        label="Notes"
-        placeholder="Diagnoses, follow-ups, etc."
-        value={form.notes}
-        onChangeText={(v) => update({ notes: v })}
-        multiline
-        containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
-      />
-
-      <AlsoLogForPetsSection
-        hint="Same visit details for each pet. Add companions who were at this visit."
-        extraPetIds={form.otherPetIds}
-        selectablePets={selectableVetPets}
-        petNameById={petNameById}
-        onAddPet={addOtherPet}
-        onRemovePet={removeOtherPet}
-        fieldLabelStyle={fieldLabelStyle}
-      />
-
-      {!embeddedInScreen || !hideEmbeddedSave ? (
-        <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
-      ) : null}
-
-      {attempted && !isValid && (
-        <Text style={styles.errorHint}>Please fill in all required fields</Text>
-      )}
-
-      {(!embeddedInScreen || !hideEmbeddedSave) && (
-        <OrangeButton
-          onPress={handleSave}
-          loading={saving}
-          style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+        <Text style={fieldLabelStyle}>Location *</Text>
+        <View
+          style={{
+            zIndex: 80,
+            marginBottom: embeddedInScreen ? 16 : 12,
+          }}
         >
-          {saveLabel}
-        </OrangeButton>
-      )}
+          <DropdownSelect
+            placeholder="Select location"
+            value={form.vetLocation}
+            options={locationOptions}
+            onSelect={(v) => update({ vetLocation: v })}
+          />
+        </View>
 
-      {!embeddedInScreen ? (
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
+        {form.vetLocation === "Other" && (
+          <FormInput
+            placeholder="Clinic name or address"
+            value={form.customVetLocation}
+            onChangeText={(v) => update({ customVetLocation: v })}
+            containerStyle={blockSpacing}
+            error={attempted && !form.customVetLocation.trim()}
+          />
+        )}
+
+        <ActivityOccurredTimeRow
+          containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
+        />
+        <FormInput
+          label="Notes"
+          placeholder="Diagnoses, follow-ups, etc."
+          value={form.notes}
+          onChangeText={(v) => update({ notes: v })}
+          multiline
+          containerStyle={embeddedInScreen ? blockSpacing : styles.spacing}
+        />
+
+        <AlsoLogForPetsSection
+          hint="Same visit details for each pet. Add companions who were at this visit."
+          extraPetIds={form.otherPetIds}
+          selectablePets={selectableVetPets}
+          petNameById={petNameById}
+          onAddPet={addOtherPet}
+          onRemovePet={removeOtherPet}
+          fieldLabelStyle={fieldLabelStyle}
+        />
+
+        {!embeddedInScreen || !hideEmbeddedSave ? (
+          <View
+            style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer}
+          />
+        ) : null}
+
+        {attempted && !isValid && (
+          <Text style={styles.errorHint}>
+            Please fill in all required fields
+          </Text>
+        )}
+
+        {(!embeddedInScreen || !hideEmbeddedSave) && (
+          <OrangeButton
+            onPress={handleSave}
+            loading={saving}
+            style={embeddedInScreen ? styles.ctaScreen : styles.cta}
+          >
+            {saveLabel}
+          </OrangeButton>
+        )}
+
+        {!embeddedInScreen ? (
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
   },
 );
 
@@ -234,6 +246,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     textAlign: "center",
     marginBottom: 20,
+  },
+  hint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 10,
+    lineHeight: 18,
   },
   fieldLabel: {
     fontFamily: "InstrumentSans-SemiBold",

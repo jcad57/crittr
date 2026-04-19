@@ -4,6 +4,7 @@ import {
   updateExerciseActivity,
   updateFoodActivity,
   updateMedicationActivity,
+  updateTrainingActivity,
   updateVetVisitActivity,
 } from "@/services/activities";
 import {
@@ -15,6 +16,7 @@ import type {
   ExerciseFormData,
   FoodActivityFormData,
   MedicationActivityFormData,
+  TrainingActivityFormData,
   VetVisitActivityFormData,
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
@@ -79,6 +81,25 @@ export function useUpdateVetVisitActivityMutation(petId: string | null) {
       activityId: string;
       form: VetVisitActivityFormData;
     }) => updateVetVisitActivity(activityId, form),
+    onSuccess: (_, { activityId }) =>
+      invalidateActivityCaches(petId, activityId),
+  });
+}
+
+export function useUpdateTrainingActivityMutation(petId: string | null) {
+  return useMutation({
+    mutationFn: ({
+      activityId,
+      form,
+      loggedAtIso,
+    }: {
+      activityId: string;
+      form: TrainingActivityFormData;
+      loggedAtIso?: string;
+    }) =>
+      updateTrainingActivity(activityId, form, {
+        loggedAt: loggedAtIso,
+      }),
     onSuccess: (_, { activityId }) =>
       invalidateActivityCaches(petId, activityId),
   });

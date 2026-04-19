@@ -1,10 +1,12 @@
 import { supabase } from "@/lib/supabase";
+import { fetchAccessiblePets } from "@/services/pets";
 import {
   FOOD_ACTIVITY_OTHER_ID,
   type ExerciseFormData,
   type FoodActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
+  type TrainingActivityFormData,
   type VetVisitActivityFormData,
 } from "@/types/database";
 
@@ -83,6 +85,91 @@ export async function fetchActivitiesForPet(
 
   if (error) throw error;
   return (data ?? []) as PetActivity[];
+}
+
+/**
+ * For each accessible pet, if a vet visit is scheduled for **local calendar today**
+ * and no mirror row exists yet (`vet_visit_id`), inserts `pet_activities`.
+ * Call on app bootstrap, day rollover, and foreground — not when the visit is first created.
+ */
+export async function ensureTodayVetVisitMirrorActivities(
+  userId: string,
+): Promise<{ petIds: string[] }> {
+  const petsWithRole = await fetchAccessiblePets(userId);
+  const pets = petsWithRole.filter((p) => !p.is_memorialized);
+  if (pets.length === 0) return { petIds: [] };
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const todayStartMs = start.getTime();
+
+  for (const pet of pets) {
+    const { data: mirrors } = await supabase
+      .from("pet_activities")
+      .select("id,vet_visit_id")
+      .eq("pet_id", pet.id)
+      .not("vet_visit_id", "is", null);
+
+    for (const m of mirrors ?? []) {
+      const vid = m.vet_visit_id;
+      if (!vid) continue;
+      const { data: vrow } = await supabase
+        .from("pet_vet_visits")
+        .select("visit_at")
+        .eq("id", vid)
+        .maybeSingle();
+      if (!vrow) {
+        await supabase.from("pet_activities").delete().eq("id", m.id);
+        continue;
+      }
+      const visitDay = new Date(vrow.visit_at);
+      visitDay.setHours(0, 0, 0, 0);
+      if (visitDay.getTime() > todayStartMs) {
+        await supabase.from("pet_activities").delete().eq("id", m.id);
+      }
+    }
+
+    const { data: visits, error: vErr } = await supabase
+      .from("pet_vet_visits")
+      .select("id,pet_id,title,visit_at,location,notes")
+      .eq("pet_id", pet.id)
+      .gte("visit_at", start.toISOString())
+      .lte("visit_at", end.toISOString());
+
+    if (vErr) {
+      if (__DEV__) console.warn("[ensureTodayVetVisitMirrorActivities]", vErr);
+      continue;
+    }
+
+    for (const v of visits ?? []) {
+      const { data: existing } = await supabase
+        .from("pet_activities")
+        .select("id")
+        .eq("vet_visit_id", v.id)
+        .maybeSingle();
+
+      if (existing) continue;
+
+      const { error: insErr } = await supabase.from("pet_activities").insert({
+        pet_id: v.pet_id,
+        logged_by: userId,
+        activity_type: "vet_visit",
+        label: v.title,
+        logged_at: v.visit_at,
+        vet_location: v.location,
+        notes: v.notes,
+        vet_visit_id: v.id,
+      });
+
+      if (insErr && __DEV__) {
+        console.warn("[ensureTodayVetVisitMirrorActivities] insert", insErr);
+      }
+    }
+  }
+
+  return { petIds: pets.map((p) => p.id) };
 }
 
 export async function logExercise(
@@ -181,42 +268,41 @@ export async function logMedication(
   return data as PetActivity;
 }
 
-export async function logVetVisit(
+export async function logTraining(
   petId: string,
   userId: string,
-  form: VetVisitActivityFormData,
-  allPetIds: string[],
+  form: TrainingActivityFormData,
   options?: LogActivityOptions,
-): Promise<PetActivity[]> {
-  const location =
-    form.vetLocation === "Other"
-      ? form.customVetLocation.trim()
-      : form.vetLocation;
-
-  const targetPetIds = [petId, ...form.otherPetIds];
-  const results: PetActivity[] = [];
-
-  for (const pid of targetPetIds) {
-    const { data, error } = await supabase
-      .from("pet_activities")
-      .insert({
-        pet_id: pid,
-        logged_by: userId,
-        activity_type: "vet_visit",
-        label: form.label.trim(),
-        vet_location: location || null,
-        other_pet_ids: form.otherPetIds.length > 0 ? form.otherPetIds : null,
-        notes: form.notes.trim() || null,
-        ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    results.push(data as PetActivity);
+): Promise<PetActivity> {
+  const mins = form.durationMinutes.trim()
+    ? parseInt(form.durationMinutes.trim(), 10)
+    : NaN;
+  if (!Number.isFinite(mins) || mins < 1) {
+    throw new Error("Enter a valid duration in minutes.");
+  }
+  const loc = form.location.trim();
+  if (!loc) {
+    throw new Error("Location is required.");
   }
 
-  return results;
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .insert({
+      pet_id: petId,
+      logged_by: userId,
+      activity_type: "training",
+      label: form.label.trim() || "Training",
+      duration_hours: null,
+      duration_minutes: mins,
+      location: loc,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetActivity;
 }
 
 export async function updateExerciseActivity(
@@ -314,6 +400,40 @@ export async function updateVetVisitActivity(
       vet_location: location || null,
       other_pet_ids: form.otherPetIds.length > 0 ? form.otherPetIds : null,
       notes: form.notes.trim() || null,
+    })
+    .eq("id", activityId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetActivity;
+}
+
+export async function updateTrainingActivity(
+  activityId: string,
+  form: TrainingActivityFormData,
+  options?: { loggedAt?: string },
+): Promise<PetActivity> {
+  const mins = form.durationMinutes.trim()
+    ? parseInt(form.durationMinutes.trim(), 10)
+    : NaN;
+  if (!Number.isFinite(mins) || mins < 1) {
+    throw new Error("Enter a valid duration in minutes.");
+  }
+  const loc = form.location.trim();
+  if (!loc) {
+    throw new Error("Location is required.");
+  }
+
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .update({
+      label: form.label.trim() || "Training",
+      duration_hours: null,
+      duration_minutes: mins,
+      location: loc,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })
     .eq("id", activityId)
     .select()

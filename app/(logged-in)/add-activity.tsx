@@ -1,10 +1,10 @@
-import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
-import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
+import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
+import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
@@ -13,7 +13,7 @@ import {
   useLogExerciseMutation,
   useLogFoodMutation,
   useLogMedicationMutation,
-  useLogVetVisitMutation,
+  useLogTrainingMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
@@ -53,8 +53,8 @@ function addActivityNavTitle(
       return "Add meal";
     case "medication":
       return "Add medication";
-    case "vet_visit":
-      return "Add vet visit";
+    case "training":
+      return "Add training";
     default:
       return "Log activity";
   }
@@ -65,7 +65,7 @@ export default function AddActivityScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const scrollRef = useRef<KeyboardAwareScrollView>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
 
   const step = useActivityFormStore((s) => s.step);
@@ -87,7 +87,7 @@ export default function AddActivityScreen() {
     (s) => s.medicationExtraPetIds,
   );
   const medForm = useActivityFormStore((s) => s.medicationForm);
-  const vetForm = useActivityFormStore((s) => s.vetVisitForm);
+  const trainingForm = useActivityFormStore((s) => s.trainingForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
@@ -107,7 +107,7 @@ export default function AddActivityScreen() {
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
   const medMut = useLogMedicationMutation();
-  const vetMut = useLogVetVisitMutation(activePetId);
+  const trainingMut = useLogTrainingMutation(activePetId);
 
   const scrollKey = `${step}-${activityType ?? "none"}`;
 
@@ -201,23 +201,23 @@ export default function AddActivityScreen() {
     finish();
   }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
 
-  const saveVet = useCallback(async () => {
+  const saveTraining = useCallback(async () => {
+    if (!activePetId) return;
     const loggedAtIso =
       useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
       new Date().toISOString();
-    await vetMut.mutateAsync({
-      form: vetForm,
-      allPetIds: (allPets ?? []).map((p) => p.id),
+    await trainingMut.mutateAsync({
+      form: trainingForm,
       loggedAtIso,
     });
     finish();
-  }, [vetMut, vetForm, allPets, finish]);
+  }, [trainingMut, trainingForm, activePetId, finish]);
 
   const saving =
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||
-    vetMut.isPending;
+    trainingMut.isPending;
 
   const navTitle = addActivityNavTitle(step, activityType);
 
@@ -229,7 +229,9 @@ export default function AddActivityScreen() {
   if (!(allPets ?? []).length) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
-        <Text style={styles.blockedHint}>Add a pet before logging activity.</Text>
+        <Text style={styles.blockedHint}>
+          Add a pet before logging activity.
+        </Text>
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.blockedBack}>Go back</Text>
         </Pressable>
@@ -273,8 +275,8 @@ export default function AddActivityScreen() {
         >
           <CoCareReadOnlyNotice />
           <Text style={styles.blockedLead}>
-            Logging activity requires permission from the primary caretaker.
-            Ask them to update co-care settings if you should be able to log
+            Logging activity requires permission from the primary caretaker. Ask
+            them to update co-care settings if you should be able to log
             activities for this pet.
           </Text>
         </ScrollView>
@@ -377,10 +379,10 @@ export default function AddActivityScreen() {
                   embeddedInScreen
                   hideEmbeddedSave
                 />
-              ) : activityType === "vet_visit" ? (
-                <VetVisitDetailStep
+              ) : activityType === "training" ? (
+                <TrainingDetailStep
                   ref={stepRef}
-                  onSave={saveVet}
+                  onSave={saveTraining}
                   onBack={goBack}
                   saveLabel={SAVE_LABEL}
                   embeddedInScreen

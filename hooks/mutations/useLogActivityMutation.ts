@@ -3,7 +3,7 @@ import {
   logExercise,
   logFood,
   logMedication,
-  logVetVisit,
+  logTraining,
 } from "@/services/activities";
 import {
   allActivitiesKey,
@@ -16,7 +16,7 @@ import type {
   ExerciseFormData,
   FoodActivityFormData,
   MedicationActivityFormData,
-  VetVisitActivityFormData,
+  TrainingActivityFormData,
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
 
@@ -103,23 +103,24 @@ export function useLogMedicationMutation() {
   });
 }
 
-export function useLogVetVisitMutation(petId: string | null) {
+export function useLogTrainingMutation(petId: string | null) {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
     mutationFn: (payload: {
-      form: VetVisitActivityFormData;
-      allPetIds: string[];
+      form: TrainingActivityFormData;
       loggedAtIso: string;
     }) => {
       if (!petId || !userId) throw new Error("Missing pet or user");
-      return logVetVisit(petId, userId, payload.form, payload.allPetIds, {
+      return logTraining(petId, userId, payload.form, {
         loggedAt: payload.loggedAtIso,
       });
     },
     onSuccess: () => {
       if (petId) {
-        queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
+        queryClient.invalidateQueries({
+          queryKey: todayActivitiesPrefixKey(petId),
+        });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
         queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }

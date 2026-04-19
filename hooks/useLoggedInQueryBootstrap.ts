@@ -7,8 +7,10 @@ import {
   profileQueryKey,
   unreadNotificationCountKey,
 } from "@/hooks/queries/queryKeys";
+import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
 import { queryClient } from "@/lib/queryClient";
+import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { supabase } from "@/lib/supabase";
 import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { fetchProfile } from "@/services/profiles";
@@ -25,6 +27,15 @@ import { AppState, Platform } from "react-native";
  */
 export function useLoggedInQueryBootstrap() {
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const localYmd = useLocalCalendarYmd();
+
+  useEffect(() => {
+    if (!userId) return;
+
+    void syncTodayVetVisitMirrorsToActivities(userId).catch((e) => {
+      if (__DEV__) console.warn("[vetVisitMirror] bootstrap", e);
+    });
+  }, [userId, localYmd]);
 
   useEffect(() => {
     if (!userId) return;

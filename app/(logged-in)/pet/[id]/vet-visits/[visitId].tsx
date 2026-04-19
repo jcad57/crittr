@@ -4,16 +4,18 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
+  allActivitiesKey,
   healthSnapshotKey,
   petVetVisitsQueryKey,
-  usePetDetailsQuery,
-  usePetVetVisitsQuery,
-} from "@/hooks/queries";
+  todayActivitiesPrefixKey,
+} from "@/hooks/queries/queryKeys";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { queryClient } from "@/lib/queryClient";
+import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {
   hydrateVetVisitLocationState,
@@ -101,6 +103,7 @@ export default function EditVetVisitScreen() {
 
   const invalidateCaches = useCallback(async () => {
     if (userId) {
+      await syncTodayVetVisitMirrorsToActivities(userId);
       await queryClient.invalidateQueries({
         queryKey: healthSnapshotKey(userId),
       });
@@ -109,6 +112,13 @@ export default function EditVetVisitScreen() {
       await queryClient.invalidateQueries({
         queryKey: petVetVisitsQueryKey(petId),
       });
+      await queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: allActivitiesKey(petId),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     }
     const profile = useAuthStore.getState().profile;
     if (userId && profile) {

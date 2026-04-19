@@ -2,6 +2,7 @@ import {
   cancelCrittrScheduledNotifications,
   syncCrittrReminderNotifications,
 } from "@/lib/reminderNotificationSchedule";
+import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useAuthStore } from "@/stores/authStore";
@@ -36,6 +37,13 @@ export default function ReminderNotificationSync() {
   }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
+    void syncTodayVetVisitMirrorsToActivities(userId).catch((e) => {
+      if (__DEV__) console.warn("[ReminderNotificationSync] vet mirror", e);
+    });
+  }, [userId, localYmd]);
+
+  useEffect(() => {
     if (Platform.OS === "web" || !userId || !prefs) return;
     void (async () => {
       try {
@@ -54,6 +62,9 @@ export default function ReminderNotificationSync() {
         const prev = appStateRef.current;
         appStateRef.current = next;
         if (prev.match(/inactive|background/) && next === "active") {
+          void syncTodayVetVisitMirrorsToActivities(userId).catch((e) => {
+            if (__DEV__) console.warn("[ReminderNotificationSync] vet mirror", e);
+          });
           void syncCrittrReminderNotifications(userId, prefs).catch((e) => {
             if (__DEV__) console.warn("[ReminderNotificationSync] resume", e);
           });
