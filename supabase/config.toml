@@ -15,6 +15,11 @@ verify_jwt = false
 [functions.crittr-ai-chat]
 verify_jwt = false
 
+# Same as other user-invoked functions: gateway JWT verify can fail with ES256
+# (JWT Signing Keys) before the handler runs. Auth is enforced via getUser() inside.
+[functions.parse-medical-record]
+verify_jwt = false
+
 [functions.submit-feedback]
 verify_jwt = false
 

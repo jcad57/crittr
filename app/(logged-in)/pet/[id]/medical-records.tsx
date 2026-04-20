@@ -1,11 +1,17 @@
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
+import ScanRecordPromptSheet from "@/components/medical/ScanRecordPromptSheet";
+import ScanRecordReviewSheet from "@/components/medical/ScanRecordReviewSheet";
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import HealthSectionHeader from "@/components/ui/health/HealthSectionHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import {
+  useApplyMedicalRecordScanMutation,
+  useParseMedicalRecordMutation,
+} from "@/hooks/mutations/useMedicalRecordScanMutations";
 import {
   useCreatePetMedicalRecordWithFilesMutation,
   usePetDetailsQuery,
@@ -15,6 +21,7 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
+import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   PetMedicalRecord,
@@ -24,7 +31,7 @@ import type {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useLocalSearchParams, type Href } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -114,11 +121,42 @@ export default function PetMedicalRecordsScreen() {
     petId,
     "can_manage_pet_records",
   );
+  /** Either permission is enough to make the scan worthwhile. Both gate the RLS-protected
+   *  inserts/updates that the review sheet will run; if neither is granted we don't offer the
+   *  prompt at all (scan would succeed but every decision would then hit an RLS error). */
+  const canManageMedications = useCanPerformAction(
+    petId,
+    "can_manage_medications",
+  );
+  const canManageVaccinations = useCanPerformAction(
+    petId,
+    "can_manage_vaccinations",
+  );
+  const canApplyScanResults =
+    canManageMedications === true || canManageVaccinations === true;
 
   const createMut = useCreatePetMedicalRecordWithFilesMutation(petId ?? "");
+  const parseMut = useParseMedicalRecordMutation();
+  const applyScanMut = useApplyMedicalRecordScanMutation(petId ?? "");
   const { runWithProOrUpgrade } = useProGateNavigation();
 
   const [addOpen, setAddOpen] = useState(false);
+  /** Set on successful create; applied in `onFullyDismissed` so the scan sheet opens after the add modal unmounts (iOS modal stacking). */
+  const scanPromptRecordIdRef = useRef<string | null>(null);
+  /** Record id waiting on the user's "scan this?" decision. Cleared when they accept/decline. */
+  const [pendingScanRecordId, setPendingScanRecordId] = useState<string | null>(
+    null,
+  );
+  const [scanResult, setScanResult] = useState<ParseMedicalRecordResult | null>(
+    null,
+  );
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  const onAddModalFullyDismissed = useCallback(() => {
+    const id = scanPromptRecordIdRef.current;
+    scanPromptRecordIdRef.current = null;
+    if (id) setPendingScanRecordId(id);
+  }, []);
 
   const vetRows: VetRow[] = useMemo(() => {
     if (!details || !petId) return [];
@@ -172,14 +210,64 @@ export default function PetMedicalRecordsScreen() {
       const recordTitle =
         payload.recordName?.trim() ||
         defaultTitleFromFileName(files[0]!.originalFilename);
-      await createMut.mutateAsync({
+      const created = await createMut.mutateAsync({
         userId,
         recordTitle,
         files,
       });
+      scanPromptRecordIdRef.current =
+        canApplyScanResults && created?.id ? created.id : null;
       setAddOpen(false);
     },
-    [createMut, petId, userId],
+    [createMut, petId, userId, canApplyScanResults],
+  );
+
+  const handleAcceptScan = useCallback(async () => {
+    if (!petId || !pendingScanRecordId) return;
+    try {
+      const result = await parseMut.mutateAsync({
+        petId,
+        medicalRecordId: pendingScanRecordId,
+      });
+      setPendingScanRecordId(null);
+      setScanResult(result);
+      setReviewOpen(true);
+    } catch (e) {
+      setPendingScanRecordId(null);
+      Alert.alert(
+        "Couldn’t scan the document",
+        e instanceof Error ? e.message : "Please try again in a moment.",
+      );
+    }
+  }, [petId, pendingScanRecordId, parseMut]);
+
+  const handleConfirmScan = useCallback(
+    async (decisions: Parameters<typeof applyScanMut.mutateAsync>[0]) => {
+      try {
+        const { medsApplied, vacsApplied } =
+          await applyScanMut.mutateAsync(decisions);
+        setReviewOpen(false);
+        setScanResult(null);
+        const parts: string[] = [];
+        if (medsApplied > 0)
+          parts.push(
+            `${medsApplied} medication${medsApplied === 1 ? "" : "s"}`,
+          );
+        if (vacsApplied > 0)
+          parts.push(
+            `${vacsApplied} vaccination${vacsApplied === 1 ? "" : "s"}`,
+          );
+        if (parts.length > 0) {
+          Alert.alert("Saved", `Added ${parts.join(" and ")} to ${details?.name ?? "your pet"}’s profile.`);
+        }
+      } catch (e) {
+        Alert.alert(
+          "Couldn’t save",
+          e instanceof Error ? e.message : "Please try again.",
+        );
+      }
+    },
+    [applyScanMut, details?.name],
   );
 
   if (loadingPet) {
@@ -251,6 +339,7 @@ export default function PetMedicalRecordsScreen() {
               pressed && styles.addBtnPressed,
             ]}
             onPress={() => {
+              scanPromptRecordIdRef.current = null;
               runWithProOrUpgrade(() => setAddOpen(true));
             }}
           >
@@ -365,6 +454,7 @@ export default function PetMedicalRecordsScreen() {
       <MedicalRecordAddFilesModal
         visible={addOpen}
         onClose={() => setAddOpen(false)}
+        onFullyDismissed={onAddModalFullyDismissed}
         mode="create"
         isSubmitting={createMut.isPending}
         onSubmit={async (payload) => {
@@ -377,6 +467,25 @@ export default function PetMedicalRecordsScreen() {
             );
           }
         }}
+      />
+
+      <ScanRecordPromptSheet
+        visible={Boolean(pendingScanRecordId)}
+        onDecline={() => setPendingScanRecordId(null)}
+        onAccept={handleAcceptScan}
+        isScanning={parseMut.isPending}
+      />
+
+      <ScanRecordReviewSheet
+        visible={reviewOpen}
+        result={scanResult}
+        petName={details?.name ?? null}
+        onCancel={() => {
+          setReviewOpen(false);
+          setScanResult(null);
+        }}
+        onConfirm={handleConfirmScan}
+        isApplying={applyScanMut.isPending}
       />
     </View>
   );

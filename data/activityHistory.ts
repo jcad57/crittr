@@ -8,7 +8,8 @@ export type ActivityDisplayCategory =
   | "treats"
   | "meds"
   | "vet_visit"
-  | "training";
+  | "training"
+  | "potty";
 
 export type ActivityFilterCategory = "all" | ActivityDisplayCategory;
 
@@ -52,6 +53,15 @@ function toDateKey(iso: string): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+export function pottyBreakSummary(a: PetActivity): string {
+  const pee = a.potty_pee === true;
+  const poo = a.potty_poo === true;
+  if (pee && poo) return "Pee & poo";
+  if (pee) return "Pee";
+  if (poo) return "Poo";
+  return "";
+}
+
 export function displayCategory(a: PetActivity): ActivityDisplayCategory {
   switch (a.activity_type) {
     case "exercise":
@@ -64,6 +74,8 @@ export function displayCategory(a: PetActivity): ActivityDisplayCategory {
       return "vet_visit";
     case "training":
       return "training";
+    case "potty":
+      return "potty";
   }
 }
 
@@ -93,6 +105,8 @@ function buildPrimaryStat(a: PetActivity): string {
       if (m > 0) return `${m} min`;
       return "";
     }
+    case "potty":
+      return pottyBreakSummary(a);
   }
 }
 

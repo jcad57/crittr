@@ -3,6 +3,7 @@ import {
   logExercise,
   logFood,
   logMedication,
+  logPotty,
   logTraining,
 } from "@/services/activities";
 import {
@@ -16,6 +17,7 @@ import type {
   ExerciseFormData,
   FoodActivityFormData,
   MedicationActivityFormData,
+  PottyActivityFormData,
   TrainingActivityFormData,
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
@@ -113,6 +115,31 @@ export function useLogTrainingMutation(petId: string | null) {
     }) => {
       if (!petId || !userId) throw new Error("Missing pet or user");
       return logTraining(petId, userId, payload.form, {
+        loggedAt: payload.loggedAtIso,
+      });
+    },
+    onSuccess: () => {
+      if (petId) {
+        queryClient.invalidateQueries({
+          queryKey: todayActivitiesPrefixKey(petId),
+        });
+        queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      }
+    },
+  });
+}
+
+export function useLogPottyMutation(petId: string | null) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: (payload: {
+      form: PottyActivityFormData;
+      loggedAtIso: string;
+    }) => {
+      if (!petId || !userId) throw new Error("Missing pet or user");
+      return logPotty(petId, userId, payload.form, {
         loggedAt: payload.loggedAtIso,
       });
     },

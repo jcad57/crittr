@@ -39,6 +39,10 @@ function hydrateFromVaccination(v: PetVaccination) {
     name: v.name?.trim() ?? "",
     expiresOn: v.expires_on?.trim() ?? "",
     notes: v.notes?.trim() ?? "",
+    administeredOn: v.administered_on?.trim() ?? "",
+    administeredBy: v.administered_by?.trim() ?? "",
+    lotNumber: v.lot_number?.trim() ?? "",
+    nextDueDate: v.next_due_date?.trim() ?? "",
   };
 }
 
@@ -74,6 +78,10 @@ export default function EditPetVaccinationScreen() {
   const [name, setName] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
   const [notes, setNotes] = useState("");
+  const [administeredOn, setAdministeredOn] = useState("");
+  const [administeredBy, setAdministeredBy] = useState("");
+  const [lotNumber, setLotNumber] = useState("");
+  const [nextDueDate, setNextDueDate] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
 
   useEffect(() => {
@@ -82,6 +90,10 @@ export default function EditPetVaccinationScreen() {
     setName(h.name);
     setExpiresOn(h.expiresOn);
     setNotes(h.notes);
+    setAdministeredOn(h.administeredOn);
+    setAdministeredBy(h.administeredBy);
+    setLotNumber(h.lotNumber);
+    setNextDueDate(h.nextDueDate);
   }, [isNew, vaccination]);
 
   const handleSave = useCallback(async () => {
@@ -94,6 +106,10 @@ export default function EditPetVaccinationScreen() {
       expires_on: expiresOn.trim() || null,
       frequency_label: null,
       notes: notes.trim() || null,
+      administered_on: administeredOn.trim() || null,
+      administered_by: administeredBy.trim() || null,
+      lot_number: lotNumber.trim() || null,
+      next_due_date: nextDueDate.trim() || null,
     };
 
     try {
@@ -115,6 +131,10 @@ export default function EditPetVaccinationScreen() {
     name,
     expiresOn,
     notes,
+    administeredOn,
+    administeredBy,
+    lotNumber,
+    nextDueDate,
     isNew,
     vaccinationId,
     insertMut,
@@ -234,12 +254,17 @@ export default function EditPetVaccinationScreen() {
   }
 
   if (!isNew && vaccination && canManageVaccinations === false) {
-    const expLabel = vaccination.expires_on
-      ? new Date(`${vaccination.expires_on}T12:00:00`).toLocaleDateString(
-          "en-US",
-          { month: "short", day: "numeric", year: "numeric" },
-        )
-      : "—";
+    const fmt = (d: string | null | undefined) =>
+      d
+        ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "—";
+    const expLabel = fmt(vaccination.expires_on);
+    const administeredOnLabel = fmt(vaccination.administered_on);
+    const nextDueLabel = fmt(vaccination.next_due_date);
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <View style={styles.nav}>
@@ -265,7 +290,20 @@ export default function EditPetVaccinationScreen() {
         >
           <CoCareReadOnlyNotice />
           <ReadOnlyFieldRow label="Name" value={vaccination.name} />
+          <ReadOnlyFieldRow
+            label="Date administered"
+            value={administeredOnLabel}
+          />
+          <ReadOnlyFieldRow label="Next due" value={nextDueLabel} />
           <ReadOnlyFieldRow label="Expires" value={expLabel} />
+          <ReadOnlyFieldRow
+            label="Administered by"
+            value={vaccination.administered_by?.trim() || ""}
+          />
+          <ReadOnlyFieldRow
+            label="Lot number"
+            value={vaccination.lot_number?.trim() || ""}
+          />
           <ReadOnlyFieldRow
             label="Notes"
             value={vaccination.notes?.trim() || ""}
@@ -325,6 +363,26 @@ export default function EditPetVaccinationScreen() {
           />
 
           <View style={styles.expiryBlock}>
+            <Text style={styles.fieldLabel}>Date administered</Text>
+            <ExpiryDateField
+              value={administeredOn}
+              onChangeDate={setAdministeredOn}
+              onClearDate={() => setAdministeredOn("")}
+              placeholder="When was it given?"
+            />
+          </View>
+
+          <View style={styles.expiryBlock}>
+            <Text style={styles.fieldLabel}>Next due</Text>
+            <ExpiryDateField
+              value={nextDueDate}
+              onChangeDate={setNextDueDate}
+              onClearDate={() => setNextDueDate("")}
+              placeholder="When is it due again?"
+            />
+          </View>
+
+          <View style={styles.expiryBlock}>
             <Text style={styles.fieldLabel}>Expires</Text>
             <ExpiryDateField
               value={expiresOn}
@@ -333,6 +391,22 @@ export default function EditPetVaccinationScreen() {
               placeholder="Expiry date"
             />
           </View>
+
+          <FormInput
+            label="Administered by"
+            value={administeredBy}
+            onChangeText={setAdministeredBy}
+            placeholder="Vet or clinic name"
+            containerStyle={styles.field}
+          />
+
+          <FormInput
+            label="Lot number"
+            value={lotNumber}
+            onChangeText={setLotNumber}
+            placeholder="Optional"
+            containerStyle={styles.field}
+          />
 
           <FormInput
             label="Notes"

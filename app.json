@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crittr",
     "slug": "crittr",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-temp.png",
     "scheme": "crittr",
@@ -30,9 +30,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.RECORD_AUDIO"],
       "package": "com.jcadeichmann.crittr"
     },
     "web": {
@@ -85,6 +83,14 @@
           "ios": {
             "buildReactNativeFromSource": true
           }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8604165196940630~7346651942",
+          "iosAppId": "ca-app-pub-8604165196940630~9737740514",
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
         }
       ]
     ],

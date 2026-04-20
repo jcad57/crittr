@@ -15,6 +15,8 @@ export type UpdatePetMedicationInput = {
   interval_unit: MedicationDosePeriod | null;
   /** ISO date YYYY-MM-DD or null. */
   last_given_on: string | null;
+  /** ISO date YYYY-MM-DD or null. Drives health-hub due badges; optional for manual entry, populated by document scanner. */
+  next_due_date?: string | null;
 };
 
 export async function insertPetMedication(
@@ -35,6 +37,8 @@ export async function insertPetMedication(
       reminder_time: input.reminder_time,
       interval_count: input.interval_count,
       interval_unit: input.interval_unit,
+      last_given_on: input.last_given_on,
+      next_due_date: input.next_due_date ?? null,
     })
     .select()
     .single();
@@ -68,6 +72,7 @@ export async function updatePetMedication(
       interval_count: updates.interval_count,
       interval_unit: updates.interval_unit,
       last_given_on: updates.last_given_on,
+      next_due_date: updates.next_due_date ?? null,
     })
     .eq("id", medicationId)
     .eq("pet_id", petId)

@@ -46,6 +46,12 @@ type Props = {
     pending: PendingMedicalFile[];
   }) => Promise<void>;
   isSubmitting: boolean;
+  /**
+   * Fires once the sheet has finished its close animation and unmounted.
+   * Use this to show another full-screen Modal on iOS (stacking two Modals
+   * while the first is dismissing often fails silently).
+   */
+  onFullyDismissed?: () => void;
 };
 
 export default function MedicalRecordAddFilesModal({
@@ -54,6 +60,7 @@ export default function MedicalRecordAddFilesModal({
   mode,
   onSubmit,
   isSubmitting,
+  onFullyDismissed,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [recordName, setRecordName] = useState("");
@@ -130,9 +137,12 @@ export default function MedicalRecordAddFilesModal({
     closeAnimRef.current = close;
     close.start(({ finished }) => {
       closeAnimRef.current = null;
-      if (finished) setModalMounted(false);
+      if (finished) {
+        setModalMounted(false);
+        onFullyDismissed?.();
+      }
     });
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, sheetTranslateY, onFullyDismissed]);
 
   const appendAssets = useCallback((assets: PickedMedicalAsset[]) => {
     setPending((prev) => [

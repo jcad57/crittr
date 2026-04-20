@@ -126,7 +126,7 @@ export default function PetFoodManagerScreen() {
       >
         <Text style={styles.lead}>
           {canEditFood
-            ? `Keep track of all your pet's meals and treats here. You can use these saved foods when logging activities for ${details.name}.`
+            ? `Keep track of all the meals and treats ${details.name} typically eats in a day. You can use these saved foods when logging activities for ${details.name}.`
             : "Tap a food to view its details."}
         </Text>
 

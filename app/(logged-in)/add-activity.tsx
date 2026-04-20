@@ -3,6 +3,7 @@ import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
+import PottyDetailStep from "@/components/activity/PottyDetailStep";
 import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -13,6 +14,7 @@ import {
   useLogExerciseMutation,
   useLogFoodMutation,
   useLogMedicationMutation,
+  useLogPottyMutation,
   useLogTrainingMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery } from "@/hooks/queries";
@@ -55,6 +57,8 @@ function addActivityNavTitle(
       return "Add medication";
     case "training":
       return "Add training";
+    case "potty":
+      return "Log potty";
     default:
       return "Log activity";
   }
@@ -88,6 +92,7 @@ export default function AddActivityScreen() {
   );
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
+  const pottyForm = useActivityFormStore((s) => s.pottyForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
@@ -108,6 +113,7 @@ export default function AddActivityScreen() {
   const foodMut = useLogFoodMutation();
   const medMut = useLogMedicationMutation();
   const trainingMut = useLogTrainingMutation(activePetId);
+  const pottyMut = useLogPottyMutation(activePetId);
 
   const scrollKey = `${step}-${activityType ?? "none"}`;
 
@@ -213,11 +219,24 @@ export default function AddActivityScreen() {
     finish();
   }, [trainingMut, trainingForm, activePetId, finish]);
 
+  const savePotty = useCallback(async () => {
+    if (!activePetId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
+    await pottyMut.mutateAsync({
+      form: pottyForm,
+      loggedAtIso,
+    });
+    finish();
+  }, [pottyMut, pottyForm, activePetId, finish]);
+
   const saving =
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||
-    trainingMut.isPending;
+    trainingMut.isPending ||
+    pottyMut.isPending;
 
   const navTitle = addActivityNavTitle(step, activityType);
 
@@ -321,7 +340,7 @@ export default function AddActivityScreen() {
               <ActivityTypeStep selected={activityType} onSelect={selectType} />
             </View>
 
-            <View style={styles.actionsBlock}>
+            <View style={[styles.actionsBlock, styles.actionsAfterTypeGrid]}>
               <OrangeButton
                 onPress={() => {
                   if (activityType) {
@@ -383,6 +402,15 @@ export default function AddActivityScreen() {
                 <TrainingDetailStep
                   ref={stepRef}
                   onSave={saveTraining}
+                  onBack={goBack}
+                  saveLabel={SAVE_LABEL}
+                  embeddedInScreen
+                  hideEmbeddedSave
+                />
+              ) : activityType === "potty" ? (
+                <PottyDetailStep
+                  ref={stepRef}
+                  onSave={savePotty}
                   onBack={goBack}
                   saveLabel={SAVE_LABEL}
                   embeddedInScreen
@@ -460,6 +488,10 @@ const styles = StyleSheet.create({
   },
   actionsBlock: {
     paddingTop: 8,
+  },
+  /** Breathing room above Continue when the type grid sits just above the actions. */
+  actionsAfterTypeGrid: {
+    marginTop: 24,
   },
   saveBtn: {
     marginTop: 0,

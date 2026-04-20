@@ -2,6 +2,7 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
+import PottyDetailStep from "@/components/activity/PottyDetailStep";
 import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -12,6 +13,7 @@ import {
   useUpdateExerciseActivityMutation,
   useUpdateFoodActivityMutation,
   useUpdateMedicationActivityMutation,
+  useUpdatePottyActivityMutation,
   useUpdateTrainingActivityMutation,
   useUpdateVetVisitActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
@@ -64,6 +66,8 @@ function navTitleForActivityType(t: string | null | undefined): string {
       return "Edit vet visit";
     case "training":
       return "Edit training";
+    case "potty":
+      return "Edit potty";
     default:
       return "Edit activity";
   }
@@ -112,6 +116,7 @@ export default function ManageActivityItemScreen() {
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const vetForm = useActivityFormStore((s) => s.vetVisitForm);
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
+  const pottyForm = useActivityFormStore((s) => s.pottyForm);
   const activityType = useActivityFormStore((s) => s.activityType);
   const userId = useAuthStore((s) => s.session?.user?.id);
 
@@ -122,6 +127,7 @@ export default function ManageActivityItemScreen() {
   const updateMed = useUpdateMedicationActivityMutation(petId);
   const updateVet = useUpdateVetVisitActivityMutation(petId);
   const updateTraining = useUpdateTrainingActivityMutation(petId);
+  const updatePotty = useUpdatePottyActivityMutation(petId);
   const deleteMut = useDeleteActivityMutation(petId);
 
   const [hydrated, setHydrated] = useState(false);
@@ -224,6 +230,18 @@ export default function ManageActivityItemScreen() {
     finish();
   }, [activityId, updateTraining, trainingForm, finish]);
 
+  const savePotty = useCallback(async () => {
+    if (!activityId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString();
+    await updatePotty.mutateAsync({
+      activityId,
+      form: pottyForm,
+      loggedAtIso,
+    });
+    finish();
+  }, [activityId, updatePotty, pottyForm, finish]);
+
   const goBack = useCallback(() => {
     reset();
     router.back();
@@ -282,7 +300,8 @@ export default function ManageActivityItemScreen() {
     updateFood.isPending ||
     updateMed.isPending ||
     updateVet.isPending ||
-    updateTraining.isPending;
+    updateTraining.isPending ||
+    updatePotty.isPending;
   const busy = saving || deleteMut.isPending;
 
   const loggedAtLabel = activity
@@ -422,6 +441,15 @@ export default function ManageActivityItemScreen() {
               <TrainingDetailStep
                 ref={stepRef}
                 onSave={saveTraining}
+                onBack={goBack}
+                saveLabel={SAVE_LABEL}
+                embeddedInScreen
+                hideEmbeddedSave
+              />
+            ) : activityType === "potty" ? (
+              <PottyDetailStep
+                ref={stepRef}
+                onSave={savePotty}
                 onBack={goBack}
                 saveLabel={SAVE_LABEL}
                 embeddedInScreen

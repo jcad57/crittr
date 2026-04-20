@@ -1,3 +1,4 @@
+import AdBanner from "@/components/ads/AdBanner";
 import PostOnboardingPushPrompt from "@/components/push/PostOnboardingPushPrompt";
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import ActivityFeedSkeleton from "@/components/ui/dashboard/ActivityFeedSkeleton";
@@ -345,6 +346,7 @@ export default function Dashboard() {
           onRefresh={handleDashboardRefresh}
         >
           <View style={styles.petDataBlock}>
+            <AdBanner placement="dashboard_top" />
             <View style={styles.sectionBlock}>
               <SectionLabel style={styles.sectionLabelFlush}>
                 Daily Progress

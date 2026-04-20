@@ -36,6 +36,11 @@ export const ACTIVITY_ROW_ICONS: Record<
     ring: Colors.progressExercise,
     track: Colors.progressExerciseTrack,
   },
+  potty: {
+    source: require("@/assets/icons/pet-walk-icon.png"),
+    ring: Colors.progressTreats,
+    track: Colors.progressTreatsTrack,
+  },
 };
 
 export const ACTIVITY_ROW_ICON_BOX = 48;

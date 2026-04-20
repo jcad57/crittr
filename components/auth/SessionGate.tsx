@@ -3,6 +3,7 @@ import { FONT_FACES } from "@/constants/fonts";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
 import { fetchProPricing } from "@/services/proPricing";
+import { setupAppResumeHandler } from "@/lib/appResumeHandler";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
 import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
@@ -49,6 +50,10 @@ export default function SessionGate() {
 
   useEffect(() => {
     return setupSupabaseAuthAutoRefresh();
+  }, []);
+
+  useEffect(() => {
+    return setupAppResumeHandler();
   }, []);
 
   const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;

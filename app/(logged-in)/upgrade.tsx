@@ -47,6 +47,12 @@ const COMPARISON_ROWS: CompareRow[] = [
     pro: { type: "pill", label: "Unlimited" },
   },
   {
+    title: "No ads",
+    subtitle: "Ad-free experience",
+    free: { type: "x" },
+    pro: { type: "check" },
+  },
+  {
     title: "Upload pet records",
     subtitle: "Documents and files",
     free: { type: "x" },

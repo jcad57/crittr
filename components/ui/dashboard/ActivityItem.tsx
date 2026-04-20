@@ -5,7 +5,7 @@ import {
 } from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { displayCategory } from "@/data/activityHistory";
+import { displayCategory, pottyBreakSummary } from "@/data/activityHistory";
 import { formatMedicationDosageDisplay } from "@/lib/medicationDosageDisplay";
 import type { PetActivity } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -47,6 +47,8 @@ function buildRightValue(a: PetActivity): string {
       if (m > 0) return `${m} min`;
       return "";
     }
+    case "potty":
+      return pottyBreakSummary(a);
     default:
       return "";
   }

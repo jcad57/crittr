@@ -4,6 +4,7 @@ import {
   updateExerciseActivity,
   updateFoodActivity,
   updateMedicationActivity,
+  updatePottyActivity,
   updateTrainingActivity,
   updateVetVisitActivity,
 } from "@/services/activities";
@@ -16,6 +17,7 @@ import type {
   ExerciseFormData,
   FoodActivityFormData,
   MedicationActivityFormData,
+  PottyActivityFormData,
   TrainingActivityFormData,
   VetVisitActivityFormData,
 } from "@/types/database";
@@ -98,6 +100,25 @@ export function useUpdateTrainingActivityMutation(petId: string | null) {
       loggedAtIso?: string;
     }) =>
       updateTrainingActivity(activityId, form, {
+        loggedAt: loggedAtIso,
+      }),
+    onSuccess: (_, { activityId }) =>
+      invalidateActivityCaches(petId, activityId),
+  });
+}
+
+export function useUpdatePottyActivityMutation(petId: string | null) {
+  return useMutation({
+    mutationFn: ({
+      activityId,
+      form,
+      loggedAtIso,
+    }: {
+      activityId: string;
+      form: PottyActivityFormData;
+      loggedAtIso?: string;
+    }) =>
+      updatePottyActivity(activityId, form, {
         loggedAt: loggedAtIso,
       }),
     onSuccess: (_, { activityId }) =>

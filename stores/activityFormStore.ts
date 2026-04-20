@@ -3,6 +3,7 @@ import {
   petActivityToExerciseForm,
   petActivityToFoodForm,
   petActivityToMedicationForm,
+  petActivityToPottyForm,
   petActivityToTrainingForm,
   petActivityToVetVisitForm,
 } from "@/lib/hydrateActivityForm";
@@ -12,6 +13,7 @@ import type {
   FoodActivityFormData,
   MedicationActivityFormData,
   PetActivity,
+  PottyActivityFormData,
   TrainingActivityFormData,
   VetVisitActivityFormData,
 } from "@/types/database";
@@ -32,6 +34,7 @@ type ActivityFormState = {
   medicationForm: MedicationActivityFormData;
   vetVisitForm: VetVisitActivityFormData;
   trainingForm: TrainingActivityFormData;
+  pottyForm: PottyActivityFormData;
 
   /**
    * When null, save uses the current time at submit. When set, that instant is
@@ -60,6 +63,7 @@ type ActivityFormState = {
   updateMedication: (patch: Partial<MedicationActivityFormData>) => void;
   updateVetVisit: (patch: Partial<VetVisitActivityFormData>) => void;
   updateTraining: (patch: Partial<TrainingActivityFormData>) => void;
+  updatePotty: (patch: Partial<PottyActivityFormData>) => void;
   reset: () => void;
   hydrateFromActivity: (
     activity: PetActivity,
@@ -111,6 +115,13 @@ const EMPTY_TRAINING: TrainingActivityFormData = {
   notes: "",
 };
 
+const EMPTY_POTTY: PottyActivityFormData = {
+  pee: false,
+  poo: false,
+  location: "",
+  notes: "",
+};
+
 export const useActivityFormStore = create<ActivityFormState>((set) => ({
   step: "type",
   activityType: null,
@@ -122,6 +133,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
   medicationForm: { ...EMPTY_MED },
   vetVisitForm: { ...EMPTY_VET },
   trainingForm: { ...EMPTY_TRAINING },
+  pottyForm: { ...EMPTY_POTTY },
   activityOccurredAt: null,
 
   setStep: (step) => set({ step }),
@@ -184,6 +196,8 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
     set((s) => ({ vetVisitForm: { ...s.vetVisitForm, ...patch } })),
   updateTraining: (patch) =>
     set((s) => ({ trainingForm: { ...s.trainingForm, ...patch } })),
+  updatePotty: (patch) =>
+    set((s) => ({ pottyForm: { ...s.pottyForm, ...patch } })),
 
   reset: () =>
     set({
@@ -197,6 +211,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       medicationForm: { ...EMPTY_MED },
       vetVisitForm: { ...EMPTY_VET },
       trainingForm: { ...EMPTY_TRAINING },
+      pottyForm: { ...EMPTY_POTTY },
       activityOccurredAt: null,
     }),
 
@@ -227,6 +242,10 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
         type === "training"
           ? petActivityToTrainingForm(activity)
           : { ...EMPTY_TRAINING },
+      pottyForm:
+        type === "potty"
+          ? petActivityToPottyForm(activity)
+          : { ...EMPTY_POTTY },
       activityOccurredAt: new Date(activity.logged_at),
     });
   },

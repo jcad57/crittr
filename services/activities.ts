@@ -6,6 +6,7 @@ import {
   type FoodActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
+  type PottyActivityFormData,
   type TrainingActivityFormData,
   type VetVisitActivityFormData,
 } from "@/types/database";
@@ -268,6 +269,36 @@ export async function logMedication(
   return data as PetActivity;
 }
 
+export async function logPotty(
+  petId: string,
+  userId: string,
+  form: PottyActivityFormData,
+  options?: LogActivityOptions,
+): Promise<PetActivity> {
+  if (!form.pee && !form.poo) {
+    throw new Error("Select pee and/or poo.");
+  }
+
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .insert({
+      pet_id: petId,
+      logged_by: userId,
+      activity_type: "potty",
+      label: "Potty",
+      potty_pee: form.pee,
+      potty_poo: form.poo,
+      location: form.location.trim() || null,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetActivity;
+}
+
 export async function logTraining(
   petId: string,
   userId: string,
@@ -400,6 +431,33 @@ export async function updateVetVisitActivity(
       vet_location: location || null,
       other_pet_ids: form.otherPetIds.length > 0 ? form.otherPetIds : null,
       notes: form.notes.trim() || null,
+    })
+    .eq("id", activityId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetActivity;
+}
+
+export async function updatePottyActivity(
+  activityId: string,
+  form: PottyActivityFormData,
+  options?: { loggedAt?: string },
+): Promise<PetActivity> {
+  if (!form.pee && !form.poo) {
+    throw new Error("Select pee and/or poo.");
+  }
+
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .update({
+      label: "Potty",
+      potty_pee: form.pee,
+      potty_poo: form.poo,
+      location: form.location.trim() || null,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })
     .eq("id", activityId)
     .select()

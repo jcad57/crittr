@@ -171,7 +171,20 @@ export type CreatePetVaccinationInput = {
   expires_on: string | null;
   frequency_label: string | null;
   notes: string | null;
+  /** All optional — added by migration 037 for structured vet-record fields. */
+  administered_on?: string | null;
+  administered_by?: string | null;
+  lot_number?: string | null;
+  next_due_date?: string | null;
 };
+
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export async function createPetVaccination(
   input: CreatePetVaccinationInput,
@@ -185,10 +198,12 @@ export async function createPetVaccination(
       pet_id: input.pet_id,
       name,
       expires_on: input.expires_on,
-      frequency_label: input.frequency_label?.trim()
-        ? input.frequency_label.trim()
-        : null,
-      notes: input.notes?.trim() ? input.notes.trim() : null,
+      frequency_label: normalizeOptionalText(input.frequency_label),
+      notes: normalizeOptionalText(input.notes),
+      administered_on: input.administered_on ?? null,
+      administered_by: normalizeOptionalText(input.administered_by),
+      lot_number: normalizeOptionalText(input.lot_number),
+      next_due_date: input.next_due_date ?? null,
     })
     .select()
     .single();
@@ -202,6 +217,10 @@ export type UpdatePetVaccinationInput = {
   expires_on: string | null;
   frequency_label: string | null;
   notes: string | null;
+  administered_on?: string | null;
+  administered_by?: string | null;
+  lot_number?: string | null;
+  next_due_date?: string | null;
 };
 
 export async function updatePetVaccination(
@@ -217,10 +236,12 @@ export async function updatePetVaccination(
     .update({
       name,
       expires_on: input.expires_on,
-      frequency_label: input.frequency_label?.trim()
-        ? input.frequency_label.trim()
-        : null,
-      notes: input.notes?.trim() ? input.notes.trim() : null,
+      frequency_label: normalizeOptionalText(input.frequency_label),
+      notes: normalizeOptionalText(input.notes),
+      administered_on: input.administered_on ?? null,
+      administered_by: normalizeOptionalText(input.administered_by),
+      lot_number: normalizeOptionalText(input.lot_number),
+      next_due_date: input.next_due_date ?? null,
     })
     .eq("id", vaccinationId)
     .eq("pet_id", petId)

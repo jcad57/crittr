@@ -4,6 +4,7 @@ import {
   type FoodActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
+  type PottyActivityFormData,
   type TrainingActivityFormData,
   type VetVisitActivityFormData,
 } from "@/types/database";
@@ -108,6 +109,15 @@ export function petActivityToTrainingForm(
     location: a.location ?? "",
     durationMinutes:
       a.duration_minutes != null ? String(a.duration_minutes) : "",
+    notes: a.notes ?? "",
+  };
+}
+
+export function petActivityToPottyForm(a: PetActivity): PottyActivityFormData {
+  return {
+    pee: a.potty_pee === true,
+    poo: a.potty_poo === true,
+    location: a.location ?? "",
     notes: a.notes ?? "",
   };
 }

@@ -154,6 +154,14 @@ export type PetVaccination = {
   expires_on: string | null;
   frequency_label: string | null;
   notes: string | null;
+  /** ISO YYYY-MM-DD — when the vaccine was given (migration 037). */
+  administered_on?: string | null;
+  /** Name of the vet / clinic that administered the dose (migration 037). */
+  administered_by?: string | null;
+  /** Vaccine lot / batch number (migration 037). */
+  lot_number?: string | null;
+  /** ISO YYYY-MM-DD — when the vaccine is next due (migration 037). Semantically clearer than `expires_on`. */
+  next_due_date?: string | null;
   created_at: string;
 };
 
@@ -314,7 +322,8 @@ export type ActivityType =
   | "food"
   | "medication"
   | "vet_visit"
-  | "training";
+  | "training"
+  | "potty";
 
 export type PetActivity = {
   id: string;
@@ -345,6 +354,11 @@ export type PetActivity = {
   other_pet_ids: string[] | null;
   /** Populated when this row mirrors `pet_vet_visits` (scheduled visit). */
   vet_visit_id?: string | null;
+
+  /** For `activity_type` potty only. */
+  potty_pee?: boolean | null;
+  /** For `activity_type` potty only. */
+  potty_poo?: boolean | null;
 
   notes: string | null;
   created_at: string;
@@ -402,6 +416,14 @@ export type TrainingActivityFormData = {
   label: string;
   location: string;
   durationMinutes: string;
+  notes: string;
+};
+
+/** Potty break — time via `activityOccurredAt`; at least one of pee/poo required. */
+export type PottyActivityFormData = {
+  pee: boolean;
+  poo: boolean;
+  location: string;
   notes: string;
 };
 

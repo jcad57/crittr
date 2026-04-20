@@ -13,6 +13,12 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
       "Crittr helps you track your pets’ day-to-day care in one place — health records, activities, reminders, and (with Crittr Pro) AI answers grounded in the profiles you save.",
   },
   {
+    id: "how-does-meal-tracking-work",
+    question: "How does meal tracking work?",
+    answer:
+      "When you add a food to your pet's profile, it will increase the total meals/treats for your pet's daily activity. So you only want to add the foods you typically feed your pet every day. You can always add extra treats in the activity log.",
+  },
+  {
     id: "co-care",
     question: "How does co-care work?",
     answer:

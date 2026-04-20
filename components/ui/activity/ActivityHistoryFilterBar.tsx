@@ -42,6 +42,7 @@ const FILTER_ITEMS: { id: ActivityFilterCategory; label: string }[] = [
   { id: "meds", label: "Meds" },
   { id: "vet_visit", label: "Vet visits" },
   { id: "training", label: "Training" },
+  { id: "potty", label: "Potty" },
 ];
 
 const SORT_OPTIONS: { label: string; newestFirst: boolean }[] = [

@@ -43,6 +43,13 @@ const OPTIONS: Option[] = [
     color: Colors.progressExercise,
     bg: Colors.progressExerciseTrack,
   },
+  {
+    type: "potty",
+    label: "Potty",
+    icon: "toilet",
+    color: Colors.progressTreats,
+    bg: Colors.progressTreatsTrack,
+  },
 ];
 
 type Props = {

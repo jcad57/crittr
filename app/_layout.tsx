@@ -1,3 +1,4 @@
+import AdMobBootstrap from "@/components/ads/AdMobBootstrap";
 import SessionGate from "@/components/auth/SessionGate";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +12,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
         <StatusBar style="dark" />
+        <AdMobBootstrap />
         <SessionGate />
       </KeyboardProvider>
     </SafeAreaProvider>
