@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import type { WeightBarPoint } from "@/lib/healthWeightSeries";
+import type { WeightBarPoint } from "@/utils/healthWeightSeries";
 import { StyleSheet, Text, View } from "react-native";
 
 type Props = {

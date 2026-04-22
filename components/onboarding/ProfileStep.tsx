@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -31,7 +32,19 @@ export default function ProfileStep() {
     goToStep,
     profileBackAfterProfile,
     setSkipOnboardingGuestRedirect,
-  } = useOnboardingStore();
+  } = useOnboardingStore(
+    useShallow((s) => ({
+      profileData: s.profileData,
+      setProfileData: s.setProfileData,
+      nextStep: s.nextStep,
+      prevStep: s.prevStep,
+      setSkippedPendingInvitesEmpty: s.setSkippedPendingInvitesEmpty,
+      reset: s.reset,
+      goToStep: s.goToStep,
+      profileBackAfterProfile: s.profileBackAfterProfile,
+      setSkipOnboardingGuestRedirect: s.setSkipOnboardingGuestRedirect,
+    })),
+  );
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const setProfile = useAuthStore((s) => s.setProfile);

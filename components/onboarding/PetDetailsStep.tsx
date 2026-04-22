@@ -17,11 +17,8 @@ import {
 } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import {
-  EMPTY_ALLERGIES,
-  EMPTY_BREEDS,
-  useReferenceStore,
-} from "@/stores/referenceStore";
+import { useShallow } from "zustand/react/shallow";
+import { useAllergiesQuery, useBreedsQuery } from "@/hooks/queries";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import {
   getPetInfoMissingFields,
@@ -29,7 +26,7 @@ import {
   type PetInfoMissingFields,
 } from "@/utils/petInfoValidation";
 import * as ImagePicker from "expo-image-picker";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -40,25 +37,27 @@ import {
 
 export default function PetDetailsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
 
-  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
-  const breeds = useReferenceStore(
-    (s) => s.breeds[pet.petType] ?? EMPTY_BREEDS,
-  );
-  const allergySuggestions = useReferenceStore(
-    (s) => s.allergies[pet.petType] ?? EMPTY_ALLERGIES,
-  );
+  const { data: breeds } = useBreedsQuery(pet.petType);
+  const { data: allergySuggestions } = useAllergiesQuery(pet.petType);
 
-  useEffect(() => {
-    if (pet.petType) fetchForPetType(pet.petType);
-  }, [pet.petType, fetchForPetType]);
-
-  const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
+  const breedNames = useMemo(
+    () => (breeds ?? []).map((b) => b.name),
+    [breeds],
+  );
   const allergyNames = useMemo(
-    () => allergySuggestions.map((a) => a.name),
+    () => (allergySuggestions ?? []).map((a) => a.name),
     [allergySuggestions],
   );
 

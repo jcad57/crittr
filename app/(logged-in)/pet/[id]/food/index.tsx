@@ -6,7 +6,7 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { formatPetFoodPortionSubline, isTreatFood } from "@/lib/petFood";
+import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";

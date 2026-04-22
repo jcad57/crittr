@@ -1,8 +1,9 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
-import type { MealPortionDraft } from "@/lib/petFood";
+import type { MealPortionDraft } from "@/utils/petFood";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -22,8 +23,6 @@ const IOS_PICKER_PROPS = {
   themeVariant: "light" as const,
   textColor: Colors.black,
 };
-
-const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
 
 type MealPortionEditorModalProps = {
   visible: boolean;

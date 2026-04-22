@@ -1,53 +1,28 @@
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { supabase } from "@/lib/supabase";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import type { Pet } from "@/types/database";
 import { create } from "zustand";
 
 type PetState = {
   activePetId: string | null;
 
-  /** Set active pet locally and persist to Supabase. */
-  setActivePet: (id: string) => void;
+  /**
+   * Set the active pet id locally only. Persistence to Supabase and optimistic
+   * cache updates live in `useSetActivePetMutation`. Use this directly only for
+   * cases that don't need DB persistence (e.g. cache rollback inside the
+   * mutation, or `initActivePetFromList`).
+   */
+  setActivePetId: (id: string | null) => void;
   /** Derive the active pet id from a fresh pets list (e.g. after query loads). */
   initActivePetFromList: (pets: Pet[]) => void;
   clear: () => void;
 };
 
-async function persistActivePetInDb(petId: string): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-
-  const ownerId = session.user.id;
-
-  // Set the target pet active first so there's never a moment with zero active pets.
-  const { error: setErr } = await supabase
-    .from("pets")
-    .update({ is_active: true })
-    .eq("id", petId)
-    .eq("owner_id", ownerId);
-  if (setErr) {
-    console.warn("persistActivePetInDb (set):", setErr.message);
-    return;
-  }
-
-  const { error: clearErr } = await supabase
-    .from("pets")
-    .update({ is_active: false })
-    .eq("owner_id", ownerId)
-    .neq("id", petId);
-  if (clearErr) {
-    console.warn("persistActivePetInDb (clear):", clearErr.message);
-  }
-}
-
 export const usePetStore = create<PetState>((set, get) => ({
   activePetId: null,
 
-  setActivePet: (id) => {
+  setActivePetId: (id) => {
+    if (get().activePetId === id) return;
     set({ activePetId: id });
-    void persistActivePetInDb(id);
   },
 
   initActivePetFromList: (pets) => {

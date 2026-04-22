@@ -1,15 +1,12 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
+import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
-import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
-import FoodDetailStep from "@/components/activity/FoodDetailStep";
-import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
-import PottyDetailStep from "@/components/activity/PottyDetailStep";
-import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
+import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
+import { addActivityNavTitle } from "@/constants/activityWizardTitles";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,
@@ -20,11 +17,9 @@ import {
 import { usePetsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { foodActivityFormForPet } from "@/lib/foodActivityMerge";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
-import type { ActivityType } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
@@ -32,37 +27,16 @@ import {
   BackHandler,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { styles } from "@/screen-styles/add-activity.styles";
 
 const SAVE_LABEL = "Save";
 const CONTINUE_LABEL = "Continue";
-
-function addActivityNavTitle(
-  step: "type" | "details",
-  activityType: ActivityType | null,
-): string {
-  if (step === "type") return "Log activity";
-  switch (activityType) {
-    case "exercise":
-      return "Add exercise";
-    case "food":
-      return "Add meal";
-    case "medication":
-      return "Add medication";
-    case "training":
-      return "Add training";
-    case "potty":
-      return "Log potty";
-    default:
-      return "Log activity";
-  }
-}
 
 export default function AddActivityScreen() {
   const router = useRouter();
@@ -271,19 +245,7 @@ export default function AddActivityScreen() {
   if (resolvedPetId && canLogActivities === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={28}
-              color={Colors.textPrimary}
-            />
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Log activity
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ActivityWizardChrome title="Log activity" onBack={() => router.back()} />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -305,19 +267,11 @@ export default function AddActivityScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={goBack} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          {navTitle}
-        </Text>
-        <PetNavAvatar accessibilityLabelPrefix="Logging activity for" />
-      </View>
+      <ActivityWizardChrome
+        title={navTitle}
+        onBack={goBack}
+        right={<PetNavAvatar accessibilityLabelPrefix="Logging activity for" />}
+      />
 
       <KeyboardAwareScrollView
         ref={scrollRef}
@@ -371,52 +325,17 @@ export default function AddActivityScreen() {
             style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
           >
             <View>
-              {activityType === "exercise" ? (
-                <ExerciseDetailStep
-                  ref={stepRef}
-                  onSave={saveExercise}
-                  onBack={goBack}
-                  saveLabel={SAVE_LABEL}
-                  embeddedInScreen
-                  hideEmbeddedSave
-                />
-              ) : activityType === "food" ? (
-                <FoodDetailStep
-                  ref={stepRef}
-                  onSave={saveFood}
-                  onBack={goBack}
-                  saveLabel={SAVE_LABEL}
-                  embeddedInScreen
-                  hideEmbeddedSave
-                />
-              ) : activityType === "medication" ? (
-                <MedicationDetailStep
-                  ref={stepRef}
-                  onSave={saveMed}
-                  onBack={goBack}
-                  saveLabel={SAVE_LABEL}
-                  embeddedInScreen
-                  hideEmbeddedSave
-                />
-              ) : activityType === "training" ? (
-                <TrainingDetailStep
-                  ref={stepRef}
-                  onSave={saveTraining}
-                  onBack={goBack}
-                  saveLabel={SAVE_LABEL}
-                  embeddedInScreen
-                  hideEmbeddedSave
-                />
-              ) : activityType === "potty" ? (
-                <PottyDetailStep
-                  ref={stepRef}
-                  onSave={savePotty}
-                  onBack={goBack}
-                  saveLabel={SAVE_LABEL}
-                  embeddedInScreen
-                  hideEmbeddedSave
-                />
-              ) : null}
+              <ActivityDetailStepSwitch
+                activityType={activityType}
+                stepRef={stepRef}
+                saveLabel={SAVE_LABEL}
+                onBack={goBack}
+                onSaveExercise={saveExercise}
+                onSaveFood={saveFood}
+                onSaveMedication={saveMed}
+                onSaveTraining={saveTraining}
+                onSavePotty={savePotty}
+              />
             </View>
 
             <View style={styles.actionsBlock}>
@@ -446,92 +365,3 @@ export default function AddActivityScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  petContextHint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  scroll: { flex: 1 },
-  scrollContentGrow: {
-    flexGrow: 1,
-  },
-  scrollInner: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-  },
-  actionsBlock: {
-    paddingTop: 8,
-  },
-  /** Breathing room above Continue when the type grid sits just above the actions. */
-  actionsAfterTypeGrid: {
-    marginTop: 24,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  cancelBtn: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  cancelBtnPressed: {
-    opacity: 0.75,
-  },
-  cancelText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  centeredFull: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navSpacer: { width: 28 },
-  blockedHint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  blockedBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    paddingHorizontal: 24,
-  },
-  blockedLead: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-    marginTop: 8,
-  },
-});

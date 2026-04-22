@@ -8,6 +8,7 @@ import {
   ONBOARDING_STEPS,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { useState } from "react";
@@ -22,7 +23,15 @@ export default function SignUpStep() {
     goToStep,
     setEmailVerificationPending,
     setProfileBackAfterProfile,
-  } = useOnboardingStore();
+  } = useOnboardingStore(
+    useShallow((s) => ({
+      accountData: s.accountData,
+      setAccountData: s.setAccountData,
+      goToStep: s.goToStep,
+      setEmailVerificationPending: s.setEmailVerificationPending,
+      setProfileBackAfterProfile: s.setProfileBackAfterProfile,
+    })),
+  );
   const signUp = useAuthStore((s) => s.signUp);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);

@@ -15,11 +15,12 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
-import { getErrorMessage } from "@/lib/errorMessage";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
-import { resolveVetVisitLocation } from "@/lib/vetVisitLocationUi";
+import { resolveVetVisitLocation } from "@/utils/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
@@ -62,7 +63,7 @@ export default function AddVetVisitScreen() {
     : rawPetIdParam;
   const userId = useAuthStore((s) => s.session?.user?.id);
   const activePetId = usePetStore((s) => s.activePetId);
-  const setActivePet = usePetStore((s) => s.setActivePet);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: petsData } = usePetsQuery();
   const pets: Pet[] = petsData ?? [];
 
@@ -73,9 +74,9 @@ export default function AddVetVisitScreen() {
     if (!pets.length) return;
     appliedPetParamRef.current = true;
     if (petIdParam && pets.some((p) => p.id === petIdParam)) {
-      setActivePet(petIdParam);
+      setActivePetMutation.mutate(petIdParam);
     }
-  }, [pets, petIdParam, setActivePet]);
+  }, [pets, petIdParam, setActivePetMutation]);
 
   const petId = useMemo(() => {
     if (activePetId && pets.some((p) => p.id === activePetId)) {

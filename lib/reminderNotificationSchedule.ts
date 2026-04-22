@@ -2,7 +2,7 @@ import {
   DEFAULT_ANDROID_CHANNEL_ID,
   getNotificationPermissionStatus,
 } from "@/lib/pushNotifications";
-import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/lib/petFood";
+import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/utils/petFood";
 import { supabase } from "@/lib/supabase";
 import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { fetchTodayActivitiesForPetIds } from "@/services/activities";

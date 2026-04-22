@@ -1,5 +1,5 @@
+import { NotificationRow } from "@/components/screens/notifications/NotificationRow";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   notificationsKey,
   unreadNotificationCountKey,
@@ -13,12 +13,11 @@ import {
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { UPGRADE_HREF } from "@/lib/proUpgradePaths";
+import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { queryClient } from "@/lib/queryClient";
 import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { useFocusEffect } from "expo-router";
@@ -29,42 +28,13 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { styles } from "@/screen-styles/notifications.styles";
 
 const HIGH_FIVE = require("@/assets/images/high-five.png");
-
-function notificationIcon(type: string, isPro: boolean): string {
-  if (type === "co_care_invite_requires_pro" && isPro) {
-    return "account-plus-outline";
-  }
-  switch (type) {
-    case "co_care_invite":
-      return "account-plus-outline";
-    case "co_care_invite_requires_pro":
-      return "star-circle-outline";
-    case "co_care_accepted":
-      return "account-check-outline";
-    case "co_care_removed":
-      return "account-remove-outline";
-    default:
-      return "bell-outline";
-  }
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
 
 export default function NotificationsScreen() {
   const { push, router } = useNavigationCooldown();
@@ -128,6 +98,15 @@ export default function NotificationsScreen() {
           | undefined;
         push((href ?? UPGRADE_HREF) as Href);
         return;
+      }
+      if (n.type === "co_carer_activity_logged") {
+        const href = (n.data as Record<string, unknown>)?.href as
+          | string
+          | undefined;
+        if (href) {
+          push(href as Href);
+          return;
+        }
       }
       const petId = (n.data as Record<string, unknown>)?.pet_id as
         | string
@@ -252,124 +231,23 @@ export default function NotificationsScreen() {
             const inviteId = (n.data as Record<string, unknown>)?.invite_id as
               | string
               | undefined;
-            const showCoCareInviteActions =
-              n.type === "co_care_invite" ||
-              (n.type === "co_care_invite_requires_pro" && isPro);
-            const isCoCareUpgradeNudge =
-              n.type === "co_care_invite_requires_pro" && !isPro;
-            const inviteSubmitting =
-              showCoCareInviteActions &&
-              !!inviteId &&
-              ((acceptInvite.isPending &&
-                acceptInvite.variables === inviteId) ||
-                (declineInvite.isPending &&
-                  declineInvite.variables === inviteId));
-            const acceptBusy =
-              !!inviteId &&
-              acceptInvite.isPending &&
-              acceptInvite.variables === inviteId;
-            const declineBusy =
-              !!inviteId &&
-              declineInvite.isPending &&
-              declineInvite.variables === inviteId;
-            const inviteButtonsLocked =
-              !showCoCareInviteActions || !inviteId || inviteSubmitting;
-
-            const rowInner = (
-              <>
-                <View
-                  style={[styles.iconWrap, !n.read && styles.iconWrapUnread]}
-                >
-                  <MaterialCommunityIcons
-                    name={notificationIcon(n.type, isPro) as any}
-                    size={20}
-                    color={!n.read ? Colors.orange : Colors.gray500}
-                  />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowTitle}>{n.title}</Text>
-                  {n.body ? (
-                    <Text style={styles.rowBody} numberOfLines={2}>
-                      {n.body}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.rowTime}>{timeAgo(n.created_at)}</Text>
-                  {showCoCareInviteActions && !n.read && (
-                    <View style={styles.inviteActions}>
-                      <Pressable
-                        style={[
-                          styles.acceptBtn,
-                          inviteButtonsLocked && styles.inviteBtnLocked,
-                        ]}
-                        onPress={() => handleAcceptInvite(n)}
-                        disabled={inviteButtonsLocked}
-                      >
-                        {acceptBusy ? (
-                          <ActivityIndicator
-                            color={Colors.white}
-                            size="small"
-                          />
-                        ) : (
-                          <Text style={styles.acceptBtnText}>Accept</Text>
-                        )}
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.declineBtn,
-                          inviteButtonsLocked && styles.inviteBtnLocked,
-                        ]}
-                        onPress={() => handleDeclineInvite(n)}
-                        disabled={inviteButtonsLocked}
-                      >
-                        {declineBusy ? (
-                          <ActivityIndicator
-                            color={Colors.orange}
-                            size="small"
-                          />
-                        ) : (
-                          <Text style={styles.declineBtnText}>Decline</Text>
-                        )}
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-                {!n.read && <View style={styles.unreadDot} />}
-              </>
-            );
-
-            if (showCoCareInviteActions) {
-              return (
-                <View
-                  key={n.id}
-                  style={[styles.row, !n.read && styles.rowUnread]}
-                >
-                  {rowInner}
-                </View>
-              );
-            }
-
-            if (isCoCareUpgradeNudge) {
-              return (
-                <Pressable
-                  key={n.id}
-                  style={[styles.row, !n.read && styles.rowUnread]}
-                  onPress={() => handlePress(n)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open Crittr Pro upgrade"
-                >
-                  {rowInner}
-                </Pressable>
-              );
-            }
-
             return (
-              <Pressable
+              <NotificationRow
                 key={n.id}
-                style={[styles.row, !n.read && styles.rowUnread]}
-                onPress={() => handlePress(n)}
-              >
-                {rowInner}
-              </Pressable>
+                notification={n}
+                isPro={isPro}
+                acceptPending={acceptInvite.isPending}
+                acceptPendingForThis={
+                  !!inviteId && acceptInvite.variables === inviteId
+                }
+                declinePending={declineInvite.isPending}
+                declinePendingForThis={
+                  !!inviteId && declineInvite.variables === inviteId
+                }
+                onPress={handlePress}
+                onAccept={handleAcceptInvite}
+                onDecline={handleDeclineInvite}
+              />
             );
           })}
         </ScrollView>
@@ -377,148 +255,3 @@ export default function NotificationsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.cream },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "flex-end",
-    justifyContent: "center",
-  },
-  navBack: { fontFamily: Font.uiSemiBold, fontSize: 16, color: Colors.orange },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  markAllText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.orange,
-  },
-  scroll: { flex: 1 },
-  emptyScrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  emptyIllustration: {
-    width: 120,
-    height: 120,
-  },
-  body: { paddingHorizontal: 20, paddingTop: 8 },
-  emptyText: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 12,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-  },
-  rowUnread: {
-    backgroundColor: Colors.orangeLight,
-    borderColor: Colors.orange + "30",
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.gray100,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-    marginTop: 2,
-  },
-  iconWrapUnread: {
-    backgroundColor: Colors.white,
-  },
-  rowContent: { flex: 1, marginRight: 8 },
-  rowTitle: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  rowBody: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 20,
-  },
-  rowTime: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray400,
-    marginTop: 4,
-  },
-  inviteActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
-  },
-  acceptBtn: {
-    backgroundColor: Colors.orange,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minHeight: 36,
-    minWidth: 92,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inviteBtnLocked: {
-    opacity: 0.85,
-  },
-  acceptBtnText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.white,
-  },
-  declineBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 36,
-    minWidth: 88,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  declineBtnText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.orange,
-    marginTop: 6,
-  },
-});

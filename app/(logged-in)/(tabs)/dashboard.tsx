@@ -26,21 +26,22 @@ import {
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
-import { isDailyProgressComplete } from "@/lib/dailyProgressComplete";
-import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
+import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
+import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
 import {
   buildMedicationDosageProgress,
   sumMedicationDoseProgress,
-} from "@/lib/medicationDosageProgress";
-import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
+} from "@/utils/medicationDosageProgress";
+import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import {
   isUpcomingVetVisit,
   mapPetVetVisitToDashboard,
-} from "@/lib/vetVisitDashboard";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { dailyProgressFoodTarget, isTreatFood } from "@/lib/petFood";
+} from "@/utils/vetVisitDashboard";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
+import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
@@ -64,7 +65,8 @@ export default function Dashboard() {
     isLoading: isPetsLoading,
     refetch: refetchPets,
   } = usePetsQuery();
-  const { activePetId, setActivePet } = usePetStore();
+  const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: unreadCount = 0, refetch: refetchUnreadCount } =
     useUnreadNotificationCountQuery();
 
@@ -252,9 +254,9 @@ export default function Dashboard() {
 
   const handleSwitchPet = useCallback(
     (id: string) => {
-      setActivePet(id);
+      setActivePetMutation.mutate(id);
     },
-    [setActivePet],
+    [setActivePetMutation],
   );
 
   const openMedicationEditor = useCallback(

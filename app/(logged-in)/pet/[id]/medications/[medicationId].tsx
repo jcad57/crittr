@@ -1,13 +1,14 @@
-import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
-import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
-import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
+import PetMedicationDosageRow from "@/components/petScreens/medication/PetMedicationDosageRow";
+import PetMedicationFormActions from "@/components/petScreens/medication/PetMedicationFormActions";
+import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";
+import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
+import PetMedicationNoPermissionAddView from "@/components/petScreens/medication/PetMedicationNoPermissionAddView";
+import PetMedicationReadOnlyView from "@/components/petScreens/medication/PetMedicationReadOnlyView";
+import PetMedicationReminderField from "@/components/petScreens/medication/PetMedicationReminderField";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { type SchedulePeriod } from "@/constants/medicationEditForm";
 import {
   useDeleteMedicationMutation,
   useInsertMedicationMutation,
@@ -16,15 +17,10 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  buildMedicationFrequencyLabelForDb,
-  formatMedicationEveryIntervalLabel,
-  formatReminderTimeHHmm,
-  parseReminderTimeHHmm,
-} from "@/lib/medicationSchedule";
-import type { MedicationDosePeriod, PetMedication } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { MedicationDosePeriod } from "@/types/database";
+import { getErrorMessage } from "@/utils/errorMessage";
+import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
+import { hydrateFromMed } from "@/utils/medicationEditHydration";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
@@ -37,8 +33,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -47,89 +41,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-
-const DOSAGE_TYPES = [
-  "Tablet",
-  "Injection",
-  "Liquid",
-  "Topical",
-  "Chewable",
-  "Other",
-];
-
-type SchedulePeriod = MedicationDosePeriod | "custom";
-
-const SCHEDULE_PERIOD_OPTIONS: { label: string; value: SchedulePeriod }[] = [
-  { label: "Per day", value: "day" },
-  { label: "Per week", value: "week" },
-  { label: "Per month", value: "month" },
-  { label: "Custom", value: "custom" },
-];
-
-const INTERVAL_UNIT_OPTIONS: { label: string; value: MedicationDosePeriod }[] =
-  [
-    { label: "days", value: "day" },
-    { label: "weeks", value: "week" },
-    { label: "months", value: "month" },
-  ];
-
-function lastGivenOnFromDb(raw: string | null | undefined): string {
-  if (!raw?.trim()) return "";
-  return raw.trim().split("T")[0].slice(0, 10);
-}
-
-function splitDosage(dosage: string | null): { amount: string; type: string } {
-  if (!dosage?.trim()) return { amount: "", type: "" };
-  const parts = dosage.trim().split(/\s+/);
-  if (parts.length === 1) return { amount: parts[0], type: "" };
-  const [first, ...rest] = parts;
-  const joined = rest.join(" ");
-  if (DOSAGE_TYPES.includes(joined)) return { amount: first, type: joined };
-  return { amount: dosage.trim(), type: "" };
-}
-
-function hydrateFromMed(m: PetMedication) {
-  const { amount, type } = splitDosage(m.dosage);
-  const period = m.dose_period ?? null;
-  const ic = m.interval_count;
-  const iu = m.interval_unit ?? null;
-  const isCustomInterval =
-    ic != null &&
-    ic > 0 &&
-    iu != null &&
-    (iu === "day" || iu === "week" || iu === "month");
-
-  if (isCustomInterval) {
-    return {
-      name: m.name,
-      dosageAmount: amount,
-      dosageType: type,
-      dosesPerPeriod: "1",
-      schedulePeriod: "custom" as SchedulePeriod,
-      customIntervalCount: String(ic),
-      customIntervalUnit: iu,
-      condition: m.condition?.trim() ?? "",
-      notes: m.notes?.trim() ?? "",
-      reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
-      lastGivenOn: lastGivenOnFromDb(m.last_given_on),
-    };
-  }
-
-  return {
-    name: m.name,
-    dosageAmount: amount,
-    dosageType: type,
-    dosesPerPeriod:
-      m.doses_per_period != null ? String(m.doses_per_period) : "1",
-    schedulePeriod: (period ?? "day") as SchedulePeriod,
-    customIntervalCount: "1",
-    customIntervalUnit: "month" as MedicationDosePeriod,
-    condition: m.condition?.trim() ?? "",
-    notes: m.notes?.trim() ?? "",
-    reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
-    lastGivenOn: lastGivenOnFromDb(m.last_given_on),
-  };
-}
+import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 
 export default function EditPetMedicationScreen() {
   const insets = useSafeAreaInsets();
@@ -203,88 +115,20 @@ export default function EditPetMedicationScreen() {
       return;
     }
 
-    const dosageStr =
-      [dosageAmount.trim(), dosageType.trim()].filter(Boolean).join(" ") ||
-      null;
-
-    if (schedulePeriod === "custom") {
-      const n = customIntervalCount.trim();
-      const parsedInterval = parseInt(n, 10);
-      if (!Number.isFinite(parsedInterval) || parsedInterval < 1) {
-        return;
-      }
-
-      const freq = buildMedicationFrequencyLabelForDb(null, null, null, {
-        count: parsedInterval,
-        unit: customIntervalUnit,
-      });
-
-      const payload = {
-        name: name.trim(),
-        dosage: dosageStr,
-        frequency: freq,
-        condition: condition.trim() || null,
-        notes: notes.trim() || null,
-        doses_per_period: null,
-        dose_period: null,
-        interval_count: parsedInterval,
-        interval_unit: customIntervalUnit,
-        reminder_time: formatReminderTimeHHmm(reminderDate),
-        last_given_on: lastGivenOn.trim() || null,
-      };
-
-      try {
-        if (isNew) {
-          await insertMut.mutateAsync(payload);
-        } else {
-          await updateMut.mutateAsync({
-            medicationId,
-            updates: payload,
-          });
-        }
-        router.back();
-      } catch (e) {
-        Alert.alert("Couldn't save", getErrorMessage(e));
-      }
-      return;
-    }
-
-    const dosePeriod = schedulePeriod as MedicationDosePeriod;
-    const n = dosesPerPeriod.trim();
-    const parsed = parseInt(n, 10);
-    if (dosePeriod === "day" && (!Number.isFinite(parsed) || parsed < 1)) {
-      return;
-    }
-    if (
-      (dosePeriod === "week" || dosePeriod === "month") &&
-      n !== "" &&
-      (!Number.isFinite(parsed) || parsed < 1)
-    ) {
-      return;
-    }
-
-    const doses =
-      dosePeriod === "day"
-        ? Math.min(8, Math.max(1, parsed))
-        : dosePeriod === "week" || dosePeriod === "month"
-          ? Math.max(1, Number.isFinite(parsed) ? parsed : 1)
-          : null;
-
-    const freq = buildMedicationFrequencyLabelForDb(dosePeriod, doses, null);
-
-    const payload = {
-      name: name.trim(),
-      dosage: dosageStr,
-      frequency: freq,
-      condition: condition.trim() || null,
-      notes: notes.trim() || null,
-      doses_per_period: doses,
-      dose_period: dosePeriod,
-      interval_count: null,
-      interval_unit: null,
-      reminder_time: formatReminderTimeHHmm(reminderDate),
-      last_given_on: lastGivenOn.trim() || null,
-    };
+    const payload = buildMedicationSavePayload({
+      name,
+      dosageAmount,
+      dosageType,
+      dosesPerPeriod,
+      schedulePeriod,
+      customIntervalCount,
+      customIntervalUnit,
+      condition,
+      notes,
+      reminderDate,
+      lastGivenOn,
+    });
+    if (!payload) return;
 
     try {
       if (isNew) {
@@ -403,80 +247,21 @@ export default function EditPetMedicationScreen() {
 
   if (isNew && canManageMedications === false) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={28}
-              color={Colors.textPrimary}
-            />
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={2}>
-            Add medication
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <CoCareReadOnlyNotice />
-          <Text style={styles.leadReadOnly}>
-            Adding medications requires permission from the primary caretaker.
-          </Text>
-        </ScrollView>
-      </View>
+      <PetMedicationNoPermissionAddView
+        topInset={insets.top}
+        onBack={() => router.back()}
+      />
     );
   }
 
-  if (!isNew && med && canManageMedications === false) {
+  if (!isNew && med && canManageMedications === false && details) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={28}
-              color={Colors.textPrimary}
-            />
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={2}>
-            Medication details
-          </Text>
-          <PetNavAvatar
-            displayPet={details}
-            accessibilityLabelPrefix="Medication details for"
-          />
-        </View>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <CoCareReadOnlyNotice />
-          <ReadOnlyFieldRow label="Name" value={med.name} />
-          <ReadOnlyFieldRow label="Dosage" value={med.dosage?.trim() || ""} />
-          <ReadOnlyFieldRow
-            label="Frequency"
-            value={med.frequency?.trim() || ""}
-          />
-          <ReadOnlyFieldRow
-            label="Condition"
-            value={med.condition?.trim() || ""}
-          />
-          <ReadOnlyFieldRow label="Notes" value={med.notes?.trim() || ""} />
-          <ReadOnlyFieldRow
-            label="Reminder time"
-            value={med.reminder_time?.trim() || "—"}
-          />
-          <ReadOnlyFieldRow
-            label="Last given"
-            value={med.last_given_on?.trim() || "—"}
-          />
-        </ScrollView>
-      </View>
+      <PetMedicationReadOnlyView
+        med={med}
+        details={details}
+        topInset={insets.top}
+        onBack={() => router.back()}
+      />
     );
   }
 
@@ -508,24 +293,14 @@ export default function EditPetMedicationScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={2}>
-          {medNavTitle}
-        </Text>
-        <PetNavAvatar
-          displayPet={details}
-          accessibilityLabelPrefix={
-            isNew ? "Adding medication for" : "Editing medication for"
-          }
-        />
-      </View>
+      <PetMedicationNavHeader
+        title={medNavTitle}
+        onBack={() => router.back()}
+        displayPet={details}
+        accessibilityLabelPrefix={
+          isNew ? "Adding medication for" : "Editing medication for"
+        }
+      />
 
       <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
         <KeyboardAwareScrollView
@@ -544,138 +319,33 @@ export default function EditPetMedicationScreen() {
               containerStyle={styles.field}
             />
 
-            <Text style={styles.fieldLabel}>Dosage</Text>
-            <View style={styles.row2}>
-              <FormInput
-                placeholder="Amt"
-                value={dosageAmount}
-                onChangeText={setDosageAmount}
-                keyboardType="default"
-                containerStyle={styles.smallInput}
-              />
-              <View style={{ flex: 1, zIndex: 40 }}>
-                <DropdownSelect
-                  placeholder="Type"
-                  value={dosageType}
-                  options={DOSAGE_TYPES}
-                  onSelect={setDosageType}
-                />
-              </View>
-            </View>
+            <PetMedicationDosageRow
+              dosageAmount={dosageAmount}
+              setDosageAmount={setDosageAmount}
+              dosageType={dosageType}
+              setDosageType={setDosageType}
+            />
 
-            <Text
-              style={[
-                styles.fieldLabel,
-                (doseCountError ||
-                  doseCountErrorWeekMonth ||
-                  customIntervalError) &&
-                  styles.fieldLabelError,
-              ]}
-            >
-              Frequency *
-            </Text>
-            <View style={styles.row2}>
-              {schedulePeriod !== "custom" ? (
-                <FormInput
-                  placeholder="Times"
-                  value={dosesPerPeriod}
-                  onChangeText={setDosesPerPeriod}
-                  keyboardType="numeric"
-                  containerStyle={styles.smallInput}
-                  error={doseCountError || doseCountErrorWeekMonth}
-                />
-              ) : (
-                <View style={styles.timesSpacer} />
-              )}
-              <View style={{ flex: 1, zIndex: 35 }}>
-                <DropdownSelect
-                  placeholder="Per"
-                  value={
-                    SCHEDULE_PERIOD_OPTIONS.find(
-                      (o) => o.value === schedulePeriod,
-                    )?.label ?? ""
-                  }
-                  options={SCHEDULE_PERIOD_OPTIONS.map((o) => o.label)}
-                  onSelect={(label) => {
-                    const m = SCHEDULE_PERIOD_OPTIONS.find(
-                      (o) => o.label === label,
-                    );
-                    if (m) setSchedulePeriod(m.value);
-                  }}
-                />
-              </View>
-            </View>
+            <PetMedicationFrequencySection
+              schedulePeriod={schedulePeriod}
+              setSchedulePeriod={setSchedulePeriod}
+              dosesPerPeriod={dosesPerPeriod}
+              setDosesPerPeriod={setDosesPerPeriod}
+              customIntervalCount={customIntervalCount}
+              setCustomIntervalCount={setCustomIntervalCount}
+              customIntervalUnit={customIntervalUnit}
+              setCustomIntervalUnit={setCustomIntervalUnit}
+              parsedCustomInterval={parsedCustomInterval}
+              doseCountError={doseCountError}
+              doseCountErrorWeekMonth={doseCountErrorWeekMonth}
+              customIntervalError={customIntervalError}
+            />
 
-            {schedulePeriod === "custom" ? (
-              <>
-                <Text style={styles.helperLabel}>Custom interval</Text>
-                <Text style={styles.helperExample}>
-                  Example: a dose every 3 months — enter{" "}
-                  <Text style={styles.helperStrong}>3</Text> and choose{" "}
-                  <Text style={styles.helperStrong}>months</Text>. That saves as
-                  “{formatMedicationEveryIntervalLabel(3, "month")}
-                  ”.
-                </Text>
-                <View style={styles.row2}>
-                  <FormInput
-                    placeholder="Every"
-                    value={customIntervalCount}
-                    onChangeText={setCustomIntervalCount}
-                    keyboardType="numeric"
-                    containerStyle={styles.smallInput}
-                    error={customIntervalError}
-                  />
-                  <View style={{ flex: 1, zIndex: 34 }}>
-                    <DropdownSelect
-                      placeholder="Interval"
-                      value={
-                        INTERVAL_UNIT_OPTIONS.find(
-                          (o) => o.value === customIntervalUnit,
-                        )?.label ?? ""
-                      }
-                      options={INTERVAL_UNIT_OPTIONS.map((o) => o.label)}
-                      onSelect={(label) => {
-                        const opt = INTERVAL_UNIT_OPTIONS.find(
-                          (o) => o.label === label,
-                        );
-                        if (opt) setCustomIntervalUnit(opt.value);
-                      }}
-                    />
-                  </View>
-                </View>
-                {customIntervalCount.trim() !== "" &&
-                Number.isFinite(parsedCustomInterval) &&
-                parsedCustomInterval >= 1 ? (
-                  <Text style={styles.previewLine}>
-                    Preview:{" "}
-                    {formatMedicationEveryIntervalLabel(
-                      parsedCustomInterval,
-                      customIntervalUnit,
-                    )}
-                  </Text>
-                ) : null}
-              </>
-            ) : null}
-
-            <Text style={styles.fieldLabel}>Reminder time</Text>
-            <Pressable
-              style={styles.timeBtn}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={22}
-                color={Colors.orange}
-              />
-              <Text style={styles.timeBtnText}>
-                {formatReminderTimeHHmm(reminderDate)}
-              </Text>
-            </Pressable>
-            <ReminderTimePickerSheet
-              visible={showTimePicker}
-              value={reminderDate}
-              onChange={setReminderDate}
-              onClose={() => setShowTimePicker(false)}
+            <PetMedicationReminderField
+              reminderDate={reminderDate}
+              setReminderDate={setReminderDate}
+              showTimePicker={showTimePicker}
+              setShowTimePicker={setShowTimePicker}
             />
 
             <Text style={styles.fieldLabel}>Last given</Text>
@@ -703,193 +373,23 @@ export default function EditPetMedicationScreen() {
               containerStyle={styles.field}
             />
 
-            {validationAttempted &&
-            (nameError ||
-              doseCountError ||
-              doseCountErrorWeekMonth ||
-              customIntervalError) ? (
-              <Text style={styles.formErrorHint}>
-                Please fill in the required fields above.
-              </Text>
-            ) : null}
-
-            <View style={styles.actionsBlock}>
-              <OrangeButton
-                onPress={handleSave}
-                loading={saving}
-                disabled={deleting}
-                style={styles.saveBtn}
-              >
-                {isNew ? "Add medication" : "Save changes"}
-              </OrangeButton>
-
-              {!isNew ? (
-                <Pressable
-                  onPress={handleDelete}
-                  disabled={saving || deleting}
-                  style={({ pressed }) => [
-                    styles.deleteBtn,
-                    pressed && styles.deleteBtnPressed,
-                  ]}
-                >
-                  <Text style={styles.deleteText}>
-                    {deleting ? "Deleting…" : "Delete medication"}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
+            <PetMedicationFormActions
+              isNew={isNew}
+              saving={saving}
+              deleting={deleting}
+              showErrorHint={
+                validationAttempted &&
+                (nameError ||
+                  doseCountError ||
+                  doseCountErrorWeekMonth ||
+                  customIntervalError)
+              }
+              onSave={handleSave}
+              onDelete={handleDelete}
+            />
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
-  leadReadOnly: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-  scrollSafe: {
-    flex: 1,
-  },
-  scroll: { flex: 1 },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  actionsBlock: {
-    marginTop: 20,
-  },
-  field: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  fieldLabelError: {
-    color: Colors.error,
-  },
-  formErrorHint: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.error,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  row2: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
-    alignItems: "flex-start",
-  },
-  helperLabel: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 6,
-  },
-  helperExample: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.gray500,
-    lineHeight: 19,
-    marginBottom: 12,
-  },
-  helperStrong: {
-    fontFamily: Font.uiSemiBold,
-    color: Colors.textPrimary,
-  },
-  previewLine: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textPrimary,
-    marginBottom: 16,
-    marginTop: -4,
-  },
-  smallInput: {
-    width: 88,
-    marginBottom: 0,
-  },
-  timesSpacer: {
-    width: 88,
-  },
-  timeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    backgroundColor: Colors.white,
-    marginBottom: 16,
-  },
-  timeBtnText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  lastGivenWrap: {
-    marginBottom: 12,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  deleteBtn: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  deleteBtnPressed: {
-    opacity: 0.75,
-  },
-  deleteText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.error,
-  },
-  missing: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  backLink: {
-    marginTop: 16,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    textAlign: "center",
-  },
-});

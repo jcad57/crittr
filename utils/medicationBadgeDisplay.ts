@@ -1,6 +1,6 @@
-import type { HealthTrafficKind } from "@/lib/healthTraffic";
-import { medicationTraffic } from "@/lib/healthTraffic";
-import type { MedicationDosageProgress } from "@/lib/medicationDosageProgress";
+import type { HealthTrafficKind } from "@/utils/healthTraffic";
+import { medicationTraffic } from "@/utils/healthTraffic";
+import type { MedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import type { PetMedication } from "@/types/database";
 
 /**

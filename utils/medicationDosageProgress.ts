@@ -1,5 +1,5 @@
-import { isMedicationDueToday } from "@/lib/healthTraffic";
-import { dueSoonScheduleKind } from "@/lib/medicationDueSchedule";
+import { isMedicationDueToday } from "@/utils/healthTraffic";
+import { dueSoonScheduleKind } from "@/utils/medicationDueSchedule";
 import type { PetActivity, PetMedication } from "@/types/database";
 
 export type MedicationDosageProgress = {

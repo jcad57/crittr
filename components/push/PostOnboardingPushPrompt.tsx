@@ -1,7 +1,6 @@
-import {
-  ensureAndroidDefaultNotificationChannel,
-  requestNotificationPermissionsAsync,
-} from "@/lib/pushNotifications";
+import { requestNotificationPermissionsAsync } from "@/lib/pushNotifications";
+import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
+import { useAuthStore } from "@/stores/authStore";
 import {
   hasShownPostOnboardingPushPrompt,
   markPostOnboardingPushPromptShown,
@@ -14,8 +13,11 @@ let postOnboardingPermissionPromptInFlight = false;
 /**
  * After onboarding, the first time the user reaches the dashboard we prompt for OS
  * notification permission (push on by default at the preference level; OS dialog is required).
+ * Android notification channel is set up once in `PushNotificationBootstrap`.
  */
 export default function PostOnboardingPushPrompt() {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
   useEffect(() => {
     if (Platform.OS === "web") return;
     let cancelled = false;
@@ -25,9 +27,9 @@ export default function PostOnboardingPushPrompt() {
       if (cancelled || already) return;
       postOnboardingPermissionPromptInFlight = true;
       try {
-        await ensureAndroidDefaultNotificationChannel();
         await requestNotificationPermissionsAsync();
         if (!cancelled) await markPostOnboardingPushPromptShown();
+        if (!cancelled && userId) void syncExpoPushTokenToSupabase(userId);
       } finally {
         postOnboardingPermissionPromptInFlight = false;
       }
@@ -36,7 +38,7 @@ export default function PostOnboardingPushPrompt() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   return null;
 }

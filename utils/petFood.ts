@@ -1,6 +1,6 @@
 import type { PetFood, PetFoodPortion } from "@/types/database";
 
-import { formatFeedTimeLabel } from "@/lib/petFoodTime";
+import { formatFeedTimeLabel } from "@/utils/petFoodTime";
 
 /**
  * Meal vs treat is stored explicitly on `pet_foods.is_treat` (set during onboarding).

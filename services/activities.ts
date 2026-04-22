@@ -1,3 +1,4 @@
+import { requestRemoteCoCarerActivityPush } from "@/services/coCarerActivityPush";
 import { supabase } from "@/lib/supabase";
 import { fetchAccessiblePets } from "@/services/pets";
 import {
@@ -209,6 +210,7 @@ export async function logExercise(
     .single();
 
   if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
 
@@ -240,6 +242,7 @@ export async function logFood(
     .single();
 
   if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
 
@@ -266,6 +269,7 @@ export async function logMedication(
     .single();
 
   if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
 
@@ -296,6 +300,7 @@ export async function logPotty(
     .single();
 
   if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
 
@@ -333,6 +338,7 @@ export async function logTraining(
     .single();
 
   if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
 

@@ -3,7 +3,7 @@ import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
-import { UPGRADE_HREF } from "@/lib/proUpgradePaths";
+import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { fetchProfile } from "@/services/profiles";
 import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";

@@ -1,11 +1,10 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
-import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
+import VaccinationReadOnlyView from "@/components/petScreens/vaccinations/VaccinationReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useDeletePetVaccinationMutation,
   useInsertPetVaccinationMutation,
@@ -14,8 +13,8 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { getErrorMessage } from "@/lib/errorMessage";
-import type { PetVaccination } from "@/types/database";
+import { getErrorMessage } from "@/utils/errorMessage";
+import { hydrateFromVaccination } from "@/utils/vaccinationEditHydration";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
@@ -24,7 +23,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -33,18 +31,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-
-function hydrateFromVaccination(v: PetVaccination) {
-  return {
-    name: v.name?.trim() ?? "",
-    expiresOn: v.expires_on?.trim() ?? "",
-    notes: v.notes?.trim() ?? "",
-    administeredOn: v.administered_on?.trim() ?? "",
-    administeredBy: v.administered_by?.trim() ?? "",
-    lotNumber: v.lot_number?.trim() ?? "",
-    nextDueDate: v.next_due_date?.trim() ?? "",
-  };
-}
+import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
 
 export default function EditPetVaccinationScreen() {
   const insets = useSafeAreaInsets();
@@ -254,62 +241,13 @@ export default function EditPetVaccinationScreen() {
   }
 
   if (!isNew && vaccination && canManageVaccinations === false) {
-    const fmt = (d: string | null | undefined) =>
-      d
-        ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : "—";
-    const expLabel = fmt(vaccination.expires_on);
-    const administeredOnLabel = fmt(vaccination.administered_on);
-    const nextDueLabel = fmt(vaccination.next_due_date);
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={28}
-              color={Colors.textPrimary}
-            />
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={2}>
-            Vaccination details
-          </Text>
-          <PetNavAvatar
-            displayPet={details}
-            accessibilityLabelPrefix="Vaccination details for"
-          />
-        </View>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <CoCareReadOnlyNotice />
-          <ReadOnlyFieldRow label="Name" value={vaccination.name} />
-          <ReadOnlyFieldRow
-            label="Date administered"
-            value={administeredOnLabel}
-          />
-          <ReadOnlyFieldRow label="Next due" value={nextDueLabel} />
-          <ReadOnlyFieldRow label="Expires" value={expLabel} />
-          <ReadOnlyFieldRow
-            label="Administered by"
-            value={vaccination.administered_by?.trim() || ""}
-          />
-          <ReadOnlyFieldRow
-            label="Lot number"
-            value={vaccination.lot_number?.trim() || ""}
-          />
-          <ReadOnlyFieldRow
-            label="Notes"
-            value={vaccination.notes?.trim() || ""}
-          />
-        </ScrollView>
-      </View>
+      <VaccinationReadOnlyView
+        vaccination={vaccination}
+        details={details}
+        insetsTop={insets.top}
+        onBack={() => router.back()}
+      />
     );
   }
 
@@ -446,88 +384,3 @@ export default function EditPetVaccinationScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navSpacerWide: { width: 28 },
-  leadReadOnly: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  scrollSafe: {
-    flex: 1,
-  },
-  scroll: { flex: 1 },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  field: {
-    marginBottom: 16,
-  },
-  expiryBlock: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  actionsBlock: {
-    marginTop: 20,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  deleteBtn: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  deleteBtnPressed: {
-    opacity: 0.75,
-  },
-  deleteText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.error,
-  },
-  missing: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  backLink: {
-    marginTop: 16,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    textAlign: "center",
-  },
-});

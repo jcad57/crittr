@@ -5,6 +5,7 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import {
   markAllNotificationsRead,
+  markCoCareRemovalNotificationsRead,
   markNotificationRead,
 } from "@/services/notifications";
 import { useAuthStore } from "@/stores/authStore";
@@ -34,6 +35,33 @@ export function useMarkAllNotificationsReadMutation() {
 
   return useMutation({
     mutationFn: () => markAllNotificationsRead(userId!),
+    onSuccess: () => {
+      if (userId) {
+        void queryClient.invalidateQueries({
+          queryKey: notificationsKey(userId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: unreadNotificationCountKey(userId),
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Dismiss co-care removal notifications and refresh auth session. Used by the
+ * `co-care-removed` onboarding screen when the user lands on it.
+ */
+export function useDismissCoCareRemovedMutation() {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+  const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!userId) return;
+      await markCoCareRemovalNotificationsRead(userId);
+      await refreshAuthSession();
+    },
     onSuccess: () => {
       if (userId) {
         void queryClient.invalidateQueries({

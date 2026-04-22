@@ -73,7 +73,7 @@ export default function SignIn() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const { signInWithEmail } = useAuthStore();
+  const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
 
   const handleSignIn = async () => {
     Keyboard.dismiss();

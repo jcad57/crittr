@@ -1,11 +1,12 @@
+import CoCarerBanner from "@/components/petScreens/petProfile/CoCarerBanner";
+import InfoRow from "@/components/petScreens/petProfile/InfoRow";
+import PetProfileNavBar from "@/components/petScreens/petProfile/PetProfileNavBar";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
 import PetExerciseRequirementsBlock from "@/components/ui/pet/PetExerciseRequirementsBlock";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import PetProfileHero, {
-  type PetHeroTag,
-} from "@/components/ui/pet/PetProfileHero";
+import PetProfileHero from "@/components/ui/pet/PetProfileHero";
 import PetStatChips, {
   type StatChipItem,
 } from "@/components/ui/pet/PetStatChips";
@@ -14,7 +15,6 @@ import RecordsNavCard, {
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   petDetailsQueryKey,
   petsQueryKey,
@@ -26,34 +26,24 @@ import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { vaccinationNeedsAttention } from "@/lib/healthTraffic";
-import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
-import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
-import { formatPetFoodPortionSubline, isTreatFood } from "@/lib/petFood";
+import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
+import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
 import { queryClient } from "@/lib/queryClient";
 import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
-import type {
-  PetActivity,
-  PetVaccination,
-  PetWithDetails,
-} from "@/types/database";
-import type {
-  FeedingSchedule,
-  MedicationSummary,
-  PetProfile,
-} from "@/types/ui";
+import type { PetVaccination } from "@/types/database";
 import {
-  formatBirthdayChip,
-  formatDateOfBirth,
-  formatEnergyLabel,
-  formatMicrochipLabel,
-  formatPetAgeDisplay,
-  formatPetTypeLabel,
-  formatPetWeightDisplay,
-  parseDateOnlyYmd,
-} from "@/utils/petDisplay";
+  buildQuickTags,
+  medicationSubline,
+  profileSubline,
+  toProfile,
+} from "@/utils/petProfileMapping";
+import {
+  buildManageItems,
+  buildRecordsItems,
+} from "@/utils/petProfileNavItems";
+import { formatBirthdayChip } from "@/utils/petDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
@@ -63,173 +53,17 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-/** Pet profile Records / Manage rows — matches food-section PNG sizing via `RecordsNavCard`. */
-const PET_PROFILE_RECORD_ICONS = {
-  medicalRecords: require("@/assets/icons/medical-records-icon.png"),
-  calendar: require("@/assets/icons/calendar-icon.png"),
-  microchip: require("@/assets/icons/microchip-icon.png"),
-  insurance: require("@/assets/icons/insurance-icon.png"),
-  activity: require("@/assets/icons/pet-walk-icon.png"),
-  visibility: require("@/assets/icons/visibility-icon.png"),
-  coCare: require("@/assets/icons/co-care-icon.png"),
-} as const;
-
-// ─── Data mapping ────────────────────────────────────────────────────────────
-
-function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
-  const sorted = [...details.foods].sort((a, b) => {
-    const ta = isTreatFood(a);
-    const tb = isTreatFood(b);
-    return ta === tb ? 0 : ta ? 1 : -1;
-  });
-  return {
-    items: sorted.map((f) => ({
-      brand: f.brand?.trim() || "Food",
-      portionLabel: formatPetFoodPortionSubline(f),
-      isTreat: isTreatFood(f),
-      notes: f.notes?.trim() || undefined,
-    })),
-    notes: "",
-  };
-}
-
-function toMedications(
-  details: PetWithDetails,
-  todayActivities: PetActivity[],
-): MedicationSummary[] {
-  return details.medications.map((m) => {
-    const prog = buildMedicationDosageProgress(m, todayActivities, details.id);
-    const badge = getMedicationBadgeDisplay(m, prog);
-    return {
-      id: m.id,
-      name: m.name,
-      frequency: m.frequency ?? "",
-      condition: m.condition ?? "",
-      dosageDesc: m.dosage ?? "",
-      current: prog.current,
-      total: prog.total,
-      lastTaken: prog.lastTaken,
-      badgeKind: badge.kind,
-      badgeLabel: badge.label,
-    };
-  });
-}
-
-function buildQuickTags(profile: PetProfile): PetHeroTag[] {
-  const t1: PetHeroTag =
-    profile.isSterilized === false
-      ? { label: "Intact", muted: true }
-      : {
-          label: profile.sex === "female" ? "Spayed" : "Neutered",
-          muted: false,
-        };
-
-  const isChipped =
-    profile.isMicrochipped === true ||
-    (profile.isMicrochipped !== false &&
-      Boolean(profile.microchipNumber?.trim()));
-  const t2: PetHeroTag = isChipped
-    ? { label: "Microchipped", muted: false }
-    : { label: "No microchip", muted: true };
-
-  const t3: PetHeroTag =
-    profile.isInsured === true
-      ? { label: "Insured", muted: false }
-      : profile.isInsured === false
-        ? { label: "No insurance", muted: true }
-        : { label: "Insurance", muted: true };
-
-  return [t1, t2, t3];
-}
-
-function profileSubline(profile: PetProfile): string {
-  const breed = profile.breed.trim() || "—";
-  return `${breed} · ${profile.ageDisplay}`;
-}
-
-function toProfile(
-  details: PetWithDetails,
-  todayActivities: PetActivity[],
-): PetProfile {
-  const dob = details.date_of_birth;
-  const dobYmd = parseDateOnlyYmd(
-    typeof dob === "string" ? dob : dob != null ? String(dob) : null,
-  );
-  const dobFormatted = formatDateOfBirth(dobYmd);
-
-  return {
-    id: details.id,
-    name: details.name,
-    breed: details.breed ?? "",
-    imageUrl: details.avatar_url,
-    age: details.age ?? 0,
-    ageMonths: details.age_months,
-    ageDisplay: formatPetAgeDisplay(details),
-    weightLbs: details.weight_lbs ?? 0,
-    weightUnit: details.weight_unit,
-    weightDisplay: formatPetWeightDisplay(details),
-    sex: details.sex ?? "male",
-    color: details.color ?? "",
-    petType: details.pet_type,
-    petTypeLabel: formatPetTypeLabel(details.pet_type),
-    dateOfBirth: dobYmd,
-    dateOfBirthFormatted: dobFormatted,
-    energyLevel: details.energy_level,
-    energyLevelLabel: formatEnergyLabel(details.energy_level),
-    allergies: details.allergies ?? [],
-    isMicrochipped: details.is_microchipped ?? null,
-    microchipLabel: formatMicrochipLabel(details.is_microchipped ?? null),
-    microchipNumber: details.microchip_number ?? null,
-    primaryVetClinic: details.primary_vet_clinic ?? null,
-    primaryVetAddress: details.primary_vet_address ?? null,
-    primaryVetName: details.primary_vet_name ?? null,
-    isInsured: details.is_insured,
-    insuranceProvider: details.insurance_provider ?? null,
-    insurancePolicyNumber: details.insurance_policy_number ?? null,
-    isSterilized: details.is_sterilized ?? null,
-    exercisesPerDay: details.exercises_per_day,
-    about: details.about ?? "",
-    feeding: toFeedingSchedule(details),
-    medications: toMedications(details, todayActivities),
-    vetVisits: [],
-  };
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-type InfoRowProps = { label: string; value: string; isLast?: boolean };
-
-function InfoRow({ label, value, isLast }: InfoRowProps) {
-  return (
-    <View style={[styles.infoRow, isLast && styles.infoRowLast]}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={2}>
-        {value || "—"}
-      </Text>
-    </View>
-  );
-}
-
-function medicationSubline(m: MedicationSummary): string {
-  const parts = [m.frequency, m.condition, m.dosageDesc].filter(
-    (s) => s && String(s).trim(),
-  );
-  return parts.length ? parts.join(" · ") : "—";
-}
+import { styles } from "@/screen-styles/pet/[id]/index.styles";
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function PetProfilePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { push, replace, router } = useNavigationCooldown();
-  const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const ownerId = useAuthStore((s) => s.session?.user?.id);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -333,109 +167,19 @@ export default function PetProfilePage() {
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
-    const insSub = (() => {
-      if (profile.isInsured === true) {
-        const co = profile.insuranceProvider?.trim();
-        const pol = profile.insurancePolicyNumber?.trim();
-        if (co && pol) return `${co} · #${pol}`;
-        if (co) return co;
-        if (pol) return `Policy #${pol}`;
-        return "On file";
-      }
-      if (profile.isInsured === false) return "No insurance";
-      return "Not set";
-    })();
-    const chipSub = profile.microchipNumber?.trim()
-      ? `ID: ${profile.microchipNumber.trim()}`
-      : "Add microchip number and registry info";
-    return [
-      {
-        id: "medical",
-        title: "Medical records",
-        subtitle: "Upload and view medical records",
-        iconImage: PET_PROFILE_RECORD_ICONS.medicalRecords,
-        iconBg: Colors.orangeLight,
-        onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/medical-records` as Href),
-      },
-      {
-        id: "vaccinations",
-        title: "Vaccinations",
-        subtitle: "Add your pet's vaccination history",
-        iconImage: PET_PROFILE_RECORD_ICONS.calendar,
-        iconBg: Colors.mintLight,
-        onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/vaccinations` as Href),
-      },
-      {
-        id: "microchip",
-        title: "Microchip details",
-        subtitle: chipSub,
-        iconImage: PET_PROFILE_RECORD_ICONS.microchip,
-        iconBg: Colors.skyLight,
-        onPress: () => push(`/pet/${profile.id}/microchip`),
-      },
-      {
-        id: "insurance",
-        title: "Insurance",
-        subtitle: "Add or view insurance details",
-        iconImage: PET_PROFILE_RECORD_ICONS.insurance,
-        iconBg: Colors.lavenderLight,
-        onPress: () => push(`/(logged-in)/pet/${profile.id}/insurance` as Href),
-      },
-      {
-        id: "activity",
-        title: "Activity history",
-        subtitle: `View ${profile.name}'s activity history`,
-        iconImage: PET_PROFILE_RECORD_ICONS.activity,
-        iconBg: Colors.amberLight,
-        onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/activity-log` as Href),
-      },
-    ];
+    return buildRecordsItems(profile, push);
   }, [profile, push]);
 
   const manageItems = useMemo((): RecordsNavItem[] => {
-    if (!profile || roleLoading) return [];
-    const petName = profile.name?.trim() || "your pet";
-    const items: RecordsNavItem[] = [];
-
-    if (isOwner) {
-      items.push({
-        id: "visibility",
-        title: "Visibility",
-        subtitle: "Memorialize or delete a pet permanently",
-        iconImage: PET_PROFILE_RECORD_ICONS.visibility,
-        iconBg: Colors.orangeLight,
-        onPress: () =>
-          push(`/(logged-in)/pet/${profile.id}/visibility` as Href),
-      });
-      items.push({
-        id: "invite",
-        title: `Co-carers for ${petName}`,
-        subtitle: "Manage co-carers and permissions",
-        iconImage: PET_PROFILE_RECORD_ICONS.coCare,
-        iconBg: Colors.lavenderLight,
-        onPress: () =>
-          runWithProOrUpgrade(() =>
-            push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
-          ),
-      });
-    } else if (isCoCarer) {
-      items.push({
-        id: "leave-co-care",
-        title: "Remove yourself as a co-carer",
-        subtitle: `Stop co-caring for ${petName}`,
-        icon: "account-remove-outline",
-        iconBg: Colors.white,
-        iconColor: Colors.error,
-        onPress: handleLeaveCoCare,
-        showChevron: false,
-        variant: "destructive",
-      });
-    }
-
-    return items;
+    if (!profile) return [];
+    return buildManageItems(profile, {
+      roleLoading,
+      isOwner,
+      isCoCarer,
+      push,
+      runWithProOrUpgrade,
+      handleLeaveCoCare,
+    });
   }, [
     profile,
     push,
@@ -466,19 +210,7 @@ export default function PetProfilePage() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.navBack}
-          hitSlop={8}
-        >
-          <Text style={styles.navBackText}>&lt; Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          {profile.name}
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <PetProfileNavBar title={profile.name} onBack={() => router.back()} />
 
       <ScrollView
         style={styles.scroll}
@@ -489,18 +221,7 @@ export default function PetProfilePage() {
         showsVerticalScrollIndicator={false}
         bounces
       >
-        {isCoCarer && (
-          <View style={styles.coCarerBanner}>
-            <MaterialCommunityIcons
-              name="account-group-outline"
-              size={16}
-              color={Colors.lavenderDark}
-            />
-            <Text style={styles.coCarerBannerText}>
-              You are co-caring for this pet
-            </Text>
-          </View>
-        )}
+        {isCoCarer && <CoCarerBanner />}
 
         <PetProfileHero
           name={profile.name}
@@ -656,144 +377,3 @@ export default function PetProfilePage() {
     </View>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.cream,
-  },
-  notFoundText: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.cream,
-  },
-  navBack: {
-    minWidth: 72,
-  },
-  navBackText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  /** Balances the back control so the title stays centered. */
-  navSpacer: {
-    minWidth: 72,
-  },
-
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    gap: 16,
-    paddingTop: 4,
-  },
-  sectionFlush: {
-    marginBottom: 0,
-    marginTop: 4,
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
-    marginBottom: 0,
-    width: "100%",
-  },
-  sectionLabelInline: {
-    marginBottom: 0,
-    flexShrink: 1,
-  },
-  sectionEditLink: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.orange,
-  },
-
-  detailsCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray100,
-  },
-  infoRowLast: {
-    borderBottomWidth: 0,
-  },
-  infoLabel: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.sectionLabel,
-  },
-  infoValue: {
-    fontFamily: Font.uiMedium,
-    fontSize: 15,
-    color: Colors.textPrimary,
-    textAlign: "right",
-    maxWidth: "58%",
-  },
-
-  medList: {
-    gap: 10,
-  },
-  emptyMed: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    textAlign: "center",
-    color: Colors.gray500,
-    paddingVertical: 4,
-  },
-  coCarerBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: Colors.lavenderLight,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  coCarerBannerText: {
-    fontFamily: Font.uiMedium,
-    fontSize: 13,
-    color: Colors.lavenderDark,
-  },
-});

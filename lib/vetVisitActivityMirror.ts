@@ -11,7 +11,6 @@ export async function syncTodayVetVisitMirrorsToActivities(
   userId: string,
 ): Promise<void> {
   const { petIds } = await ensureTodayVetVisitMirrorActivities(userId);
-  void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
   void queryClient.invalidateQueries({
     queryKey: healthSnapshotKey(userId),
   });

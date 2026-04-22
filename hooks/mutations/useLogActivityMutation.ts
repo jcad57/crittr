@@ -42,7 +42,6 @@ export function useLogExerciseMutation() {
         queryKey: todayActivitiesPrefixKey(petId),
       });
       void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     },
   });
 }
@@ -67,7 +66,6 @@ export function useLogFoodMutation() {
         queryKey: todayActivitiesPrefixKey(petId),
       });
       void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
     },
   });
 }
@@ -92,7 +90,6 @@ export function useLogMedicationMutation() {
         queryKey: todayActivitiesPrefixKey(petId),
       });
       void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-      void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       void queryClient.invalidateQueries({
         queryKey: petDetailsQueryKey(petId),
       });
@@ -124,7 +121,6 @@ export function useLogTrainingMutation(petId: string | null) {
           queryKey: todayActivitiesPrefixKey(petId),
         });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }
     },
   });
@@ -149,7 +145,6 @@ export function useLogPottyMutation(petId: string | null) {
           queryKey: todayActivitiesPrefixKey(petId),
         });
         queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-        queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
       }
     },
   });

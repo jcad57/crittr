@@ -1,4 +1,4 @@
-import type { FoodActivityExtraPetRow } from "@/lib/foodActivityMerge";
+import type { FoodActivityExtraPetRow } from "@/utils/foodActivityMerge";
 import {
   petActivityToExerciseForm,
   petActivityToFoodForm,
@@ -6,7 +6,7 @@ import {
   petActivityToPottyForm,
   petActivityToTrainingForm,
   petActivityToVetVisitForm,
-} from "@/lib/hydrateActivityForm";
+} from "@/utils/hydrateActivityForm";
 import type {
   ActivityType,
   ExerciseFormData,

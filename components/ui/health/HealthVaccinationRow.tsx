@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { vaccinationTraffic } from "@/lib/healthTraffic";
+import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { VaccinationWithPet } from "@/services/health";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";

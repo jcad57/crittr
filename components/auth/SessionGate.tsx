@@ -29,7 +29,8 @@ const stripePublishableKey =
   process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 export default function SessionGate() {
-  const { isLoading: isAuthLoading, initialize } = useAuthStore();
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
+  const initialize = useAuthStore((s) => s.initialize);
   const [fontsLoaded, fontError] = useFonts({
     ...FONT_FACES,
     Fraunces_600SemiBold,

@@ -1,11 +1,9 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
-import { petsQueryKey } from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { sortPetsByCreatedAt } from "@/lib/petSort";
-import { useAuthStore } from "@/stores/authStore";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
+import { sortPetsByCreatedAt } from "@/utils/petSort";
 import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -48,9 +46,8 @@ export default function PetNavAvatar({
   accessibilityLabelPrefix = "Active pet",
   allowSwitch = true,
 }: PetNavAvatarProps) {
-  const userId = useAuthStore((s) => s.session?.user?.id);
   const activePetId = usePetStore((s) => s.activePetId);
-  const setActivePet = usePetStore((s) => s.setActivePet);
+  const setActivePetMutation = useSetActivePetMutation();
 
   const { data: allPets } = usePetsQuery();
 
@@ -84,15 +81,10 @@ export default function PetNavAvatar({
         closeMenu();
         return;
       }
-      setActivePet(id);
-      if (userId) {
-        void queryClient.invalidateQueries({
-          queryKey: petsQueryKey(userId),
-        });
-      }
+      setActivePetMutation.mutate(id);
       closeMenu();
     },
-    [activePetId, setActivePet, userId, closeMenu],
+    [activePetId, setActivePetMutation, closeMenu],
   );
 
   const a11yLabel = useMemo(() => {

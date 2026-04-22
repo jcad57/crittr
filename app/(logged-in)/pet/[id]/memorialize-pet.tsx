@@ -6,7 +6,7 @@ import {
   usePetDetailsQuery,
   useUnmemorializePetMutation,
 } from "@/hooks/queries";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback } from "react";

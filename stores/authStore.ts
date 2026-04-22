@@ -1,312 +1,28 @@
 import { ensureCrittrProSyncedFromStripe } from "@/lib/crittrProEntitlementSync";
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import {
+  deriveProfileOnboardingState,
+  nextRequiresCoCareRemovedScreen,
+  resolveSession,
+  type ResolvedOnboarding,
+} from "@/lib/auth/resolveSession";
+import { isAuthUserStillRegistered } from "@/lib/auth/sessionValidity";
 import { queryClient } from "@/lib/queryClient";
 import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
-import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import { usePetStore } from "@/stores/petStore";
 import type { Profile } from "@/types/database";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { withTimeout } from "@/utils/async";
+import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 
-const PROFILE_STEP = ONBOARDING_STEPS.indexOf("profile");
-const PENDING_INVITES_STEP = ONBOARDING_STEPS.indexOf("pending-invites");
-const PET_TYPE_STEP = ONBOARDING_STEPS.indexOf("pet-type");
+export type { ResolvedOnboarding };
 
 const AUTH_EMAIL_ACTION_TIMEOUT_MS = 45_000;
-
-/** Avoid hanging the whole Supabase client on a stuck `refreshSession()` (blocks sign-out & DB). */
-const AUTH_REFRESH_BUDGET_MS = 12_000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => {
-      reject(
-        new Error(
-          `${label} timed out. Check your connection and try again.`,
-        ),
-      );
-    }, ms);
-    promise
-      .then((v) => {
-        clearTimeout(t);
-        resolve(v);
-      })
-      .catch((e) => {
-        clearTimeout(t);
-        reject(e);
-      });
-  });
-}
-
-/** Profile onboarding step: home address and phone required; bio is optional. */
-function isProfileStepComplete(profile: Profile | null): boolean {
-  if (!profile) return false;
-  return (
-    Boolean(profile.home_address?.trim()) &&
-    Boolean(profile.phone_number?.trim())
-  );
-}
-
-export type ResolvedOnboarding = {
-  profile: Profile | null;
-  needsOnboarding: boolean;
-  hasPets: boolean;
-  /** Step index in `ONBOARDING_STEPS` when `needsOnboarding` is true; otherwise `null`. */
-  onboardingResumeStep: number | null;
-  ownedPetCount: number;
-  coCarePetCount: number;
-  /** Unread “removed as co-carer” notifications (cold start after removal when app was closed). */
-  unreadCoCareRemovalCount: number;
-};
-
-/**
- * One round-trip: profile row + pet counts (owned + co-cared) + pending invites (parallel).
- * Derives onboarding progress including co-care pets.
- */
-async function resolveSession(session: Session): Promise<ResolvedOnboarding> {
-  const userId = session.user.id;
-
-  const [
-    profileRes,
-    ownedCountRes,
-    coCareCountRes,
-    pendingInvitesRes,
-    removalNotifRes,
-  ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    supabase
-      .from("pets")
-      .select("*", { count: "exact", head: true })
-      .eq("owner_id", userId),
-    supabase
-      .from("pet_co_carers")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
-    supabase
-      .from("co_carer_invites")
-      .select("*", { count: "exact", head: true })
-      .eq("invited_user_id", userId)
-      .eq("status", "pending"),
-    supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("type", "co_care_removed")
-      .eq("read", false),
-  ]);
-
-  let profile = profileRes.data ?? null;
-  const ownedCount = ownedCountRes.error ? 0 : ownedCountRes.count ?? 0;
-  const coCareCount = coCareCountRes.error ? 0 : coCareCountRes.count ?? 0;
-  const unreadCoCareRemovalCount = removalNotifRes.error
-    ? 0
-    : removalNotifRes.count ?? 0;
-  const hasPets = ownedCount + coCareCount > 0;
-  const pendingInviteCount = pendingInvitesRes.error
-    ? 0
-    : pendingInvitesRes.count ?? 0;
-
-  if (
-    profile?.onboarding_complete &&
-    isProfileStepComplete(profile) &&
-    hasPets
-  ) {
-    return {
-      profile,
-      needsOnboarding: false,
-      hasPets,
-      onboardingResumeStep: null,
-      ownedPetCount: ownedCount,
-      coCarePetCount: coCareCount,
-      unreadCoCareRemovalCount,
-    };
-  }
-
-  const profileComplete = isProfileStepComplete(profile);
-
-  if (profileComplete && hasPets) {
-    if (profile && !profile.onboarding_complete) {
-      const { data: updated } = await supabase
-        .from("profiles")
-        .update({ onboarding_complete: true })
-        .eq("id", userId)
-        .select()
-        .single();
-      profile = updated ?? profile;
-    }
-    return {
-      profile,
-      needsOnboarding: false,
-      hasPets,
-      onboardingResumeStep: null,
-      ownedPetCount: ownedCount,
-      coCarePetCount: coCareCount,
-      unreadCoCareRemovalCount,
-    };
-  }
-
-  if (!profileComplete) {
-    return {
-      profile,
-      needsOnboarding: true,
-      hasPets,
-      onboardingResumeStep: PROFILE_STEP,
-      ownedPetCount: ownedCount,
-      coCarePetCount: coCareCount,
-      unreadCoCareRemovalCount,
-    };
-  }
-
-  if (pendingInviteCount > 0) {
-    return {
-      profile,
-      needsOnboarding: true,
-      hasPets,
-      onboardingResumeStep: PENDING_INVITES_STEP,
-      ownedPetCount: ownedCount,
-      coCarePetCount: coCareCount,
-      unreadCoCareRemovalCount,
-    };
-  }
-
-  return {
-    profile,
-    needsOnboarding: true,
-    hasPets,
-    onboardingResumeStep: PET_TYPE_STEP,
-    ownedPetCount: ownedCount,
-    coCarePetCount: coCareCount,
-    unreadCoCareRemovalCount,
-  };
-}
 
 function syncProfileRowToQuery(profile: Profile | null) {
   if (!profile) return;
   queryClient.setQueryData(profileQueryKey(profile.id), profile);
-}
-
-/**
- * Co-carer-only users who lose their last co-care link need a dedicated screen
- * before generic onboarding (add a pet they own).
- */
-function nextRequiresCoCareRemovedScreen(
-  prev: {
-    hasPets: boolean;
-    ownedPetCount: number;
-    coCarePetCount: number;
-    requiresCoCareRemovedScreen: boolean;
-  },
-  resolved: ResolvedOnboarding,
-): boolean {
-  const profileComplete = isProfileStepComplete(resolved.profile);
-
-  const lostAllCoCareOnly =
-    prev.hasPets &&
-    !resolved.hasPets &&
-    resolved.ownedPetCount === 0 &&
-    prev.coCarePetCount > 0 &&
-    resolved.coCarePetCount === 0;
-
-  const coldStartFromRemovalNotification =
-    !resolved.hasPets &&
-    resolved.ownedPetCount === 0 &&
-    resolved.coCarePetCount === 0 &&
-    profileComplete &&
-    resolved.unreadCoCareRemovalCount > 0;
-
-  if (lostAllCoCareOnly || coldStartFromRemovalNotification) return true;
-  if (resolved.hasPets) return false;
-  return prev.requiresCoCareRemovedScreen;
-}
-
-function isLikelyTransientAuthFailure(error: unknown): boolean {
-  const status = (error as { status?: number })?.status;
-  const message = String((error as Error)?.message ?? "").toLowerCase();
-  const name = (error as { name?: string })?.name;
-
-  if (name === "AuthRetryableFetchError") return true;
-
-  if (
-    message.includes("network") ||
-    message.includes("fetch") ||
-    message.includes("internet") ||
-    message.includes("timeout") ||
-    message.includes("connection") ||
-    message.includes("offline")
-  ) {
-    return true;
-  }
-  if (status === 0) return true;
-  if (typeof status === "number" && status >= 500) return true;
-  if (status === 429) return true;
-  return false;
-}
-
-/**
- * `getSession()` only reads persisted tokens. After auth user deletion, the access JWT can
- * still verify locally while `profiles` is gone — `resolveSession` then sends users to
- * onboarding. `refreshSession()` hits the Auth server with the refresh token; deleted
- * users lose valid refresh tokens, so this reliably detects removal.
- *
- * If refresh fails for **any** reason that is not clearly transient (network / 5xx / 429),
- * we treat the session as invalid — do **not** fall back to `getUser()` alone, because
- * `getUser()` can still succeed on a locally-valid JWT while the account is gone.
- * Only on transient refresh failures do we fall back to `getUser()` for offline tolerance.
- *
- * `INITIAL_SESSION` must not call `refreshSession()`: `initialize()` already refreshed on
- * cold start, and a second refresh here serializes behind the same GoTrue lock and can
- * stall sign-out and PostgREST across the app.
- */
-async function isAuthUserStillRegistered(
-  event?: AuthChangeEvent,
-): Promise<boolean> {
-  /**
-   * Session is already server-valid for these events, or was validated in `initialize()`
-   * before this listener ran (`INITIAL_SESSION`).
-   */
-  if (
-    event === "TOKEN_REFRESHED" ||
-    event === "USER_UPDATED" ||
-    event === "SIGNED_IN" ||
-    event === "INITIAL_SESSION"
-  ) {
-    return true;
-  }
-
-  const refreshRace = await Promise.race([
-    supabase.auth.refreshSession().then((r) => ({ tag: "refresh" as const, r })),
-    sleep(AUTH_REFRESH_BUDGET_MS).then(() => ({ tag: "timeout" as const })),
-  ]);
-
-  if (refreshRace.tag === "timeout") {
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (!userError && !data?.user) return false;
-    if (userError && !isLikelyTransientAuthFailure(userError)) return false;
-    return true;
-  }
-
-  const { data: refreshed, error: refreshError } = refreshRace.r;
-
-  if (!refreshError && refreshed?.session) {
-    return true;
-  }
-
-  if (!refreshError && !refreshed?.session) {
-    return false;
-  }
-
-  if (refreshError && isLikelyTransientAuthFailure(refreshError)) {
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (!userError && !data?.user) return false;
-    if (userError && !isLikelyTransientAuthFailure(userError)) return false;
-    return true;
-  }
-
-  return false;
 }
 
 const loggedOutState = {
@@ -353,15 +69,43 @@ type AuthState = {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setProfile: (profile: Profile) => void;
-  /** Re-runs server onboarding/pet checks (owned + co-care). Call after co-care changes or profile save. */
+  /**
+   * Replace the in-memory `profile` field without recomputing onboarding flags
+   * or triggering a server refresh. Use only for optimistic cache parity (e.g.
+   * push-notification preference toggles) where a full `setProfile` would over-fire.
+   */
+  replaceProfileSnapshot: (profile: Profile | null) => void;
+  /**
+   * Re-fetch ONLY the profile row and recompute onboarding flags against the
+   * cached `hasPets`. Use after profile-only writes (address/phone, Pro
+   * entitlement sync, onboarding_complete flip) where pet counts cannot have
+   * changed. One Supabase round-trip vs. five for a full resolve.
+   */
+  refreshProfileOnly: () => Promise<void>;
+  /**
+   * Full server resolve: profile + owned pet count + co-care pet count +
+   * pending invites + co-care removal notifs. Use after co-care membership
+   * changes (accept invite / remove co-carer) or realtime co-care events.
+   */
   refreshAuthSession: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => {
+  /**
+   * Access token from the most recent successful `resolveSession` call. Used to
+   * dedupe the cold-start `onAuthStateChange("INITIAL_SESSION")` callback that
+   * fires immediately after `initialize()` already resolved the same session,
+   * which otherwise triggers a redundant Supabase round-trip on every launch.
+   * Reset to `null` on logout so a fresh sign-in always re-resolves.
+   */
+  let lastResolvedSessionToken: string | null = null;
+
   const reconcileCrittrProWithStripe = () => {
     void ensureCrittrProSyncedFromStripe().then((r) => {
-      if (r === "synced") void get().refreshAuthSession();
+      // Stripe sync only mutates profile fields (Pro entitlement); pet counts
+      // can't change, so a profile-only refresh is sufficient.
+      if (r === "synced") void get().refreshProfileOnly();
     });
   };
 
@@ -374,6 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   const purgeInvalidSession = async () => {
     await wipeSupabaseAuthFromDevice();
     clearAuxiliarySessionState();
+    lastResolvedSessionToken = null;
     set(loggedOutState);
   };
 
@@ -426,6 +171,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
             needsOnboarding: resolved.needsOnboarding,
             requiresCoCareRemovedScreen,
           });
+          lastResolvedSessionToken = activeSession.access_token;
           syncProfileRowToQuery(resolved.profile);
           reconcileCrittrProWithStripe();
         }
@@ -436,6 +182,15 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (session) {
+            // Cold-start dedupe: `INITIAL_SESSION` fires right after `initialize()`
+            // already resolved the same session. Skip the redundant round-trip
+            // when the access token still matches what we just resolved.
+            if (
+              event === "INITIAL_SESSION" &&
+              session.access_token === lastResolvedSessionToken
+            ) {
+              return;
+            }
             const stillRegistered = await isAuthUserStillRegistered(event);
             if (!stillRegistered) {
               await purgeInvalidSession();
@@ -469,12 +224,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
               needsOnboarding: resolved.needsOnboarding,
               requiresCoCareRemovedScreen,
             });
+            lastResolvedSessionToken = activeSession.access_token;
             syncProfileRowToQuery(resolved.profile);
             if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
               reconcileCrittrProWithStripe();
             }
           } else {
             clearAuxiliarySessionState();
+            lastResolvedSessionToken = null;
             set(loggedOutState);
           }
         },
@@ -552,28 +309,33 @@ export const useAuthStore = create<AuthState>((set, get) => {
   },
 
   setProfile: (profile) => {
-    set((s) => {
-      if (profile.onboarding_complete) {
-        return {
-          profile,
-          needsOnboarding: false,
-          onboardingResumeStep: null,
-        };
-      }
-      const profileComplete = isProfileStepComplete(profile);
-      const done = profileComplete && s.hasPets;
-      return {
-        profile,
-        needsOnboarding: !done,
-        onboardingResumeStep: done
-          ? null
-          : !profileComplete
-            ? PROFILE_STEP
-            : PET_TYPE_STEP,
-      };
-    });
+    set((s) => ({
+      profile,
+      ...deriveProfileOnboardingState(profile, s.hasPets),
+    }));
     queryClient.setQueryData(profileQueryKey(profile.id), profile);
-    void get().refreshAuthSession();
+    void get().refreshProfileOnly();
+  },
+
+  replaceProfileSnapshot: (profile) => set({ profile }),
+
+  refreshProfileOnly: async () => {
+    const session = get().session;
+    if (!session) return;
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (error) {
+      if (__DEV__) console.warn("[authStore] refreshProfileOnly failed", error);
+      return;
+    }
+    set((s) => ({
+      profile: profile ?? null,
+      ...deriveProfileOnboardingState(profile ?? null, s.hasPets),
+    }));
+    syncProfileRowToQuery(profile ?? null);
   },
 
   refreshAuthSession: async () => {
@@ -617,7 +379,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     if (data) {
       queryClient.setQueryData(profileQueryKey(data.id), data);
     }
-    await get().refreshAuthSession();
+    await get().refreshProfileOnly();
   },
 };
 });

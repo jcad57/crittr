@@ -1,7 +1,7 @@
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { VET_VISIT_LOCATION_OTHER } from "@/lib/vetVisitLocationUi";
+import { VET_VISIT_LOCATION_OTHER } from "@/utils/vetVisitLocationUi";
 import { useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 

@@ -18,10 +18,10 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { isMedicationDueToday } from "@/lib/healthTraffic";
-import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
-import { medicationActivityFormForQuickLog } from "@/lib/medicationQuickLogForm";
+import { getErrorMessage } from "@/utils/errorMessage";
+import { isMedicationDueToday } from "@/utils/healthTraffic";
+import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
+import { medicationActivityFormForQuickLog } from "@/utils/medicationQuickLogForm";
 import { usePetStore } from "@/stores/petStore";
 import { useCallback, useEffect, useMemo } from "react";
 import {

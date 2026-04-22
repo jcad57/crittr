@@ -10,6 +10,7 @@ import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import type { PetFormData } from "@/types/database";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -25,7 +26,15 @@ function hasHealthDetails(pet: PetFormData) {
 
 export default function PetHealthRecordsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const name = pet.name?.trim() || "your pet";
 

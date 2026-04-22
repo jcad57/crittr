@@ -420,6 +420,31 @@ export async function updatePetAvatar(
   return data as Pet;
 }
 
+/**
+ * Persist the user's active-pet selection to Supabase by flipping `is_active`
+ * on owned pets. Sets the target pet active first to avoid a moment with zero
+ * active pets. RLS prevents writes to non-owned pets, so co-care selections
+ * are silently no-ops at the DB layer.
+ */
+export async function setActivePet(
+  ownerId: string,
+  petId: string,
+): Promise<void> {
+  const { error: setErr } = await supabase
+    .from("pets")
+    .update({ is_active: true })
+    .eq("id", petId)
+    .eq("owner_id", ownerId);
+  if (setErr) throw setErr;
+
+  const { error: clearErr } = await supabase
+    .from("pets")
+    .update({ is_active: false })
+    .eq("owner_id", ownerId)
+    .neq("id", petId);
+  if (clearErr) throw clearErr;
+}
+
 /** After delete or memorialization, ensure one living pet is `is_active` if any exist. */
 export async function ensureOneActivePet(ownerId: string): Promise<void> {
   const { data: rows, error } = await supabase

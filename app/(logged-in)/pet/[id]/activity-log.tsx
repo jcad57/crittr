@@ -13,10 +13,10 @@ import {
   usePetDetailsQuery,
   useProfilesByIdsQuery,
 } from "@/hooks/queries";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
+import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
-import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
@@ -45,7 +45,7 @@ export default function PetActivityLogScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { push } = useNavigationCooldown();
-  const { setActivePet } = usePetStore();
+  const setActivePetMutation = useSetActivePetMutation();
 
   const { id: petIdParam } = useLocalSearchParams<{
     id?: string | string[];
@@ -101,9 +101,9 @@ export default function PetActivityLogScreen() {
   );
 
   const goToActivityTab = useCallback(() => {
-    if (petId) setActivePet(petId);
+    if (petId) setActivePetMutation.mutate(petId);
     push("/(logged-in)/activity" as Href);
-  }, [petId, push, setActivePet]);
+  }, [petId, push, setActivePetMutation]);
 
   if (!petId) {
     return (

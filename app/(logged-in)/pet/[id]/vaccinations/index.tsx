@@ -8,8 +8,8 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { vaccinationTraffic } from "@/lib/healthTraffic";
+import { getErrorMessage } from "@/utils/errorMessage";
+import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";

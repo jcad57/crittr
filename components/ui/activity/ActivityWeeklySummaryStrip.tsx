@@ -39,6 +39,24 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
       ? "Same as last wk"
       : `${walksDelta > 0 ? "+" : ""}${walksDelta} vs last wk`;
 
+  const mealsDelta = summary.mealsDeltaVsLastWeek;
+  const mealsUp = mealsDelta > 0;
+  const mealsDown = mealsDelta < 0;
+  const mealsDeltaColor = mealsUp
+    ? greenFooter
+    : mealsDown
+      ? negativeDelta
+      : greyFooter;
+  const mealsDeltaIcon = mealsUp
+    ? "arrow-up"
+    : mealsDown
+      ? "arrow-down"
+      : "minus";
+  const mealsDeltaLabel =
+    mealsDelta === 0
+      ? "Same as last wk"
+      : `${mealsDelta > 0 ? "+" : ""}${mealsDelta} vs last wk`;
+
   return (
     <View style={styles.row}>
       <View style={styles.card}>
@@ -59,11 +77,16 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
       <View style={styles.card}>
         <Text style={styles.value}>{summary.meals}</Text>
         <Text style={styles.label}>Meals</Text>
-        <Text
-          style={[styles.footer, styles.footerPlain, { color: greyFooter }]}
-        >
-          {summary.mealsFootnote}
-        </Text>
+        <View style={styles.footerRow}>
+          <MaterialCommunityIcons
+            name={mealsDeltaIcon as "arrow-up" | "arrow-down" | "minus"}
+            size={12}
+            color={mealsDeltaColor}
+          />
+          <Text style={[styles.footer, { color: mealsDeltaColor }]}>
+            {mealsDeltaLabel}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -131,8 +154,5 @@ const styles = StyleSheet.create({
   footer: {
     fontFamily: Font.uiSemiBold,
     fontSize: 11,
-  },
-  footerPlain: {
-    marginTop: 8,
   },
 });

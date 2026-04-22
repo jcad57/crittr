@@ -1,0 +1,148 @@
+import { Colors } from "@/constants/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.cream },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  nav: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  navSideLeft: {
+    width: 72,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  navSideRight: {
+    width: 72,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  navBack: { fontFamily: Font.uiSemiBold, fontSize: 16, color: Colors.orange },
+  navTitle: {
+    flex: 1,
+    fontFamily: Font.displayBold,
+    fontSize: MANAGE_SCREEN_TITLE_SIZE,
+    color: Colors.textPrimary,
+    textAlign: "center",
+    marginHorizontal: 8,
+  },
+  markAllText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.orange,
+  },
+  scroll: { flex: 1 },
+  emptyScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  emptyIllustration: {
+    width: 120,
+    height: 120,
+  },
+  body: { paddingHorizontal: 20, paddingTop: 8 },
+  emptyText: {
+    fontFamily: Font.uiRegular,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginTop: 12,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  rowUnread: {
+    backgroundColor: Colors.orangeLight,
+    borderColor: Colors.orange + "30",
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.gray100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  iconWrapUnread: {
+    backgroundColor: Colors.white,
+  },
+  rowContent: { flex: 1, marginRight: 8 },
+  rowTitle: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  rowBody: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  rowTime: {
+    fontFamily: Font.uiRegular,
+    fontSize: 12,
+    color: Colors.gray400,
+    marginTop: 4,
+  },
+  inviteActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+  acceptBtn: {
+    backgroundColor: Colors.orange,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minHeight: 36,
+    minWidth: 92,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteBtnLocked: {
+    opacity: 0.85,
+  },
+  acceptBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.white,
+  },
+  declineBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  declineBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.orange,
+    marginTop: 6,
+  },
+});

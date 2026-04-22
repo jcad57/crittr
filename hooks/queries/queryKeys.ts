@@ -90,3 +90,11 @@ export const unreadNotificationCountKey = (userId: string) =>
 
 export const crittrAiThreadKey = (userId: string) =>
   ["crittrAi", "thread", userId] as const;
+
+// ─── Reference data (breeds + allergies) ─────────────────────────────────────
+
+export const breedsQueryKey = (petType: string) =>
+  ["reference", "breeds", petType] as const;
+
+export const allergiesQueryKey = (petType: string) =>
+  ["reference", "allergies", petType] as const;

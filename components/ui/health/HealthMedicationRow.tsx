@@ -1,6 +1,6 @@
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
-import type { MedicationDosageProgress } from "@/lib/medicationDosageProgress";
+import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
+import type { MedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import type { MedicationWithPet } from "@/services/health";
 
 type Props = {

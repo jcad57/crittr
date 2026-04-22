@@ -285,7 +285,8 @@ export type NotificationType =
   | "co_care_invite"
   | "co_care_invite_requires_pro"
   | "co_care_accepted"
-  | "co_care_removed";
+  | "co_care_removed"
+  | "co_carer_activity_logged";
 
 export type AppNotification = {
   id: string;

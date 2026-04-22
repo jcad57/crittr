@@ -5,7 +5,7 @@ import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import {
   buildActivityLoggerNameMap,
   resolveActivityLoggerLabel,
-} from "@/lib/profileDisplay";
+} from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetActivity } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

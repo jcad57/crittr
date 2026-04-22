@@ -6,7 +6,7 @@ import {
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { displayCategory, pottyBreakSummary } from "@/data/activityHistory";
-import { formatMedicationDosageDisplay } from "@/lib/medicationDosageDisplay";
+import { formatMedicationDosageDisplay } from "@/utils/medicationDosageDisplay";
 import type { PetActivity } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";

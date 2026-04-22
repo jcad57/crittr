@@ -7,12 +7,12 @@ import { Colors } from "@/constants/colors";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  useBreedsQuery,
   usePetDetailsQuery,
   useUpdatePetNameAndBreedMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -38,22 +38,17 @@ export default function EditPetNameAndBreedScreen() {
   const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
   const updateMut = useUpdatePetNameAndBreedMutation(petId ?? "");
 
-  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const breedPetType = details?.pet_type ?? "dog";
-  const breeds = useReferenceStore(
-    (s) => s.breeds[breedPetType] ?? EMPTY_BREEDS,
-  );
+  const { data: breeds } = useBreedsQuery(breedPetType);
 
-  const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
+  const breedNames = useMemo(
+    () => (breeds ?? []).map((b) => b.name),
+    [breeds],
+  );
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [attempted, setAttempted] = useState(false);
-
-  useEffect(() => {
-    if (!details?.id) return;
-    void fetchForPetType(details.pet_type ?? "dog");
-  }, [details?.id, details?.pet_type, fetchForPetType]);
 
   useEffect(() => {
     if (!details?.id) return;

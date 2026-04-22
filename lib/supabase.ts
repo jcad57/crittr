@@ -140,9 +140,16 @@ const ExpoSecureStoreAdapter = {
  * Crittr-AI chat streaming) routinely take 30-90s. The default PostgREST ceiling
  * would abort those mid-flight — surfaced in RN as a generic "Network request
  * failed" — so `/functions/v1/` paths get a much longer ceiling.
+ *
+ * Medical-record PDFs (and other uploads) go through `/storage/v1/` as a single
+ * PUT with the full body; on slower networks or multi‑MB files the same 30s
+ * default aborts before the upload finishes, which looks like a broken network
+ * right after adding AI workflows that encourage larger documents.
  */
 const SUPABASE_FETCH_TIMEOUT_MS = 30_000;
 const SUPABASE_EDGE_FUNCTION_TIMEOUT_MS = 150_000;
+/** Large PDFs / photos to Storage; keep in line with edge ceiling so "Create" outlasts the upload. */
+const SUPABASE_STORAGE_UPLOAD_TIMEOUT_MS = 150_000;
 
 function resolveTimeoutMs(input: RequestInfo | URL): number {
   let url: string | null = null;
@@ -150,6 +157,8 @@ function resolveTimeoutMs(input: RequestInfo | URL): number {
     url = input;
   } else if (input instanceof URL) {
     url = input.toString();
+  } else if (typeof Request !== "undefined" && input instanceof Request) {
+    url = input.url;
   } else if (
     input &&
     typeof (input as { url?: unknown }).url === "string"
@@ -159,6 +168,9 @@ function resolveTimeoutMs(input: RequestInfo | URL): number {
 
   if (url && url.includes("/functions/v1/")) {
     return SUPABASE_EDGE_FUNCTION_TIMEOUT_MS;
+  }
+  if (url && url.includes("/storage/v1/")) {
+    return SUPABASE_STORAGE_UPLOAD_TIMEOUT_MS;
   }
   return SUPABASE_FETCH_TIMEOUT_MS;
 }

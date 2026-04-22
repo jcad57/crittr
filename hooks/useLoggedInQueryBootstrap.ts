@@ -1,18 +1,19 @@
+import { prefetchPetsAndDetails } from "@/hooks/queries/prefetchPetsAndDetails";
 import {
   healthSnapshotKey,
   notificationsKey,
   pendingInvitesKey,
-  petDetailsQueryKey,
   petsQueryKey,
   profileQueryKey,
   unreadNotificationCountKey,
 } from "@/hooks/queries/queryKeys";
+import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { supabase } from "@/lib/supabase";
-import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
+import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
 import { fetchProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
@@ -37,6 +38,12 @@ export function useLoggedInQueryBootstrap() {
     });
   }, [userId, localYmd]);
 
+  /** Register Expo push token for remote co-care alerts (no-op if permission denied). */
+  useEffect(() => {
+    if (!userId || Platform.OS === "web") return;
+    void syncExpoPushTokenToSupabase(userId);
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
 
@@ -50,27 +57,24 @@ export function useLoggedInQueryBootstrap() {
       queryFn: () => fetchProfile(userId),
     });
 
-    void queryClient.prefetchQuery({
-      queryKey: petsQueryKey(userId),
-      queryFn: async () => {
-        const pets = await fetchAccessiblePets(userId);
-        for (const pet of pets) {
-          const key = petDetailsQueryKey(pet.id);
-          if (queryClient.getQueryData(key) != null) continue;
-          void queryClient.prefetchQuery({
-            queryKey: key,
-            queryFn: () => fetchPetProfile(pet.id),
-          });
-        }
-        return pets;
-      },
-    });
+    void prefetchPetsAndDetails(queryClient, userId);
 
     void queryClient.prefetchQuery({
       queryKey: healthSnapshotKey(userId),
       queryFn: () => fetchOwnerHealthSnapshot(userId),
     });
   }, [userId]);
+
+  /**
+   * Keep the active-pet selection in sync with whatever the pets query currently holds.
+   * The co-care realtime subscription below invalidates `petsQueryKey`, which triggers
+   * a refetch of this query — so any realtime membership change flows through here.
+   */
+  const { data: petsList } = usePetsQuery();
+  useEffect(() => {
+    if (!petsList) return;
+    usePetStore.getState().initActivePetFromList(petsList);
+  }, [petsList]);
 
   /** When co-care rows change (removed / invited), refresh pets + auth so UI and permissions stay in sync. */
   useEffect(() => {
@@ -113,11 +117,6 @@ export function useLoggedInQueryBootstrap() {
             },
           });
           void useAuthStore.getState().refreshAuthSession();
-          void fetchAccessiblePets(userId)
-            .then((pets) => {
-              usePetStore.getState().initActivePetFromList(pets);
-            })
-            .catch(() => {});
         },
       )
       .subscribe((status, err) => {
@@ -169,6 +168,10 @@ export function useLoggedInQueryBootstrap() {
             rowNew &&
             AppState.currentState !== "active"
           ) {
+            /** Co-care activity alerts use Expo push from the edge function to avoid doubling up. */
+            const nType = (rowNew as { type?: string }).type;
+            if (nType === "co_carer_activity_logged") return;
+
             const href = rowNew.data?.href;
             void Notifications.scheduleNotificationAsync({
               content: {

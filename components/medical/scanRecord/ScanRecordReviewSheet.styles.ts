@@ -1,0 +1,198 @@
+import { Colors } from "@/constants/colors";
+import { Font } from "@/constants/typography";
+import { Platform, StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+  root: { flex: 1, justifyContent: "flex-end" },
+  dim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  header: { marginBottom: 12 },
+  title: {
+    fontFamily: Font.displayBold,
+    fontSize: 20,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  sub: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  subEmphasis: {
+    fontFamily: Font.uiSemiBold,
+    color: Colors.textPrimary,
+  },
+  warnCard: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.cream,
+    borderRadius: 10,
+    marginBottom: 12,
+    alignItems: "flex-start",
+  },
+  warnText: {
+    flex: 1,
+    fontFamily: Font.uiRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 17,
+  },
+  scroll: { flexShrink: 1 },
+  scrollContent: { paddingBottom: 12 },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  emptyBody: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: 32,
+    lineHeight: 18,
+  },
+  section: { marginBottom: 16 },
+  sectionTitle: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 12,
+    letterSpacing: 1,
+    color: Colors.gray500,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  itemCard: {
+    backgroundColor: Colors.cream,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    gap: 6,
+  },
+  itemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  itemName: {
+    flex: 1,
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  confChip: {
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === "ios" ? 3 : 2,
+    borderRadius: 999,
+  },
+  confChipText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 11,
+  },
+  dupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  dupText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 12,
+    color: Colors.orange,
+  },
+  itemMeta: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textPrimary,
+  },
+  itemMetaMuted: {
+    fontFamily: Font.uiRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  datesRow: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  itemNotes: {
+    fontFamily: Font.uiRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  modeRow: {
+    marginTop: 4,
+  },
+  modeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  modeBtnActive: {
+    backgroundColor: Colors.orange,
+  },
+  modeBtnInactive: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  modeBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+  },
+  modeBtnTextActive: { color: Colors.white },
+  modeBtnTextInactive: { color: Colors.textSecondary },
+  footer: {
+    flexDirection: "row",
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.gray100,
+  },
+  cancelBtn: {
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+  },
+  cancelText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.gray500,
+  },
+  confirmBtn: {
+    flex: 1,
+    backgroundColor: Colors.orange,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBtnDisabled: { opacity: 0.5 },
+  confirmText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.white,
+  },
+});

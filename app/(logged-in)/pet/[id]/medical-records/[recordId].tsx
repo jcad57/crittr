@@ -1,10 +1,10 @@
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
+import MedicalRecordEditFilesList from "@/components/petScreens/medicalRecords/MedicalRecordEditFilesList";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useDeleteMedicalRecordFileMutation,
   useDeletePetMedicalRecordMutation,
@@ -16,7 +16,7 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { getErrorMessage } from "@/lib/errorMessage";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { createSignedMedicalRecordUrl } from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
@@ -28,7 +28,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -36,20 +35,7 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-function formatBytes(n: number | null): string {
-  if (n == null || n <= 0) return "";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024)
-    return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function mimeKind(mime: string | null): "pdf" | "image" {
-  if (!mime) return "image";
-  if (mime === "application/pdf" || mime.includes("pdf")) return "pdf";
-  return "image";
-}
+import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
 
 export default function EditMedicalRecordScreen() {
   const insets = useSafeAreaInsets();
@@ -299,77 +285,12 @@ export default function EditMedicalRecordScreen() {
               ) : null}
             </View>
 
-            {files.length === 0 ? (
-              <Text style={styles.emptyFiles}>
-                No files yet.
-                {canEdit ? " Tap Add files to upload." : ""}
-              </Text>
-            ) : (
-              <View style={styles.fileList}>
-                {files.map((f) => (
-                  <View key={f.id} style={styles.fileRow}>
-                    <Pressable
-                      style={styles.fileMain}
-                      onPress={() => void openFile(f)}
-                    >
-                      <View
-                        style={[
-                          styles.fileIcon,
-                          mimeKind(f.mime_type) === "pdf" && styles.fileIconPdf,
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name={
-                            mimeKind(f.mime_type) === "pdf"
-                              ? "file-pdf-box"
-                              : "image-outline"
-                          }
-                          size={22}
-                          color={
-                            mimeKind(f.mime_type) === "pdf"
-                              ? Colors.orange
-                              : Colors.skyDark
-                          }
-                        />
-                      </View>
-                      <View style={styles.fileMid}>
-                        <Text style={styles.fileName} numberOfLines={2}>
-                          {f.original_filename ?? "File"}
-                        </Text>
-                        <Text style={styles.fileMeta}>
-                          {new Date(f.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                          {formatBytes(f.file_size_bytes)
-                            ? ` · ${formatBytes(f.file_size_bytes)}`
-                            : ""}
-                        </Text>
-                      </View>
-                      <MaterialCommunityIcons
-                        name="open-in-new"
-                        size={20}
-                        color={Colors.gray400}
-                      />
-                    </Pressable>
-                    {canEdit ? (
-                      <Pressable
-                        onPress={() => confirmDeleteFile(f)}
-                        hitSlop={10}
-                        style={styles.trashBtn}
-                      >
-                        <MaterialCommunityIcons
-                          name="trash-can-outline"
-                          size={22}
-                          color={Colors.gray500}
-                        />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            )}
+            <MedicalRecordEditFilesList
+              files={files}
+              canEdit={canEdit}
+              openFile={openFile}
+              confirmDeleteFile={confirmDeleteFile}
+            />
           </View>
 
           {canEdit ? (
@@ -419,175 +340,3 @@ export default function EditMedicalRecordScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.cream,
-  },
-  missing: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  retry: { marginTop: 16 },
-  retryText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navRight: { width: 44, alignItems: "center" },
-  scroll: { flex: 1 },
-  scrollContentGrow: {
-    flexGrow: 1,
-  },
-  scrollInner: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-  },
-  formMain: {
-    flexShrink: 0,
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  actionsBlock: {
-    paddingTop: 24,
-    width: "100%",
-  },
-  label: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    color: Colors.sectionLabel,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  titleInput: {
-    fontFamily: Font.uiRegular,
-    fontSize: 17,
-    color: Colors.textPrimary,
-    borderWidth: 1,
-    borderColor: Colors.gray100,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-  },
-  inputDisabled: {
-    opacity: 0.85,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    color: Colors.sectionLabel,
-    textTransform: "uppercase",
-  },
-  addLink: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 15,
-    color: Colors.orange,
-  },
-  emptyFiles: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-  },
-  fileList: {
-    gap: 0,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
-    overflow: "hidden",
-    marginBottom: 0,
-  },
-  fileRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray100,
-  },
-  fileMain: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingLeft: 12,
-    paddingRight: 8,
-    gap: 10,
-  },
-  fileIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.lavenderLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fileIconPdf: {
-    backgroundColor: Colors.orangeLight,
-  },
-  fileMid: { flex: 1, minWidth: 0, gap: 4 },
-  fileName: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  fileMeta: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray500,
-  },
-  trashBtn: {
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  deleteBtn: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 14,
-  },
-  deleteBtnPressed: {
-    opacity: 0.75,
-  },
-  deleteText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.error,
-  },
-});

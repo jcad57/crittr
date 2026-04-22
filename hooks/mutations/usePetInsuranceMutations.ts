@@ -58,6 +58,12 @@ export function useUpdatePetInsuranceMutation(petId: string) {
     mutationFn: (input: UpdatePetInsuranceInput) =>
       updatePetInsurance(petId, input),
     onSuccess: (updated) => {
+      /**
+       * Optimistic cache merge covers the shape returned by the query, so the
+       * self-invalidation on `petDetailsQueryKey` would just redo work. Keep
+       * list + health snapshot invalidations in case insurance status is
+       * surfaced there.
+       */
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),
         (old) => {
@@ -72,7 +78,6 @@ export function useUpdatePetInsuranceMutation(petId: string) {
           };
         },
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({

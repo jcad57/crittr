@@ -20,7 +20,6 @@ function invalidateSharedPetQueries(userId: string, petId: string) {
   void queryClient.invalidateQueries({
     queryKey: healthSnapshotKey(userId),
   });
-  void queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
   void queryClient.invalidateQueries({ queryKey: ["allActivities"] });
   void queryClient.invalidateQueries({
     queryKey: todayActivitiesPrefixKey(petId),

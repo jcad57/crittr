@@ -1,4 +1,4 @@
-import type { HealthTrafficKind } from "@/lib/healthTraffic";
+import type { HealthTrafficKind } from "@/utils/healthTraffic";
 
 // ─── Presentation types for UI components ────────────────────────────────────
 

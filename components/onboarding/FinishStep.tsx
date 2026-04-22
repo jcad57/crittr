@@ -7,8 +7,9 @@ import { queryClient } from "@/lib/queryClient";
 import { createPet, fetchUserPets } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { UPGRADE_FROM_ONBOARDING_HREF } from "@/lib/proUpgradePaths";
+import { UPGRADE_FROM_ONBOARDING_HREF } from "@/utils/proUpgradePaths";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -28,7 +29,14 @@ const HIGH_FIVE = require("@/assets/images/high-five.png");
 export default function FinishStep() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pets, editPetAtIndex, reset, petFlowMode } = useOnboardingStore();
+  const { pets, editPetAtIndex, reset, petFlowMode } = useOnboardingStore(
+    useShallow((s) => ({
+      pets: s.pets,
+      editPetAtIndex: s.editPetAtIndex,
+      reset: s.reset,
+      petFlowMode: s.petFlowMode,
+    })),
+  );
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);

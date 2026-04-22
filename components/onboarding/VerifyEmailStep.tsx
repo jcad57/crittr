@@ -8,6 +8,7 @@ import {
   ONBOARDING_STEPS,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,12 +47,15 @@ function mapOtpError(message: string): string {
 }
 
 export default function VerifyEmailStep() {
-  const {
-    accountData,
-    goToStep,
-    setEmailVerificationPending,
-    setProfileBackAfterProfile,
-  } = useOnboardingStore();
+  const { accountData, goToStep, setEmailVerificationPending, setProfileBackAfterProfile } =
+    useOnboardingStore(
+      useShallow((s) => ({
+        accountData: s.accountData,
+        goToStep: s.goToStep,
+        setEmailVerificationPending: s.setEmailVerificationPending,
+        setProfileBackAfterProfile: s.setProfileBackAfterProfile,
+      })),
+    );
   const verifyEmailOtp = useAuthStore((s) => s.verifyEmailOtp);
   const resendSignupOtp = useAuthStore((s) => s.resendSignupOtp);
 

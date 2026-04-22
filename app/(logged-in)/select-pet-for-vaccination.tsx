@@ -2,10 +2,10 @@ import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { userPetPermissionsKey } from "@/hooks/queries/queryKeys";
 import { usePetsQuery } from "@/hooks/queries";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { fetchUserPermissionsForPet } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
-import { usePetStore } from "@/stores/petStore";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import type { CoCarePermissions, Pet } from "@/types/database";
 import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 
@@ -35,7 +35,7 @@ export default function SelectPetForVaccinationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user?.id);
-  const setActivePet = usePetStore((s) => s.setActivePet);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: petsData } = usePetsQuery();
   const pets: Pet[] = (petsData ?? []).filter(isPetActiveForDashboard);
 
@@ -69,7 +69,7 @@ export default function SelectPetForVaccinationScreen() {
     permQueryRows.some((q) => q.isPending || q.isFetching);
 
   const onPickPet = (pet: Pet) => {
-    setActivePet(pet.id);
+    setActivePetMutation.mutate(pet.id);
     router.replace(`/(logged-in)/pet/${pet.id}/vaccinations/new`);
   };
 

@@ -25,10 +25,15 @@ import { useMutation } from "@tanstack/react-query";
 
 function invalidateActivityCaches(petId: string | null, activityId: string) {
   queryClient.invalidateQueries({ queryKey: petActivityQueryKey(activityId) });
-  queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
   if (petId) {
     queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
     queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+  } else {
+    /**
+     * Only fall back to the bare prefix when the caller didn't pass a pet id;
+     * otherwise the scoped invalidation above is sufficient.
+     */
+    queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
   }
 }
 

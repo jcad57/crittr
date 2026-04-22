@@ -3,7 +3,7 @@ import {
   dueSoonScheduleKind,
   dueSoonWindowForKind,
   resolveNextDueDate,
-} from "@/lib/medicationDueSchedule";
+} from "@/utils/medicationDueSchedule";
 import type { PetMedication, PetVaccination } from "@/types/database";
 
 export type HealthTrafficKind = "due_today" | "due_soon" | "current";

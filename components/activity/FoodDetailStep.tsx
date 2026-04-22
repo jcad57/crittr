@@ -6,10 +6,11 @@ import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
-import type { FoodActivityExtraPetRow } from "@/lib/foodActivityMerge";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
+import type { FoodActivityExtraPetRow } from "@/utils/foodActivityMerge";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";
@@ -21,8 +22,6 @@ import {
   useState,
 } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
-const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"];
 
 /** Dropdown label for foods not saved on the pet profile (avoids colliding with a brand named "Other"). */
 const OTHER_FOOD_DROPDOWN_LABEL = "Other (not listed)";

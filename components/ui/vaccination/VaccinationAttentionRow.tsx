@@ -1,7 +1,7 @@
 import HealthTrafficBadge from "@/components/ui/health/HealthTrafficBadge";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { vaccinationTraffic } from "@/lib/healthTraffic";
+import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";

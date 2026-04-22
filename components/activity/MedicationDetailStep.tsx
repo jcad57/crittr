@@ -7,7 +7,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import {

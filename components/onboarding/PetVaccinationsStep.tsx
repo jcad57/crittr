@@ -5,13 +5,22 @@ import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import type { VaccinationFormEntry } from "@/types/database";
 import { useCallback, useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 export default function PetVaccinationsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const name = pet.name?.trim() || "your pet";
 

@@ -4,6 +4,7 @@ import { petCareStyles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -19,7 +20,15 @@ function hasVetDetails(p: {
 
 export default function PetVetClinicStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const name = pet.name?.trim() || "your pet";
 

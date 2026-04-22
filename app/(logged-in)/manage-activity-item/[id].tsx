@@ -1,13 +1,9 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
-import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
-import FoodDetailStep from "@/components/activity/FoodDetailStep";
-import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
-import PottyDetailStep from "@/components/activity/PottyDetailStep";
-import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
-import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
+import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
+import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { manageActivityNavTitle } from "@/constants/activityWizardTitles";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
   useDeleteActivityMutation,
   useUpdateExerciseActivityMutation,
@@ -17,21 +13,14 @@ import {
   useUpdateTrainingActivityMutation,
   useUpdateVetVisitActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { useActivityQuery, usePetDetailsQuery } from "@/hooks/queries";
-import {
-  allActivitiesKey,
-  healthSnapshotKey,
-  petVetVisitsQueryKey,
-  todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { queryClient } from "@/lib/queryClient";
-import { deleteVetVisit } from "@/services/health";
 import { useActivityFormStore } from "@/stores/activityFormStore";
-import { usePetStore } from "@/stores/petStore";
 import { useAuthStore } from "@/stores/authStore";
+import { usePetStore } from "@/stores/petStore";
 import type { PetWithDetails } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { confirmActivityDeletion } from "@/utils/manageActivityFormHelpers";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
@@ -43,35 +32,15 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   Pressable,
-  StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-function navTitleForActivityType(t: string | null | undefined): string {
-  switch (t) {
-    case "exercise":
-      return "Edit exercise";
-    case "food":
-      return "Edit meal";
-    case "medication":
-      return "Edit medication";
-    case "vet_visit":
-      return "Edit vet visit";
-    case "training":
-      return "Edit training";
-    case "potty":
-      return "Edit potty";
-    default:
-      return "Edit activity";
-  }
-}
+import { styles } from "@/screen-styles/manage-activity-item/[id].styles";
 
 const SAVE_LABEL = "Save changes";
 
@@ -99,6 +68,7 @@ export default function ManageActivityItemScreen() {
   }, [activity?.vet_visit_id, activity?.pet_id, activity, router]);
 
   const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: petDetails } = usePetDetailsQuery(activity?.pet_id ?? null);
 
   const vetClinic = useMemo(() => {
@@ -140,8 +110,8 @@ export default function ManageActivityItemScreen() {
       return;
     }
 
-    if (activity.pet_id) {
-      usePetStore.getState().setActivePet(activity.pet_id);
+    if (activity.pet_id && activity.pet_id !== activePetId) {
+      setActivePetMutation.mutate(activity.pet_id);
     }
 
     if (activity.vet_visit_id) {
@@ -180,6 +150,7 @@ export default function ManageActivityItemScreen() {
     vetClinic,
     hydrateFromActivity,
     reset,
+    setActivePetMutation,
   ]);
 
   useEffect(() => {
@@ -257,42 +228,13 @@ export default function ManageActivityItemScreen() {
 
   const confirmDelete = useCallback(() => {
     if (!activityId || !activity) return;
-    const act = activity;
-    Alert.alert("Delete activity?", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            if (act.vet_visit_id) {
-              await deleteVetVisit(act.vet_visit_id);
-              if (act.pet_id) {
-                void queryClient.invalidateQueries({
-                  queryKey: petVetVisitsQueryKey(act.pet_id),
-                });
-                void queryClient.invalidateQueries({
-                  queryKey: todayActivitiesPrefixKey(act.pet_id),
-                });
-                void queryClient.invalidateQueries({
-                  queryKey: allActivitiesKey(act.pet_id),
-                });
-              }
-              if (userId) {
-                void queryClient.invalidateQueries({
-                  queryKey: healthSnapshotKey(userId),
-                });
-              }
-            } else {
-              await deleteMut.mutateAsync(activityId);
-            }
-            finish();
-          } catch {
-            Alert.alert("Could not delete", "Please try again.");
-          }
-        },
-      },
-    ]);
+    confirmActivityDeletion({
+      activity,
+      activityId,
+      userId,
+      deleteActivity: (id) => deleteMut.mutateAsync(id),
+      onDeleted: finish,
+    });
   }, [activityId, activity, deleteMut, finish, userId]);
 
   const saving =
@@ -373,19 +315,10 @@ export default function ManageActivityItemScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={goBack} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          {navTitleForActivityType(activityType)}
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ActivityWizardChrome
+        title={manageActivityNavTitle(activityType)}
+        onBack={goBack}
+      />
 
       {loggedAtLabel ? (
         <Text style={styles.loggedAtHint}>{loggedAtLabel}</Text>
@@ -407,64 +340,19 @@ export default function ManageActivityItemScreen() {
           style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
         >
           <View>
-            {activityType === "exercise" ? (
-              <ExerciseDetailStep
-                ref={stepRef}
-                onSave={saveExercise}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-                showBatchPets={false}
-              />
-            ) : activityType === "food" ? (
-              <FoodDetailStep
-                ref={stepRef}
-                onSave={saveFood}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-                showBatchPets={false}
-              />
-            ) : activityType === "medication" ? (
-              <MedicationDetailStep
-                ref={stepRef}
-                onSave={saveMed}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-                showBatchPets={false}
-              />
-            ) : activityType === "training" ? (
-              <TrainingDetailStep
-                ref={stepRef}
-                onSave={saveTraining}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-              />
-            ) : activityType === "potty" ? (
-              <PottyDetailStep
-                ref={stepRef}
-                onSave={savePotty}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-              />
-            ) : activityType === "vet_visit" ? (
-              <VetVisitDetailStep
-                ref={stepRef}
-                onSave={saveVet}
-                onBack={goBack}
-                saveLabel={SAVE_LABEL}
-                embeddedInScreen
-                hideEmbeddedSave
-              />
-            ) : null}
+            <ActivityDetailStepSwitch
+              activityType={activityType}
+              stepRef={stepRef}
+              saveLabel={SAVE_LABEL}
+              showBatchPets={false}
+              onBack={goBack}
+              onSaveExercise={saveExercise}
+              onSaveFood={saveFood}
+              onSaveMedication={saveMed}
+              onSaveTraining={saveTraining}
+              onSavePotty={savePotty}
+              onSaveVetVisit={saveVet}
+            />
           </View>
 
           <View style={styles.actionsBlock}>
@@ -499,82 +387,3 @@ export default function ManageActivityItemScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
-  loggedAtHint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  scroll: { flex: 1 },
-  scrollContentGrow: {
-    flexGrow: 1,
-  },
-  scrollInner: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-  },
-  actionsBlock: {
-    paddingTop: 8,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  errorTextMuted: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  backLink: {
-    marginTop: 12,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    textAlign: "center",
-  },
-  deleteBtn: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  deleteBtnPressed: {
-    opacity: 0.75,
-  },
-  deleteText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.error,
-  },
-});

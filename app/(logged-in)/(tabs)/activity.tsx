@@ -21,9 +21,10 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { isPetActiveForDashboard } from "@/lib/petParticipation";
-import { buildActivityLoggerNameMap } from "@/lib/profileDisplay";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
+import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
@@ -59,7 +60,8 @@ export default function ActivityScreen() {
     return typeof s === "string" && s.length > 0 ? s : undefined;
   }, [petIdParam]);
 
-  const { activePetId, setActivePet } = usePetStore();
+  const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: dbPets, isLoading: isPetsLoading } = usePetsQuery();
 
   const effectivePetId = petIdFromRoute ?? activePetId ?? null;
@@ -114,8 +116,8 @@ export default function ActivityScreen() {
   useEffect(() => {
     if (!petIdFromRoute || !dbPets?.length) return;
     const p = dbPets.find((x) => x.id === petIdFromRoute);
-    if (p && isPetActiveForDashboard(p)) setActivePet(petIdFromRoute);
-  }, [petIdFromRoute, dbPets, setActivePet]);
+    if (p && isPetActiveForDashboard(p)) setActivePetMutation.mutate(petIdFromRoute);
+  }, [petIdFromRoute, dbPets, setActivePetMutation]);
 
   const pets: PetSummary[] = useMemo(
     () =>
@@ -130,12 +132,12 @@ export default function ActivityScreen() {
 
   const handleSwitchPet = useCallback(
     (id: string) => {
-      setActivePet(id);
+      setActivePetMutation.mutate(id);
       if (petIdFromRoute) {
         replace("/(logged-in)/activity" as Href);
       }
     },
-    [setActivePet, replace, petIdFromRoute],
+    [setActivePetMutation, replace, petIdFromRoute],
   );
 
   const subtitleMonth = useMemo(

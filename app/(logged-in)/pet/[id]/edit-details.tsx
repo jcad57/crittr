@@ -10,12 +10,12 @@ import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  useBreedsQuery,
   usePetDetailsQuery,
   useUpdatePetDetailsMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { EMPTY_BREEDS, useReferenceStore } from "@/stores/referenceStore";
 import type { PetFormData } from "@/types/database";
 import {
   formatDateOfBirth,
@@ -48,13 +48,13 @@ export default function EditPetDetailsScreen() {
   const canEditProfile = useCanPerformAction(petId, "can_edit_pet_profile");
   const updateMut = useUpdatePetDetailsMutation(petId ?? "");
 
-  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const breedPetType = details?.pet_type ?? "dog";
-  const breeds = useReferenceStore(
-    (s) => s.breeds[breedPetType] ?? EMPTY_BREEDS,
-  );
+  const { data: breeds } = useBreedsQuery(breedPetType);
 
-  const breedNames = useMemo(() => breeds.map((b) => b.name), [breeds]);
+  const breedNames = useMemo(
+    () => (breeds ?? []).map((b) => b.name),
+    [breeds],
+  );
 
   const [breed, setBreed] = useState("");
   const [color, setColor] = useState("");
@@ -65,11 +65,6 @@ export default function EditPetDetailsScreen() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState<PetFormData["sex"]>("male");
   const [attempted, setAttempted] = useState(false);
-
-  useEffect(() => {
-    if (!details?.id) return;
-    void fetchForPetType(details.pet_type ?? "dog");
-  }, [details?.id, details?.pet_type, fetchForPetType]);
 
   /** Hydrate form once per pet — depend on `details.id`, not `details` (query refetches create new object refs and caused update-depth loops). */
   useEffect(() => {

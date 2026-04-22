@@ -3,19 +3,18 @@ import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import {
-  coCarersForPetKey,
+  pendingInvitesKey,
   petsQueryKey,
-  sentInvitesForPetKey,
+  useAcceptInviteMutation,
+  useDeclineInviteMutation,
+  usePendingInvitesQuery,
+  type PendingInviteRow,
 } from "@/hooks/queries";
 import { queryClient } from "@/lib/queryClient";
-import {
-  acceptInvite,
-  CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE,
-  declineInvite,
-  fetchPendingInvitesForUser,
-} from "@/services/coCare";
+import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -28,33 +27,41 @@ import {
   View,
 } from "react-native";
 
-type InviteRow = {
-  id: string;
-  pet_id: string | null;
-  pet_name?: string;
-  inviter_name?: string;
-};
-
 export default function PendingInvitesStep() {
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
-  const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
   const { nextStep, prevStep, skippedPendingInvitesEmpty, setSkippedPendingInvitesEmpty } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+        skippedPendingInvitesEmpty: s.skippedPendingInvitesEmpty,
+        setSkippedPendingInvitesEmpty: s.setSkippedPendingInvitesEmpty,
+      })),
+    );
   const router = useRouter();
 
-  const [invites, setInvites] = useState<InviteRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: invitesData, isLoading } = usePendingInvitesQuery();
+  const invites = invitesData ?? [];
+  const loading = isLoading;
+
   const [busy, setBusy] = useState<string | null>(null);
   const [acceptedCount, setAcceptedCount] = useState(0);
 
-  useEffect(() => {
-    if (!session) return;
-    fetchPendingInvitesForUser(session.user.id)
-      .then((rows) => setInvites(rows))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [session?.user.id]);
+  const acceptMut = useAcceptInviteMutation();
+  const declineMut = useDeclineInviteMutation();
+
+  /** Optimistic removal from the cached pending-invites list so the UI updates without waiting for refetch. */
+  const removeInviteFromCache = useCallback(
+    (inviteId: string) => {
+      if (!session?.user.id) return;
+      queryClient.setQueryData<PendingInviteRow[]>(
+        pendingInvitesKey(session.user.id),
+        (prev) => (prev ?? []).filter((i) => i.id !== inviteId),
+      );
+    },
+    [session?.user.id],
+  );
 
   useEffect(() => {
     if (!session || loading) return;
@@ -77,17 +84,8 @@ export default function PendingInvitesStep() {
       if (!session) return;
       setBusy(inviteId);
       try {
-        const result = await acceptInvite(inviteId, session.user.id);
-        if (result.petId) {
-          void queryClient.invalidateQueries({
-            queryKey: sentInvitesForPetKey(result.petId),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: coCarersForPetKey(result.petId),
-          });
-        }
-        await refreshAuthSession();
-        setInvites((prev) => prev.filter((i) => i.id !== inviteId));
+        await acceptMut.mutateAsync(inviteId);
+        removeInviteFromCache(inviteId);
         setAcceptedCount((c) => c + 1);
       } catch (err: any) {
         const msg = err.message ?? "Could not accept invite.";
@@ -101,20 +99,23 @@ export default function PendingInvitesStep() {
         setBusy(null);
       }
     },
-    [session, refreshAuthSession],
+    [session, acceptMut, removeInviteFromCache],
   );
 
-  const handleDecline = useCallback(async (inviteId: string) => {
-    setBusy(inviteId);
-    try {
-      await declineInvite(inviteId);
-      setInvites((prev) => prev.filter((i) => i.id !== inviteId));
-    } catch (err: any) {
-      Alert.alert("Error", err.message ?? "Could not decline invite.");
-    } finally {
-      setBusy(null);
-    }
-  }, []);
+  const handleDecline = useCallback(
+    async (inviteId: string) => {
+      setBusy(inviteId);
+      try {
+        await declineMut.mutateAsync(inviteId);
+        removeInviteFromCache(inviteId);
+      } catch (err: any) {
+        Alert.alert("Error", err.message ?? "Could not decline invite.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [declineMut, removeInviteFromCache],
+  );
 
   const handleContinue = useCallback(async () => {
     if (!session) return;

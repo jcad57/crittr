@@ -8,7 +8,13 @@ import {
   PET_TYPE_ICON_MAP,
 } from "@/constants/petTypeIcons";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useReferenceStore } from "@/stores/referenceStore";
+import { useShallow } from "zustand/react/shallow";
+import { fetchAllergiesForPetType, fetchBreedsForPetType } from "@/services/reference";
+import { queryClient } from "@/lib/queryClient";
+import {
+  allergiesQueryKey,
+  breedsQueryKey,
+} from "@/hooks/queries/queryKeys";
 import type { PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
@@ -30,9 +36,17 @@ export default function PetTypeStep() {
     nextStep,
     addingAnotherPet,
     cancelAddAnotherPet,
-  } = useOnboardingStore();
+  } = useOnboardingStore(
+    useShallow((s) => ({
+      pets: s.pets,
+      currentPetIndex: s.currentPetIndex,
+      updateCurrentPet: s.updateCurrentPet,
+      nextStep: s.nextStep,
+      addingAnotherPet: s.addingAnotherPet,
+      cancelAddAnotherPet: s.cancelAddAnotherPet,
+    })),
+  );
   const handleBack = usePetFlowExitOnBack();
-  const fetchForPetType = useReferenceStore((s) => s.fetchForPetType);
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
   const typeOptions = useMemo(
@@ -50,7 +64,14 @@ export default function PetTypeStep() {
 
   const handleSelect = (type: PetType) => {
     updateCurrentPet({ petType: type });
-    fetchForPetType(type);
+    void queryClient.prefetchQuery({
+      queryKey: breedsQueryKey(type),
+      queryFn: () => fetchBreedsForPetType(type),
+    });
+    void queryClient.prefetchQuery({
+      queryKey: allergiesQueryKey(type),
+      queryFn: () => fetchAllergiesForPetType(type),
+    });
   };
 
   const handleContinue = () => {

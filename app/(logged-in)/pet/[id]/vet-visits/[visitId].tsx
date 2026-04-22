@@ -1,9 +1,7 @@
-import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
-import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
+import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
@@ -13,14 +11,14 @@ import {
 } from "@/hooks/queries/queryKeys";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { getErrorMessage } from "@/lib/errorMessage";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {
   hydrateVetVisitLocationState,
   resolveVetVisitLocation,
-} from "@/lib/vetVisitLocationUi";
+} from "@/utils/vetVisitLocationUi";
 import { deleteVetVisit, updateVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
@@ -32,8 +30,6 @@ import {
   Alert,
   Platform,
   Pressable,
-  ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -42,6 +38,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 
 export default function EditVetVisitScreen() {
   const insets = useSafeAreaInsets();
@@ -235,46 +232,13 @@ export default function EditVetVisitScreen() {
   }
 
   if (canManageVetVisits === false) {
-    const whenReadOnly = new Date(visit.visit_at).toLocaleString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Visit details
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.body,
-            { paddingBottom: scrollInsetBottom + 32 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <CoCareReadOnlyNotice />
-          <ReadOnlyFieldRow label="Title" value={visit.title} />
-          <ReadOnlyFieldRow label="When" value={whenReadOnly} />
-          <ReadOnlyFieldRow
-            label="Location"
-            value={visit.location?.trim() || "—"}
-          />
-          <ReadOnlyFieldRow
-            label="Notes"
-            value={visit.notes?.trim() || ""}
-          />
-        </ScrollView>
-      </View>
+      <VetVisitReadOnlyView
+        visit={visit}
+        insetsTop={insets.top}
+        scrollInsetBottom={scrollInsetBottom}
+        onBack={() => router.back()}
+      />
     );
   }
 
@@ -394,120 +358,3 @@ export default function EditVetVisitScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    minWidth: 72,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { minWidth: 72 },
-  scroll: { flex: 1 },
-  scrollContentGrow: {
-    flexGrow: 1,
-  },
-  scrollInner: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  formFields: {
-    gap: 8,
-  },
-  actionsBlock: {
-    paddingTop: 8,
-  },
-  saveBtn: {
-    marginTop: 0,
-  },
-  label: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-  input: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  notes: {
-    minHeight: 100,
-    paddingTop: 14,
-  },
-  whenBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  whenText: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  deleteBtn: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 14,
-  },
-  deleteBtnPressed: {
-    opacity: 0.75,
-  },
-  deleteText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.error,
-  },
-  missing: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  backLink: {
-    marginTop: 16,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    textAlign: "center",
-  },
-});

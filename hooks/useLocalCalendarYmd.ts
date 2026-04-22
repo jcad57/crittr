@@ -1,4 +1,4 @@
-import { getLocalYmd, msUntilNextLocalMidnight } from "@/lib/localCalendarDate";
+import { getLocalYmd, msUntilNextLocalMidnight } from "@/utils/localCalendarDate";
 import { useEffect, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
@@ -6,6 +6,10 @@ import { AppState, type AppStateStatus } from "react-native";
  * Current local calendar day (YYYY-MM-DD). Updates when the device clock crosses
  * local midnight, on resume from background, and on a coarse interval — so "today"
  * queries refetch without relying on staleTime alone.
+ *
+ * The 60s interval is paused while the app is backgrounded (no point ticking
+ * when nothing renders); the AppState resume listener catches the day rollover
+ * when the user comes back.
  */
 export function useLocalCalendarYmd(): string {
   const [ymd, setYmd] = useState(() => getLocalYmd());
@@ -16,7 +20,17 @@ export function useLocalCalendarYmd(): string {
       setYmd((prev) => (prev === next ? prev : next));
     };
 
-    const tick = setInterval(sync, 60_000);
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const startInterval = () => {
+      if (intervalId) return;
+      intervalId = setInterval(sync, 60_000);
+    };
+    const stopInterval = () => {
+      if (!intervalId) return;
+      clearInterval(intervalId);
+      intervalId = undefined;
+    };
+    if (AppState.currentState === "active") startInterval();
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const scheduleMidnight = () => {
@@ -29,11 +43,16 @@ export function useLocalCalendarYmd(): string {
     scheduleMidnight();
 
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") sync();
+      if (state === "active") {
+        sync();
+        startInterval();
+      } else {
+        stopInterval();
+      }
     });
 
     return () => {
-      clearInterval(tick);
+      stopInterval();
       if (timeoutId) clearTimeout(timeoutId);
       sub.remove();
     };

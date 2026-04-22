@@ -1,5 +1,5 @@
-import { formatMedicationDosageDisplay } from "@/lib/medicationDosageDisplay";
-import { resolveActivityLoggerLabel } from "@/lib/profileDisplay";
+import { formatMedicationDosageDisplay } from "@/utils/medicationDosageDisplay";
+import { resolveActivityLoggerLabel } from "@/utils/profileDisplay";
 import type { PetActivity } from "@/types/database";
 
 export type ActivityDisplayCategory =
@@ -30,7 +30,7 @@ export type WeeklyActivitySummary = {
   walks: number;
   walksDeltaVsLastWeek: number;
   meals: number;
-  mealsFootnote: string;
+  mealsDeltaVsLastWeek: number;
   treats: number;
   weeklyTreatLimit: number;
 };
@@ -236,6 +236,7 @@ export function computeWeeklySummary(
   let thisWeekWalks = 0;
   let lastWeekWalks = 0;
   let thisWeekMeals = 0;
+  let lastWeekMeals = 0;
   let thisWeekTreats = 0;
 
   for (const a of activities) {
@@ -247,8 +248,9 @@ export function computeWeeklySummary(
       if (isThisWeek) thisWeekWalks++;
       if (isLastWeek) lastWeekWalks++;
     }
-    if (a.activity_type === "food" && !a.is_treat && isThisWeek) {
-      thisWeekMeals++;
+    if (a.activity_type === "food" && !a.is_treat) {
+      if (isThisWeek) thisWeekMeals++;
+      if (isLastWeek) lastWeekMeals++;
     }
     if (a.activity_type === "food" && a.is_treat && isThisWeek) {
       thisWeekTreats++;
@@ -256,12 +258,13 @@ export function computeWeeklySummary(
   }
 
   const walksDelta = thisWeekWalks - lastWeekWalks;
+  const mealsDelta = thisWeekMeals - lastWeekMeals;
 
   return {
     walks: thisWeekWalks,
     walksDeltaVsLastWeek: walksDelta,
     meals: thisWeekMeals,
-    mealsFootnote: "This week",
+    mealsDeltaVsLastWeek: mealsDelta,
     treats: thisWeekTreats,
     weeklyTreatLimit: 5,
   };

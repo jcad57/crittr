@@ -21,7 +21,11 @@ export {
   userPetPermissionsKey,
   notificationsKey,
   unreadNotificationCountKey,
+  breedsQueryKey,
+  allergiesQueryKey,
 } from "./queryKeys";
+export { useBreedsQuery } from "./useBreedsQuery";
+export { useAllergiesQuery } from "./useAllergiesQuery";
 export {
   usePetsQuery,
   usePetDetailsQuery,
@@ -46,6 +50,7 @@ export {
   useSentInvitesForPetQuery,
   usePendingInvitesQuery,
   useUserPetPermissionsQuery,
+  type PendingInviteRow,
 } from "./useCoCareQuery";
 export {
   useNotificationsQuery,
@@ -88,6 +93,7 @@ export {
 export {
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
+  useDismissCoCareRemovedMutation,
 } from "../mutations/useNotificationMutations";
 export {
   useCreatePetMedicalRecordWithFilesMutation,

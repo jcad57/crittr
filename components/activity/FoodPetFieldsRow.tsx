@@ -1,15 +1,15 @@
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
 import { Colors } from "@/constants/colors";
+import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
-import type { FoodActivityExtraPetRow } from "@/lib/foodActivityMerge";
+import type { FoodActivityExtraPetRow } from "@/utils/foodActivityMerge";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
 const OTHER_FOOD_DROPDOWN_LABEL = "Other (not listed)";
 
 type Props = {

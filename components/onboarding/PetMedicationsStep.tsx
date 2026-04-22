@@ -6,8 +6,9 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
-import { formatReminderTimeHHmm } from "@/lib/medicationSchedule";
+import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useShallow } from "zustand/react/shallow";
 import type {
   MedicationDosePeriod,
   MedicationFormEntry,
@@ -28,7 +29,15 @@ const FREQ_OPTIONS = ["Daily", "Weekly", "Monthly", "Custom"];
 
 export default function PetMedicationsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore();
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        nextStep: s.nextStep,
+        prevStep: s.prevStep,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const name = pet.name?.trim() || "your pet";
 

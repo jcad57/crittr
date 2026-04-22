@@ -1,11 +1,12 @@
 import { queryClient } from "@/lib/queryClient";
-import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
+import { fetchPetProfile } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetWithDetails, PetWithRole } from "@/types/database";
 import {
   type UseQueryResult,
   useQuery,
 } from "@tanstack/react-query";
+import { fetchAccessiblePetsAndPrefetchDetails } from "./prefetchPetsAndDetails";
 import { petDetailsQueryKey, petsQueryKey } from "./queryKeys";
 
 /**
@@ -17,20 +18,7 @@ export function usePetsQuery(): UseQueryResult<PetWithRole[], Error> {
 
   return useQuery<PetWithRole[], Error>({
     queryKey: petsQueryKey(userId ?? ""),
-    queryFn: async () => {
-      const pets = await fetchAccessiblePets(userId!);
-
-      for (const pet of pets) {
-        const key = petDetailsQueryKey(pet.id);
-        if (queryClient.getQueryData(key) != null) continue;
-        void queryClient.prefetchQuery({
-          queryKey: key,
-          queryFn: () => fetchPetProfile(pet.id),
-        });
-      }
-
-      return pets;
-    },
+    queryFn: () => fetchAccessiblePetsAndPrefetchDetails(queryClient, userId!),
     enabled: !!userId,
   });
 }

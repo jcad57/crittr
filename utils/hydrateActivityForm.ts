@@ -1,3 +1,4 @@
+import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import {
   FOOD_ACTIVITY_OTHER_ID,
   type ExerciseFormData,
@@ -16,8 +17,6 @@ const EXERCISE_TYPES = [
   "Home Playtime",
   "Other",
 ] as const;
-
-const PORTION_UNITS = ["Cups", "Ounces", "Piece(s)"] as const;
 
 function normalizeFoodUnit(u: string | null | undefined): string {
   if (!u) return "Cups";

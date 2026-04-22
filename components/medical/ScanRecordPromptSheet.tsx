@@ -28,6 +28,13 @@ type Props = {
   onAccept: () => void;
   /** Disables buttons while the scan is running. */
   isScanning?: boolean;
+  /**
+   * Fires once the sheet has finished its close animation and unmounted.
+   * Use this to show another full-screen Modal on iOS (stacking two Modals
+   * while the first is dismissing often fails silently and can freeze touch
+   * input).
+   */
+  onFullyDismissed?: () => void;
 };
 
 /**
@@ -40,6 +47,7 @@ export default function ScanRecordPromptSheet({
   onDecline,
   onAccept,
   isScanning,
+  onFullyDismissed,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(false);
@@ -87,9 +95,12 @@ export default function ScanRecordPromptSheet({
         useNativeDriver: true,
       }),
     ]).start(({ finished }) => {
-      if (finished) setMounted(false);
+      if (finished) {
+        setMounted(false);
+        onFullyDismissed?.();
+      }
     });
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, sheetTranslateY, onFullyDismissed]);
 
   return (
     <Modal
@@ -131,8 +142,8 @@ export default function ScanRecordPromptSheet({
           <Text style={styles.title}>Scan with Crittr AI?</Text>
           <Text style={styles.body}>
             Let Crittr read the document you just uploaded and pull out any
-            medications or vaccinations. You’ll review everything before it’s
-            saved.
+            medications or vaccinations so we can add them to your pet's
+            profile.
           </Text>
 
           <View style={styles.actions}>

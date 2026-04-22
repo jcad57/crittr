@@ -9,9 +9,9 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { getMedicationBadgeDisplay } from "@/lib/medicationBadgeDisplay";
-import { buildMedicationDosageProgress } from "@/lib/medicationDosageProgress";
-import { getErrorMessage } from "@/lib/errorMessage";
+import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
+import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";

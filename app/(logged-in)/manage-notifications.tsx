@@ -6,6 +6,8 @@ import {
   getNotificationPermissionStatus,
   requestNotificationPermissionsAsync,
 } from "@/lib/pushNotifications";
+import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
+import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
@@ -28,6 +30,7 @@ export default function ManageNotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
+  const userId = useAuthStore((s) => s.session?.user?.id);
   const { prefs, loading, updatePrefs } = usePushNotificationPreferences();
 
   const [permStatus, setPermStatus] = useState<Notifications.PermissionStatus>(
@@ -43,7 +46,13 @@ export default function ManageNotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshPermission();
-    }, [refreshPermission]),
+      if (!userId || Platform.OS === "web") return;
+      void getNotificationPermissionStatus().then((s) => {
+        if (s === Notifications.PermissionStatus.GRANTED) {
+          void syncExpoPushTokenToSupabase(userId);
+        }
+      });
+    }, [refreshPermission, userId]),
   );
 
   const allEnabled =
@@ -72,6 +81,7 @@ export default function ManageNotificationsScreen() {
     if (Platform.OS === "web") return;
     await requestNotificationPermissionsAsync();
     await refreshPermission();
+    if (userId) void syncExpoPushTokenToSupabase(userId);
   };
 
   const openSystemSettings = () => {
@@ -223,7 +233,8 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Co-care activities</Text>
                 <Text style={styles.cardSub}>
-                  Afternoon check-in when exercise goals for the day are not met
+                  Push when a co-carer logs food, potty, exercise, and more—and a
+                  daily nudge if exercise goals aren&apos;t met
                 </Text>
               </View>
               <Switch

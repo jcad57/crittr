@@ -3,7 +3,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
-import { markCoCareRemovalNotificationsRead } from "@/services/notifications";
+import { useDismissCoCareRemovedMutation } from "@/hooks/queries";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -20,24 +20,22 @@ export default function CoCareRemovedScreen() {
   const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const startAddPetFlow = useOnboardingStore((s) => s.startAddPetFlow);
-  const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
+  const dismissMut = useDismissCoCareRemovedMutation();
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
     return () => sub.remove();
   }, []);
 
+  /** Non-blocking: session gate still works from Zustand transition state if this fails. */
   useEffect(() => {
     if (!session?.user.id) return;
-    void (async () => {
-      try {
-        await markCoCareRemovalNotificationsRead(session.user.id);
-        await refreshAuthSession();
-      } catch {
-        // Non-blocking: session gate still works from Zustand transition state.
-      }
-    })();
-  }, [session?.user.id, refreshAuthSession]);
+    dismissMut.mutate(undefined, {
+      onError: () => {},
+    });
+    // Trigger once per user id — the mutation object itself is stable enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
 
   const onAddPet = () => {
     startAddPetFlow();

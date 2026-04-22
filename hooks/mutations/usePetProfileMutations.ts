@@ -29,6 +29,10 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
     mutationFn: (fields: UpdatePetExerciseRequirementsInput) =>
       updatePetExerciseRequirements(petId, fields),
     onSuccess: (updated) => {
+      /**
+       * Server return merges into the cached `PetWithDetails` without changing
+       * nested arrays, so there's no need to also invalidate `petDetailsQueryKey`.
+       */
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),
         (old) => {
@@ -43,7 +47,6 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
           };
         },
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({
@@ -61,6 +64,12 @@ export function useUpdatePetNameAndBreedMutation(petId: string) {
     mutationFn: (fields: UpdatePetNameAndBreedInput) =>
       updatePetNameAndBreed(petId, fields),
     onSuccess: (updated) => {
+      /**
+       * Name/breed change only touches base pet fields — the optimistic merge
+       * already matches what `fetchPetProfile` would return next, so we skip
+       * invalidating `petDetailsQueryKey` here. `petsQueryKey` (list view)
+       * still needs a refetch because it renders the pet name.
+       */
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),
         (old) => {
@@ -75,7 +84,6 @@ export function useUpdatePetNameAndBreedMutation(petId: string) {
           };
         },
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({
@@ -93,6 +101,12 @@ export function useUpdatePetDetailsMutation(petId: string) {
     mutationFn: (fields: UpdatePetDetailsInput) =>
       updatePetDetails(petId, fields),
     onSuccess: (updated) => {
+      /**
+       * Server return merges cleanly into `PetWithDetails` (nested arrays are
+       * preserved), so no follow-up invalidation of `petDetailsQueryKey` is
+       * needed. List + health snapshot still need refreshing since they
+       * surface pet-level fields.
+       */
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),
         (old) => {
@@ -107,7 +121,6 @@ export function useUpdatePetDetailsMutation(petId: string) {
           };
         },
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({

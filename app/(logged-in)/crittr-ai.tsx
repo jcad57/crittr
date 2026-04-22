@@ -1,6 +1,7 @@
 import CrittrAiAssistantMarkdown from "@/components/crittr-ai/CrittrAiAssistantMarkdown";
+import { TypingBubble } from "@/components/screens/crittr-ai/TypingBubble";
 import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { CRITTR_AI_WELCOME_ASSISTANT_TEXT } from "@/constants/crittrAiCopy";
 import { useCrittrAiThreadQuery } from "@/hooks/queries";
 import { crittrAiThreadKey } from "@/hooks/queries/queryKeys";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
@@ -21,14 +22,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import {
   KeyboardAwareScrollView,
   useReanimatedKeyboardAnimation,
@@ -36,66 +30,10 @@ import {
 import Reanimated, {
   Extrapolation,
   interpolate,
-  type SharedValue,
   useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const WELCOME_ASSISTANT_TEXT =
-  "Hi! I’m CrittrAI — ask me anything about your pet! \n\nTry asking 'How much should my dog eat?'";
-
-/** iMessage-style composer: ~6 visible lines then scroll inside the field. */
-const INPUT_LINE_HEIGHT = 22;
-const INPUT_MAX_VISIBLE_LINES = 6;
-const INPUT_MAX_HEIGHT = INPUT_LINE_HEIGHT * INPUT_MAX_VISIBLE_LINES + 20;
-
-function TypingBubble() {
-  const a0 = useSharedValue(0.35);
-  const a1 = useSharedValue(0.35);
-  const a2 = useSharedValue(0.35);
-
-  useEffect(() => {
-    const pulse = (v: SharedValue<number>, delayMs: number) => {
-      v.value = withDelay(
-        delayMs,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: 360 }),
-            withTiming(0.35, { duration: 360 }),
-          ),
-          -1,
-          false,
-        ),
-      );
-    };
-    pulse(a0, 0);
-    pulse(a1, 120);
-    pulse(a2, 240);
-  }, [a0, a1, a2]);
-
-  const s0 = useAnimatedStyle(() => ({ opacity: a0.value }));
-  const s1 = useAnimatedStyle(() => ({ opacity: a1.value }));
-  const s2 = useAnimatedStyle(() => ({ opacity: a2.value }));
-
-  return (
-    <View
-      style={[styles.bubble, styles.bubbleAssistant, styles.typingBubble]}
-      accessibilityLabel="CrittrAI is typing"
-      accessibilityRole="text"
-    >
-      <View style={styles.typingRow}>
-        <Reanimated.View style={[styles.typingDot, s0]} />
-        <Reanimated.View style={[styles.typingDot, s1]} />
-        <Reanimated.View style={[styles.typingDot, s2]} />
-      </View>
-    </View>
-  );
-}
+import { styles } from "@/screen-styles/crittr-ai.styles";
 
 export default function CrittrAiScreen() {
   const router = useRouter();
@@ -333,7 +271,9 @@ export default function CrittrAiScreen() {
             style={[styles.bubble, styles.bubbleAssistant]}
             accessibilityRole="text"
           >
-            <Text style={styles.bubbleText}>{WELCOME_ASSISTANT_TEXT}</Text>
+            <Text style={styles.bubbleText}>
+              {CRITTR_AI_WELCOME_ASSISTANT_TEXT}
+            </Text>
           </View>
         ) : null}
 
@@ -387,147 +327,3 @@ export default function CrittrAiScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backHit: { width: 40, height: 40, justifyContent: "center" },
-  title: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MAIN_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  headerTrailing: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scroll: { flex: 1 },
-  scrollInner: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 12,
-  },
-  betaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: Colors.orangeLight,
-    marginBottom: 8,
-  },
-  betaText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    color: Colors.orangeDark,
-  },
-  errorBanner: {
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.orangeLight,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    gap: 6,
-  },
-  errorBannerText: {
-    fontFamily: Font.uiMedium,
-    fontSize: 14,
-    color: Colors.textPrimary,
-  },
-  errorRetry: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.orangeDark,
-  },
-  bubble: {
-    maxWidth: "92%",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-  },
-  bubbleUser: {
-    alignSelf: "flex-end",
-    backgroundColor: Colors.orange,
-  },
-  bubbleAssistant: {
-    alignSelf: "flex-start",
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    paddingBottom: 9,
-  },
-  typingBubble: {
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  typingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  typingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.gray400,
-  },
-  bubbleText: {
-    fontFamily: Font.uiRegular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: Colors.textPrimary,
-  },
-  bubbleTextUser: {
-    color: Colors.white,
-  },
-  composer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray200,
-    backgroundColor: Colors.cream,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: INPUT_MAX_HEIGHT,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    backgroundColor: Colors.white,
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    lineHeight: INPUT_LINE_HEIGHT,
-    color: Colors.textPrimary,
-  },
-  sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sendBtnPressed: { opacity: 0.88 },
-  sendBtnDisabled: { opacity: 0.45 },
-});
