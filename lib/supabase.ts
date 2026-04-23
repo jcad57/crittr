@@ -206,6 +206,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,
     persistSession: true,
+    /** PKCE for OAuth code exchange in the WebBrowser session (React Native). */
+    flowType: "pkce",
     detectSessionInUrl: false,
   },
   global: {

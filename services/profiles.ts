@@ -54,6 +54,7 @@ export async function updateProfile(
       | "notify_medications"
       | "notify_vet_visits"
       | "crittr_pro_banner_theme"
+      | "has_password"
     >
   >,
 ): Promise<Profile | null> {

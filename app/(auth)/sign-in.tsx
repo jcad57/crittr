@@ -4,6 +4,7 @@ import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getSigninMethodHint } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
@@ -30,13 +31,18 @@ function welcomeLayoutScale(width: number, height: number) {
   return { uiScale, verticalTight };
 }
 
-function mapSignInError(message: string): string {
+function looksLikeInvalidPasswordAttempt(message: string): boolean {
   const m = message.toLowerCase();
-  if (
+  return (
     m.includes("invalid login") ||
     m.includes("invalid credentials") ||
     m.includes("invalid grant")
-  ) {
+  );
+}
+
+function mapSignInError(message: string): string {
+  const m = message.toLowerCase();
+  if (looksLikeInvalidPasswordAttempt(message)) {
     return "Incorrect email or password. Check your details and try again.";
   }
   if (m.includes("email not confirmed")) {
@@ -73,7 +79,9 @@ export default function SignIn() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
+  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
 
   const handleSignIn = async () => {
     Keyboard.dismiss();
@@ -99,9 +107,34 @@ export default function SignIn() {
       await signInWithEmail(trimmedEmail, password);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      setAuthError(mapSignInError(msg));
+      if (trimmedEmail && looksLikeInvalidPasswordAttempt(msg)) {
+        const hint = await getSigninMethodHint(trimmedEmail);
+        if (hint === "google") {
+          setAuthError(
+            "This account was set up with Google. Use the Google button above to sign in.",
+          );
+        } else {
+          setAuthError(mapSignInError(msg));
+        }
+      } else {
+        setAuthError(mapSignInError(msg));
+      }
     } finally {
       setSigningIn(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    Keyboard.dismiss();
+    setAuthError(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setAuthError(msg);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -118,7 +151,11 @@ export default function SignIn() {
       <Text style={authOnboardingStyles.screenTitle}>Welcome Back!</Text>
 
       <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
-      <SocialAuthContainer />
+      <SocialAuthContainer
+        onGooglePress={handleGoogleSignIn}
+        googleLoading={googleLoading}
+        googleDisabled={signingIn}
+      />
 
       <View
         style={[

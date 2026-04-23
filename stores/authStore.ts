@@ -67,6 +67,11 @@ type AuthState = {
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   resendSignupOtp: (email: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  /**
+   * OAuth (Google) via in-app browser. Session is completed by `onAuthStateChange`.
+   * Resolves on cancel without throwing; throws on real errors.
+   */
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   setProfile: (profile: Profile) => void;
   /**
@@ -348,6 +353,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
     if (error) throw error;
     // Session resolution is handled by the onAuthStateChange listener
     // registered in initialize(). No manual getSession/resolve needed.
+  },
+
+  signInWithGoogle: async () => {
+    const { signInWithGoogleWithBrowser } = await import(
+      "@/lib/auth/googleOAuth"
+    );
+    const r = await signInWithGoogleWithBrowser();
+    if (r.status === "cancelled") return;
   },
 
   signOut: async () => {

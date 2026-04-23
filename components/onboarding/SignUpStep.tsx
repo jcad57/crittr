@@ -33,7 +33,9 @@ export default function SignUpStep() {
     })),
   );
   const signUp = useAuthStore((s) => s.signUp);
+  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
   const canSubmit =
@@ -75,6 +77,20 @@ export default function SignUpStep() {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    setEmailVerificationPending(false);
+    setProfileBackAfterProfile("signup");
+    try {
+      await signInWithGoogle();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      Alert.alert("Google sign-up", msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={authOnboardingStyles.screenTitle}>Welcome to Crittr!</Text>
@@ -98,7 +114,11 @@ export default function SignUpStep() {
       <Text style={[authOnboardingStyles.socialLabel, { marginBottom: 16 }]}>
         Sign up with
       </Text>
-      <SocialAuthContainer />
+      <SocialAuthContainer
+        onGooglePress={handleGoogleSignUp}
+        googleLoading={googleLoading}
+        googleDisabled={isSubmitting}
+      />
 
       <Divider />
 

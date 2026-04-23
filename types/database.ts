@@ -34,6 +34,10 @@ export type Profile = {
   phone_number: string | null;
   avatar_url: string | null;
   onboarding_complete: boolean;
+  /** Primary sign-up: email+password or Google OAuth (after auth_signup_method migration). */
+  auth_signup_method?: "email" | "google";
+  /** Whether the account has a Supabase email/password (can sign in with password). */
+  has_password?: boolean;
   /** Pro access valid until this ISO time; null = no Pro. Set server-side (Stripe / admin). */
   crittr_pro_until: string | null;
   /** Pro profile hero + dashboard crown palette: `slate` | `gold` | `purple`. */

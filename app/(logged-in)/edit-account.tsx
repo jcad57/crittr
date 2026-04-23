@@ -5,7 +5,7 @@ import { Font } from "@/constants/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
-import { updateAuthEmail } from "@/services/auth";
+import { updateAuthEmail, updateAuthPassword } from "@/services/auth";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -40,6 +40,9 @@ export default function EditAccountScreen() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [settingPassword, setSettingPassword] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -49,6 +52,45 @@ export default function EditAccountScreen() {
     setEmail(sessionEmail);
     setAddress(profile.home_address?.trim() ?? "");
   }, [profile, sessionEmail]);
+
+  /** Google/OAuth — until the user has saved a local password in Supabase. */
+  const canSetLocalPassword = profile?.has_password === false;
+
+  const handleSetPassword = useCallback(async () => {
+    if (!userId || !canSetLocalPassword) return;
+    if (newPassword.length < 6) {
+      Alert.alert(
+        "Password",
+        "Use at least 6 characters so you can sign in with email and password if needed.",
+      );
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert("Password", "The two password fields do not match.");
+      return;
+    }
+    setSettingPassword(true);
+    try {
+      await updateAuthPassword(newPassword);
+      const updated = await updateProfile(userId, { has_password: true });
+      if (updated) setProfile(updated);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+      Alert.alert("Password saved", "You can now sign in with this email and password as well as Google.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Could not save password", msg);
+    } finally {
+      setSettingPassword(false);
+    }
+  }, [
+    userId,
+    canSetLocalPassword,
+    newPassword,
+    confirmNewPassword,
+    setProfile,
+  ]);
 
   const handleSave = useCallback(async () => {
     if (!userId) return;
@@ -142,7 +184,8 @@ export default function EditAccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Update your personal details as well as reset your password.
+          Update your personal details, manage sign-in, and add an optional
+          email/password if you use Google to sign in.
         </Text>
 
         <FormInput
@@ -186,30 +229,69 @@ export default function EditAccountScreen() {
           containerStyle={styles.fieldGap}
         />
 
-        <View style={styles.fieldGap}>
-          <View style={styles.passwordLabelRow}>
-            <Text style={styles.fieldLabel}>Password</Text>
-            <Pressable
-              onPress={() =>
-                router.push("/(logged-in)/forgot-password" as Href)
-              }
-              hitSlop={8}
-              accessibilityRole="link"
-              accessibilityLabel="Forgot password"
-            >
-              <Text style={styles.forgotLink}>Forgot password?</Text>
-            </Pressable>
-          </View>
-          <View style={styles.passwordInputContainer}>
-            <TextInput
-              value="••••••••••"
-              editable={false}
-              secureTextEntry={false}
-              style={styles.passwordInput}
-              accessibilityLabel="Hidden password"
+        {canSetLocalPassword ? (
+          <View style={styles.fieldGap}>
+            <Text style={styles.fieldLabel}>
+              Add a sign-in password (optional)
+            </Text>
+            <Text style={styles.hintText}>
+              Lets you use email and password in addition to Google. We never
+              see your Google password.
+            </Text>
+            <FormInput
+              label="New password"
+              placeholder="At least 6 characters"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password-new"
+              containerStyle={styles.subFieldGap}
             />
+            <FormInput
+              label="Confirm new password"
+              placeholder="Re-enter password"
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password-new"
+              containerStyle={styles.subFieldGap}
+            />
+            <OrangeButton
+              onPress={handleSetPassword}
+              loading={settingPassword}
+              style={styles.saveBtnTight}
+            >
+              Save password
+            </OrangeButton>
           </View>
-        </View>
+        ) : (
+          <View style={styles.fieldGap}>
+            <View style={styles.passwordLabelRow}>
+              <Text style={styles.fieldLabel}>Password</Text>
+              <Pressable
+                onPress={() =>
+                  router.push("/(logged-in)/forgot-password" as Href)
+                }
+                hitSlop={8}
+                accessibilityRole="link"
+                accessibilityLabel="Forgot password"
+              >
+                <Text style={styles.forgotLink}>Forgot password?</Text>
+              </Pressable>
+            </View>
+            <View style={styles.passwordInputContainer}>
+              <TextInput
+                value="••••••••••"
+                editable={false}
+                secureTextEntry={false}
+                style={styles.passwordInput}
+                accessibilityLabel="Hidden password"
+              />
+            </View>
+          </View>
+        )}
 
         <FormInput
           label="Address"
@@ -318,5 +400,18 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: 8,
+  },
+  subFieldGap: {
+    marginBottom: 10,
+  },
+  saveBtnTight: {
+    marginTop: 4,
+  },
+  hintText: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 12,
   },
 });

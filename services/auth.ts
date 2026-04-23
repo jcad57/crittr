@@ -1,6 +1,12 @@
 import { supabase } from "@/lib/supabase";
 import { withTimeout } from "@/utils/async";
 
+export type SigninMethodHint =
+  | "email"
+  | "google"
+  | "not_found"
+  | "invalid";
+
 /** Same family as sign-up / password-reset: auth can stall; surface a clear timeout. */
 const AUTH_USER_UPDATE_TIMEOUT_MS = 45_000;
 
@@ -58,4 +64,27 @@ export async function verifyPasswordResetOtp(email: string, token: string) {
   );
   if (error) throw error;
   return data;
+}
+
+/**
+ * Unauthenticated: how this email was registered, for post-login UX on wrong password
+ * (e.g. Google-only account should use "Continue with Google"). Does not run when signed in.
+ */
+export async function getSigninMethodHint(
+  email: string,
+): Promise<SigninMethodHint> {
+  const { data, error } = await supabase.rpc("get_signin_method_hint", {
+    p_email: email.trim(),
+  });
+  if (error) {
+    if (__DEV__) {
+      console.warn("[auth] get_signin_method_hint", error);
+    }
+    return "not_found";
+  }
+  if (data === "email" || data === "google" || data === "not_found") {
+    return data;
+  }
+  if (data === "invalid") return "invalid";
+  return "not_found";
 }

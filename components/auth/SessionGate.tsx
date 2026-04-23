@@ -8,6 +8,7 @@ import { setupAppResumeHandler } from "@/lib/appResumeHandler";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
 import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
+import * as WebBrowser from "expo-web-browser";
 import {
   DMSans_400Regular,
   DMSans_500Medium,
@@ -25,6 +26,8 @@ import { Slot, SplashScreen } from "expo-router";
 import { useEffect, useRef } from "react";
 
 setupReactQueryFocusManager();
+
+WebBrowser.maybeCompleteAuthSession();
 
 const stripePublishableKey =
   process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
