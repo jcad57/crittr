@@ -1,21 +1,72 @@
+import FormInput from "@/components/onboarding/FormInput";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { requestPasswordResetOtp } from "@/services/auth";
+import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-/**
- * Placeholder for the password reset flow. Wire navigation from here when the
- * reset screens are implemented.
- */
-export default function ForgotPasswordPlaceholderScreen() {
+function mapResetRequestError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("rate") || m.includes("too many")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (m.includes("invalid") && m.includes("email")) {
+    return "That email doesn't look right. Check it and try again.";
+  }
+  return message.trim() || "Something went wrong. Please try again.";
+}
+
+export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const sessionEmail = useAuthStore((s) => s.session?.user?.email ?? "");
+
+  const [email, setEmail] = useState(sessionEmail);
+  const [submitting, setSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const handleSend = async () => {
+    Keyboard.dismiss();
+    setEmailError(null);
+    setSendError(null);
+
+    const trimmed = email.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    if (!trimmed) {
+      setEmailError("Please enter your email.");
+      return;
+    }
+    if (!emailOk) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await requestPasswordResetOtp(trimmed);
+      router.push({
+        pathname: "/(logged-in)/reset-password-verify",
+        params: { email: trimmed },
+      } as Href);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSendError(mapResetRequestError(msg));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 4 }]}>
-      <View style={styles.navBar}>
+    <View style={styles.screen}>
+      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
         <Pressable
           style={styles.navButton}
           hitSlop={12}
@@ -34,12 +85,46 @@ export default function ForgotPasswordPlaceholderScreen() {
         <View style={styles.navButton} />
       </View>
 
-      <View style={styles.body}>
-        <Text style={styles.copy}>
-          Password reset will open here in a future update. You’ll be able to
-          receive a link to choose a new password.
+      <KeyboardAwareScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.lead}>
+          Enter the email associated with your account and we&apos;ll send a
+          6-digit code to reset your password.
         </Text>
-      </View>
+
+        <FormInput
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (emailError) setEmailError(null);
+            if (sendError) setSendError(null);
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          error={Boolean(emailError)}
+          errorMessage={emailError ?? undefined}
+          containerStyle={styles.fieldGap}
+        />
+
+        {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
+
+        <OrangeButton
+          onPress={handleSend}
+          loading={submitting}
+          disabled={submitting}
+          style={styles.cta}
+        >
+          Send reset code
+        </OrangeButton>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
@@ -55,6 +140,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 12,
+    backgroundColor: Colors.cream,
   },
   navTitle: {
     flex: 1,
@@ -70,15 +156,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  body: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
   },
-  copy: {
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  lead: {
     fontFamily: Font.uiRegular,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
-    lineHeight: 24,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  fieldGap: {
+    marginBottom: 8,
+  },
+  errorText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.error,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  cta: {
+    marginTop: 16,
   },
 });

@@ -14,12 +14,14 @@ import {
   useLogPottyMutation,
   useLogTrainingMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
-import { usePetsQuery } from "@/hooks/queries";
+import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
+import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
+import { showNonProInterstitialThen } from "@/lib/showNonProInterstitial";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
@@ -70,6 +72,9 @@ export default function AddActivityScreen() {
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
+  const { data: profile, isPending: profilePending, isPlaceholderData: profilePlaceholder } =
+    useProfileQuery();
+  const isPro = useIsCrittrPro(profile);
 
   const resolvedPetId = useMemo(() => {
     if (activePetId && (allPets ?? []).some((p) => p.id === activePetId)) {
@@ -122,10 +127,27 @@ export default function AddActivityScreen() {
     }
   }, [step, setStep, reset, router]);
 
-  const finish = useCallback(() => {
-    reset();
-    router.back();
-  }, [reset, router]);
+  const finish = useCallback(async () => {
+    const go = () => {
+      reset();
+      router.back();
+    };
+    if (profilePending || profilePlaceholder) {
+      go();
+      return;
+    }
+    if (isPro) {
+      go();
+      return;
+    }
+    await showNonProInterstitialThen(go);
+  }, [
+    isPro,
+    profilePending,
+    profilePlaceholder,
+    reset,
+    router,
+  ]);
 
   const cancelDetails = useCallback(() => {
     reset();
@@ -145,7 +167,7 @@ export default function AddActivityScreen() {
         loggedAtIso,
       });
     }
-    finish();
+    await finish();
   }, [exerciseMut, exerciseForm, exerciseExtraPetIds, activePetId, finish]);
 
   const saveFood = useCallback(async () => {
@@ -166,7 +188,7 @@ export default function AddActivityScreen() {
         loggedAtIso,
       });
     }
-    finish();
+    await finish();
   }, [foodMut, foodForm, foodExtraRows, activePetId, finish]);
 
   const saveMed = useCallback(async () => {
@@ -178,7 +200,7 @@ export default function AddActivityScreen() {
     for (const petId of ids) {
       await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
     }
-    finish();
+    await finish();
   }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
 
   const saveTraining = useCallback(async () => {
@@ -190,7 +212,7 @@ export default function AddActivityScreen() {
       form: trainingForm,
       loggedAtIso,
     });
-    finish();
+    await finish();
   }, [trainingMut, trainingForm, activePetId, finish]);
 
   const savePotty = useCallback(async () => {
@@ -202,7 +224,7 @@ export default function AddActivityScreen() {
       form: pottyForm,
       loggedAtIso,
     });
-    finish();
+    await finish();
   }, [pottyMut, pottyForm, activePetId, finish]);
 
   const saving =

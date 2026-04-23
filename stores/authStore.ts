@@ -196,10 +196,70 @@ export const useAuthStore = create<AuthState>((set, get) => {
               await purgeInvalidSession();
               return;
             }
-            const {
-              data: { session: latestSession },
-            } = await supabase.auth.getSession();
-            const activeSession = latestSession ?? session;
+            /**
+             * Do not call `getSession()` here. Operations like `updateUser` and
+             * `refreshSession` run under GoTrue’s global auth lock and await
+             * `onAuthStateChange` subscribers. `getSession()` also uses that
+             * lock, which can deadlock the UI (e.g. “Update password” spinning
+             * forever). The `session` passed to this callback is the
+             * up-to-date session the client just persisted.
+             */
+            const activeSession = session;
+
+            if (event === "USER_UPDATED") {
+              /**
+               * `updateUser` (e.g. new password) awaits this callback before its
+               * promise resolves. `resolveSession` is several PostgREST round-trips
+               * and can run longer than the client’s `updateUser` timeout, surfacing
+               * as a false “connection” error. Apply the new session immediately,
+               * then re-resolve profile/pets in the background.
+               */
+              set((prev) => ({
+                ...prev,
+                session: activeSession,
+                isLoggedIn: true,
+              }));
+              lastResolvedSessionToken = activeSession.access_token;
+              void (async () => {
+                try {
+                  const resolved = await resolveSession(activeSession);
+                  const prevState = get();
+                  const requiresCoCareRemovedScreen =
+                    nextRequiresCoCareRemovedScreen(
+                      {
+                        hasPets: prevState.hasPets,
+                        ownedPetCount: prevState.ownedPetCount,
+                        coCarePetCount: prevState.coCarePetCount,
+                        requiresCoCareRemovedScreen:
+                          prevState.requiresCoCareRemovedScreen,
+                      },
+                      resolved,
+                    );
+                  set({
+                    session: activeSession,
+                    profile: resolved.profile,
+                    hasPets: resolved.hasPets,
+                    ownedPetCount: resolved.ownedPetCount,
+                    coCarePetCount: resolved.coCarePetCount,
+                    onboardingResumeStep: resolved.onboardingResumeStep,
+                    isLoggedIn: true,
+                    needsOnboarding: resolved.needsOnboarding,
+                    requiresCoCareRemovedScreen,
+                  });
+                  lastResolvedSessionToken = activeSession.access_token;
+                  syncProfileRowToQuery(resolved.profile);
+                } catch (e) {
+                  if (__DEV__) {
+                    console.warn(
+                      "[authStore] USER_UPDATED follow-up resolveSession failed",
+                      e,
+                    );
+                  }
+                }
+              })();
+              return;
+            }
+
             const resolved = await resolveSession(activeSession);
             const prev = get();
             const requiresCoCareRemovedScreen =
@@ -208,8 +268,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
                   hasPets: prev.hasPets,
                   ownedPetCount: prev.ownedPetCount,
                   coCarePetCount: prev.coCarePetCount,
-                  requiresCoCareRemovedScreen:
-                    prev.requiresCoCareRemovedScreen,
+                  requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
                 },
                 resolved,
               );

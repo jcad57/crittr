@@ -1,3 +1,4 @@
+import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
 import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
 import { FONT_FACES } from "@/constants/fonts";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
@@ -79,6 +80,7 @@ export default function SessionGate() {
       urlScheme="crittr"
     >
       <QueryClientProvider client={queryClient}>
+        <AppOpenAdManager />
         <StripeUrlHandler />
         <Slot />
       </QueryClientProvider>

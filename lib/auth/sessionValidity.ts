@@ -54,7 +54,14 @@ export async function isAuthUserStillRegistered(
     event === "TOKEN_REFRESHED" ||
     event === "USER_UPDATED" ||
     event === "SIGNED_IN" ||
-    event === "INITIAL_SESSION"
+    event === "INITIAL_SESSION" ||
+    /**
+     * `verifyOtp` with `type: "recovery"` awaits `onAuthStateChange` before
+     * resolving. A nested `refreshSession()` from this handler contends for the
+     * same GoTrue lock and can deadlock / stall the app on the "Confirm" button.
+     * The session from the recovery verify response is already server-valid.
+     */
+    event === "PASSWORD_RECOVERY"
   ) {
     return true;
   }

@@ -9,6 +9,7 @@ import { updateAuthEmail } from "@/services/auth";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -140,8 +142,7 @@ export default function EditAccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Update your name, phone, email, and address. Changes save to your
-          account.
+          Update your personal details as well as reset your password.
         </Text>
 
         <FormInput
@@ -184,6 +185,31 @@ export default function EditAccountScreen() {
           autoComplete="email"
           containerStyle={styles.fieldGap}
         />
+
+        <View style={styles.fieldGap}>
+          <View style={styles.passwordLabelRow}>
+            <Text style={styles.fieldLabel}>Password</Text>
+            <Pressable
+              onPress={() =>
+                router.push("/(logged-in)/forgot-password" as Href)
+              }
+              hitSlop={8}
+              accessibilityRole="link"
+              accessibilityLabel="Forgot password"
+            >
+              <Text style={styles.forgotLink}>Forgot password?</Text>
+            </Pressable>
+          </View>
+          <View style={styles.passwordInputContainer}>
+            <TextInput
+              value="••••••••••"
+              editable={false}
+              secureTextEntry={false}
+              style={styles.passwordInput}
+              accessibilityLabel="Hidden password"
+            />
+          </View>
+        </View>
 
         <FormInput
           label="Address"
@@ -255,6 +281,40 @@ const styles = StyleSheet.create({
   },
   fieldGap: {
     marginBottom: 16,
+  },
+  passwordLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  forgotLink: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.orange,
+  },
+  passwordInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: 14,
+    height: 50,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.white,
+  },
+  passwordInput: {
+    flex: 1,
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    paddingVertical: 0,
+    letterSpacing: 2,
   },
   saveBtn: {
     marginTop: 8,

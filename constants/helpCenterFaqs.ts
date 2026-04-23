@@ -48,4 +48,10 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     answer:
       "From your profile, tap Share feedback. Describe what happened or what you’d like to see — your message goes to our support inbox.",
   },
+  {
+    id: "reset-password",
+    question: "How do I reset my password?",
+    answer:
+      "From your profile, tap Edit account. Scroll to the bottom and tap Reset password. You'll receive an email with a code to reset your password.",
+  },
 ];
