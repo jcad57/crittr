@@ -117,6 +117,28 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textPrimary,
   },
+  reminderTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  reminderTimeBtn: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  addReminderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  addReminderBtnText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.orange,
+  },
   lastGivenWrap: {
     marginBottom: 12,
   },

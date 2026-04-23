@@ -1,5 +1,6 @@
 import { healthSnapshotKey, petDetailsQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
+import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {
   deletePetMedication,
   insertPetMedication,
@@ -8,7 +9,21 @@ import {
 } from "@/services/medications";
 import type { PetMedication, PetWithDetails } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
+import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { useMutation } from "@tanstack/react-query";
+import { Platform } from "react-native";
+
+function requestReminderResync(userId: string | undefined) {
+  if (Platform.OS === "web" || !userId) return;
+  const profile = useAuthStore.getState().profile;
+  if (!profile) return;
+  void syncCrittrReminderNotifications(
+    userId,
+    notificationPrefsFromProfile(profile),
+  ).catch((e) => {
+    if (__DEV__) console.warn("[medications] reminder sync", e);
+  });
+}
 
 function mergeMedicationIntoPetDetailsCache(
   petId: string,
@@ -37,6 +52,7 @@ export function useInsertMedicationMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
     },
   });
@@ -62,6 +78,7 @@ export function useUpdateMedicationMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
     },
   });
@@ -82,6 +99,7 @@ export function useDeleteMedicationMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
     },
   });

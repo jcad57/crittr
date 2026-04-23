@@ -41,6 +41,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
 
+/**
+ * Temporarily disable “Scan with Crittr AI” after creating a record. When `false`, a
+ * successful create uploads files and navigates straight to the record detail screen.
+ * Set to `true` to restore the scan prompt + review flow (edge function must be deployed).
+ */
+const ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN = false;
+
 export default function PetMedicalRecordsScreen() {
   const { id: petId } = useLocalSearchParams<{ id: string }>();
   const { push, router } = useNavigationCooldown();
@@ -159,11 +166,24 @@ export default function PetMedicalRecordsScreen() {
         recordTitle,
         files,
       });
-      scanPromptRecordIdRef.current =
-        canApplyScanResults && created?.id ? created.id : null;
+      if (ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN) {
+        scanPromptRecordIdRef.current =
+          canApplyScanResults && created?.id ? created.id : null;
+      } else {
+        scanPromptRecordIdRef.current = null;
+      }
       setAddOpen(false);
+      if (
+        !ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN &&
+        created?.id &&
+        petId
+      ) {
+        push(
+          `/(logged-in)/pet/${petId}/medical-records/${created.id}` as Href,
+        );
+      }
     },
-    [createMut, petId, userId, canApplyScanResults],
+    [createMut, petId, userId, canApplyScanResults, push],
   );
 
   const handleAcceptScan = useCallback(async () => {
@@ -339,7 +359,10 @@ export default function PetMedicalRecordsScreen() {
       />
 
       <ScanRecordPromptSheet
-        visible={Boolean(pendingScanRecordId)}
+        visible={
+          ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN &&
+          Boolean(pendingScanRecordId)
+        }
         onDecline={() => setPendingScanRecordId(null)}
         onAccept={handleAcceptScan}
         isScanning={parseMut.isPending}
@@ -347,7 +370,7 @@ export default function PetMedicalRecordsScreen() {
       />
 
       <ScanRecordReviewSheet
-        visible={reviewOpen}
+        visible={ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN && reviewOpen}
         result={scanResult}
         petName={details?.name ?? null}
         onCancel={() => {

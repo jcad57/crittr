@@ -1,6 +1,10 @@
 import type { SchedulePeriod } from "@/constants/medicationEditForm";
 import type { MedicationDosePeriod } from "@/types/database";
 import {
+  reminderFieldsForDb,
+  sortTimesAscUnique,
+} from "@/utils/medicationReminderTimes";
+import {
   buildMedicationFrequencyLabelForDb,
   formatReminderTimeHHmm,
 } from "@/utils/medicationSchedule";
@@ -15,7 +19,8 @@ export type MedicationFormState = {
   customIntervalUnit: MedicationDosePeriod;
   condition: string;
   notes: string;
-  reminderDate: Date;
+  /** One or more daily reminder times (e.g. twice-daily meds). */
+  reminderDates: Date[];
   lastGivenOn: string;
 };
 
@@ -29,7 +34,8 @@ export type MedicationSavePayload = {
   dose_period: MedicationDosePeriod | null;
   interval_count: number | null;
   interval_unit: MedicationDosePeriod | null;
-  reminder_time: string;
+  reminder_time: string | null;
+  reminder_times: string[] | null;
   last_given_on: string | null;
 };
 
@@ -52,9 +58,14 @@ export function buildMedicationSavePayload(
     customIntervalUnit,
     condition,
     notes,
-    reminderDate,
+    reminderDates,
     lastGivenOn,
   } = state;
+
+  const hhmmList = sortTimesAscUnique(
+    reminderDates.map((d) => formatReminderTimeHHmm(d)),
+  );
+  const { reminder_time, reminder_times } = reminderFieldsForDb(hhmmList);
 
   const dosageStr =
     [dosageAmount.trim(), dosageType.trim()].filter(Boolean).join(" ") || null;
@@ -81,7 +92,8 @@ export function buildMedicationSavePayload(
       dose_period: null,
       interval_count: parsedInterval,
       interval_unit: customIntervalUnit,
-      reminder_time: formatReminderTimeHHmm(reminderDate),
+      reminder_time,
+      reminder_times,
       last_given_on: lastGivenOn.trim() || null,
     };
   }
@@ -119,7 +131,8 @@ export function buildMedicationSavePayload(
     dose_period: dosePeriod,
     interval_count: null,
     interval_unit: null,
-    reminder_time: formatReminderTimeHHmm(reminderDate),
+    reminder_time,
+    reminder_times,
     last_given_on: lastGivenOn.trim() || null,
   };
 }

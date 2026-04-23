@@ -142,8 +142,10 @@ export type PetMedication = {
   interval_count?: number | null;
   /** Pairs with interval_count: day | week | month. */
   interval_unit?: MedicationDosePeriod | null;
-  /** Local time HH:mm (24h) for reminders. */
+  /** Local time HH:mm (24h) for reminders — first slot; legacy single-time rows. */
   reminder_time?: string | null;
+  /** Multiple daily HH:mm times when the pet needs 2+ dose reminders; null if only `reminder_time`. */
+  reminder_times?: string[] | null;
   /** ISO date YYYY-MM-DD — last time the medication was given. */
   last_given_on?: string | null;
   /** When set, drives due badges on the Health hub. */

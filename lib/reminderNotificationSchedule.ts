@@ -2,6 +2,7 @@ import {
   DEFAULT_ANDROID_CHANNEL_ID,
   getNotificationPermissionStatus,
 } from "@/lib/pushNotifications";
+import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/utils/petFood";
 import { supabase } from "@/lib/supabase";
 import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
@@ -119,25 +120,33 @@ async function scheduleMedication(
   petId: string,
   med: PetMedication,
 ): Promise<void> {
-  const t = parseReminderHHmm(med.reminder_time);
-  if (!t) return;
-  const { hour: h, minute: m } = addMinutes(t.hour, t.minute, -MED_BEFORE_MIN);
-  await Notifications.scheduleNotificationAsync({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${med.id}`,
-    content: {
-      title: "Medication reminder",
-      body: `${petName}: ${med.name.trim() || "Medication"} is due in ${MED_BEFORE_MIN} minutes.`,
-      data: { type: "medication_reminder", petId, medicationId: med.id },
-      ...(Platform.OS === "android"
-        ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-        : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: h,
-      minute: m,
-    },
-  });
+  const slots = getMedicationReminderTimes(med);
+  const medName = med.name.trim() || "medication";
+  for (let i = 0; i < slots.length; i++) {
+    const t = parseReminderHHmm(slots[i]);
+    if (!t) continue;
+    const { hour: h, minute: m } = addMinutes(
+      t.hour,
+      t.minute,
+      -MED_BEFORE_MIN,
+    );
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${med.id}-${i}`,
+      content: {
+        title: "Medication reminder",
+        body: `${petName}: time to give ${medName} (dose due in about ${MED_BEFORE_MIN} minutes).`,
+        data: { type: "medication_reminder", petId, medicationId: med.id },
+        ...(Platform.OS === "android"
+          ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
+          : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: h,
+        minute: m,
+      },
+    });
+  }
 }
 
 async function scheduleVetVisit(

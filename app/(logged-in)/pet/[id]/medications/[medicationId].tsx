@@ -82,12 +82,11 @@ export default function EditPetMedicationScreen() {
     useState<MedicationDosePeriod>("month");
   const [condition, setCondition] = useState("");
   const [notes, setNotes] = useState("");
-  const [reminderDate, setReminderDate] = useState(() => {
+  const [reminderDates, setReminderDates] = useState<Date[]>(() => {
     const d = new Date();
     d.setHours(9, 0, 0, 0);
-    return d;
+    return [d];
   });
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [lastGivenOn, setLastGivenOn] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
 
@@ -103,7 +102,7 @@ export default function EditPetMedicationScreen() {
     setCustomIntervalUnit(h.customIntervalUnit);
     setCondition(h.condition);
     setNotes(h.notes);
-    setReminderDate(h.reminderDate);
+    setReminderDates(h.reminderDates);
     setLastGivenOn(h.lastGivenOn);
   }, [isNew, med]);
 
@@ -125,7 +124,7 @@ export default function EditPetMedicationScreen() {
       customIntervalUnit,
       condition,
       notes,
-      reminderDate,
+      reminderDates,
       lastGivenOn,
     });
     if (!payload) return;
@@ -157,7 +156,7 @@ export default function EditPetMedicationScreen() {
     customIntervalUnit,
     condition,
     notes,
-    reminderDate,
+    reminderDates,
     lastGivenOn,
     insertMut,
     updateMut,
@@ -342,10 +341,8 @@ export default function EditPetMedicationScreen() {
             />
 
             <PetMedicationReminderField
-              reminderDate={reminderDate}
-              setReminderDate={setReminderDate}
-              showTimePicker={showTimePicker}
-              setShowTimePicker={setShowTimePicker}
+              reminderDates={reminderDates}
+              setReminderDates={setReminderDates}
             />
 
             <Text style={styles.fieldLabel}>Last given</Text>
