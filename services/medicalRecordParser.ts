@@ -27,7 +27,6 @@ export type ExtractedVaccination = {
   name: string;
   administered_on: string | null;
   expires_on: string | null;
-  next_due_date: string | null;
   frequency_label: string | null;
   administered_by: string | null;
   lot_number: string | null;

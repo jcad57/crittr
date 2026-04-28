@@ -70,7 +70,7 @@ export function ScanVaccinationReviewCard({
           Administered: {formatDate(extracted.administered_on)}
         </Text>
         <Text style={styles.itemMetaMuted}>
-          Next due: {formatDate(extracted.next_due_date)}
+          Expires: {formatDate(extracted.expires_on)}
         </Text>
       </View>
       {extracted.administered_by ? (

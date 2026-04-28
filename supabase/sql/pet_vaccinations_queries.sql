@@ -10,6 +10,9 @@ select
   pet_id,
   name,
   expires_on,
+  administered_on,
+  administered_by,
+  lot_number,
   frequency_label,
   notes,
   created_at

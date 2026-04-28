@@ -157,6 +157,7 @@ export type PetVaccination = {
   id: string;
   pet_id: string;
   name: string;
+  /** ISO YYYY-MM-DD — when the dose expires or is due again; drives due-soon reminders. */
   expires_on: string | null;
   frequency_label: string | null;
   notes: string | null;
@@ -166,8 +167,6 @@ export type PetVaccination = {
   administered_by?: string | null;
   /** Vaccine lot / batch number (migration 037). */
   lot_number?: string | null;
-  /** ISO YYYY-MM-DD — when the vaccine is next due (migration 037). Semantically clearer than `expires_on`. */
-  next_due_date?: string | null;
   created_at: string;
 };
 

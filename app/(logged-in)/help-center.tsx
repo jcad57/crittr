@@ -1,6 +1,6 @@
 import FaqAccordion from "@/components/support/FaqAccordion";
 import { Colors } from "@/constants/colors";
-import { helpCenterFaqs } from "@/constants/helpCenterFaqs";
+import { HelpCenterFaq, helpCenterFaqs } from "@/constants/helpCenterFaqs";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,6 +14,17 @@ export default function HelpCenterScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const groupedFAQS = helpCenterFaqs.reduce(
+    (acc, faq) => {
+      if (!acc[faq.category]) {
+        acc[faq.category] = [];
+      }
+      acc[faq.category].push(faq);
+      return acc;
+    },
+    {} as Record<HelpCenterFaq["category"], HelpCenterFaq[]>,
+  );
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -42,11 +53,16 @@ export default function HelpCenterScreen() {
         <Text style={styles.lead}>
           Quick answers about Crittr. Tap a question to expand.
         </Text>
-        <FaqAccordion
-          items={helpCenterFaqs}
-          expandedId={expandedId}
-          onExpandedChange={setExpandedId}
-        />
+        {Object.entries(groupedFAQS).map(([category, faqs]) => (
+          <View key={category} style={styles.accordionContainer}>
+            <Text style={styles.faqTitle}>{category}</Text>
+            <FaqAccordion
+              items={faqs}
+              expandedId={expandedId}
+              onExpandedChange={setExpandedId}
+            />
+          </View>
+        ))}
       </ScrollView>
     </View>
   );
@@ -69,6 +85,18 @@ const styles = StyleSheet.create({
     fontSize: MAIN_SCREEN_TITLE_SIZE,
     color: Colors.textPrimary,
     textAlign: "center",
+  },
+  faqTitle: {
+    flex: 1,
+    fontFamily: Font.displayBold,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    paddingLeft: 14,
+    marginBottom: 12,
+  },
+
+  accordionContainer: {
+    marginBottom: 24,
   },
   navSpacer: { width: 28 },
   scroll: { flex: 1 },

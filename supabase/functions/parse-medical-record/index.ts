@@ -99,7 +99,6 @@ type ExtractedVaccination = {
   name: string;
   administered_on: string | null;
   expires_on: string | null;
-  next_due_date: string | null;
   frequency_label: string | null;
   administered_by: string | null;
   lot_number: string | null;
@@ -271,11 +270,7 @@ const EXTRACTION_TOOL = {
             expires_on: {
               type: ["string", "null"],
               description:
-                "ISO date YYYY-MM-DD when the dose expires (often same as next due).",
-            },
-            next_due_date: {
-              type: ["string", "null"],
-              description: "ISO date YYYY-MM-DD when next dose is due.",
+                "ISO date YYYY-MM-DD for vaccine expiry or when the next dose is due (Crittr uses this for due-soon reminders).",
             },
             frequency_label: {
               type: ["string", "null"],
@@ -860,7 +855,6 @@ Deno.serve(async (req: Request) => {
         name: base.name,
         administered_on: base.administered_on ?? other.administered_on,
         expires_on: base.expires_on ?? other.expires_on,
-        next_due_date: base.next_due_date ?? other.next_due_date,
         frequency_label: base.frequency_label ?? other.frequency_label,
         administered_by: base.administered_by ?? other.administered_by,
         lot_number: base.lot_number ?? other.lot_number,
@@ -920,7 +914,6 @@ Deno.serve(async (req: Request) => {
           name: v.name.trim(),
           administered_on: v.administered_on ?? null,
           expires_on: v.expires_on ?? null,
-          next_due_date: v.next_due_date ?? null,
           frequency_label: v.frequency_label ?? null,
           administered_by: v.administered_by ?? null,
           lot_number: v.lot_number ?? null,

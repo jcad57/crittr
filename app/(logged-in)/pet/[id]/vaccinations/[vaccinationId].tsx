@@ -68,7 +68,6 @@ export default function EditPetVaccinationScreen() {
   const [administeredOn, setAdministeredOn] = useState("");
   const [administeredBy, setAdministeredBy] = useState("");
   const [lotNumber, setLotNumber] = useState("");
-  const [nextDueDate, setNextDueDate] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
 
   useEffect(() => {
@@ -80,7 +79,6 @@ export default function EditPetVaccinationScreen() {
     setAdministeredOn(h.administeredOn);
     setAdministeredBy(h.administeredBy);
     setLotNumber(h.lotNumber);
-    setNextDueDate(h.nextDueDate);
   }, [isNew, vaccination]);
 
   const handleSave = useCallback(async () => {
@@ -96,7 +94,6 @@ export default function EditPetVaccinationScreen() {
       administered_on: administeredOn.trim() || null,
       administered_by: administeredBy.trim() || null,
       lot_number: lotNumber.trim() || null,
-      next_due_date: nextDueDate.trim() || null,
     };
 
     try {
@@ -121,7 +118,6 @@ export default function EditPetVaccinationScreen() {
     administeredOn,
     administeredBy,
     lotNumber,
-    nextDueDate,
     isNew,
     vaccinationId,
     insertMut,
@@ -311,22 +307,12 @@ export default function EditPetVaccinationScreen() {
           </View>
 
           <View style={styles.expiryBlock}>
-            <Text style={styles.fieldLabel}>Next due</Text>
-            <ExpiryDateField
-              value={nextDueDate}
-              onChangeDate={setNextDueDate}
-              onClearDate={() => setNextDueDate("")}
-              placeholder="When is it due again?"
-            />
-          </View>
-
-          <View style={styles.expiryBlock}>
             <Text style={styles.fieldLabel}>Expires</Text>
             <ExpiryDateField
               value={expiresOn}
               onChangeDate={setExpiresOn}
               onClearDate={() => setExpiresOn("")}
-              placeholder="Expiry date"
+              placeholder="When it expires or is due again (for reminders)"
             />
           </View>
 

@@ -1,5 +1,6 @@
 import { prefetchPetsAndDetails } from "@/hooks/queries/prefetchPetsAndDetails";
 import {
+  crittrAiThreadKey,
   healthSnapshotKey,
   notificationsKey,
   pendingInvitesKey,
@@ -9,6 +10,7 @@ import {
 } from "@/hooks/queries/queryKeys";
 import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
+import { fetchCrittrAiThread } from "@/services/crittrAi";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
@@ -62,6 +64,11 @@ export function useLoggedInQueryBootstrap() {
     void queryClient.prefetchQuery({
       queryKey: healthSnapshotKey(userId),
       queryFn: () => fetchOwnerHealthSnapshot(userId),
+    });
+
+    void queryClient.prefetchQuery({
+      queryKey: crittrAiThreadKey(userId),
+      queryFn: () => fetchCrittrAiThread(userId),
     });
   }, [userId]);
 

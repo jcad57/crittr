@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import type { HelpCenterFaq } from "@/constants/helpCenterFaqs";
+import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -20,7 +20,7 @@ type FaqAccordionItemProps = {
   isLast: boolean;
 };
 
-function FaqAccordionItem({
+export function FaqAccordionItem({
   item,
   expanded,
   onToggle,
@@ -99,18 +99,20 @@ export default function FaqAccordion({
   onExpandedChange,
 }: FaqAccordionProps) {
   return (
-    <View style={styles.card}>
-      {items.map((item, index) => (
-        <FaqAccordionItem
-          key={item.id}
-          item={item}
-          expanded={expandedId === item.id}
-          onToggle={() =>
-            onExpandedChange(expandedId === item.id ? null : item.id)
-          }
-          isLast={index === items.length - 1}
-        />
-      ))}
+    <View>
+      <View style={styles.card}>
+        {items.map((item, index) => (
+          <FaqAccordionItem
+            key={item.id}
+            item={item}
+            expanded={expandedId === item.id}
+            onToggle={() =>
+              onExpandedChange(expandedId === item.id ? null : item.id)
+            }
+            isLast={index === items.length - 1}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -140,6 +142,7 @@ const styles = StyleSheet.create({
   headerRowPressed: {
     backgroundColor: Colors.gray50,
   },
+
   question: {
     flex: 1,
     fontFamily: Font.uiSemiBold,

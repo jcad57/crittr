@@ -1,4 +1,4 @@
-import CrittrAiAssistantMarkdown from "@/components/crittr-ai/CrittrAiAssistantMarkdown";
+import CrittrAiAssistantTypingReveal from "@/components/crittr-ai/CrittrAiAssistantTypingReveal";
 import { TypingBubble } from "@/components/screens/crittr-ai/TypingBubble";
 import { Colors } from "@/constants/colors";
 import { CRITTR_AI_WELCOME_ASSISTANT_TEXT } from "@/constants/crittrAiCopy";
@@ -19,6 +19,7 @@ import {
   type ComponentRef,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -91,6 +92,11 @@ export default function CrittrAiScreen() {
   const [optimisticUserText, setOptimisticUserText] = useState<string | null>(
     null,
   );
+  /** Assistant bubble that should type out after a successful send (not historical load). */
+  const [revealingAssistantMessageId, setRevealingAssistantMessageId] =
+    useState<string | null>(null);
+  const assistantIdsBeforeSendRef = useRef<Set<string>>(new Set());
+  const expectRevealAfterSuccessRef = useRef(false);
 
   const mutation = useMutation({
     mutationFn: (message: string) => {
@@ -102,6 +108,19 @@ export default function CrittrAiScreen() {
         message,
       });
     },
+    onMutate: () => {
+      const cached = userId
+        ? queryClient.getQueryData<CrittrAiThread>(crittrAiThreadKey(userId))
+        : undefined;
+      assistantIdsBeforeSendRef.current = new Set(
+        (cached?.messages ?? [])
+          .filter((m) => m.role === "assistant")
+          .map((m) => m.id),
+      );
+    },
+    onSuccess: () => {
+      expectRevealAfterSuccessRef.current = true;
+    },
     onSettled: async () => {
       if (userId) {
         await queryClient.invalidateQueries({
@@ -112,8 +131,31 @@ export default function CrittrAiScreen() {
     },
   });
 
-  const messages = thread?.messages ?? [];
+  const messages = useMemo(() => thread?.messages ?? [], [thread]);
   const showWelcome = messages.length === 0 && !optimisticUserText;
+
+  useEffect(() => {
+    if (!expectRevealAfterSuccessRef.current) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+    if (assistantIdsBeforeSendRef.current.has(last.id)) return;
+
+    expectRevealAfterSuccessRef.current = false;
+    setRevealingAssistantMessageId(last.id);
+  }, [messages]);
+
+  useEffect(() => {
+    if (
+      revealingAssistantMessageId &&
+      !messages.some((m) => m.id === revealingAssistantMessageId)
+    ) {
+      setRevealingAssistantMessageId(null);
+    }
+  }, [messages, revealingAssistantMessageId]);
+
+  const handleAssistantTypingComplete = useCallback(() => {
+    setRevealingAssistantMessageId(null);
+  }, []);
   const isBusy = mutation.isPending;
   const lastMsg = messages[messages.length - 1];
   const showOptimisticUser =
@@ -168,6 +210,8 @@ export default function CrittrAiScreen() {
           onPress: () => {
             void (async () => {
               try {
+                expectRevealAfterSuccessRef.current = false;
+                setRevealingAssistantMessageId(null);
                 await deleteCrittrAiConversationsForUser(userId);
                 setInput("");
                 setOptimisticUserText(null);
@@ -203,7 +247,11 @@ export default function CrittrAiScreen() {
           {msg.content}
         </Text>
       ) : (
-        <CrittrAiAssistantMarkdown markdown={msg.content} />
+        <CrittrAiAssistantTypingReveal
+          markdown={msg.content}
+          animate={revealingAssistantMessageId === msg.id}
+          onTypingComplete={handleAssistantTypingComplete}
+        />
       )}
     </View>
   );

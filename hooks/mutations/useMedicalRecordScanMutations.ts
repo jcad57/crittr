@@ -82,7 +82,6 @@ function toCreateVaccinationInput(
     administered_on: e.administered_on,
     administered_by: e.administered_by,
     lot_number: e.lot_number,
-    next_due_date: e.next_due_date,
   };
 }
 
@@ -97,7 +96,6 @@ function toUpdateVaccinationInput(
     administered_on: e.administered_on,
     administered_by: e.administered_by,
     lot_number: e.lot_number,
-    next_due_date: e.next_due_date,
   };
 }
 
