@@ -30,7 +30,6 @@ export default function VaccinationReadOnlyView({
       : "—";
   const expLabel = fmt(vaccination.expires_on);
   const administeredOnLabel = fmt(vaccination.administered_on);
-  const nextDueLabel = fmt(vaccination.next_due_date);
   return (
     <View style={[styles.screen, { paddingTop: insetsTop + 8 }]}>
       <View style={styles.nav}>
@@ -60,7 +59,6 @@ export default function VaccinationReadOnlyView({
           label="Date administered"
           value={administeredOnLabel}
         />
-        <ReadOnlyFieldRow label="Next due" value={nextDueLabel} />
         <ReadOnlyFieldRow label="Expires" value={expLabel} />
         <ReadOnlyFieldRow
           label="Administered by"

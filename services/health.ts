@@ -175,7 +175,6 @@ export type CreatePetVaccinationInput = {
   administered_on?: string | null;
   administered_by?: string | null;
   lot_number?: string | null;
-  next_due_date?: string | null;
 };
 
 function normalizeOptionalText(
@@ -203,7 +202,6 @@ export async function createPetVaccination(
       administered_on: input.administered_on ?? null,
       administered_by: normalizeOptionalText(input.administered_by),
       lot_number: normalizeOptionalText(input.lot_number),
-      next_due_date: input.next_due_date ?? null,
     })
     .select()
     .single();
@@ -220,7 +218,6 @@ export type UpdatePetVaccinationInput = {
   administered_on?: string | null;
   administered_by?: string | null;
   lot_number?: string | null;
-  next_due_date?: string | null;
 };
 
 export async function updatePetVaccination(
@@ -241,7 +238,6 @@ export async function updatePetVaccination(
       administered_on: input.administered_on ?? null,
       administered_by: normalizeOptionalText(input.administered_by),
       lot_number: normalizeOptionalText(input.lot_number),
-      next_due_date: input.next_due_date ?? null,
     })
     .eq("id", vaccinationId)
     .eq("pet_id", petId)

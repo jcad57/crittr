@@ -7,6 +7,7 @@ import {
   DOSAGE_TYPES,
   type SchedulePeriod,
 } from "@/constants/medicationEditForm";
+import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import { parseReminderTimeHHmm } from "@/utils/medicationSchedule";
 import type { MedicationDosePeriod, PetMedication } from "@/types/database";
 
@@ -39,9 +40,17 @@ export type MedicationEditDraft = {
   customIntervalUnit: MedicationDosePeriod;
   condition: string;
   notes: string;
-  reminderDate: Date;
+  reminderDates: Date[];
   lastGivenOn: string;
 };
+
+function reminderDatesFromMed(m: PetMedication): Date[] {
+  const times = getMedicationReminderTimes(m);
+  if (times.length > 0) {
+    return times.map((t) => parseReminderTimeHHmm(t));
+  }
+  return [parseReminderTimeHHmm(null)];
+}
 
 export function hydrateFromMed(m: PetMedication): MedicationEditDraft {
   const { amount, type } = splitDosage(m.dosage);
@@ -65,7 +74,7 @@ export function hydrateFromMed(m: PetMedication): MedicationEditDraft {
       customIntervalUnit: iu,
       condition: m.condition?.trim() ?? "",
       notes: m.notes?.trim() ?? "",
-      reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
+      reminderDates: reminderDatesFromMed(m),
       lastGivenOn: lastGivenOnFromDb(m.last_given_on),
     };
   }
@@ -81,7 +90,7 @@ export function hydrateFromMed(m: PetMedication): MedicationEditDraft {
     customIntervalUnit: "month",
     condition: m.condition?.trim() ?? "",
     notes: m.notes?.trim() ?? "",
-    reminderDate: parseReminderTimeHHmm(m.reminder_time ?? null),
+    reminderDates: reminderDatesFromMed(m),
     lastGivenOn: lastGivenOnFromDb(m.last_given_on),
   };
 }

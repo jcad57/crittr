@@ -16,7 +16,7 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import {
   captureMedicalPhoto,
   pickMedicalDocuments,
-  pickMedicalPhotoFromLibrary,
+  pickMedicalPhotosFromLibrary,
 } from "@/lib/medicalRecordMedia";
 import { createSignedPetInsuranceUrl } from "@/services/petInsurance";
 import { useAuthStore } from "@/stores/authStore";
@@ -136,14 +136,15 @@ export default function PetInsuranceScreen() {
 
   const onPickPhoto = useCallback(async () => {
     if (!petId || !userId || isInsured !== true) return;
-    const a = await pickMedicalPhotoFromLibrary();
-    if (!a) return;
-    await uploadMut.mutateAsync({
-      localUri: a.uri,
-      originalFilename: a.name,
-      mimeType: a.mimeType,
-      fileSizeBytes: a.size,
-    });
+    const picked = await pickMedicalPhotosFromLibrary();
+    for (const a of picked) {
+      await uploadMut.mutateAsync({
+        localUri: a.uri,
+        originalFilename: a.name,
+        mimeType: a.mimeType,
+        fileSizeBytes: a.size,
+      });
+    }
   }, [petId, userId, isInsured, uploadMut]);
 
   const onTakePhoto = useCallback(async () => {

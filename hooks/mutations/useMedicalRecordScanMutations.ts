@@ -61,6 +61,7 @@ function toMedicationInput(e: ExtractedMedication): UpdatePetMedicationInput {
     doses_per_period: e.doses_per_period,
     dose_period: e.dose_period,
     reminder_time: null,
+    reminder_times: null,
     interval_count: e.interval_count,
     interval_unit: e.interval_unit,
     last_given_on: e.last_given_on,
@@ -81,7 +82,6 @@ function toCreateVaccinationInput(
     administered_on: e.administered_on,
     administered_by: e.administered_by,
     lot_number: e.lot_number,
-    next_due_date: e.next_due_date,
   };
 }
 
@@ -96,7 +96,6 @@ function toUpdateVaccinationInput(
     administered_on: e.administered_on,
     administered_by: e.administered_by,
     lot_number: e.lot_number,
-    next_due_date: e.next_due_date,
   };
 }
 

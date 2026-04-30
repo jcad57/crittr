@@ -2,6 +2,7 @@ import {
   DEFAULT_ANDROID_CHANNEL_ID,
   getNotificationPermissionStatus,
 } from "@/lib/pushNotifications";
+import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/utils/petFood";
 import { supabase } from "@/lib/supabase";
 import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
@@ -114,30 +115,85 @@ async function scheduleMealsForFood(
   });
 }
 
-async function scheduleMedication(
+function formatMedicationBatchReminderBody(
+  petName: string,
+  medNames: string[],
+): string {
+  const sorted = [...medNames].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+  let namesPart: string;
+  if (sorted.length === 1) {
+    namesPart = sorted[0]!;
+  } else if (sorted.length === 2) {
+    namesPart = `${sorted[0]!} and ${sorted[1]!}`;
+  } else {
+    const last = sorted[sorted.length - 1]!;
+    namesPart = `${sorted.slice(0, -1).join(", ")}, and ${last}`;
+  }
+  const doseWord = sorted.length === 1 ? "dose" : "doses";
+  return `${petName}: time to give ${namesPart} (${doseWord} due in about ${MED_BEFORE_MIN} minutes).`;
+}
+
+/** One daily notification per distinct reminder time; multiple meds at the same time are combined. */
+async function scheduleMedicationsForPet(
   petName: string,
   petId: string,
-  med: PetMedication,
+  medications: PetMedication[],
 ): Promise<void> {
-  const t = parseReminderHHmm(med.reminder_time);
-  if (!t) return;
-  const { hour: h, minute: m } = addMinutes(t.hour, t.minute, -MED_BEFORE_MIN);
-  await Notifications.scheduleNotificationAsync({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${med.id}`,
-    content: {
-      title: "Medication reminder",
-      body: `${petName}: ${med.name.trim() || "Medication"} is due in ${MED_BEFORE_MIN} minutes.`,
-      data: { type: "medication_reminder", petId, medicationId: med.id },
-      ...(Platform.OS === "android"
-        ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-        : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: h,
-      minute: m,
-    },
-  });
+  type SlotMed = { medicationId: string; name: string };
+  const byTrigger = new Map<string, SlotMed[]>();
+
+  for (const med of medications) {
+    const slots = getMedicationReminderTimes(med);
+    const medName = med.name.trim() || "medication";
+    for (const slot of slots) {
+      const t = parseReminderHHmm(slot);
+      if (!t) continue;
+      const { hour: h, minute: m } = addMinutes(
+        t.hour,
+        t.minute,
+        -MED_BEFORE_MIN,
+      );
+      const key = `${h}-${m}`;
+      const list = byTrigger.get(key) ?? [];
+      if (!list.some((x) => x.medicationId === med.id)) {
+        list.push({ medicationId: med.id, name: medName });
+      }
+      byTrigger.set(key, list);
+    }
+  }
+
+  for (const [key, slotMeds] of byTrigger) {
+    const [hStr, mStr] = key.split("-");
+    const h = parseInt(hStr!, 10);
+    const m = parseInt(mStr!, 10);
+    const ids = slotMeds.map((x) => x.medicationId).sort();
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${petId}-${h}-${m}`,
+      content: {
+        title: "Medication reminder",
+        body: formatMedicationBatchReminderBody(
+          petName,
+          slotMeds.map((x) => x.name),
+        ),
+        data: {
+          type: "medication_reminder",
+          petId,
+          medicationIds: ids,
+          ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
+        },
+        ...(Platform.OS === "android"
+          ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
+          : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: h,
+        minute: m,
+      },
+    });
+  }
 }
 
 async function scheduleVetVisit(
@@ -269,9 +325,7 @@ export async function syncCrittrReminderNotifications(
 
   if (prefs.notify_medications) {
     for (const d of detailsList) {
-      for (const med of d.medications) {
-        await scheduleMedication(d.name, d.id, med);
-      }
+      await scheduleMedicationsForPet(d.name, d.id, d.medications);
     }
   }
 

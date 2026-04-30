@@ -11,7 +11,6 @@ export type VaccinationEditDraft = {
   administeredOn: string;
   administeredBy: string;
   lotNumber: string;
-  nextDueDate: string;
 };
 
 export function hydrateFromVaccination(
@@ -24,6 +23,5 @@ export function hydrateFromVaccination(
     administeredOn: v.administered_on?.trim() ?? "",
     administeredBy: v.administered_by?.trim() ?? "",
     lotNumber: v.lot_number?.trim() ?? "",
-    nextDueDate: v.next_due_date?.trim() ?? "",
   };
 }

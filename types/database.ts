@@ -142,8 +142,10 @@ export type PetMedication = {
   interval_count?: number | null;
   /** Pairs with interval_count: day | week | month. */
   interval_unit?: MedicationDosePeriod | null;
-  /** Local time HH:mm (24h) for reminders. */
+  /** Local time HH:mm (24h) for reminders — first slot; legacy single-time rows. */
   reminder_time?: string | null;
+  /** Multiple daily HH:mm times when the pet needs 2+ dose reminders; null if only `reminder_time`. */
+  reminder_times?: string[] | null;
   /** ISO date YYYY-MM-DD — last time the medication was given. */
   last_given_on?: string | null;
   /** When set, drives due badges on the Health hub. */
@@ -155,6 +157,7 @@ export type PetVaccination = {
   id: string;
   pet_id: string;
   name: string;
+  /** ISO YYYY-MM-DD — when the dose expires or is due again; drives due-soon reminders. */
   expires_on: string | null;
   frequency_label: string | null;
   notes: string | null;
@@ -164,8 +167,6 @@ export type PetVaccination = {
   administered_by?: string | null;
   /** Vaccine lot / batch number (migration 037). */
   lot_number?: string | null;
-  /** ISO YYYY-MM-DD — when the vaccine is next due (migration 037). Semantically clearer than `expires_on`. */
-  next_due_date?: string | null;
   created_at: string;
 };
 

@@ -68,7 +68,7 @@ export default function ManageActivityItemScreen() {
   }, [activity?.vet_visit_id, activity?.pet_id, activity, router]);
 
   const activePetId = usePetStore((s) => s.activePetId);
-  const setActivePetMutation = useSetActivePetMutation();
+  const { mutate: setActivePetMutate } = useSetActivePetMutation();
   const { data: petDetails } = usePetDetailsQuery(activity?.pet_id ?? null);
 
   const vetClinic = useMemo(() => {
@@ -111,7 +111,7 @@ export default function ManageActivityItemScreen() {
     }
 
     if (activity.pet_id && activity.pet_id !== activePetId) {
-      setActivePetMutation.mutate(activity.pet_id);
+      setActivePetMutate(activity.pet_id);
     }
 
     if (activity.vet_visit_id) {
@@ -150,7 +150,7 @@ export default function ManageActivityItemScreen() {
     vetClinic,
     hydrateFromActivity,
     reset,
-    setActivePetMutation,
+    setActivePetMutate,
   ]);
 
   useEffect(() => {

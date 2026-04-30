@@ -3,6 +3,7 @@ import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
 import type { PetMedication, PetWithDetails } from "@/types/database";
+import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import { ScrollView, View } from "react-native";
 
 type Props = {
@@ -18,6 +19,10 @@ export default function PetMedicationReadOnlyView({
   topInset,
   onBack,
 }: Props) {
+  const reminderTimes = getMedicationReminderTimes(med);
+  const reminderLabel =
+    reminderTimes.length > 0 ? reminderTimes.join(", ") : "—";
+
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
       <PetMedicationNavHeader
@@ -43,10 +48,7 @@ export default function PetMedicationReadOnlyView({
           value={med.condition?.trim() || ""}
         />
         <ReadOnlyFieldRow label="Notes" value={med.notes?.trim() || ""} />
-        <ReadOnlyFieldRow
-          label="Reminder time"
-          value={med.reminder_time?.trim() || "—"}
-        />
+        <ReadOnlyFieldRow label="Reminder time" value={reminderLabel} />
         <ReadOnlyFieldRow
           label="Last given"
           value={med.last_given_on?.trim() || "—"}
