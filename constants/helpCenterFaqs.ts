@@ -49,6 +49,13 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     answer:
       "Open Settings from your profile, then Push notifications. There you can adjust reminders and system permission, and open your device settings if needed.",
   },
+  {
+    id: "how-to-remove-a-pet",
+    question: "How do I remove a pet?",
+    category: "How To",
+    answer:
+      'From your pet\'s profile, tap "Visibility" at the bottom of the page. You will have two options: "Memorialize" or "Delete". If you select "Memorialize", the pet will be hidden from your dashboard and you will no longer be able to view it but your pet data will still be available. If you select "Delete", the pet will be removed from your account and you will no longer be able to view it.',
+  },
 
   {
     id: "feedback",
