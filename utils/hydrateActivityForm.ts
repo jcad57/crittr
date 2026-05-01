@@ -3,6 +3,7 @@ import {
   FOOD_ACTIVITY_OTHER_ID,
   type ExerciseFormData,
   type FoodActivityFormData,
+  type MaintenanceActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
   type PottyActivityFormData,
@@ -117,6 +118,15 @@ export function petActivityToPottyForm(a: PetActivity): PottyActivityFormData {
     pee: a.potty_pee === true,
     poo: a.potty_poo === true,
     location: a.location ?? "",
+    notes: a.notes ?? "",
+  };
+}
+
+export function petActivityToMaintenanceForm(
+  a: PetActivity,
+): MaintenanceActivityFormData {
+  return {
+    label: a.label?.trim() ? (a.label ?? "") : "Litter box cleaning",
     notes: a.notes ?? "",
   };
 }

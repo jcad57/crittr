@@ -12,6 +12,7 @@ import {
   type ActivityFilterCategory,
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
+import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";
 import type { PetSummary } from "@/types/ui";
 import {
   useAllActivitiesQuery,
@@ -76,6 +77,11 @@ export default function ActivityScreen() {
       return effectivePetId;
     }
     return (dbPets ?? []).find((p) => isPetActiveForDashboard(p))?.id ?? null;
+  }, [effectivePetId, dbPets]);
+
+  const activityPetType = useMemo(() => {
+    if (!effectivePetId || !dbPets?.length) return null;
+    return dbPets.find((p) => p.id === effectivePetId)?.pet_type ?? null;
   }, [effectivePetId, dbPets]);
 
   const canLogActivities = useCanPerformAction(
@@ -153,6 +159,13 @@ export default function ActivityScreen() {
   const [newestFirst, setNewestFirst] = useState(true);
   const [dateFilterYmd, setDateFilterYmd] = useState<string | null>(null);
 
+  useEffect(() => {
+    const allowed = new Set(
+      activityFilterMenuItems(activityPetType).map((x) => x.id),
+    );
+    if (!allowed.has(filter)) setFilter("all");
+  }, [activityPetType, filter]);
+
   const allEntries = useMemo(
     () =>
       convertActivities(rawActivities ?? [], loggerNameByUserId, currentUserId),
@@ -194,11 +207,15 @@ export default function ActivityScreen() {
       {weeklySummary ? (
         <>
           <Text style={styles.weekAtGlanceTitle}>Week at a glance</Text>
-          <ActivityWeeklySummaryStrip summary={weeklySummary} />
+          <ActivityWeeklySummaryStrip
+            summary={weeklySummary}
+            variant={activityPetType === "cat" ? "cat" : "default"}
+          />
         </>
       ) : null}
 
       <ActivityHistoryFilterBar
+        petType={activityPetType}
         filter={filter}
         onFilterChange={setFilter}
         newestFirst={newestFirst}
@@ -258,6 +275,7 @@ export default function ActivityScreen() {
           <View style={styles.rowWrap}>
             <ActivityHistoryRow
               entry={item}
+              petType={activityPetType}
               onPress={() => openActivityEditor(item.id)}
             />
           </View>

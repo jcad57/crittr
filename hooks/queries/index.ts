@@ -15,6 +15,8 @@ export {
   todayActivitiesForPetIdsPrefixKey,
   todayActivitiesKey,
   todayActivitiesPrefixKey,
+  activitiesSinceKey,
+  activitiesSincePrefixKey,
   coCarersForPetKey,
   sentInvitesForPetKey,
   pendingInvitesKey,
@@ -45,6 +47,7 @@ export {
   useAllActivitiesQuery,
   useActivityQuery,
 } from "./useActivitiesQuery";
+export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";
 export {
   useCoCarersForPetQuery,
   useSentInvitesForPetQuery,
@@ -75,6 +78,7 @@ export {
   useUpdatePetExerciseRequirementsMutation,
   useUpdatePetFoodMutation,
   useUpdatePetNameAndBreedMutation,
+  useUpdatePetLitterMaintenanceMutation,
 } from "../mutations/usePetProfileMutations";
 export {
   useDeletePetMutation,

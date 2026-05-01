@@ -52,9 +52,11 @@ function buildBody(
             ? "potty"
             : act.activity_type === "training"
               ? "training"
-              : act.activity_type === "vet_visit"
-                ? "a vet visit"
-                : "an activity";
+              : act.activity_type === "maintenance"
+                ? "litter box maintenance"
+                : act.activity_type === "vet_visit"
+                  ? "a vet visit"
+                  : "an activity";
   return `${actorName} logged ${kind} for ${petName}: ${act.label ?? ""}`.trim();
 }
 

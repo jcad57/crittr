@@ -2,6 +2,7 @@ import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
   ACTIVITY_ROW_ICONS,
+  resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
@@ -49,6 +50,10 @@ function buildRightValue(a: PetActivity): string {
     }
     case "potty":
       return pottyBreakSummary(a);
+    case "maintenance": {
+      const loc = a.location?.trim();
+      return loc ?? "";
+    }
     default:
       return "";
   }
@@ -58,11 +63,20 @@ type Props = {
   activity: PetActivity;
   /** Resolved display name / "You" / "Unknown"; shown under the title. */
   loggerName: string;
+  /** Active pet species — cats use the toy icon for exercise rows. */
+  petType?: string | null;
   onPress?: () => void;
 };
 
-export default function ActivityItem({ activity, loggerName, onPress }: Props) {
-  const iconCfg = ACTIVITY_ROW_ICONS[displayCategory(activity)];
+export default function ActivityItem({
+  activity,
+  loggerName,
+  petType = null,
+  onPress,
+}: Props) {
+  const category = displayCategory(activity);
+  const iconCfg = ACTIVITY_ROW_ICONS[category];
+  const iconSource = resolveActivityRowIconSource(category, petType);
   const rightVal = buildRightValue(activity);
   const time = formatTime(activity.logged_at);
   const hasNotes = !!activity.notes?.trim();
@@ -72,9 +86,11 @@ export default function ActivityItem({ activity, loggerName, onPress }: Props) {
     <>
       <View style={[styles.iconBox, { backgroundColor: iconCfg.track }]}>
         <Image
-          source={iconCfg.source}
+          source={iconSource}
           style={styles.iconImg}
-          tintColor={iconCfg.ring}
+          tintColor={
+            category === "maintenance" ? undefined : iconCfg.ring
+          }
         />
       </View>
 

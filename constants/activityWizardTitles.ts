@@ -16,6 +16,8 @@ export function addActivityNavTitle(
       return "Add training";
     case "potty":
       return "Log potty";
+    case "maintenance":
+      return "Log maintenance";
     default:
       return "Log activity";
   }
@@ -35,6 +37,8 @@ export function manageActivityNavTitle(t: string | null | undefined): string {
       return "Edit training";
     case "potty":
       return "Edit potty";
+    case "maintenance":
+      return "Edit maintenance";
     default:
       return "Edit activity";
   }

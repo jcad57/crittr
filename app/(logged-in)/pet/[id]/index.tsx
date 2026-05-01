@@ -4,6 +4,7 @@ import PetProfileNavBar from "@/components/petScreens/petProfile/PetProfileNavBa
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
+import PetCatLitterBlock from "@/components/ui/pet/PetCatLitterBlock";
 import PetExerciseRequirementsBlock from "@/components/ui/pet/PetExerciseRequirementsBlock";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
 import PetProfileHero from "@/components/ui/pet/PetProfileHero";
@@ -274,6 +275,13 @@ export default function PetProfilePage() {
           />
         ) : null}
 
+        {details?.pet_type === "cat" ? (
+          <PetCatLitterBlock
+            details={details}
+            canEdit={canEditProfile === true}
+          />
+        ) : null}
+
         <View style={styles.sectionHeaderRow}>
           <SectionLabel style={styles.sectionLabelInline}>Food</SectionLabel>
           {canManageFood && (
@@ -301,6 +309,7 @@ export default function PetProfilePage() {
                   name={f.brand?.trim() || "Food"}
                   subline={formatPetFoodPortionSubline(f)}
                   isTreat={isTreatFood(f)}
+                  petType={profile.pet_type ?? null}
                 />
               </TouchableOpacity>
             ))}

@@ -1,29 +1,33 @@
+import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 
-/** Same assets as `DailyProgress` meals / treats rings. */
-const MEAL_ICON = require("@/assets/icons/food-icon.png");
+/** Treats use the same bone asset as the treats ring (dog-centric treat cue). */
 const TREAT_ICON = require("@/assets/icons/dog-bone-icon.png");
 
 type PetFoodProfileCardProps = {
   name: string;
   subline: string;
   isTreat: boolean;
+  /** When cat, meal rows use the cat bowl (aligned with daily meals ring). */
+  petType?: string | null;
 };
 
 export default function PetFoodProfileCard({
   name,
   subline,
   isTreat,
+  petType = null,
 }: PetFoodProfileCardProps) {
+  const mealIcon = getMealsActivityIcon(petType);
   return (
     <View style={styles.card}>
       <View style={styles.iconBox}>
         <Image
-          source={isTreat ? TREAT_ICON : MEAL_ICON}
+          source={isTreat ? TREAT_ICON : mealIcon}
           style={styles.iconImage}
           contentFit="contain"
         />

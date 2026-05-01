@@ -4,6 +4,7 @@ import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSecti
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
+import PetCatLitterSection from "@/components/onboarding/petInfo/PetCatLitterSection";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
@@ -17,6 +18,7 @@ import {
 } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import type { LitterCleaningPeriod } from "@/types/database";
 import { useShallow } from "zustand/react/shallow";
 import { useAllergiesQuery, useBreedsQuery } from "@/hooks/queries";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
@@ -206,12 +208,31 @@ export default function PetDetailsStep() {
         <FormInput
           label="Number of activities per day"
           required
-          placeholder="Include walks, dog park visits, etc."
+          placeholder={
+            pet.petType === "cat"
+              ? "e.g. play time, laser pointer, wand toys"
+              : "Include walks, dog park visits, etc."
+          }
           value={pet.exercisesPerDay}
           onChangeText={(v) => updateCurrentPet({ exercisesPerDay: v })}
           keyboardType="numeric"
           containerStyle={styles.inputSpacing}
           error={!!err("exercisesPerDay")}
+        />
+      ) : null}
+
+      {pet.petType === "cat" ? (
+        <PetCatLitterSection
+          litterCleaningPeriod={pet.litterCleaningPeriod}
+          litterCleaningsPerPeriod={pet.litterCleaningsPerPeriod}
+          onPeriodChange={(p: LitterCleaningPeriod) =>
+            updateCurrentPet({ litterCleaningPeriod: p })
+          }
+          onCleaningsChange={(v) =>
+            updateCurrentPet({ litterCleaningsPerPeriod: v })
+          }
+          periodError={!!err("litterCleaningPeriod")}
+          cleaningsError={!!err("litterCleaningsPerPeriod")}
         />
       ) : null}
 

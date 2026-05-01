@@ -2,6 +2,7 @@ import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
   ACTIVITY_ROW_ICONS,
+  resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
@@ -12,21 +13,29 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Props = {
   entry: ActivityHistoryEntry;
+  petType?: string | null;
   /** When set, the row is tappable (e.g. open edit activity). */
   onPress?: () => void;
 };
 
-export default function ActivityHistoryRow({ entry, onPress }: Props) {
+export default function ActivityHistoryRow({
+  entry,
+  petType = null,
+  onPress,
+}: Props) {
   const cfg = ACTIVITY_ROW_ICONS[entry.category];
+  const iconSource = resolveActivityRowIconSource(entry.category, petType);
   const showChevron = !!onPress;
 
   const row = (
     <>
       <View style={[styles.iconBox, { backgroundColor: cfg.track }]}>
         <Image
-          source={cfg.source}
+          source={iconSource}
           style={styles.iconImg}
-          tintColor={cfg.ring}
+          tintColor={
+            entry.category === "maintenance" ? undefined : cfg.ring
+          }
         />
       </View>
 

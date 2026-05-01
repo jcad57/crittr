@@ -3,6 +3,7 @@ import {
   deletePetActivity,
   updateExerciseActivity,
   updateFoodActivity,
+  updateMaintenanceActivity,
   updateMedicationActivity,
   updatePottyActivity,
   updateTrainingActivity,
@@ -12,10 +13,12 @@ import {
   allActivitiesKey,
   petActivityQueryKey,
   todayActivitiesPrefixKey,
+  activitiesSincePrefixKey,
 } from "@/hooks/queries/queryKeys";
 import type {
   ExerciseFormData,
   FoodActivityFormData,
+  MaintenanceActivityFormData,
   MedicationActivityFormData,
   PottyActivityFormData,
   TrainingActivityFormData,
@@ -28,6 +31,9 @@ function invalidateActivityCaches(petId: string | null, activityId: string) {
   if (petId) {
     queryClient.invalidateQueries({ queryKey: todayActivitiesPrefixKey(petId) });
     queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+    queryClient.invalidateQueries({
+      queryKey: activitiesSincePrefixKey(petId),
+    });
   } else {
     /**
      * Only fall back to the bare prefix when the caller didn't pass a pet id;
@@ -124,6 +130,25 @@ export function useUpdatePottyActivityMutation(petId: string | null) {
       loggedAtIso?: string;
     }) =>
       updatePottyActivity(activityId, form, {
+        loggedAt: loggedAtIso,
+      }),
+    onSuccess: (_, { activityId }) =>
+      invalidateActivityCaches(petId, activityId),
+  });
+}
+
+export function useUpdateMaintenanceActivityMutation(petId: string | null) {
+  return useMutation({
+    mutationFn: ({
+      activityId,
+      form,
+      loggedAtIso,
+    }: {
+      activityId: string;
+      form: MaintenanceActivityFormData;
+      loggedAtIso?: string;
+    }) =>
+      updateMaintenanceActivity(activityId, form, {
         loggedAt: loggedAtIso,
       }),
     onSuccess: (_, { activityId }) =>

@@ -2,6 +2,7 @@ import {
   healthSnapshotKey,
   petDetailsQueryKey,
   petsQueryKey,
+  activitiesSincePrefixKey,
 } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
 import {
@@ -13,9 +14,11 @@ import {
 import {
   type UpdatePetDetailsInput,
   type UpdatePetExerciseRequirementsInput,
+  type UpdatePetLitterMaintenanceInput,
   type UpdatePetNameAndBreedInput,
   updatePetDetails,
   updatePetExerciseRequirements,
+  updatePetLitterMaintenance,
   updatePetNameAndBreed,
 } from "@/services/pets";
 import type { PetWithDetails } from "@/types/database";
@@ -121,6 +124,40 @@ export function useUpdatePetDetailsMutation(petId: string) {
           };
         },
       );
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+        void queryClient.invalidateQueries({
+          queryKey: healthSnapshotKey(userId),
+        });
+      }
+    },
+  });
+}
+
+export function useUpdatePetLitterMaintenanceMutation(petId: string) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: (fields: UpdatePetLitterMaintenanceInput) =>
+      updatePetLitterMaintenance(petId, fields),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PetWithDetails | null>(
+        petDetailsQueryKey(petId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...updated,
+            foods: old.foods,
+            medications: old.medications,
+            vaccinations: old.vaccinations,
+            exercise: old.exercise,
+          };
+        },
+      );
+      void queryClient.invalidateQueries({
+        queryKey: activitiesSincePrefixKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({

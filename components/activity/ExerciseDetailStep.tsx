@@ -24,6 +24,8 @@ const EXERCISE_TYPES = ["Walk", "Run", "Dog Park", "Home Playtime", "Other"];
 type Props = {
   onSave: () => Promise<void>;
   onBack: () => void;
+  /** When `cat`, exercise type is omitted (play-centric logging). */
+  petType?: string | null;
   /** @default "Save" */
   saveLabel?: string;
   embeddedInScreen?: boolean;
@@ -38,6 +40,7 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     {
       onSave,
       onBack,
+      petType = null,
       saveLabel = "Save",
       embeddedInScreen = false,
       hideEmbeddedSave = false,
@@ -45,6 +48,7 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const hideExerciseType = petType === "cat";
   const form = useActivityFormStore((s) => s.exerciseForm);
   const update = useActivityFormStore((s) => s.updateExercise);
   const exerciseExtraPetIds = useActivityFormStore(
@@ -79,11 +83,15 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     );
   }, [allPets, activePetId, exerciseExtraPetIds]);
 
+  const typeOk =
+    hideExerciseType ||
+    (form.exerciseType !== "" &&
+      (form.exerciseType !== "Other" ||
+        form.customExerciseType.trim().length > 0));
+
   const isValid =
     form.label.trim().length > 0 &&
-    form.exerciseType !== "" &&
-    (form.exerciseType !== "Other" ||
-      form.customExerciseType.trim().length > 0) &&
+    typeOk &&
     (form.durationHours.trim() !== "" || form.durationMinutes.trim() !== "");
 
   const handleSave = useCallback(async () => {
@@ -114,16 +122,6 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     : styles.fieldLabel;
   const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
 
-  const exerciseTypeError = attempted && !form.exerciseType;
-  const durationError =
-    attempted &&
-    !form.durationHours.trim() &&
-    !form.durationMinutes.trim();
-  const customTypeError =
-    attempted &&
-    form.exerciseType === "Other" &&
-    !form.customExerciseType.trim();
-
   return (
     <View style={embeddedInScreen ? styles.containerEmbedded : styles.container}>
       {!embeddedInScreen ? (
@@ -140,25 +138,29 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
         error={attempted && !form.label.trim()}
       />
 
-      <Text style={fieldLabelStyle}>Exercise type *</Text>
-      <View style={{ zIndex: 80, marginBottom: 12 }}>
-        <DropdownSelect
-          placeholder="Select type"
-          value={form.exerciseType}
-          options={EXERCISE_TYPES}
-          onSelect={(v) => update({ exerciseType: v })}
-        />
-      </View>
+      {!hideExerciseType ? (
+        <>
+          <Text style={fieldLabelStyle}>Exercise type *</Text>
+          <View style={{ zIndex: 80, marginBottom: 12 }}>
+            <DropdownSelect
+              placeholder="Select type"
+              value={form.exerciseType}
+              options={EXERCISE_TYPES}
+              onSelect={(v) => update({ exerciseType: v })}
+            />
+          </View>
 
-      {form.exerciseType === "Other" && (
-        <FormInput
-          placeholder="Custom exercise type"
-          value={form.customExerciseType}
-          onChangeText={(v) => update({ customExerciseType: v })}
-          containerStyle={blockSpacing}
-          error={attempted && !form.customExerciseType.trim()}
-        />
-      )}
+          {form.exerciseType === "Other" && (
+            <FormInput
+              placeholder="Custom exercise type"
+              value={form.customExerciseType}
+              onChangeText={(v) => update({ customExerciseType: v })}
+              containerStyle={blockSpacing}
+              error={attempted && !form.customExerciseType.trim()}
+            />
+          )}
+        </>
+      ) : null}
 
       <Text style={fieldLabelStyle}>Duration *</Text>
       <View style={styles.row}>

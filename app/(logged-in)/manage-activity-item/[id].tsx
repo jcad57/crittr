@@ -9,6 +9,7 @@ import {
   useDeleteActivityMutation,
   useUpdateExerciseActivityMutation,
   useUpdateFoodActivityMutation,
+  useUpdateMaintenanceActivityMutation,
   useUpdateMedicationActivityMutation,
   useUpdatePottyActivityMutation,
   useUpdateTrainingActivityMutation,
@@ -92,6 +93,7 @@ export default function ManageActivityItemScreen() {
   const vetForm = useActivityFormStore((s) => s.vetVisitForm);
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
   const pottyForm = useActivityFormStore((s) => s.pottyForm);
+  const maintenanceForm = useActivityFormStore((s) => s.maintenanceForm);
   const activityType = useActivityFormStore((s) => s.activityType);
   const userId = useAuthStore((s) => s.session?.user?.id);
 
@@ -109,6 +111,7 @@ export default function ManageActivityItemScreen() {
   const updateVet = useUpdateVetVisitActivityMutation(petId);
   const updateTraining = useUpdateTrainingActivityMutation(petId);
   const updatePotty = useUpdatePottyActivityMutation(petId);
+  const updateMaintenance = useUpdateMaintenanceActivityMutation(petId);
   const deleteMut = useDeleteActivityMutation(petId);
 
   const [hydrated, setHydrated] = useState(false);
@@ -224,6 +227,18 @@ export default function ManageActivityItemScreen() {
     finish();
   }, [activityId, updatePotty, pottyForm, finish]);
 
+  const saveMaintenance = useCallback(async () => {
+    if (!activityId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString();
+    await updateMaintenance.mutateAsync({
+      activityId,
+      form: maintenanceForm,
+      loggedAtIso,
+    });
+    finish();
+  }, [activityId, updateMaintenance, maintenanceForm, finish]);
+
   const goBack = useCallback(() => {
     reset();
     router.back();
@@ -254,7 +269,8 @@ export default function ManageActivityItemScreen() {
     updateMed.isPending ||
     updateVet.isPending ||
     updateTraining.isPending ||
-    updatePotty.isPending;
+    updatePotty.isPending ||
+    updateMaintenance.isPending;
   const busy = saving || deleteMut.isPending;
 
   const loggedAtLabel = activity
@@ -361,6 +377,7 @@ export default function ManageActivityItemScreen() {
               activityType={activityType}
               stepRef={stepRef}
               saveLabel={SAVE_LABEL}
+              petType={avatarDisplayPet?.pet_type ?? null}
               showBatchPets={false}
               onBack={goBack}
               onSaveExercise={saveExercise}
@@ -368,6 +385,7 @@ export default function ManageActivityItemScreen() {
               onSaveMedication={saveMed}
               onSaveTraining={saveTraining}
               onSavePotty={savePotty}
+              onSaveMaintenance={saveMaintenance}
               onSaveVetVisit={saveVet}
             />
           </View>

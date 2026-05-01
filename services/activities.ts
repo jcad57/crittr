@@ -5,6 +5,7 @@ import {
   FOOD_ACTIVITY_OTHER_ID,
   type ExerciseFormData,
   type FoodActivityFormData,
+  type MaintenanceActivityFormData,
   type MedicationActivityFormData,
   type PetActivity,
   type PottyActivityFormData,
@@ -45,6 +46,21 @@ export async function fetchTodayActivities(
     .select("*")
     .eq("pet_id", petId)
     .gte("logged_at", startOfDay.toISOString())
+    .order("logged_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as PetActivity[];
+}
+
+export async function fetchActivitiesSince(
+  petId: string,
+  sinceIso: string,
+): Promise<PetActivity[]> {
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .select("*")
+    .eq("pet_id", petId)
+    .gte("logged_at", sinceIso)
     .order("logged_at", { ascending: false });
 
   if (error) throw error;
@@ -304,6 +320,32 @@ export async function logPotty(
   return data as PetActivity;
 }
 
+export async function logMaintenance(
+  petId: string,
+  userId: string,
+  form: MaintenanceActivityFormData,
+  options?: LogActivityOptions,
+): Promise<PetActivity> {
+  const label = form.label.trim() || "Litter box cleaning";
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .insert({
+      pet_id: petId,
+      logged_by: userId,
+      activity_type: "maintenance",
+      label,
+      location: null,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  requestRemoteCoCarerActivityPush(data.id);
+  return data as PetActivity;
+}
+
 export async function logTraining(
   petId: string,
   userId: string,
@@ -462,6 +504,28 @@ export async function updatePottyActivity(
       potty_pee: form.pee,
       potty_poo: form.poo,
       location: form.location.trim() || null,
+      notes: form.notes.trim() || null,
+      ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
+    })
+    .eq("id", activityId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PetActivity;
+}
+
+export async function updateMaintenanceActivity(
+  activityId: string,
+  form: MaintenanceActivityFormData,
+  options?: { loggedAt?: string },
+): Promise<PetActivity> {
+  const label = form.label.trim() || "Litter box cleaning";
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .update({
+      label,
+      location: null,
       notes: form.notes.trim() || null,
       ...(options?.loggedAt ? { logged_at: options.loggedAt } : {}),
     })

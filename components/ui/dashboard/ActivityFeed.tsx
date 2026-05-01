@@ -29,6 +29,7 @@ const GAP = 8;
 
 type ActivityFeedProps = {
   activities: PetActivity[];
+  petType?: string | null;
   onLogActivityPress?: () => void;
   onSeeAllPress?: () => void;
   /** When false, hide log CTAs (e.g. co-carer without can_log_activities). */
@@ -37,6 +38,7 @@ type ActivityFeedProps = {
 
 export default function ActivityFeed({
   activities,
+  petType = null,
   onLogActivityPress,
   onSeeAllPress,
   showLogActivity = true,
@@ -141,6 +143,7 @@ export default function ActivityFeed({
         renderItem={({ item }) => (
           <ActivityItem
             activity={item}
+            petType={petType}
             loggerName={resolveActivityLoggerLabel(
               item.logged_by,
               nameByUserId,

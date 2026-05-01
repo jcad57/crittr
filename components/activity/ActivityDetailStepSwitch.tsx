@@ -1,6 +1,7 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ExerciseDetailStep from "@/components/activity/ExerciseDetailStep";
 import FoodDetailStep from "@/components/activity/FoodDetailStep";
+import MaintenanceDetailStep from "@/components/activity/MaintenanceDetailStep";
 import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
 import PottyDetailStep from "@/components/activity/PottyDetailStep";
 import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
@@ -12,6 +13,8 @@ type Props = {
   activityType: ActivityType | null;
   stepRef: MutableRefObject<ActivityDetailStepRef | null>;
   saveLabel: string;
+  /** Primary pet species — hides dog-centric exercise fields for cats. */
+  petType?: string | null;
   /** Forwarded to exercise/food/medication steps (defaults to true inside each step). */
   showBatchPets?: boolean;
   onBack: () => void;
@@ -20,6 +23,7 @@ type Props = {
   onSaveMedication: () => Promise<void>;
   onSaveTraining: () => Promise<void>;
   onSavePotty: () => Promise<void>;
+  onSaveMaintenance?: () => Promise<void>;
   /** Only supported in the edit flow — add flow never hits vet_visit. */
   onSaveVetVisit?: () => Promise<void>;
 };
@@ -28,6 +32,7 @@ export default function ActivityDetailStepSwitch({
   activityType,
   stepRef,
   saveLabel,
+  petType = null,
   showBatchPets,
   onBack,
   onSaveExercise,
@@ -35,12 +40,14 @@ export default function ActivityDetailStepSwitch({
   onSaveMedication,
   onSaveTraining,
   onSavePotty,
+  onSaveMaintenance,
   onSaveVetVisit,
 }: Props) {
   if (activityType === "exercise") {
     return (
       <ExerciseDetailStep
         ref={stepRef}
+        petType={petType}
         onSave={onSaveExercise}
         onBack={onBack}
         saveLabel={saveLabel}
@@ -93,6 +100,18 @@ export default function ActivityDetailStepSwitch({
       <PottyDetailStep
         ref={stepRef}
         onSave={onSavePotty}
+        onBack={onBack}
+        saveLabel={saveLabel}
+        embeddedInScreen
+        hideEmbeddedSave
+      />
+    );
+  }
+  if (activityType === "maintenance" && onSaveMaintenance) {
+    return (
+      <MaintenanceDetailStep
+        ref={stepRef}
+        onSave={onSaveMaintenance}
         onBack={onBack}
         saveLabel={saveLabel}
         embeddedInScreen

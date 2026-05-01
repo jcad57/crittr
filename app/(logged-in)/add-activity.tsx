@@ -10,6 +10,7 @@ import { Colors } from "@/constants/colors";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,
+  useLogMaintenanceMutation,
   useLogMedicationMutation,
   useLogPottyMutation,
   useLogTrainingMutation,
@@ -69,6 +70,7 @@ export default function AddActivityScreen() {
   const medForm = useActivityFormStore((s) => s.medicationForm);
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
   const pottyForm = useActivityFormStore((s) => s.pottyForm);
+  const maintenanceForm = useActivityFormStore((s) => s.maintenanceForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
@@ -98,6 +100,7 @@ export default function AddActivityScreen() {
   const medMut = useLogMedicationMutation();
   const trainingMut = useLogTrainingMutation(activePetId);
   const pottyMut = useLogPottyMutation(activePetId);
+  const maintenanceMut = useLogMaintenanceMutation(activePetId);
 
   const scrollKey = `${step}-${activityType ?? "none"}`;
 
@@ -232,12 +235,25 @@ export default function AddActivityScreen() {
     await finish();
   }, [pottyMut, pottyForm, activePetId, finish]);
 
+  const saveMaintenance = useCallback(async () => {
+    if (!activePetId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
+    await maintenanceMut.mutateAsync({
+      form: maintenanceForm,
+      loggedAtIso,
+    });
+    await finish();
+  }, [maintenanceMut, maintenanceForm, activePetId, finish]);
+
   const saving =
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||
     trainingMut.isPending ||
-    pottyMut.isPending;
+    pottyMut.isPending ||
+    maintenanceMut.isPending;
 
   const navTitle = addActivityNavTitle(step, activityType);
 
@@ -332,7 +348,11 @@ export default function AddActivityScreen() {
             style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
           >
             <View>
-              <ActivityTypeStep selected={activityType} onSelect={selectType} />
+              <ActivityTypeStep
+                petType={primaryPetForLog?.pet_type}
+                selected={activityType}
+                onSelect={selectType}
+              />
             </View>
 
             <View style={[styles.actionsBlock, styles.actionsAfterTypeGrid]}>
@@ -370,12 +390,14 @@ export default function AddActivityScreen() {
                 activityType={activityType}
                 stepRef={stepRef}
                 saveLabel={SAVE_LABEL}
+                petType={primaryPetForLog?.pet_type ?? null}
                 onBack={goBack}
                 onSaveExercise={saveExercise}
                 onSaveFood={saveFood}
                 onSaveMedication={saveMed}
                 onSaveTraining={saveTraining}
                 onSavePotty={savePotty}
+                onSaveMaintenance={saveMaintenance}
               />
             </View>
 

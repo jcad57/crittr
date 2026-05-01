@@ -23,8 +23,10 @@ import {
   usePetsQuery,
   useTodayActivitiesQuery,
   useUnreadNotificationCountQuery,
+  useActivitiesSinceQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import {
   AUTH_CONTENT_MAX_WIDTH,
   useResponsiveUi,
@@ -43,6 +45,7 @@ import {
 } from "@/utils/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
+import { maintenancePeriodStart } from "@/utils/litterMaintenancePeriod";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
@@ -98,6 +101,27 @@ export default function Dashboard() {
     refetch: refetchVetVisits,
   } = usePetVetVisitsQuery(activePetId ?? undefined);
 
+  const localYmd = useLocalCalendarYmd();
+  const litterPeriod = activePetDetails?.litter_cleaning_period;
+  const needsMaintWindow =
+    activePetDetails?.pet_type === "cat" &&
+    !!litterPeriod &&
+    litterPeriod !== "day";
+
+  const maintenanceSinceIso = useMemo(() => {
+    if (!needsMaintWindow || !litterPeriod) return null;
+    return maintenancePeriodStart(litterPeriod).toISOString();
+  }, [needsMaintWindow, litterPeriod, localYmd]);
+
+  const {
+    data: maintenanceWindowActs = [],
+    isPending: maintenanceWindowPending,
+  } = useActivitiesSinceQuery(
+    activePetId,
+    maintenanceSinceIso,
+    Boolean(activePetId && needsMaintWindow && maintenanceSinceIso),
+  );
+
   const pets: PetSummary[] = useMemo(
     () =>
       (dbPets ?? [])
@@ -114,6 +138,7 @@ export default function Dashboard() {
   const dailyProgress: DailyProgressCategory[] = useMemo(() => {
     const details = activePetDetails ?? null;
     const acts = todayActivities ?? [];
+    const isCatProgress = details?.pet_type === "cat";
 
     const totalMeals = details
       ? details.foods
@@ -146,45 +171,85 @@ export default function Dashboard() {
       (a) => a.activity_type === "food" && a.is_treat,
     ).length;
 
+    const maintSourceActs =
+      isCatProgress &&
+      details?.litter_cleaning_period &&
+      details.litter_cleaning_period !== "day"
+        ? maintenanceWindowActs
+        : acts;
+    const currentMaintenance = maintSourceActs.filter(
+      (a) => a.activity_type === "maintenance",
+    ).length;
+    const totalMaintenance = Math.max(
+      0,
+      details?.litter_cleanings_per_period ?? 0,
+    );
+
+    const exerciseRing: DailyProgressCategory = {
+      id: "exercise",
+      label: "Exercise",
+      icon: "run",
+      current: currentExercise,
+      total: totalExercise,
+      ringColor: Colors.progressExercise,
+      trackColor: Colors.progressExerciseTrack,
+    };
+    const mealsRing: DailyProgressCategory = {
+      id: "meals",
+      label: "Meals",
+      icon: "food-drumstick",
+      current: currentMeals,
+      total: totalMeals,
+      ringColor: Colors.progressMeals,
+      trackColor: Colors.progressMealsTrack,
+    };
+    const medsRing: DailyProgressCategory = {
+      id: "meds",
+      label: "Meds",
+      icon: "pill",
+      current: currentMeds,
+      total: hasMeds ? totalMedsRing : 0,
+      ringColor: Colors.progressMeds,
+      trackColor: Colors.progressMedsTrack,
+    };
+
+    if (!isCatProgress) {
+      return [
+        exerciseRing,
+        mealsRing,
+        {
+          id: "treats",
+          label: "Treats",
+          icon: "bone",
+          current: currentTreats,
+          total: totalTreats,
+          ringColor: Colors.progressTreats,
+          trackColor: Colors.progressTreatsTrack,
+        },
+        medsRing,
+      ];
+    }
+
     return [
+      exerciseRing,
+      mealsRing,
       {
-        id: "exercise",
-        label: "Exercise",
-        icon: "run",
-        current: currentExercise,
-        total: totalExercise,
-        ringColor: Colors.progressExercise,
-        trackColor: Colors.progressExerciseTrack,
-      },
-      {
-        id: "meals",
-        label: "Meals",
-        icon: "food-drumstick",
-        current: currentMeals,
-        total: totalMeals,
-        ringColor: Colors.progressMeals,
-        trackColor: Colors.progressMealsTrack,
-      },
-      {
-        id: "treats",
-        label: "Treats",
-        icon: "bone",
-        current: currentTreats,
-        total: totalTreats,
+        id: "maintenance",
+        label: "Maintenance",
+        icon: "broom",
+        current: currentMaintenance,
+        total: totalMaintenance,
         ringColor: Colors.progressTreats,
         trackColor: Colors.progressTreatsTrack,
       },
-      {
-        id: "meds",
-        label: "Meds",
-        icon: "pill",
-        current: currentMeds,
-        total: hasMeds ? totalMedsRing : 0,
-        ringColor: Colors.progressMeds,
-        trackColor: Colors.progressMedsTrack,
-      },
+      medsRing,
     ];
-  }, [activePetDetails, todayActivities, activePetId]);
+  }, [
+    activePetDetails,
+    todayActivities,
+    activePetId,
+    maintenanceWindowActs,
+  ]);
 
   const dailyProgressAllComplete = useMemo(
     () => isDailyProgressComplete(dailyProgress),
@@ -317,7 +382,10 @@ export default function Dashboard() {
   ]);
 
   const showDailyProgressSkeleton =
-    Boolean(activePetId) && (detailsPending || todayActivitiesPending);
+    Boolean(activePetId) &&
+    (detailsPending ||
+      todayActivitiesPending ||
+      (needsMaintWindow && maintenanceWindowPending));
   const showActivitySkeleton =
     Boolean(activePetId) && todayActivitiesPending;
   const showHealthSkeleton =
@@ -382,6 +450,7 @@ export default function Dashboard() {
                 ) : (
                   <DailyProgress
                     categories={dailyProgress}
+                    petType={activePetDetails?.pet_type ?? null}
                     allComplete={dailyProgressAllComplete}
                   />
                 )}
@@ -393,6 +462,7 @@ export default function Dashboard() {
             ) : (
               <ActivityFeed
                 activities={todayActivities ?? []}
+                petType={activePetDetails?.pet_type ?? null}
                 onLogActivityPress={navigateToAddActivity}
                 onSeeAllPress={navigateToActivity}
                 showLogActivity={canLogActivities === true}

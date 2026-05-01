@@ -84,6 +84,10 @@ export type Pet = {
   /** When true, pet stays in My Pets for remembrance; excluded from dashboard & active selection. */
   is_memorialized?: boolean;
   memorialized_at?: string | null;
+  /** Cats: goal interval for litter cleanings (daily progress “Maintenance”). */
+  litter_cleaning_period?: LitterCleaningPeriod | null;
+  /** Cats: number of cleanings expected per `litter_cleaning_period`. */
+  litter_cleanings_per_period?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -116,6 +120,9 @@ export type PetFood = {
 };
 
 export type MedicationDosePeriod = "day" | "week" | "month";
+
+/** Litter box cleaning goal interval (cats). Mirrors `pets.litter_cleaning_period`. */
+export type LitterCleaningPeriod = "day" | "week" | "month";
 
 /**
  * Pet profile medication — mirrors `public.pet_medications`.
@@ -329,7 +336,8 @@ export type ActivityType =
   | "medication"
   | "vet_visit"
   | "training"
-  | "potty";
+  | "potty"
+  | "maintenance";
 
 export type PetActivity = {
   id: string;
@@ -430,6 +438,12 @@ export type PottyActivityFormData = {
   pee: boolean;
   poo: boolean;
   location: string;
+  notes: string;
+};
+
+/** Litter box / upkeep — time via `activityOccurredAt`. */
+export type MaintenanceActivityFormData = {
+  label: string;
   notes: string;
 };
 
@@ -536,6 +550,10 @@ export type PetFormData = {
   isInsured: boolean | null;
   insuranceProvider: string;
   insurancePolicyNumber: string;
+  /** Cats: litter goal interval (required in onboarding for cats). */
+  litterCleaningPeriod: LitterCleaningPeriod | "";
+  /** Cats: cleanings per interval, e.g. "2". */
+  litterCleaningsPerPeriod: string;
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
@@ -566,4 +584,6 @@ export const EMPTY_PET_FORM: PetFormData = {
   isInsured: false,
   insuranceProvider: "",
   insurancePolicyNumber: "",
+  litterCleaningPeriod: "",
+  litterCleaningsPerPeriod: "",
 };

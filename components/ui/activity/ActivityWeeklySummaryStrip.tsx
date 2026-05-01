@@ -6,6 +6,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 type Props = {
   summary: WeeklyActivitySummary;
+  /** Cats: third column shows litter maintenance counts instead of treats. */
+  variant?: "default" | "cat";
 };
 
 const greenFooter = "#15803D";
@@ -14,8 +16,12 @@ const coralNudge = Colors.signOutCoral;
 /** Worse than last week — fewer walks */
 const negativeDelta = Colors.error;
 
-export default function ActivityWeeklySummaryStrip({ summary }: Props) {
-  const treatsOver = summary.treats > summary.weeklyTreatLimit;
+export default function ActivityWeeklySummaryStrip({
+  summary,
+  variant = "default",
+}: Props) {
+  const treatsOver =
+    variant !== "cat" && summary.treats > summary.weeklyTreatLimit;
   const treatFooter = treatsOver
     ? `${summary.treats - summary.weeklyTreatLimit} limit`
     : "On track";
@@ -89,24 +95,36 @@ export default function ActivityWeeklySummaryStrip({ summary }: Props) {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={[styles.value, treatsOver && styles.valueCoral]}>
-          {summary.treats}
-        </Text>
-        <Text style={styles.label}>Treats</Text>
-        <View style={styles.footerRow}>
-          {treatsOver ? (
-            <MaterialCommunityIcons
-              name="arrow-up"
-              size={12}
-              color={coralNudge}
-            />
-          ) : null}
-          <Text style={[styles.footer, { color: treatFooterColor }]}>
-            {treatFooter}
-          </Text>
+      {variant === "cat" ? (
+        <View style={styles.card}>
+          <Text style={styles.value}>{summary.maintenanceThisWeek}</Text>
+          <Text style={styles.label}>Maintenance</Text>
+          <View style={styles.footerRow}>
+            <Text style={[styles.footer, { color: greenFooter }]}>
+              This week
+            </Text>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={[styles.value, treatsOver && styles.valueCoral]}>
+            {summary.treats}
+          </Text>
+          <Text style={styles.label}>Treats</Text>
+          <View style={styles.footerRow}>
+            {treatsOver ? (
+              <MaterialCommunityIcons
+                name="arrow-up"
+                size={12}
+                color={coralNudge}
+              />
+            ) : null}
+            <Text style={[styles.footer, { color: treatFooterColor }]}>
+              {treatFooter}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

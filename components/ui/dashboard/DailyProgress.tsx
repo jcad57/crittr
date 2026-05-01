@@ -1,20 +1,16 @@
+import { getDailyProgressRingIcons } from "@/constants/activityTypeProgressIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import type { DailyProgressCategory } from "@/types/ui";
-import { Image, ImageSource } from "expo-image";
+import { Image } from "expo-image";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import ProgressRing from "./ProgressRing";
 
-// Category ID → icon asset. Kept here so the data model stays plain.
-const CATEGORY_ICONS: Record<string, ImageSource> = {
-  exercise: require("@/assets/icons/walk-dog-icon.png"),
-  meals: require("@/assets/icons/food-icon.png"),
-  treats: require("@/assets/icons/dog-bone-icon.png"),
-  meds: require("@/assets/icons/medicine-icon.png"),
-};
-
 type DailyProgressProps = {
   categories: DailyProgressCategory[];
+  /** Active pet species — cats use the play/exercise toy icon on the exercise ring. */
+  petType?: string | null;
   /** All categories with goals satisfied — unified green rings + celebratory styling. */
   allComplete?: boolean;
 };
@@ -25,13 +21,19 @@ const STROKE_WIDTH = 8;
 /** Progress rings only — parent supplies the section label and card chrome. */
 export default function DailyProgress({
   categories,
+  petType = null,
   allComplete = false,
 }: DailyProgressProps) {
+  const ringIcons = useMemo(
+    () => getDailyProgressRingIcons(petType),
+    [petType],
+  );
+
   return (
     <View style={styles.row}>
       {categories.map((cat) => {
         const progress = cat.total > 0 ? cat.current / cat.total : 0;
-        const iconSource = CATEGORY_ICONS[cat.id];
+        const iconSource = ringIcons[cat.id];
         const targetMet = cat.total > 0 && cat.current >= cat.total;
         const ringColor = allComplete
           ? Colors.progressCompleteRing
@@ -48,7 +50,9 @@ export default function DailyProgress({
               color={ringColor}
               trackColor={trackColor}
             >
-              {iconSource && <Image source={iconSource} style={styles.icon} />}
+              {iconSource ? (
+                <Image source={iconSource} style={styles.icon} />
+              ) : null}
             </ProgressRing>
             <Text
               style={[

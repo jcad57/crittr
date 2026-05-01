@@ -174,6 +174,7 @@ export default function PetFoodManagerScreen() {
                     name={f.brand?.trim() || "Food"}
                     subline={formatPetFoodPortionSubline(f)}
                     isTreat={isTreatFood(f)}
+                    petType={details?.pet_type ?? null}
                   />
                 </Pressable>
                 {canEditFood ? (

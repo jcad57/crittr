@@ -9,7 +9,8 @@ export type ActivityDisplayCategory =
   | "meds"
   | "vet_visit"
   | "training"
-  | "potty";
+  | "potty"
+  | "maintenance";
 
 export type ActivityFilterCategory = "all" | ActivityDisplayCategory;
 
@@ -33,6 +34,7 @@ export type WeeklyActivitySummary = {
   mealsDeltaVsLastWeek: number;
   treats: number;
   weeklyTreatLimit: number;
+  maintenanceThisWeek: number;
 };
 
 function pad2(n: number): string {
@@ -76,6 +78,8 @@ export function displayCategory(a: PetActivity): ActivityDisplayCategory {
       return "training";
     case "potty":
       return "potty";
+    case "maintenance":
+      return "maintenance";
   }
 }
 
@@ -107,6 +111,10 @@ function buildPrimaryStat(a: PetActivity): string {
     }
     case "potty":
       return pottyBreakSummary(a);
+    case "maintenance": {
+      const loc = a.location?.trim();
+      return loc ?? "";
+    }
   }
 }
 
@@ -238,6 +246,7 @@ export function computeWeeklySummary(
   let thisWeekMeals = 0;
   let lastWeekMeals = 0;
   let thisWeekTreats = 0;
+  let thisWeekMaintenance = 0;
 
   for (const a of activities) {
     const ts = new Date(a.logged_at);
@@ -255,6 +264,9 @@ export function computeWeeklySummary(
     if (a.activity_type === "food" && a.is_treat && isThisWeek) {
       thisWeekTreats++;
     }
+    if (a.activity_type === "maintenance" && isThisWeek) {
+      thisWeekMaintenance++;
+    }
   }
 
   const walksDelta = thisWeekWalks - lastWeekWalks;
@@ -267,5 +279,6 @@ export function computeWeeklySummary(
     mealsDeltaVsLastWeek: mealsDelta,
     treats: thisWeekTreats,
     weeklyTreatLimit: 5,
+    maintenanceThisWeek: thisWeekMaintenance,
   };
 }

@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type {
   CoCarePermissions,
+  LitterCleaningPeriod,
   Pet,
   PetFormData,
   PetWithDetails,
@@ -76,6 +77,17 @@ export async function createPet(
         ? parseInt(petData.exercisesPerDay, 10)
         : null,
       allergies: petData.allergies,
+      litter_cleaning_period:
+        petData.petType === "cat" &&
+        (petData.litterCleaningPeriod === "day" ||
+          petData.litterCleaningPeriod === "week" ||
+          petData.litterCleaningPeriod === "month")
+          ? petData.litterCleaningPeriod
+          : null,
+      litter_cleanings_per_period:
+        petData.petType === "cat" && petData.litterCleaningsPerPeriod.trim() !== ""
+          ? parseInt(petData.litterCleaningsPerPeriod.trim(), 10)
+          : null,
       avatar_url: avatarUrl,
       is_microchipped: petData.isMicrochipped,
       microchip_number:
@@ -337,6 +349,11 @@ export type UpdatePetExerciseRequirementsInput = {
   exercises_per_day: number | null;
 };
 
+export type UpdatePetLitterMaintenanceInput = {
+  litter_cleaning_period: LitterCleaningPeriod;
+  litter_cleanings_per_period: number;
+};
+
 export async function updatePetDetails(
   petId: string,
   fields: UpdatePetDetailsInput,
@@ -381,6 +398,24 @@ export async function updatePetExerciseRequirements(
     .update({
       energy_level: fields.energy_level,
       exercises_per_day: fields.exercises_per_day,
+    })
+    .eq("id", petId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Pet;
+}
+
+export async function updatePetLitterMaintenance(
+  petId: string,
+  fields: UpdatePetLitterMaintenanceInput,
+): Promise<Pet> {
+  const { data, error } = await supabase
+    .from("pets")
+    .update({
+      litter_cleaning_period: fields.litter_cleaning_period,
+      litter_cleanings_per_period: fields.litter_cleanings_per_period,
     })
     .eq("id", petId)
     .select()

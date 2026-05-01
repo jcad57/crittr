@@ -173,7 +173,12 @@ export default function PetActivityLogScreen() {
             <Text style={styles.sectionHeading}>{section.title}</Text>
           </View>
         )}
-        renderItem={({ item }) => <PetActivityLogRow entry={item} />}
+        renderItem={({ item }) => (
+          <PetActivityLogRow
+            entry={item}
+            petType={details?.pet_type ?? null}
+          />
+        )}
         ItemSeparatorComponent={() => <View style={styles.rowSep} />}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
         ListHeaderComponent={listHeader}

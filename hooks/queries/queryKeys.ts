@@ -35,6 +35,13 @@ export const petMedicalRecordDetailQueryKey = (recordId: string) =>
 export const petInsuranceFilesQueryKey = (petId: string) =>
   ["petInsuranceFiles", petId] as const;
 
+/** Prefix: invalidate all period-window activity caches for a pet. */
+export const activitiesSincePrefixKey = (petId: string) =>
+  ["activitiesSince", petId] as const;
+
+export const activitiesSinceKey = (petId: string, sinceIso: string) =>
+  ["activitiesSince", petId, sinceIso] as const;
+
 /** Includes local calendar day so caches roll forward at local midnight. */
 export const todayActivitiesKey = (petId: string, localYmd: string) =>
   ["todayActivities", petId, localYmd] as const;

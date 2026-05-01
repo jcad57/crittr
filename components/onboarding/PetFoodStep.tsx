@@ -1,3 +1,4 @@
+import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
 import FormInput from "@/components/onboarding/FormInput";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import PetFoodMealScheduleSection from "@/components/onboarding/petFood/PetFoodMealScheduleSection";
@@ -225,7 +226,7 @@ export default function PetFoodStep() {
 
         <View style={styles.iconCenter}>
           <Image
-            source={require("@/assets/icons/food-icon.png")}
+            source={getMealsActivityIcon(pet.petType || null)}
             style={{ width: 40, height: 40 }}
             resizeMode="contain"
           />

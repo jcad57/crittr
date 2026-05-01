@@ -1,76 +1,108 @@
+import {
+  ACTIVITY_TYPE_LOG_ICONS,
+  getExerciseActivityIcon,
+  getMealsActivityIcon,
+} from "@/constants/activityTypeProgressIcons";
 import { Colors } from "@/constants/colors";
-import { usePetsQuery } from "@/hooks/queries";
-import { usePetStore } from "@/stores/petStore";
 import type { ActivityType } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Option = {
   type: ActivityType;
   label: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconSource: (typeof ACTIVITY_TYPE_LOG_ICONS)[keyof typeof ACTIVITY_TYPE_LOG_ICONS];
   color: string;
   bg: string;
 };
 
-const OPTIONS: Option[] = [
-  {
+function midOptions(petType: string | null | undefined): Option[] {
+  return [
+    {
+      type: "food",
+      label: "Food",
+      iconSource: getMealsActivityIcon(petType),
+      color: Colors.progressMeals,
+      bg: Colors.progressMealsTrack,
+    },
+    {
+      type: "medication",
+      label: "Medication",
+      iconSource: ACTIVITY_TYPE_LOG_ICONS.medication,
+      color: Colors.progressMeds,
+      bg: Colors.progressMedsTrack,
+    },
+  ];
+}
+
+function exerciseOption(petType: string | null | undefined): Option {
+  return {
     type: "exercise",
     label: "Exercise",
-    icon: "run",
+    iconSource: getExerciseActivityIcon(petType),
     color: Colors.progressExercise,
     bg: Colors.progressExerciseTrack,
-  },
-  {
-    type: "food",
-    label: "Food",
-    icon: "food-drumstick",
-    color: Colors.progressMeals,
-    bg: Colors.progressMealsTrack,
-  },
-  {
-    type: "medication",
-    label: "Medication",
-    icon: "pill",
-    color: Colors.progressMeds,
-    bg: Colors.progressMedsTrack,
-  },
+  };
+}
+
+const DOG_EXTRA: Option[] = [
   {
     type: "training",
     label: "Training",
-    icon: "school",
+    iconSource: ACTIVITY_TYPE_LOG_ICONS.training,
     color: Colors.progressExercise,
     bg: Colors.progressExerciseTrack,
   },
   {
     type: "potty",
     label: "Potty",
-    icon: "toilet",
+    iconSource: ACTIVITY_TYPE_LOG_ICONS.potty,
     color: Colors.progressTreats,
     bg: Colors.progressTreatsTrack,
   },
 ];
 
+const CAT_EXTRA: Option[] = [
+  {
+    type: "maintenance",
+    label: "Maintenance",
+    iconSource: ACTIVITY_TYPE_LOG_ICONS.maintenance,
+    color: Colors.progressTreats,
+    bg: Colors.progressTreatsTrack,
+  },
+];
+
+function optionsForPetType(petType: string | null | undefined): Option[] {
+  const exercise = exerciseOption(petType);
+  const mid = midOptions(petType);
+  if (petType === "cat") {
+    return [exercise, ...mid, ...CAT_EXTRA];
+  }
+  return [exercise, ...mid, ...DOG_EXTRA];
+}
+
 type Props = {
+  petType: string | null | undefined;
   selected: ActivityType | null;
   onSelect: (type: ActivityType) => void;
 };
 
-export default function ActivityTypeStep({ selected, onSelect }: Props) {
-  const activePetId = usePetStore((s) => s.activePetId);
-  const { data: allPets } = usePetsQuery();
-  const activePetName = useMemo(() => {
-    if (!activePetId || !allPets?.length) return null;
-    return allPets.find((p) => p.id === activePetId)?.name?.trim() ?? null;
-  }, [activePetId, allPets]);
+const GRID_ICON_SIZE = 28;
+
+export default function ActivityTypeStep({
+  petType,
+  selected,
+  onSelect,
+}: Props) {
+  const options = useMemo(() => optionsForPetType(petType), [petType]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>What type of activity are you logging?</Text>
 
       <View style={styles.grid}>
-        {OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const isActive = selected === opt.type;
           return (
             <Pressable
@@ -82,10 +114,10 @@ export default function ActivityTypeStep({ selected, onSelect }: Props) {
               onPress={() => onSelect(opt.type)}
             >
               <View style={[styles.iconCircle, { backgroundColor: opt.bg }]}>
-                <MaterialCommunityIcons
-                  name={opt.icon}
-                  size={28}
-                  color={opt.color}
+                <Image
+                  source={opt.iconSource}
+                  style={styles.gridIcon}
+                  contentFit="contain"
                 />
               </View>
               <Text
@@ -134,6 +166,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
+  },
+  gridIcon: {
+    width: GRID_ICON_SIZE,
+    height: GRID_ICON_SIZE,
   },
   cardLabel: {
     fontFamily: "InstrumentSans-SemiBold",

@@ -1,6 +1,7 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
+import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -34,17 +35,6 @@ function formatDateFilterLabel(ymd: string): string {
   });
 }
 
-const FILTER_ITEMS: { id: ActivityFilterCategory; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "exercise", label: "Exercise" },
-  { id: "meals", label: "Meals" },
-  { id: "treats", label: "Treats" },
-  { id: "meds", label: "Meds" },
-  { id: "vet_visit", label: "Vet visits" },
-  { id: "training", label: "Training" },
-  { id: "potty", label: "Potty" },
-];
-
 const SORT_OPTIONS: { label: string; newestFirst: boolean }[] = [
   { label: "Newest first", newestFirst: true },
   { label: "Oldest first", newestFirst: false },
@@ -57,6 +47,7 @@ type Menu = "filter" | "sort" | null;
 type Anchor = { x: number; y: number; width: number; height: number };
 
 type Props = {
+  petType: string | null | undefined;
   filter: ActivityFilterCategory;
   onFilterChange: (id: ActivityFilterCategory) => void;
   newestFirst: boolean;
@@ -67,6 +58,7 @@ type Props = {
 };
 
 export default function ActivityHistoryFilterBar({
+  petType,
   filter,
   onFilterChange,
   newestFirst,
@@ -87,8 +79,13 @@ export default function ActivityHistoryFilterBar({
     setAnchor(null);
   }, []);
 
+  const filterItems = useMemo(
+    () => activityFilterMenuItems(petType),
+    [petType],
+  );
+
   const filterLabel =
-    FILTER_ITEMS.find((f) => f.id === filter)?.label ?? "All";
+    filterItems.find((f) => f.id === filter)?.label ?? "All";
 
   const sortLabel = newestFirst ? "Newest first" : "Oldest first";
 
@@ -270,7 +267,7 @@ export default function ActivityHistoryFilterBar({
                 style={styles.panelScroll}
                 nestedScrollEnabled
               >
-                {FILTER_ITEMS.map((item, index) => {
+                {filterItems.map((item, index) => {
                   const selected = item.id === filter;
                   return (
                     <TouchableOpacity

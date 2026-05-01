@@ -1,5 +1,6 @@
 import {
   ACTIVITY_ROW_ICONS,
+  resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
@@ -13,19 +14,26 @@ const ICON_IMG = 22;
 
 type Props = {
   entry: ActivityHistoryEntry;
+  petType?: string | null;
 };
 
 /** Compact, read-only activity line for pet-scoped log screens (no card chrome). */
-export default function PetActivityLogRow({ entry }: Props) {
+export default function PetActivityLogRow({
+  entry,
+  petType = null,
+}: Props) {
   const cfg = ACTIVITY_ROW_ICONS[entry.category];
+  const iconSource = resolveActivityRowIconSource(entry.category, petType);
 
   return (
     <View style={styles.row}>
       <View style={[styles.iconBox, { backgroundColor: cfg.track }]}>
         <Image
-          source={cfg.source}
+          source={iconSource}
           style={styles.iconImg}
-          tintColor={cfg.ring}
+          tintColor={
+            entry.category === "maintenance" ? undefined : cfg.ring
+          }
         />
       </View>
 
