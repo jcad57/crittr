@@ -26,12 +26,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Matches native two-state UISwitch styling: saturated “on”, neutral “off”—no pastel track that reads as disabled. */
+const NOTIF_SWITCH_TRACK = {
+  false: Colors.gray200,
+  true: Colors.orange,
+} as const;
+
+const NOTIF_SWITCH_IOS_BG =
+  Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {};
+
+/** White knob on fills—reads clearly on/off; avoids pastel track + tinted thumb blending as “disabled”. */
+const NOTIF_SWITCH_THUMB = Colors.white;
+
 export default function ManageNotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const userId = useAuthStore((s) => s.session?.user?.id);
-  const { prefs, loading, updatePrefs } = usePushNotificationPreferences();
+  const { prefs, loading, updatePrefs, flushPending } =
+    usePushNotificationPreferences();
 
   const [permStatus, setPermStatus] = useState<Notifications.PermissionStatus>(
     Notifications.PermissionStatus.UNDETERMINED,
@@ -52,7 +65,11 @@ export default function ManageNotificationsScreen() {
           void syncExpoPushTokenToSupabase(userId);
         }
       });
-    }, [refreshPermission, userId]),
+
+      return () => {
+        void flushPending();
+      };
+    }, [flushPending, refreshPermission, userId]),
   );
 
   const allEnabled =
@@ -61,15 +78,8 @@ export default function ManageNotificationsScreen() {
     prefs.notify_medications &&
     prefs.notify_vet_visits;
 
-  /**
-   * RN controlled Switch can desync thumb position vs track on the instance that
-   * received the tap when `value` updates in the same frame as the gesture.
-   * Remount when the value changes so native state matches React props.
-   */
-  const switchKeyAll = `${prefs.notify_meals_treats}-${prefs.notify_co_care_activities}-${prefs.notify_medications}-${prefs.notify_vet_visits}`;
-
-  const setAll = async (on: boolean) => {
-    await updatePrefs({
+  const setAll = (on: boolean) => {
+    void updatePrefs({
       notify_meals_treats: on,
       notify_co_care_activities: on,
       notify_medications: on,
@@ -200,11 +210,11 @@ export default function ManageNotificationsScreen() {
                 </Text>
               </View>
               <Switch
-                key={`notif-all-${switchKeyAll}`}
                 value={allEnabled}
                 onValueChange={(v) => void setAll(v)}
-                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
-                thumbColor={allEnabled ? Colors.orange : Colors.gray400}
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
               />
             </View>
 
@@ -217,15 +227,13 @@ export default function ManageNotificationsScreen() {
                 </Text>
               </View>
               <Switch
-                key={`notif-meals-${prefs.notify_meals_treats}`}
                 value={prefs.notify_meals_treats}
                 onValueChange={(v) =>
                   void updatePrefs({ notify_meals_treats: v })
                 }
-                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
-                thumbColor={
-                  prefs.notify_meals_treats ? Colors.orange : Colors.gray400
-                }
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
               />
             </View>
 
@@ -238,17 +246,13 @@ export default function ManageNotificationsScreen() {
                 </Text>
               </View>
               <Switch
-                key={`notif-cocare-${prefs.notify_co_care_activities}`}
                 value={prefs.notify_co_care_activities}
                 onValueChange={(v) =>
                   void updatePrefs({ notify_co_care_activities: v })
                 }
-                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
-                thumbColor={
-                  prefs.notify_co_care_activities
-                    ? Colors.orange
-                    : Colors.gray400
-                }
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
               />
             </View>
 
@@ -260,15 +264,13 @@ export default function ManageNotificationsScreen() {
                 </Text>
               </View>
               <Switch
-                key={`notif-meds-${prefs.notify_medications}`}
                 value={prefs.notify_medications}
                 onValueChange={(v) =>
                   void updatePrefs({ notify_medications: v })
                 }
-                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
-                thumbColor={
-                  prefs.notify_medications ? Colors.orange : Colors.gray400
-                }
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
               />
             </View>
 
@@ -280,15 +282,13 @@ export default function ManageNotificationsScreen() {
                 </Text>
               </View>
               <Switch
-                key={`notif-vet-${prefs.notify_vet_visits}`}
                 value={prefs.notify_vet_visits}
                 onValueChange={(v) =>
                   void updatePrefs({ notify_vet_visits: v })
                 }
-                trackColor={{ false: Colors.gray200, true: Colors.orangeLight }}
-                thumbColor={
-                  prefs.notify_vet_visits ? Colors.orange : Colors.gray400
-                }
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
               />
             </View>
           </>

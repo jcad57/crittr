@@ -136,6 +136,9 @@ export default function FeedbackScreen() {
           style={styles.input}
           maxLength={200}
           editable={!submitting}
+          autoCapitalize="sentences"
+          autoCorrect
+          spellCheck
         />
 
         <Text style={styles.fieldLabel}>Message</Text>
@@ -149,6 +152,9 @@ export default function FeedbackScreen() {
           textAlignVertical="top"
           maxLength={8000}
           editable={!submitting}
+          autoCapitalize="sentences"
+          autoCorrect
+          spellCheck
         />
 
         <View style={styles.footerSpacer} />

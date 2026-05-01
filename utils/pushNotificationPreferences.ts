@@ -11,6 +11,61 @@ export type NotificationCategoryPrefs = {
   notify_vet_visits: boolean;
 };
 
+export const NOTIFICATION_PREF_KEYS = [
+  "notify_meals_treats",
+  "notify_co_care_activities",
+  "notify_medications",
+  "notify_vet_visits",
+] as const satisfies readonly (keyof NotificationCategoryPrefs)[];
+
+export type NotificationPrefColumnKey = (typeof NOTIFICATION_PREF_KEYS)[number];
+
+/** DB + UI normalization — matches `notificationPrefsFromProfile`. */
+export function coerceNotificationPrefColumn(value: unknown): boolean {
+  return value !== false;
+}
+
+/** Rows where normalized targets differ — used after a stale server payload. */
+export function notificationPrefsDelta(
+  target: NotificationCategoryPrefs,
+  baseline: NotificationCategoryPrefs,
+): Partial<NotificationCategoryPrefs> {
+  const d: Partial<NotificationCategoryPrefs> = {};
+  for (const k of NOTIFICATION_PREF_KEYS) {
+    if (target[k] !== baseline[k]) {
+      (d as Record<NotificationPrefColumnKey, boolean>)[k] = target[k];
+    }
+  }
+  return d;
+}
+
+export function notificationPrefsDeltaFromProfiles(
+  target: NotificationCategoryPrefs,
+  baselineProfile: Profile | null | undefined,
+): Partial<NotificationCategoryPrefs> {
+  return notificationPrefsDelta(
+    target,
+    notificationPrefsFromProfile(baselineProfile),
+  );
+}
+
+/** Keep live cache booleans after a PATCH response arrived while toggles raced ahead. */
+export function mergeNotificationColumnsPreferLiveCache(
+  serverRow: Profile,
+  liveCache: Profile | null | undefined,
+): Profile {
+  if (!liveCache) return serverRow;
+  const out: Profile = { ...serverRow };
+  for (const k of NOTIFICATION_PREF_KEYS) {
+    const lc = coerceNotificationPrefColumn(liveCache[k]);
+    const sr = coerceNotificationPrefColumn(serverRow[k]);
+    if (lc !== sr) {
+      (out as Record<NotificationPrefColumnKey, boolean>)[k] = lc;
+    }
+  }
+  return out;
+}
+
 export function defaultNotificationCategoryPrefs(): NotificationCategoryPrefs {
   return {
     notify_meals_treats: true,
