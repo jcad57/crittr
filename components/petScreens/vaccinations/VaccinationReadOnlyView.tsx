@@ -12,6 +12,7 @@ type VaccinationReadOnlyViewProps = {
   details: PetWithDetails | null | undefined;
   insetsTop: number;
   onBack: () => void;
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
 export default function VaccinationReadOnlyView({
@@ -19,6 +20,7 @@ export default function VaccinationReadOnlyView({
   details,
   insetsTop,
   onBack,
+  onAfterSwitchPet,
 }: VaccinationReadOnlyViewProps) {
   const fmt = (d: string | null | undefined) =>
     d
@@ -46,6 +48,7 @@ export default function VaccinationReadOnlyView({
         <PetNavAvatar
           displayPet={details}
           accessibilityLabelPrefix="Vaccination details for"
+          onAfterSwitchPet={onAfterSwitchPet}
         />
       </View>
       <ScrollView

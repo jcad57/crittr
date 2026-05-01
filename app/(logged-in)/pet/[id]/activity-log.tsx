@@ -15,10 +15,11 @@ import {
 } from "@/hooks/queries";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -43,8 +44,7 @@ const BOTTOM_BAR_PADDING_TOP = 8;
 
 export default function PetActivityLogScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const { push } = useNavigationCooldown();
+  const { push, replace, router } = useNavigationCooldown();
   const setActivePetMutation = useSetActivePetMutation();
 
   const { id: petIdParam } = useLocalSearchParams<{
@@ -56,6 +56,8 @@ export default function PetActivityLogScreen() {
     const s = Array.isArray(p) ? p[0] : p;
     return typeof s === "string" && s.length > 0 ? s : undefined;
   }, [petIdParam]);
+
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading: loadingPet } =
     usePetDetailsQuery(petId);
@@ -156,6 +158,7 @@ export default function PetActivityLogScreen() {
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Activity log for"
+            onAfterSwitchPet={onPetSwitch}
           />
         </View>
       </View>

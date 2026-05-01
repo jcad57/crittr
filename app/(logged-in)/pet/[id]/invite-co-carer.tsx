@@ -5,9 +5,11 @@ import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetDetailsQuery, useSendInviteMutation } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { DEFAULT_CO_CARE_PERMISSIONS, type CoCarePermissions } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -25,9 +27,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function InviteCoCarerScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const router = useRouter();
+  const { replace, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
+
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading: detailsLoading } = usePetDetailsQuery(
     petId ?? null,
@@ -94,6 +98,7 @@ export default function InviteCoCarerScreen() {
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Invite co-carer for"
+            onAfterSwitchPet={onPetSwitch}
           />
         </View>
       </View>

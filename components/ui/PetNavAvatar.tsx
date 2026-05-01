@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { PET_NAV_AVATAR_PET_SWITCH_ENABLED } from "@/constants/petNavAvatar";
 import { Font } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
@@ -34,17 +35,22 @@ export type PetNavAvatarProps = {
   accessibilityLabelPrefix?: string;
   /** When false, avatar is not tappable (no switch menu). Default true. */
   allowSwitch?: boolean;
+  /**
+   * Called after the active pet mutation succeeds. Use on pet-scoped routes to
+   * `replace` navigation so `useLocalSearchParams()` matches the new pet.
+   */
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
 /**
- * Nav bar pet avatar. Tap opens a centered menu to change the **global active pet**
- * (persisted via `petStore` + Supabase). Safe to use on any screen; pass
- * `displayPet` when the page is about a specific pet but you still want switching.
+ * Nav bar pet avatar for showing which pet the screen is about. Multi-pet switching is
+ * gated by {@link PET_NAV_AVATAR_PET_SWITCH_ENABLED}; when off, the ring is display-only.
  */
 export default function PetNavAvatar({
   displayPet: displayPetProp,
   accessibilityLabelPrefix = "Active pet",
   allowSwitch = true,
+  onAfterSwitchPet,
 }: PetNavAvatarProps) {
   const activePetId = usePetStore((s) => s.activePetId);
   const setActivePetMutation = useSetActivePetMutation();
@@ -66,7 +72,10 @@ export default function PetNavAvatar({
     );
   }, [allPets]);
 
-  const canSwitch = allowSwitch && selectablePets.length > 1;
+  const canSwitch =
+    PET_NAV_AVATAR_PET_SWITCH_ENABLED &&
+    allowSwitch &&
+    selectablePets.length > 1;
 
   const openMenu = useCallback(() => {
     if (!canSwitch) return;
@@ -81,10 +90,14 @@ export default function PetNavAvatar({
         closeMenu();
         return;
       }
-      setActivePetMutation.mutate(id);
       closeMenu();
+      setActivePetMutation.mutate(id, {
+        onSuccess: () => {
+          onAfterSwitchPet?.(id);
+        },
+      });
     },
-    [activePetId, setActivePetMutation, closeMenu],
+    [activePetId, setActivePetMutation, closeMenu, onAfterSwitchPet],
   );
 
   const a11yLabel = useMemo(() => {

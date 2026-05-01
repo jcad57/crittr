@@ -8,6 +8,11 @@ type AuthBackToWelcomeProps = {
   onBeforeNavigate?: () => void;
 };
 
+/**
+ * Always land on Welcome in one step. `router.back()` would walk back through
+ * sign-in ↔ sign-up history; `dismissTo` collapses the auth stack to welcome.
+ */
+
 export default function AuthBackToWelcome({
   onBeforeNavigate,
 }: AuthBackToWelcomeProps) {
@@ -18,7 +23,7 @@ export default function AuthBackToWelcome({
       <Pressable
         onPress={() => {
           onBeforeNavigate?.();
-          router.back();
+          router.dismissTo("/(auth)/welcome");
         }}
         hitSlop={12}
         accessibilityLabel="Back to welcome"

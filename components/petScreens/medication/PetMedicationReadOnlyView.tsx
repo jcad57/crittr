@@ -11,6 +11,7 @@ type Props = {
   details: PetWithDetails;
   topInset: number;
   onBack: () => void;
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
 export default function PetMedicationReadOnlyView({
@@ -18,6 +19,7 @@ export default function PetMedicationReadOnlyView({
   details,
   topInset,
   onBack,
+  onAfterSwitchPet,
 }: Props) {
   const reminderTimes = getMedicationReminderTimes(med);
   const reminderLabel =
@@ -30,6 +32,7 @@ export default function PetMedicationReadOnlyView({
         onBack={onBack}
         displayPet={details}
         accessibilityLabelPrefix="Medication details for"
+        onAfterSwitchPet={onAfterSwitchPet}
       />
       <ScrollView
         style={styles.scroll}

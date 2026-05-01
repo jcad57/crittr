@@ -5,6 +5,7 @@ import type {
   PetMedicalRecordFile,
 } from "@/types/database";
 import { randomUUID } from "expo-crypto";
+import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 
 export const MEDICAL_RECORDS_BUCKET = "medical-records";
@@ -444,6 +445,91 @@ export async function updatePetMedicalRecordTitle(
     .eq("id", recordId);
 
   if (error) throw error;
+}
+
+function medicalRecordsServeUrl(): string {
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
+  return `${base}/functions/v1/serve-medical-record-file`;
+}
+
+function viewerCacheFileExtension(
+  file: Pick<PetMedicalRecordFile, "mime_type" | "original_filename">,
+): string {
+  const name = file.original_filename?.trim() ?? "";
+  const match = /\.([a-zA-Z0-9]{1,12})$/.exec(name);
+  if (match) return `.${match[1].toLowerCase()}`;
+  const mime = file.mime_type?.toLowerCase() ?? "";
+  if (mime.includes("pdf")) return ".pdf";
+  if (mime.includes("png")) return ".png";
+  if (mime.includes("jpeg") || mime === "image/jpg") return ".jpg";
+  if (mime.includes("webp")) return ".webp";
+  if (mime.includes("heic")) return ".heic";
+  return "";
+}
+
+/**
+ * Downloads via authenticated Edge Function (avoids opening a Supabase Storage URL in the browser)
+ * and returns a local `file://` URI for the OS document/PDF preview.
+ */
+export async function downloadMedicalRecordFileForOpening(
+  file: Pick<PetMedicalRecordFile, "id" | "mime_type" | "original_filename">,
+): Promise<string> {
+  const session = await supabase.auth.getSession();
+  const token = session.data.session?.access_token;
+  if (!token) throw new Error("Sign in required.");
+
+  const cacheDir = FileSystem.cacheDirectory;
+  if (!cacheDir) throw new Error("Device cache is unavailable.");
+
+  const ext = viewerCacheFileExtension(file);
+  const dest = `${cacheDir}medical-record-${file.id}${ext}`;
+
+  const url = `${medicalRecordsServeUrl()}?file_id=${encodeURIComponent(file.id)}`;
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+
+  const result = await FileSystem.downloadAsync(url, dest, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: anonKey,
+    },
+  });
+
+  if (result.status !== 200) {
+    let message = `Could not load file (${result.status}).`;
+    try {
+      const txt = await FileSystem.readAsStringAsync(dest);
+      const parsed = JSON.parse(txt) as { message?: string; error?: string };
+      message =
+        (typeof parsed.message === "string" && parsed.message.trim()) ||
+        (typeof parsed.error === "string" && parsed.error.trim()) ||
+        message;
+    } catch {
+      /* ignore non-JSON error bodies */
+    }
+    await FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
+    throw new Error(message);
+  }
+
+  return result.uri;
+}
+
+/**
+ * Opens the OS share sheet for a medical file (same downloaded copy used for preview).
+ */
+export async function shareMedicalRecordFile(
+  file: Pick<
+    PetMedicalRecordFile,
+    "id" | "mime_type" | "original_filename"
+  >,
+): Promise<void> {
+  const localUri = await downloadMedicalRecordFileForOpening(file);
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error("Sharing isn’t available on this device.");
+  }
+  await Sharing.shareAsync(localUri, {
+    mimeType: file.mime_type?.trim() || undefined,
+    dialogTitle: "Share document",
+  });
 }
 
 export async function createSignedMedicalRecordUrl(

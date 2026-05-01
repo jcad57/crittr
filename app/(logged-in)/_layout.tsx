@@ -2,6 +2,7 @@ import PushNotificationBootstrap from "@/components/push/PushNotificationBootstr
 import PushNotificationNavigationListener from "@/components/push/PushNotificationNavigationListener";
 import ReminderNotificationSync from "@/components/push/ReminderNotificationSync";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
+import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/auth";
 import { useLoggedInQueryBootstrap } from "@/hooks/useLoggedInQueryBootstrap";
 import { Redirect, Stack, usePathname } from "expo-router";
@@ -42,6 +43,7 @@ export default function LoggedInLayout() {
           animation: "slide_from_right",
           gestureEnabled: true,
           fullScreenGestureEnabled: false,
+          contentStyle: { backgroundColor: Colors.splashBackground },
         }}
       />
       <View style={styles.navOverlay} pointerEvents="box-none">
@@ -54,7 +56,7 @@ export default function LoggedInLayout() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: Colors.splashBackground,
   },
   navOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -1,3 +1,4 @@
+import { Colors } from "@/constants/colors";
 import { Tabs } from "expo-router";
 
 /**
@@ -12,6 +13,7 @@ export default function LoggedInTabsLayout() {
       tabBar={() => null}
       screenOptions={{
         headerShown: false,
+        sceneContainerStyle: { backgroundColor: Colors.splashBackground },
       }}
     />
   );

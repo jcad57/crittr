@@ -5,6 +5,7 @@ import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import {
@@ -20,7 +21,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetVisibilityScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const { push, router } = useNavigationCooldown();
+  const { push, replace, router } = useNavigationCooldown();
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
@@ -53,6 +55,7 @@ export default function PetVisibilityScreen() {
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Visibility for"
+            onAfterSwitchPet={onPetSwitch}
           />
         </View>
       </View>

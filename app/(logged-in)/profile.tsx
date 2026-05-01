@@ -18,6 +18,10 @@ import {
   useProfileQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import {
+  AUTH_CONTENT_MAX_WIDTH,
+  useResponsiveUi,
+} from "@/hooks/useResponsiveUi";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { pickAvatarImage } from "@/lib/pickImage";
@@ -36,8 +40,12 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Horizontal padding on `styles.content` — matches capped hero column math. */
+const PROFILE_SCROLL_PADDING_H = 20;
+
 export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { windowWidth, isTablet } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push, router } = useNavigationCooldown();
   const session = useAuthStore((s) => s.session);
@@ -142,6 +150,15 @@ export default function UserProfileScreen() {
     push("/(logged-in)/pro-banner-theme" as Href);
   }, [push]);
 
+  const profileHeroColumnStyle = useMemo(() => {
+    const gutter = PROFILE_SCROLL_PADDING_H * 2;
+    return {
+      width: "100%" as const,
+      maxWidth: Math.min(AUTH_CONTENT_MAX_WIDTH, windowWidth - gutter),
+      alignSelf: "center" as const,
+    };
+  }, [windowWidth]);
+
   if (isProfileLoading && !profile) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -170,20 +187,23 @@ export default function UserProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ProfileHero
-          isPro={isPro}
-          proBannerThemeId={normalizeProBannerThemeId(
-            profile?.crittr_pro_banner_theme,
-          )}
-          onProBannerPress={isPro ? openProBannerTheme : undefined}
-          titleName={titleName}
-          email={email}
-          memberLine={memberLine}
-          initials={initials}
-          avatarUrl={profile?.avatar_url}
-          avatarUploading={avatarUploading}
-          onAvatarPress={handleProfileAvatarPress}
-        />
+        <View style={profileHeroColumnStyle}>
+          <ProfileHero
+            isPro={isPro}
+            proBannerThemeId={normalizeProBannerThemeId(
+              profile?.crittr_pro_banner_theme,
+            )}
+            onProBannerPress={isPro ? openProBannerTheme : undefined}
+            titleName={titleName}
+            email={email}
+            memberLine={memberLine}
+            initials={initials}
+            avatarUrl={profile?.avatar_url}
+            avatarUploading={avatarUploading}
+            onAvatarPress={handleProfileAvatarPress}
+            centerIdentitySection={isTablet}
+          />
+        </View>
 
         <ProfilePetsSection
           pets={pets}
@@ -212,6 +232,7 @@ export default function UserProfileScreen() {
           onFeedback={() => push("/(logged-in)/feedback")}
           onHelpCenter={() => push("/(logged-in)/help-center")}
           onPrivacy={() => push("/(logged-in)/privacy-policy")}
+          onTerms={() => push("/terms-of-service")}
         />
 
         <ProfileSignOutRow onSignOut={handleSignOut} />
@@ -235,7 +256,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PROFILE_SCROLL_PADDING_H,
     paddingTop: 4,
     gap: 0,
   },

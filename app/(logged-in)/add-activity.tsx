@@ -83,6 +83,11 @@ export default function AddActivityScreen() {
     return (allPets ?? [])[0]?.id ?? null;
   }, [activePetId, allPets]);
 
+  const primaryPetForLog = useMemo(() => {
+    if (!resolvedPetId || !(allPets ?? []).length) return null;
+    return (allPets ?? []).find((p) => p.id === resolvedPetId) ?? null;
+  }, [resolvedPetId, allPets]);
+
   const canLogActivities = useCanPerformAction(
     resolvedPetId,
     "can_log_activities",
@@ -267,7 +272,16 @@ export default function AddActivityScreen() {
   if (resolvedPetId && canLogActivities === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <ActivityWizardChrome title="Log activity" onBack={() => router.back()} />
+        <ActivityWizardChrome
+          title="Log activity"
+          onBack={() => router.back()}
+          right={
+            <PetNavAvatar
+              displayPet={primaryPetForLog}
+              accessibilityLabelPrefix="Logging activity for"
+            />
+          }
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -292,7 +306,12 @@ export default function AddActivityScreen() {
       <ActivityWizardChrome
         title={navTitle}
         onBack={goBack}
-        right={<PetNavAvatar accessibilityLabelPrefix="Logging activity for" />}
+        right={
+          <PetNavAvatar
+            displayPet={primaryPetForLog}
+            accessibilityLabelPrefix="Logging activity for"
+          />
+        }
       />
 
       <KeyboardAwareScrollView

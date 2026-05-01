@@ -12,11 +12,13 @@ import {
   useUpdatePetVaccinationMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { hydrateFromVaccination } from "@/utils/vaccinationEditHydration";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,7 +37,7 @@ import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].st
 
 export default function EditPetVaccinationScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const { replace, router } = useNavigationCooldown();
   const { id: rawPetId, vaccinationId: rawVacId } = useLocalSearchParams<{
     id: string;
     vaccinationId: string;
@@ -43,6 +45,8 @@ export default function EditPetVaccinationScreen() {
   const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId;
   const vaccinationId = Array.isArray(rawVacId) ? rawVacId[0] : rawVacId;
   const isNew = vaccinationId === "new";
+
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
   const canManageVaccinations = useCanPerformAction(
@@ -243,6 +247,7 @@ export default function EditPetVaccinationScreen() {
         details={details}
         insetsTop={insets.top}
         onBack={() => router.back()}
+        onAfterSwitchPet={onPetSwitch}
       />
     );
   }
@@ -270,6 +275,7 @@ export default function EditPetVaccinationScreen() {
           accessibilityLabelPrefix={
             isNew ? "Adding vaccination for" : "Editing vaccination for"
           }
+          onAfterSwitchPet={onPetSwitch}
         />
       </View>
 

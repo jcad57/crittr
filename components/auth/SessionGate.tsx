@@ -1,5 +1,6 @@
 import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
 import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
+import { Colors } from "@/constants/colors";
 import { FONT_FACES } from "@/constants/fonts";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
@@ -24,6 +25,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
 import { useEffect, useRef } from "react";
+import { StyleSheet, View } from "react-native";
 
 setupReactQueryFocusManager();
 
@@ -75,7 +77,9 @@ export default function SessionGate() {
     });
   }, [isReady]);
 
-  if (!isReady) return null;
+  if (!isReady) {
+    return <View style={styles.bootPlaceholder} />;
+  }
 
   return (
     <StripeProvider
@@ -90,3 +94,10 @@ export default function SessionGate() {
     </StripeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  bootPlaceholder: {
+    flex: 1,
+    backgroundColor: Colors.splashBackground,
+  },
+});

@@ -4,10 +4,13 @@ import { useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useStripeBillingPortal } from "@/hooks/useStripeBillingPortal";
+import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BILLING_ICON = require("@/assets/icons/billing-icon.png");
@@ -19,6 +22,53 @@ export default function SettingsScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { data: profile } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const [accountDeletionPending, setAccountDeletionPending] = useState(false);
+  const { openBillingPortal, opening: billingPortalOpening } =
+    useStripeBillingPortal();
+
+  const runAccountDeletion = useCallback(async () => {
+    setAccountDeletionPending(true);
+    try {
+      await deleteAccount();
+      router.replace("/(auth)/welcome" as Href);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Could not delete account", msg);
+    } finally {
+      setAccountDeletionPending(false);
+    }
+  }, [deleteAccount, router]);
+
+  const onDeleteAccount = useCallback(() => {
+    Alert.alert(
+      "Delete your account?",
+      "This permanently removes your Crittr profile, pets, activity and health history, and any co-care access to pets you own. Co-carers keep their accounts but lose access to your pets and shared data only. Stored files (avatars, documents) are removed. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Delete account permanently?",
+              "If you have Crittr Pro, your subscription will be cancelled. All personal data will be erased from our servers.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete my account",
+                  style: "destructive",
+                  onPress: () => {
+                    void runAccountDeletion();
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }, [runAccountDeletion]);
 
   const openNotifications = () => {
     push("/(logged-in)/manage-notifications" as Href);
@@ -32,9 +82,13 @@ export default function SettingsScreen() {
     }
   };
 
-  const openBilling = () => {
-    push("/(logged-in)/billing" as Href);
-  };
+  const openBilling = useCallback(() => {
+    if (!isPro) {
+      push("/(logged-in)/upgrade?returnTo=settings" as Href);
+      return;
+    }
+    void openBillingPortal();
+  }, [isPro, push, openBillingPortal]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -115,15 +169,25 @@ export default function SettingsScreen() {
           />
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.row, styles.rowSpaced, pressed && styles.rowPressed]}
+          style={({ pressed }) => [
+            styles.row,
+            styles.rowSpaced,
+            pressed && styles.rowPressed,
+            billingPortalOpening && styles.rowDisabled,
+          ]}
           onPress={openBilling}
+          disabled={billingPortalOpening}
         >
           <View style={styles.rowIconWrap}>
-            <Image
-              source={BILLING_ICON}
-              style={styles.billingIconImg}
-              resizeMode="contain"
-            />
+            {billingPortalOpening ? (
+              <ActivityIndicator size="small" color={Colors.orange} />
+            ) : (
+              <Image
+                source={BILLING_ICON}
+                style={styles.billingIconImg}
+                resizeMode="contain"
+              />
+            )}
           </View>
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Billing</Text>
@@ -136,6 +200,37 @@ export default function SettingsScreen() {
             size={22}
             color={Colors.gray400}
           />
+        </Pressable>
+
+        <Text style={[styles.sectionLabel, styles.sectionSpaced]}>
+          Account
+        </Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.rowDanger,
+            pressed && styles.rowPressed,
+            accountDeletionPending && styles.rowDisabled,
+          ]}
+          onPress={onDeleteAccount}
+          disabled={accountDeletionPending}
+        >
+          <View style={styles.rowIconWrapDanger}>
+            {accountDeletionPending ? (
+              <ActivityIndicator size="small" color={Colors.error} />
+            ) : (
+              <MaterialCommunityIcons
+                name="account-remove-outline"
+                size={22}
+                color={Colors.error}
+              />
+            )}
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitleDanger}>Delete account</Text>
+            <Text style={styles.rowSub}>
+              Remove your profile, pets, and data from Crittr
+            </Text>
+          </View>
         </Pressable>
       </ScrollView>
     </View>
@@ -189,6 +284,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray200,
   },
   rowPressed: { opacity: 0.92 },
+  rowDisabled: { opacity: 0.65 },
   rowSpaced: { marginTop: 10 },
   rowIconWrap: {
     width: 40,
@@ -213,5 +309,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  rowDanger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  rowIconWrapDanger: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.errorLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowTitleDanger: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.error,
   },
 });

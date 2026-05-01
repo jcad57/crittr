@@ -25,6 +25,10 @@ import {
   useUnreadNotificationCountQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import {
+  AUTH_CONTENT_MAX_WIDTH,
+  useResponsiveUi,
+} from "@/hooks/useResponsiveUi";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
@@ -48,8 +52,12 @@ import { useCallback, useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+/** Horizontal padding on `styles.content` — used with `AUTH_CONTENT_MAX_WIDTH` for capped sections. */
+const DASHBOARD_SCROLL_PADDING_H = 16;
+
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
+  const { windowWidth } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
   const { runWithProOrUpgrade } = useProGateNavigation();
@@ -315,6 +323,16 @@ export default function Dashboard() {
   const showHealthSkeleton =
     Boolean(activePetId) && (detailsPending || vetVisitsPending);
 
+  /** Matches scroll `paddingHorizontal` so rings stay readable on phones while capping width on tablets. */
+  const dailyProgressSectionWidthStyle = useMemo(() => {
+    const gutter = DASHBOARD_SCROLL_PADDING_H * 2;
+    return {
+      width: "100%" as const,
+      maxWidth: Math.min(AUTH_CONTENT_MAX_WIDTH, windowWidth - gutter),
+      alignSelf: "center" as const,
+    };
+  }, [windowWidth]);
+
   if (isPetsLoading && !dbPets) {
     return <DashboardLoading />;
   }
@@ -349,7 +367,7 @@ export default function Dashboard() {
         >
           <View style={styles.petDataBlock}>
             <AdBanner placement="dashboard_top" />
-            <View style={styles.sectionBlock}>
+            <View style={[styles.sectionBlock, dailyProgressSectionWidthStyle]}>
               <SectionLabel style={styles.sectionLabelFlush}>
                 Daily Progress
               </SectionLabel>
@@ -436,7 +454,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: DASHBOARD_SCROLL_PADDING_H,
     paddingTop: 12,
     gap: 20,
   },

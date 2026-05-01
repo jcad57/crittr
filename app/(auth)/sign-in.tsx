@@ -4,10 +4,15 @@ import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/constants/authUi";
+import {
+  getAuthFlowColumnOuterWidth,
+  welcomeAuthLayoutScale,
+} from "@/hooks/useResponsiveUi";
 import { getSigninMethodHint } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Keyboard,
@@ -18,18 +23,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-
-/** Matches `WelcomeContent` — scale typography & spacing for consistency. */
-const REF_WIDTH = 390;
-const REF_HEIGHT = 844;
-
-function welcomeLayoutScale(width: number, height: number) {
-  const widthScale = Math.min(Math.max(width / REF_WIDTH, 0.86), 1.12);
-  const heightScale = Math.min(Math.max(height / REF_HEIGHT, 0.9), 1.06);
-  const uiScale = Math.min(widthScale, heightScale * 1.02);
-  const verticalTight = Math.min(1, height / 720);
-  return { uiScale, verticalTight };
-}
 
 function looksLikeInvalidPasswordAttempt(message: string): boolean {
   const m = message.toLowerCase();
@@ -61,16 +54,54 @@ const ANIMALS_PEAKING_ASPECT =
     ? ANIMALS_PEAKING_RESOLVED.height / ANIMALS_PEAKING_RESOLVED.width
     : 1;
 
+function SignInGoogleBlock({
+  signingIn,
+  setAuthError,
+}: {
+  signingIn: boolean;
+  setAuthError: (value: string | null) => void;
+}) {
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
+
+  const handleGoogleSignIn = async () => {
+    Keyboard.dismiss();
+    setAuthError(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setAuthError(msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
+      <SocialAuthContainer
+        onGooglePress={handleGoogleSignIn}
+        googleLoading={googleLoading}
+        googleDisabled={signingIn}
+      />
+    </>
+  );
+}
+
 export default function SignIn() {
+  const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { uiScale, verticalTight } = welcomeLayoutScale(
+  const { uiScale, verticalTight } = welcomeAuthLayoutScale(
     windowWidth,
     windowHeight,
   );
   const vs = (n: number) => Math.round(n * uiScale * verticalTight);
 
+  const authColumnOuter = getAuthFlowColumnOuterWidth(windowWidth);
   const HERO_SCALE = 0.8;
-  const heroWidth = Math.min(windowWidth * 0.52, 220) * HERO_SCALE;
+  const heroWidth = Math.min(authColumnOuter * 0.52, 220) * HERO_SCALE;
   const heroHeight = heroWidth * ANIMALS_PEAKING_ASPECT;
 
   const [email, setEmail] = useState("");
@@ -79,9 +110,7 @@ export default function SignIn() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
 
   const handleSignIn = async () => {
     Keyboard.dismiss();
@@ -111,7 +140,9 @@ export default function SignIn() {
         const hint = await getSigninMethodHint(trimmedEmail);
         if (hint === "google") {
           setAuthError(
-            "This account was set up with Google. Use the Google button above to sign in.",
+            SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS
+              ? "This account was set up with Google. Use the Google button above to sign in."
+              : "This account was set up with Google. Google sign-in is temporarily unavailable—please try again soon or contact support.",
           );
         } else {
           setAuthError(mapSignInError(msg));
@@ -121,20 +152,6 @@ export default function SignIn() {
       }
     } finally {
       setSigningIn(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    Keyboard.dismiss();
-    setAuthError(null);
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Something went wrong.";
-      setAuthError(msg);
-    } finally {
-      setGoogleLoading(false);
     }
   };
 
@@ -150,17 +167,21 @@ export default function SignIn() {
     >
       <Text style={authOnboardingStyles.screenTitle}>Welcome Back!</Text>
 
-      <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
-      <SocialAuthContainer
-        onGooglePress={handleGoogleSignIn}
-        googleLoading={googleLoading}
-        googleDisabled={signingIn}
-      />
+      {SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS ? (
+        <SignInGoogleBlock signingIn={signingIn} setAuthError={setAuthError} />
+      ) : (
+        <Text style={authOnboardingStyles.screenSubtitle}>
+          Sign in with your email and password
+        </Text>
+      )}
 
       <View
         style={[
           styles.peekSection,
-          { marginTop: vs(32), marginBottom: vs(-5) },
+          {
+            marginTop: SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS ? vs(32) : vs(20),
+            marginBottom: vs(-5),
+          },
         ]}
       >
         <Image
@@ -210,14 +231,17 @@ export default function SignIn() {
       >
         Sign In
       </OrangeButton>
-      <Link href="/(auth)/(onboarding)?intent=signup" asChild>
-        <Pressable style={authOnboardingStyles.linkRow}>
-          <Text style={authOnboardingStyles.linkMuted}>
-            Don&apos;t have an account?{" "}
-          </Text>
-          <Text style={authOnboardingStyles.linkAccent}>Sign Up</Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        style={authOnboardingStyles.linkRow}
+        onPress={() =>
+          router.replace("/(auth)/(onboarding)?intent=signup")
+        }
+      >
+        <Text style={authOnboardingStyles.linkMuted}>
+          Don&apos;t have an account?{" "}
+        </Text>
+        <Text style={authOnboardingStyles.linkAccent}>Sign Up</Text>
+      </Pressable>
     </OnboardingCard>
   );
 }

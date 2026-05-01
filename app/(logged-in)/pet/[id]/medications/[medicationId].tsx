@@ -16,12 +16,14 @@ import {
   useUpdateMedicationMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import type { MedicationDosePeriod } from "@/types/database";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
 import { hydrateFromMed } from "@/utils/medicationEditHydration";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -45,7 +47,7 @@ import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styl
 
 export default function EditPetMedicationScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const { replace, router } = useNavigationCooldown();
   const { id: rawPetId, medicationId: rawMedId } = useLocalSearchParams<{
     id: string;
     medicationId: string;
@@ -53,6 +55,8 @@ export default function EditPetMedicationScreen() {
   const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId;
   const medicationId = Array.isArray(rawMedId) ? rawMedId[0] : rawMedId;
   const isNew = medicationId === "new";
+
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading } = usePetDetailsQuery(petId);
   const canManageMedications = useCanPerformAction(
@@ -260,6 +264,7 @@ export default function EditPetMedicationScreen() {
         details={details}
         topInset={insets.top}
         onBack={() => router.back()}
+        onAfterSwitchPet={onPetSwitch}
       />
     );
   }
@@ -299,6 +304,7 @@ export default function EditPetMedicationScreen() {
         accessibilityLabelPrefix={
           isNew ? "Adding medication for" : "Editing medication for"
         }
+        onAfterSwitchPet={onPetSwitch}
       />
 
       <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>

@@ -15,13 +15,13 @@ export type UpgradeCompareRow = {
 export const UPGRADE_COMPARISON_ROWS: UpgradeCompareRow[] = [
   {
     title: "Pets",
-    subtitle: "Companions you manage",
+    subtitle: "Make sure all your pets are accounted for",
     free: { type: "pill", label: "1" },
     pro: { type: "pill", label: "Unlimited" },
   },
   {
     title: "Meals, treats & meds",
-    subtitle: "Food, treats, medications, vaccinations",
+    subtitle: "Make logging activities easy",
     free: { type: "pill", label: "1 each" },
     pro: { type: "pill", label: "Unlimited" },
   },
@@ -33,7 +33,7 @@ export const UPGRADE_COMPARISON_ROWS: UpgradeCompareRow[] = [
   },
   {
     title: "Upload pet records",
-    subtitle: "Documents and files",
+    subtitle: "No limits",
     free: { type: "x" },
     pro: { type: "check" },
   },
@@ -45,7 +45,7 @@ export const UPGRADE_COMPARISON_ROWS: UpgradeCompareRow[] = [
   },
   {
     title: "CrittrAI",
-    subtitle: "Smart assistance",
+    subtitle: "Pet-tailored smart assistance",
     free: { type: "x" },
     pro: { type: "check" },
   },

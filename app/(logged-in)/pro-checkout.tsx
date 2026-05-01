@@ -361,8 +361,8 @@ export default function ProCheckoutScreen() {
         const nextHref =
           returnTo === "subscriptions"
             ? "/(logged-in)/subscriptions"
-            : returnTo === "billing"
-              ? "/(logged-in)/billing"
+            : returnTo === "settings"
+              ? "/(logged-in)/settings"
               : "/(logged-in)/welcome-to-pro";
         router.replace(nextHref as Href);
       } catch (e) {

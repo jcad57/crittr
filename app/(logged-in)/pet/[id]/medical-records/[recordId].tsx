@@ -1,6 +1,7 @@
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
+import MedicalRecordFilePreviewModal from "@/components/medical/MedicalRecordFilePreviewModal";
 import MedicalRecordEditFilesList from "@/components/petScreens/medicalRecords/MedicalRecordEditFilesList";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -14,15 +15,19 @@ import {
   useUploadMedicalRecordFileMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { getErrorMessage } from "@/utils/errorMessage";
-import { createSignedMedicalRecordUrl } from "@/services/petMedicalRecords";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
+import {
+  downloadMedicalRecordFileForOpening,
+  shareMedicalRecordFile,
+} from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,14 +40,15 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
 
 export default function EditMedicalRecordScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const router = useRouter();
+  const { replace, router } = useNavigationCooldown();
   const userId = useAuthStore((s) => s.session?.user?.id);
+
+  // const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { id: rawPetId, recordId: rawRecordId } = useLocalSearchParams<{
     id: string;
@@ -75,6 +81,10 @@ export default function EditMedicalRecordScreen() {
 
   const [titleDraft, setTitleDraft] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [filePreviewUri, setFilePreviewUri] = useState<string | null>(null);
+  const [filePreviewMime, setFilePreviewMime] = useState<string | null>(null);
+  const [filePreviewLoading, setFilePreviewLoading] = useState(false);
+  const [sharingFileId, setSharingFileId] = useState<string | null>(null);
 
   const record = detail?.record;
   const files = detail?.files ?? [];
@@ -90,36 +100,58 @@ export default function EditMedicalRecordScreen() {
   }, [record, petId, router]);
 
   const openFile = useCallback(async (file: PetMedicalRecordFile) => {
+    setFilePreviewLoading(true);
+    setFilePreviewUri(null);
+    setFilePreviewMime(file.mime_type ?? null);
     try {
-      const url = await createSignedMedicalRecordUrl(file.storage_path);
-      await WebBrowser.openBrowserAsync(url);
+      const localUri = await downloadMedicalRecordFileForOpening(file);
+      setFilePreviewUri(localUri);
     } catch (e) {
+      setFilePreviewMime(null);
       Alert.alert(
         "Could not open file",
         e instanceof Error ? e.message : "Try again in a moment.",
       );
+    } finally {
+      setFilePreviewLoading(false);
+    }
+  }, []);
+
+  const closeFilePreview = useCallback(() => {
+    setFilePreviewUri(null);
+    setFilePreviewMime(null);
+    setFilePreviewLoading(false);
+  }, []);
+
+  const handleShareFile = useCallback(async (file: PetMedicalRecordFile) => {
+    setSharingFileId(file.id);
+    try {
+      await shareMedicalRecordFile(file);
+    } catch (e) {
+      Alert.alert(
+        "Could not share",
+        e instanceof Error ? e.message : "Try again in a moment.",
+      );
+    } finally {
+      setSharingFileId(null);
     }
   }, []);
 
   const confirmDeleteFile = useCallback(
     (file: PetMedicalRecordFile) => {
-      Alert.alert(
-        "Remove this file?",
-        file.original_filename ?? "File",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Remove",
-            style: "destructive",
-            onPress: () => {
-              deleteFileMut.mutate(file, {
-                onError: (e) =>
-                  Alert.alert("Couldn't remove file", getErrorMessage(e)),
-              });
-            },
+      Alert.alert("Remove this file?", file.original_filename ?? "File", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            deleteFileMut.mutate(file, {
+              onError: (e) =>
+                Alert.alert("Couldn't remove file", getErrorMessage(e)),
+            });
           },
-        ],
-      );
+        },
+      ]);
     },
     [deleteFileMut],
   );
@@ -213,10 +245,8 @@ export default function EditMedicalRecordScreen() {
 
   const canEdit = canManage === true && Boolean(userId);
 
-  const titleDirty =
-    titleDraft.trim() !== (record?.title ?? "").trim();
-  const canSaveTitle =
-    canEdit && titleDraft.trim().length > 0 && titleDirty;
+  const titleDirty = titleDraft.trim() !== (record?.title ?? "").trim();
+  const canSaveTitle = canEdit && titleDraft.trim().length > 0 && titleDirty;
 
   const busy = updateTitleMut.isPending || deleteRecordMut.isPending;
 
@@ -238,6 +268,7 @@ export default function EditMedicalRecordScreen() {
             <PetNavAvatar
               displayPet={details}
               accessibilityLabelPrefix="Medical record for"
+              // onAfterSwitchPet={onPetSwitch}
             />
           ) : (
             <View style={{ width: 40 }} />
@@ -275,9 +306,7 @@ export default function EditMedicalRecordScreen() {
               <Text style={styles.sectionTitle}>Files</Text>
               {canEdit ? (
                 <Pressable
-                  onPress={() =>
-                    runWithProOrUpgrade(() => setAddOpen(true))
-                  }
+                  onPress={() => runWithProOrUpgrade(() => setAddOpen(true))}
                   hitSlop={8}
                 >
                   <Text style={styles.addLink}>Add files</Text>
@@ -290,6 +319,8 @@ export default function EditMedicalRecordScreen() {
               canEdit={canEdit}
               openFile={openFile}
               confirmDeleteFile={confirmDeleteFile}
+              onShareFile={handleShareFile}
+              sharingFileId={sharingFileId}
             />
           </View>
 
@@ -320,6 +351,14 @@ export default function EditMedicalRecordScreen() {
           ) : null}
         </View>
       </KeyboardAwareScrollView>
+
+      <MedicalRecordFilePreviewModal
+        visible={filePreviewLoading || filePreviewUri !== null}
+        loading={filePreviewLoading}
+        localUri={filePreviewUri}
+        mimeType={filePreviewMime}
+        onClose={closeFilePreview}
+      />
 
       <MedicalRecordAddFilesModal
         visible={addOpen}

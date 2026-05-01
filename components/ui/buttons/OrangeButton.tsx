@@ -1,5 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import * as Haptics from "expo-haptics";
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -32,6 +33,10 @@ const BUTTON_HEIGHT = 50;
 const SHADOW_OFFSET = 5;
 const SNAP_MS = 50;
 
+function orangeButtonPressHaptic() {
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
+}
+
 export default function OrangeButton({
   children,
   style,
@@ -59,6 +64,9 @@ export default function OrangeButton({
         accessibilityHint={accessibilityHint}
         onPress={onPress}
         onPressIn={(e) => {
+          if (!(disabled || loading)) {
+            orangeButtonPressHaptic();
+          }
           translateY.value = withTiming(SHADOW_OFFSET, { duration: SNAP_MS });
           onPressIn?.(e);
         }}

@@ -23,6 +23,7 @@ type Props = {
   scrollInsetBottom: number;
   onBack: () => void;
   openFile: (f: PetInsuranceFile) => void;
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
 export default function InsuranceReadOnlyView({
@@ -32,12 +33,17 @@ export default function InsuranceReadOnlyView({
   scrollInsetBottom,
   onBack,
   openFile,
+  onAfterSwitchPet,
 }: Props) {
   const insets = useSafeAreaInsets();
   const st = insuranceStatusLabel(details.is_insured ?? null);
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <InsuranceNavHeader displayPet={details} onBack={onBack} />
+      <InsuranceNavHeader
+        displayPet={details}
+        onBack={onBack}
+        onAfterSwitchPet={onAfterSwitchPet}
+      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[

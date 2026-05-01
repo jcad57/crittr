@@ -1,5 +1,9 @@
 import { Colors } from "@/constants/colors";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import {
+  AUTH_STACK_HORIZONTAL_PADDING,
+  authContentColumnStyle,
+} from "@/lib/responsiveUi";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -128,7 +132,7 @@ export default function OnboardingCard({
           : styles.headerInFlow,
         {
           paddingTop: insets.top + 12,
-          paddingHorizontal: 24,
+          paddingHorizontal: AUTH_STACK_HORIZONTAL_PADDING,
         },
       ]}
     >
@@ -196,7 +200,14 @@ export default function OnboardingCard({
               welcomeBackground && { overflow: "visible" as const },
             ]}
           >
-            {children}
+            <View
+              style={[
+                authContentColumnStyle(),
+                scrollBody && !centerContent ? { flexGrow: 1 } : null,
+              ]}
+            >
+              {children}
+            </View>
           </View>
         </KeyboardAwareScrollView>
       ) : (
@@ -219,7 +230,9 @@ export default function OnboardingCard({
               scrollBody ? { paddingBottom: insets.bottom } : null,
             ]}
           >
-            {children}
+            <View style={[authContentColumnStyle(), { flexGrow: 1 }]}>
+              {children}
+            </View>
           </View>
         </View>
       )}
@@ -268,7 +281,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: AUTH_STACK_HORIZONTAL_PADDING,
   },
   content: {
     width: "100%",

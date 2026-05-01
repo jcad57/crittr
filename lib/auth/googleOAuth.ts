@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Linking from "expo-linking";
+import type { Session } from "@supabase/supabase-js";
 import * as WebBrowser from "expo-web-browser";
 import { WebBrowserResultType } from "expo-web-browser";
 
@@ -39,7 +40,7 @@ function parseCallbackParams(url: string): Record<string, string> {
 }
 
 export type GoogleSignInResult =
-  | { status: "signed_in" }
+  | { status: "signed_in"; session: Session }
   | { status: "cancelled" };
 
 /**
@@ -51,6 +52,8 @@ export async function signInWithGoogleWithBrowser(): Promise<GoogleSignInResult>
     options: {
       redirectTo: GOOGLE_OAUTH_REDIRECT,
       skipBrowserRedirect: true,
+      /** Always show Google’s account picker so “sign out / sign in again” can switch accounts. */
+      queryParams: { prompt: "select_account" },
     },
   });
   if (error) throw error;
@@ -85,19 +88,24 @@ export async function signInWithGoogleWithBrowser(): Promise<GoogleSignInResult>
     throw new Error(msg);
   }
   if (params.code) {
-    const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(
-      params.code,
-    );
+    const { data, error: exchangeErr } =
+      await supabase.auth.exchangeCodeForSession(params.code);
     if (exchangeErr) throw exchangeErr;
-    return { status: "signed_in" };
+    if (!data.session) {
+      throw new Error("Sign-in could not be completed. Please try again.");
+    }
+    return { status: "signed_in", session: data.session };
   }
   if (params.access_token && params.refresh_token) {
-    const { error: sessionErr } = await supabase.auth.setSession({
+    const { data, error: sessionErr } = await supabase.auth.setSession({
       access_token: params.access_token,
       refresh_token: params.refresh_token,
     });
     if (sessionErr) throw sessionErr;
-    return { status: "signed_in" };
+    if (!data.session) {
+      throw new Error("Sign-in could not be completed. Please try again.");
+    }
+    return { status: "signed_in", session: data.session };
   }
   throw new Error("Sign-in could not be completed. Please try again.");
 }

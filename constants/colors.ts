@@ -7,6 +7,12 @@ export const Colors = {
   /** Pet hero quick-glance pills when the fact is true (dark teal-forest on orange) */
   petHeroTagActive: "#124E46",
 
+  /**
+   * Matches native splash (`expo-splash-screen` + `expo.backgroundColor`) so the handoff
+   * from launch → JS doesn’t flash white before screens paint.
+   */
+  splashBackground: "#fff7f1",
+
   /** Dashboard / marketing cream (replaces full-screen orange gradient) */
   cream: "#FDF8F3",
   creamDark: "#EDE4D8",

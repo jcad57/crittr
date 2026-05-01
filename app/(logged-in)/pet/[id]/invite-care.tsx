@@ -11,6 +11,7 @@ import {
   useSentInvitesForPetQuery,
 } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { queryClient } from "@/lib/queryClient";
 import { type CoCarerWithProfile } from "@/services/coCare";
 import type { CoCarerInvite } from "@/types/database";
@@ -37,7 +38,8 @@ const BOTTOM_BAR_PADDING_TOP = 8;
 export default function PetInviteCareScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const { push, router } = useNavigationCooldown();
+  const { push, replace, router } = useNavigationCooldown();
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
   const insets = useSafeAreaInsets();
 
   const {
@@ -130,6 +132,7 @@ export default function PetInviteCareScreen() {
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Co-carers for"
+            onAfterSwitchPet={onPetSwitch}
           />
         </View>
       </View>

@@ -28,6 +28,8 @@ type Props = {
   avatarUrl: string | null | undefined;
   avatarUploading: boolean;
   onAvatarPress: () => void;
+  /** Wide layouts (e.g. tablet): center avatar + identity text as a block. */
+  centerIdentitySection?: boolean;
 };
 
 export default function ProfileHero({
@@ -41,6 +43,7 @@ export default function ProfileHero({
   avatarUrl,
   avatarUploading,
   onAvatarPress,
+  centerIdentitySection = false,
 }: Props) {
   const bannerTheme = resolveProBannerTheme(proBannerThemeId);
   const avatarBlock = (
@@ -84,20 +87,38 @@ export default function ProfileHero({
   );
 
   const textCol = (
-    <View style={styles.heroTextCol}>
+    <View
+      style={
+        centerIdentitySection
+          ? styles.heroTextColTabletCentered
+          : styles.heroTextCol
+      }
+    >
       <Text
-        style={[styles.heroName, isPro ? styles.heroNamePro : undefined]}
+        style={[
+          styles.heroName,
+          isPro ? styles.heroNamePro : undefined,
+          centerIdentitySection && styles.heroTextCenter,
+        ]}
       >
         {titleName}
       </Text>
       <Text
-        style={[styles.heroEmail, isPro ? styles.heroEmailPro : undefined]}
+        style={[
+          styles.heroEmail,
+          isPro ? styles.heroEmailPro : undefined,
+          centerIdentitySection && styles.heroTextCenter,
+        ]}
       >
         {email || "—"}
       </Text>
       {memberLine ? (
         <Text
-          style={[styles.heroMember, isPro ? styles.heroMemberPro : undefined]}
+          style={[
+            styles.heroMember,
+            isPro ? styles.heroMemberPro : undefined,
+            centerIdentitySection && styles.heroTextCenter,
+          ]}
         >
           {memberLine}
         </Text>
@@ -105,6 +126,10 @@ export default function ProfileHero({
     </View>
   );
 
+  const heroTopRowStyle = [
+    styles.heroTopRow,
+    centerIdentitySection && styles.heroTopRowCentered,
+  ];
   if (isPro) {
     return (
       <ProHeroWithShine
@@ -136,7 +161,7 @@ export default function ProfileHero({
             </Text>
           </View>
         </View>
-        <View style={styles.heroTopRow}>
+        <View style={heroTopRowStyle}>
           {avatarBlock}
           {textCol}
         </View>
@@ -146,7 +171,7 @@ export default function ProfileHero({
 
   return (
     <View style={styles.heroCard}>
-      <View style={styles.heroTopRow}>
+      <View style={heroTopRowStyle}>
         {avatarBlock}
         {textCol}
       </View>
@@ -192,6 +217,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
+  },
+  heroTopRowCentered: {
+    justifyContent: "center",
+    width: "100%",
   },
   heroAvatarOuter: {
     width: 80,
@@ -245,6 +274,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 4,
+  },
+  heroTextColTabletCentered: {
+    gap: 4,
+    flexGrow: 0,
+    flexShrink: 1,
+    alignItems: "center",
+    maxWidth: "100%",
+  },
+  heroTextCenter: {
+    textAlign: "center",
   },
   heroName: {
     fontFamily: Font.displayBold,

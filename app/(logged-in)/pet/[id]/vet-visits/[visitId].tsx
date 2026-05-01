@@ -1,5 +1,6 @@
 import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
@@ -253,7 +254,17 @@ export default function EditVetVisitScreen() {
         <Text style={styles.navTitle} numberOfLines={1}>
           Edit visit
         </Text>
-        <View style={styles.navSpacer} />
+        <View
+          style={[
+            styles.navSpacer,
+            { alignItems: "flex-end", justifyContent: "center" },
+          ]}
+        >
+          <PetNavAvatar
+            displayPet={petDetails ?? null}
+            accessibilityLabelPrefix="Editing vet visit for"
+          />
+        </View>
       </View>
 
       <KeyboardAwareScrollView

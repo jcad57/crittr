@@ -1,22 +1,61 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/constants/authUi";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuthStore } from "@/stores/authStore";
-import {
-  ONBOARDING_STEPS,
-  useOnboardingStore,
-} from "@/stores/onboardingStore";
-import { useShallow } from "zustand/react/shallow";
+import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 import Divider from "../ui/Divider";
 import SocialAuthContainer from "./SocialAuthContainer";
 
+function SignUpGoogleBlock({ isSubmitting }: { isSubmitting: boolean }) {
+  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
+  const { setEmailVerificationPending, setProfileBackAfterProfile } =
+    useOnboardingStore(
+      useShallow((s) => ({
+        setEmailVerificationPending: s.setEmailVerificationPending,
+        setProfileBackAfterProfile: s.setProfileBackAfterProfile,
+      })),
+    );
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    setEmailVerificationPending(false);
+    setProfileBackAfterProfile("signup");
+    try {
+      await signInWithGoogle();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      Alert.alert("Google sign-up", msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Text style={[authOnboardingStyles.socialLabel, { marginBottom: 16 }]}>
+        Sign up with
+      </Text>
+      <SocialAuthContainer
+        onGooglePress={handleGoogleSignUp}
+        googleLoading={googleLoading}
+        googleDisabled={isSubmitting}
+      />
+      <Divider />
+    </>
+  );
+}
+
 export default function SignUpStep() {
+  const router = useRouter();
   const {
     accountData,
     setAccountData,
@@ -33,9 +72,7 @@ export default function SignUpStep() {
     })),
   );
   const signUp = useAuthStore((s) => s.signUp);
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
   const canSubmit =
@@ -77,20 +114,6 @@ export default function SignUpStep() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    setGoogleLoading(true);
-    setEmailVerificationPending(false);
-    setProfileBackAfterProfile("signup");
-    try {
-      await signInWithGoogle();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Something went wrong.";
-      Alert.alert("Google sign-up", msg);
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Text style={authOnboardingStyles.screenTitle}>Welcome to Crittr!</Text>
@@ -111,16 +134,15 @@ export default function SignUpStep() {
         />
       </View>
 
-      <Text style={[authOnboardingStyles.socialLabel, { marginBottom: 16 }]}>
-        Sign up with
-      </Text>
-      <SocialAuthContainer
-        onGooglePress={handleGoogleSignUp}
-        googleLoading={googleLoading}
-        googleDisabled={isSubmitting}
-      />
-
-      <Divider />
+      {SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS ? (
+        <SignUpGoogleBlock isSubmitting={isSubmitting} />
+      ) : (
+        <Text
+          style={[authOnboardingStyles.screenSubtitle, { marginBottom: 20 }]}
+        >
+          Fill out some details to get started{" "}
+        </Text>
+      )}
 
       {/* Name row */}
       <View style={styles.nameRow}>
@@ -174,10 +196,15 @@ export default function SignUpStep() {
       />
 
       {/* Terms */}
-      <Text style={authOnboardingStyles.terms}>
-        I agree to the{" "}
-        <Text style={authOnboardingStyles.termsLink}>Terms & Conditions</Text>
-      </Text>
+      <Pressable
+        onPress={() => router.push("/terms-of-service")}
+        style={styles.termsPressable}
+      >
+        <Text style={authOnboardingStyles.terms}>
+          I agree to the{" "}
+          <Text style={authOnboardingStyles.termsLink}>Terms of Service</Text>
+        </Text>
+      </Pressable>
 
       {attempted && !canSubmit ? (
         <Text style={styles.errorHint}>
@@ -196,12 +223,13 @@ export default function SignUpStep() {
       </OrangeButton>
 
       {/* Same layout + copy as welcome screen: inline “Sign In” link */}
-      <Link href="/(auth)/sign-in" asChild>
-        <Pressable style={styles.signInRow}>
-          <Text style={styles.signInLink}>I already have an account! </Text>
-          <Text style={styles.signInLinkBold}>Sign In</Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        style={styles.signInRow}
+        onPress={() => router.replace("/(auth)/sign-in")}
+      >
+        <Text style={styles.signInLink}>I already have an account! </Text>
+        <Text style={styles.signInLinkBold}>Sign In</Text>
+      </Pressable>
     </View>
   );
 }
@@ -258,5 +286,8 @@ const styles = StyleSheet.create({
     color: Colors.error,
     textAlign: "center",
     marginBottom: 8,
+  },
+  termsPressable: {
+    alignSelf: "center",
   },
 });

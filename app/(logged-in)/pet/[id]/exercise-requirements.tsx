@@ -13,6 +13,7 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { PetFormData } from "@/types/database";
+import { getErrorMessage } from "@/utils/errorMessage";
 import { formatEnergyLabel } from "@/utils/petDisplay";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -93,8 +94,7 @@ export default function ExerciseRequirementsScreen() {
       });
       router.back();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Couldn't save", msg);
+      Alert.alert("Couldn't save", getErrorMessage(e) || "Please try again.");
     }
   }, [
     details,
@@ -150,7 +150,12 @@ export default function ExerciseRequirementsScreen() {
           <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
             <Text style={styles.navBack}>&lt; Back</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
+          <Text
+            style={styles.navTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+          >
             Exercise requirements
           </Text>
           <View style={styles.navSpacer} />
@@ -183,7 +188,12 @@ export default function ExerciseRequirementsScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.navBack}>&lt; Back</Text>
         </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>
+        <Text
+          style={styles.navTitle}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+        >
           Exercise requirements
         </Text>
         <View style={styles.navSpacer} />

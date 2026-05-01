@@ -18,10 +18,13 @@ const requestOptions = {
 
 /**
  * AdMob app open: full-screen when the app starts (first eligible load) and when returning
- * from the background, for signed-in, non–Crittr Pro users. Preloads the next ad after one is dismissed.
+ * from the background, for signed-in, non–Crittr Pro users who have finished onboarding.
+ * While `needsOnboarding` is true (sign-up → first-time setup), ads are suppressed so the
+ * flow is not interrupted. Preloads the next ad after one is dismissed.
  */
 export default function AppOpenAdManager() {
   const session = useAuthStore((s) => s.session);
+  const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const isLoggedIn = Boolean(session);
   const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
@@ -29,6 +32,7 @@ export default function AppOpenAdManager() {
   const canRequest =
     APP_OPEN_ADS_ENABLED &&
     isLoggedIn &&
+    !needsOnboarding &&
     !isPro &&
     !isPending &&
     !isPlaceholderData;

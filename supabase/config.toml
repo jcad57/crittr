@@ -20,6 +20,10 @@ verify_jwt = false
 [functions.parse-medical-record]
 verify_jwt = false
 
+# Gateway JWT verify can fail with ES256 before handler runs; auth via user JWT + RLS inside.
+[functions.serve-medical-record-file]
+verify_jwt = false
+
 [functions.submit-feedback]
 verify_jwt = false
 
@@ -27,6 +31,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.cancel-subscription]
+verify_jwt = false
+
+[functions.delete-account]
 verify_jwt = false
 
 [functions.create-billing-portal-session]

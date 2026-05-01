@@ -6,9 +6,14 @@ import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
 type Props = {
   displayPet: PetWithDetails;
   onBack: () => void;
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
-export default function InsuranceNavHeader({ displayPet, onBack }: Props) {
+export default function InsuranceNavHeader({
+  displayPet,
+  onBack,
+  onAfterSwitchPet,
+}: Props) {
   return (
     <View style={styles.nav}>
       <View style={styles.navSideLeft}>
@@ -23,6 +28,7 @@ export default function InsuranceNavHeader({ displayPet, onBack }: Props) {
         <PetNavAvatar
           displayPet={displayPet}
           accessibilityLabelPrefix="Insurance for"
+          onAfterSwitchPet={onAfterSwitchPet}
         />
       </View>
     </View>

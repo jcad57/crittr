@@ -7,14 +7,21 @@ import { submitFeedback } from "@/services/feedback";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const CATEGORIES: { id: FeedbackCategory; label: string }[] = [
+  { id: "general", label: "General" },
   { id: "bug", label: "Bug" },
   { id: "feature", label: "Feature idea" },
-  { id: "general", label: "General" },
 ];
 
 export default function FeedbackScreen() {
@@ -29,7 +36,10 @@ export default function FeedbackScreen() {
   const onSubmit = useCallback(async () => {
     const trimmed = message.trim();
     if (!trimmed) {
-      Alert.alert("Add details", "Tell us what’s on your mind in the message field.");
+      Alert.alert(
+        "Add details",
+        "Tell us what’s on your mind in the message field.",
+      );
       return;
     }
     setSubmitting(true);

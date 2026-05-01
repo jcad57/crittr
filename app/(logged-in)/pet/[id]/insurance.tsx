@@ -13,6 +13,8 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import {
   captureMedicalPhoto,
   pickMedicalDocuments,
@@ -21,7 +23,7 @@ import {
 import { createSignedPetInsuranceUrl } from "@/services/petInsurance";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetInsuranceFile } from "@/types/database";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -39,7 +41,8 @@ import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
 export default function PetInsuranceScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const router = useRouter();
+  const { replace, router } = useNavigationCooldown();
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -209,6 +212,7 @@ export default function PetInsuranceScreen() {
         scrollInsetBottom={scrollInsetBottom}
         onBack={() => router.back()}
         openFile={openFile}
+        onAfterSwitchPet={onPetSwitch}
       />
     );
   }
@@ -223,7 +227,11 @@ export default function PetInsuranceScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <InsuranceNavHeader displayPet={details} onBack={() => router.back()} />
+      <InsuranceNavHeader
+        displayPet={details}
+        onBack={() => router.back()}
+        onAfterSwitchPet={onPetSwitch}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -242,8 +250,7 @@ export default function PetInsuranceScreen() {
         >
           <View style={styles.formMain}>
             <Text style={styles.lead}>
-              Keep your pet's insurance policy number, and a copy of your policy
-              PDF or photos in one place.
+              {`Keep your pet\u2019s insurance policy number, and a copy of your policy PDF or photos in one place.`}
             </Text>
 
             <PetInsuranceToggle value={isInsured} onChange={setIsInsured} />

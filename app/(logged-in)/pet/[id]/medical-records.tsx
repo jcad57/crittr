@@ -28,6 +28,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { buildVisitSummary, formatMediumDate } from "@/utils/medicalRecordsListFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -49,10 +50,13 @@ import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
 const ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN = false;
 
 export default function PetMedicalRecordsScreen() {
-  const { id: petId } = useLocalSearchParams<{ id: string }>();
-  const { push, router } = useNavigationCooldown();
+  const { id: rawPetId } = useLocalSearchParams<{ id: string | string[] }>();
+  const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId;
+  const { push, replace, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const userId = useAuthStore((s) => s.session?.user?.id);
+
+  const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading: loadingPet } = usePetDetailsQuery(petId);
   const { data: vetVisits = [], isLoading: loadingVisits } =
@@ -273,6 +277,7 @@ export default function PetMedicalRecordsScreen() {
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Medical records for"
+            onAfterSwitchPet={onPetSwitch}
           />
         </View>
       </View>

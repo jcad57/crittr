@@ -1,5 +1,5 @@
 import { Colors } from "@/constants/colors";
-import { privacyPolicySections } from "@/constants/privacyPolicyContent";
+import { termsOfServiceSections } from "@/constants/termsOfServiceContent";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -7,7 +7,11 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function PrivacyPolicyScreen() {
+/**
+ * Root-level route so the document is reachable during auth onboarding (sign-up)
+ * without entering the logged-in stack.
+ */
+export default function TermsOfServiceScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
@@ -23,7 +27,7 @@ export default function PrivacyPolicyScreen() {
           />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
-          Privacy policy
+          Terms of service
         </Text>
         <View style={styles.navSpacer} />
       </View>
@@ -36,7 +40,7 @@ export default function PrivacyPolicyScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {privacyPolicySections.map((section) => (
+        {termsOfServiceSections.map((section) => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             {section.paragraphs.map((p, i) => (
@@ -74,24 +78,6 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     paddingTop: 8,
-  },
-  notice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: Colors.orangeLight,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-  },
-  noticeText: {
-    flex: 1,
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 19,
   },
   section: {
     marginBottom: 22,

@@ -2,6 +2,7 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
 import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { manageActivityNavTitle } from "@/constants/activityWizardTitles";
 import { Colors } from "@/constants/colors";
 import {
@@ -14,7 +15,11 @@ import {
   useUpdateVetVisitActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
-import { useActivityQuery, usePetDetailsQuery } from "@/hooks/queries";
+import {
+  useActivityQuery,
+  usePetDetailsQuery,
+  usePetsQuery,
+} from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -91,6 +96,12 @@ export default function ManageActivityItemScreen() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   const petId = activity?.pet_id ?? null;
+
+  const { data: allPets } = usePetsQuery();
+  const avatarDisplayPet = useMemo(() => {
+    if (!petId || !allPets?.length) return null;
+    return allPets.find((p) => p.id === petId) ?? null;
+  }, [petId, allPets]);
 
   const updateEx = useUpdateExerciseActivityMutation(petId);
   const updateFood = useUpdateFoodActivityMutation(petId);
@@ -318,6 +329,12 @@ export default function ManageActivityItemScreen() {
       <ActivityWizardChrome
         title={manageActivityNavTitle(activityType)}
         onBack={goBack}
+        right={
+          <PetNavAvatar
+            displayPet={avatarDisplayPet}
+            accessibilityLabelPrefix="Editing activity for"
+          />
+        }
       />
 
       {loggedAtLabel ? (

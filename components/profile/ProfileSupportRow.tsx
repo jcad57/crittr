@@ -6,7 +6,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ImageSourcePropType } from "react-native";
 
 type Props = {
-  iconImage: ImageSourcePropType;
+  iconImage?: ImageSourcePropType;
+  /** When set, renders a vector icon instead of `iconImage`. */
+  materialIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;
   iconBg: string;
   onPress?: () => void;
@@ -14,6 +16,7 @@ type Props = {
 
 export default function ProfileSupportRow({
   iconImage,
+  materialIcon,
   title,
   iconBg,
   onPress,
@@ -27,11 +30,19 @@ export default function ProfileSupportRow({
       onPress={onPress}
     >
       <View style={[styles.iconTile, { backgroundColor: iconBg }]}>
-        <Image
-          source={iconImage}
-          style={styles.rowIconImage}
-          contentFit="contain"
-        />
+        {materialIcon ? (
+          <MaterialCommunityIcons
+            name={materialIcon}
+            size={22}
+            color={Colors.orange}
+          />
+        ) : iconImage ? (
+          <Image
+            source={iconImage}
+            style={styles.rowIconImage}
+            contentFit="contain"
+          />
+        ) : null}
       </View>
       <Text style={styles.supportTitle}>{title}</Text>
       <MaterialCommunityIcons

@@ -130,8 +130,27 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingLeft: 12,
-    paddingRight: 8,
+    paddingRight: 4,
     gap: 10,
+    minWidth: 0,
+  },
+  fileActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 6,
+    gap: 2,
+  },
+  fileActionBtn: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 40,
+    height: 44,
+  },
+  fileActionBtnPressed: {
+    opacity: 0.65,
+  },
+  fileActionBtnDisabled: {
+    opacity: 0.35,
   },
   fileIcon: {
     width: 44,
@@ -154,10 +173,6 @@ export const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 12,
     color: Colors.gray500,
-  },
-  trashBtn: {
-    justifyContent: "center",
-    paddingHorizontal: 12,
   },
   deleteBtn: {
     marginTop: 16,

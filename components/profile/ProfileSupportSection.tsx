@@ -8,12 +8,14 @@ type Props = {
   onFeedback: () => void;
   onHelpCenter: () => void;
   onPrivacy: () => void;
+  onTerms: () => void;
 };
 
 export default function ProfileSupportSection({
   onFeedback,
   onHelpCenter,
   onPrivacy,
+  onTerms,
 }: Props) {
   return (
     <>
@@ -38,6 +40,13 @@ export default function ProfileSupportSection({
           title="Privacy policy"
           iconBg={Colors.skyLight}
           onPress={onPrivacy}
+        />
+        <View style={styles.rowDivider} />
+        <ProfileSupportRow
+          materialIcon="file-document-outline"
+          title="Terms of service"
+          iconBg={Colors.amberLight}
+          onPress={onTerms}
         />
       </View>
     </>

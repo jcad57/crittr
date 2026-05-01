@@ -24,7 +24,7 @@ export const privacyPolicySections: PrivacySection[] = [
     title: "How we use your information",
     paragraphs: [
       "We use your information to provide and maintain the app: authenticating your account, storing and displaying your pet data, sending in-app and push notifications you opt into, enabling co-care sharing you set up, and improving stability and security.",
-      "We do not use your personal information for third-party marketing, and we do not sell your personal information.",
+      "We take your privacy very seriously. We do not use your personal information for third-party marketing, and we do not sell your personal information.",
     ],
   },
   {
@@ -55,7 +55,7 @@ export const privacyPolicySections: PrivacySection[] = [
   {
     title: "Contact",
     paragraphs: [
-      "Questions about privacy can be sent to support@crittrapp.com. This mock policy is for layout and product iteration only and is not legal advice.",
+      "Questions about privacy can be sent to support@crittrapp.com.",
     ],
   },
 ];

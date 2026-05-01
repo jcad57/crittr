@@ -1,11 +1,15 @@
 import { Colors } from "@/constants/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import SocialCircleButton from "./SocialCircleButton";
 
 type Props = {
   onGooglePress: () => void;
-  /** Facebook / Apple — re-enable `disabled` and `onPress` when you add those providers. */
+  /**
+   * When true, swaps the Google glyph for a spinner so the button reflects
+   * the in-flight OAuth → code-exchange → profile-hydration cycle. Caller is
+   * expected to keep this `true` for the duration of `signInWithGoogle()`.
+   */
   googleLoading?: boolean;
   googleDisabled?: boolean;
 };
@@ -25,11 +29,19 @@ export default function SocialAuthContainer({
         onPress={onGooglePress}
         disabled={googleDisabled || googleLoading}
       >
-        <MaterialCommunityIcons
-          name="google"
-          size={22}
-          color={Colors.gray500}
-        />
+        {googleLoading ? (
+          <ActivityIndicator
+            size="small"
+            color={Colors.gray500}
+            accessibilityLabel="Signing in with Google"
+          />
+        ) : (
+          <MaterialCommunityIcons
+            name="google"
+            size={22}
+            color={Colors.gray500}
+          />
+        )}
       </SocialCircleButton>
     </View>
   );

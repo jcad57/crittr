@@ -1,10 +1,16 @@
+import { Colors } from "@/constants/colors";
 import { Stack } from "expo-router";
 
 export default function OnboardingLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="co-care-removed" options={{ headerShown: false }} />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Colors.splashBackground },
+      }}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="co-care-removed" />
     </Stack>
   );
 }

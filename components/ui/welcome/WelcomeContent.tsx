@@ -1,6 +1,14 @@
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import {
+  getWelcomeCarouselSlideWidth,
+  getWelcomeColumnOuterWidth,
+  welcomeAuthLayoutScale,
+  WELCOME_CONTAINER_PADDING_H,
+  WELCOME_CONTENT_MAX_WIDTH,
+  WELCOME_SCREEN_WRAPPER_PADDING_H,
+} from "@/hooks/useResponsiveUi";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,27 +25,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OrangeButton from "../buttons/OrangeButton";
-
-/** Matches `ScreenWrapper` horizontal padding. */
-const SCREEN_WRAPPER_PADDING_H = 24;
-/** Matches `styles.container` horizontal padding. */
-const WELCOME_CONTAINER_PADDING_H = 8;
-
-/** Design reference (iPhone 14-ish) — scale typography & spacing for consistency across devices. */
-const REF_WIDTH = 390;
-const REF_HEIGHT = 844;
-
-/**
- * Width-based scale for type (clamped so phones don’t swing wildly; tablets cap modestly).
- * Height factor slightly tightens vertical rhythm on short screens.
- */
-function welcomeLayoutScale(width: number, height: number) {
-  const widthScale = Math.min(Math.max(width / REF_WIDTH, 0.86), 1.12);
-  const heightScale = Math.min(Math.max(height / REF_HEIGHT, 0.9), 1.06);
-  const uiScale = Math.min(widthScale, heightScale * 1.02);
-  const verticalTight = Math.min(1, height / 720);
-  return { uiScale, verticalTight };
-}
 
 const FEATURES = [
   {
@@ -83,31 +70,30 @@ export default function WelcomeContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { uiScale, verticalTight } = welcomeLayoutScale(
+  const { uiScale, verticalTight } = welcomeAuthLayoutScale(
     windowWidth,
     windowHeight,
   );
   const vs = (n: number) => Math.round(n * uiScale * verticalTight);
   const fs = (n: number) => Math.round(n * uiScale);
 
+  const welcomeColumnOuter = getWelcomeColumnOuterWidth(windowWidth);
+
   /** Full-bleed width; height from aspect so `contain` isn’t limited by screen height (side gaps). */
   const bgHeight = windowWidth * WELCOME_BG_ASPECT;
   /** Logo above “Crittr”: bounded width, height from asset aspect (~40% smaller than base). */
   const LOGO_SCALE = 0.6;
-  const logoWidth = Math.min(windowWidth * 0.52, 220) * LOGO_SCALE;
+  const logoWidth = Math.min(welcomeColumnOuter * 0.52, 220) * LOGO_SCALE;
   const logoHeight = logoWidth * DOG_CAT_ASPECT;
   /** Paws strip at bottom; ~60% smaller than the previous full-width treatment. */
   const PAWS_SCALE = 0.4;
-  const pawsWidth = Math.min(windowWidth * 0.92, 420) * PAWS_SCALE;
+  const pawsWidth = Math.min(welcomeColumnOuter * 0.92, 420) * PAWS_SCALE;
   const pawsHeight = pawsWidth * PAWS_ASPECT;
   /**
    * Keep copy/buttons clear of the paw art; small gap only — paws sit flush to screen bottom.
    */
   const pawsBottomReserve = pawsHeight + Math.max(4, Math.round(6 * uiScale));
-  const slideWidth =
-    windowWidth -
-    SCREEN_WRAPPER_PADDING_H * 2 -
-    WELCOME_CONTAINER_PADDING_H * 2;
+  const slideWidth = getWelcomeCarouselSlideWidth(windowWidth);
 
   const listRef = useRef<FlatList<(typeof FEATURES)[number]>>(null);
   const [index, setIndex] = useState(0);
@@ -176,7 +162,10 @@ export default function WelcomeContent() {
           ]}
         >
           <View
-            style={[styles.container, { paddingBottom: pawsBottomReserve }]}
+            style={[
+              styles.contentColumn,
+              { paddingBottom: pawsBottomReserve },
+            ]}
           >
             <Image
               source={DOG_CAT_LOGO}
@@ -299,6 +288,7 @@ const styles = StyleSheet.create({
     width: "100%",
     position: "relative",
     overflow: "hidden",
+    backgroundColor: Colors.splashBackground,
   },
   screenLayer: {
     flex: 1,
@@ -306,19 +296,21 @@ const styles = StyleSheet.create({
   },
   screenWrapper: {
     flex: 1,
-    paddingHorizontal: SCREEN_WRAPPER_PADDING_H,
+    alignItems: "center",
+    paddingHorizontal: WELCOME_SCREEN_WRAPPER_PADDING_H,
   },
   bgImage: {
     position: "absolute",
     left: 0,
     top: 0,
   },
-  container: {
+  contentColumn: {
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "center",
     width: "100%",
-    paddingHorizontal: 8,
+    maxWidth: WELCOME_CONTENT_MAX_WIDTH,
+    paddingHorizontal: WELCOME_CONTAINER_PADDING_H,
   },
   logo: {
     fontFamily: Font.displayBold,

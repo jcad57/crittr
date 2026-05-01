@@ -56,6 +56,7 @@ export default function Onboarding() {
     <OnboardingCard
       scrollKey={currentStep}
       scrollBody={currentStep !== FINISH_STEP_INDEX}
+      centerContent={currentStep === 0}
       header={
         currentStep === 0 ? (
           <AuthBackToWelcome onBeforeNavigate={resetOnboarding} />

@@ -1,3 +1,4 @@
+import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/auth";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
@@ -27,7 +28,7 @@ export default function AuthLayout() {
     (pathname?.includes("(onboarding)") ?? false);
 
   if (isLoggedIn && !needsOnboarding) {
-    return <Redirect href="/(logged-in)/dashboard" />;
+    return <Redirect href="/(logged-in)/(tabs)/dashboard" />;
   }
 
   if (isLoggedIn && needsOnboarding && !isOnOnboarding) {
@@ -51,7 +52,12 @@ export default function AuthLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Colors.splashBackground },
+      }}
+    >
       <Stack.Screen name="welcome" />
       <Stack.Screen name="sign-in" />
       <Stack.Screen name="(onboarding)" />

@@ -11,6 +11,7 @@ type Props = {
   displayPet?: Pet | null;
   accessibilityLabelPrefix?: string;
   showAvatar?: boolean;
+  onAfterSwitchPet?: (newPetId: string) => void;
 };
 
 export default function PetMedicationNavHeader({
@@ -19,6 +20,7 @@ export default function PetMedicationNavHeader({
   displayPet,
   accessibilityLabelPrefix,
   showAvatar = true,
+  onAfterSwitchPet,
 }: Props) {
   return (
     <View style={styles.nav}>
@@ -36,6 +38,7 @@ export default function PetMedicationNavHeader({
         <PetNavAvatar
           displayPet={displayPet}
           accessibilityLabelPrefix={accessibilityLabelPrefix}
+          onAfterSwitchPet={onAfterSwitchPet}
         />
       ) : (
         <View style={styles.navSpacer} />
