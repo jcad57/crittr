@@ -1,6 +1,8 @@
 import { Colors } from "@/constants/colors";
 import type { VetVisitSummary } from "@/types/ui";
 import type { PetVetVisit } from "@/types/database";
+import type { UserDateDisplay, UserTimeDisplay } from "@/utils/userDateTimeFormat";
+import { dateLocaleFor, formatUserTime } from "@/utils/userDateTimeFormat";
 
 /** True when the visit is today or in the future (local calendar). */
 export function isUpcomingVetVisit(iso: string): boolean {
@@ -11,18 +13,20 @@ export function isUpcomingVetVisit(iso: string): boolean {
   return t >= start.getTime();
 }
 
-export function mapPetVetVisitToDashboard(row: PetVetVisit): VetVisitSummary {
+export function mapPetVetVisitToDashboard(
+  row: PetVetVisit,
+  timeDisplay: UserTimeDisplay,
+  dateDisplay: UserDateDisplay,
+): VetVisitSummary {
   const d = new Date(row.visit_at);
-  const dateStr = d.toLocaleDateString("en-US", {
+  const locale = dateLocaleFor(dateDisplay);
+  const dateStr = d.toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-  const timeStr = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const timeStr = formatUserTime(d, timeDisplay);
   const subtitle = buildVisitSubtitle(row);
   return {
     id: row.id,
@@ -31,7 +35,7 @@ export function mapPetVetVisitToDashboard(row: PetVetVisit): VetVisitSummary {
     time: timeStr,
     accentColor: Colors.lavenderDark,
     subtitle: subtitle || undefined,
-    badgeLabel: d.toLocaleDateString("en-US", { month: "short" }),
+    badgeLabel: d.toLocaleDateString(locale, { month: "short" }),
   };
 }
 

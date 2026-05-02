@@ -2,6 +2,7 @@ import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetFoodNavHeader from "@/components/petScreens/food/PetFoodNavHeader";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetFood } from "@/types/database";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import { ScrollView, Text, View } from "react-native";
@@ -19,6 +20,7 @@ export default function PetFoodReadOnlyView({
   bottomPadding,
   onBack,
 }: Props) {
+  const { timeDisplay } = useUserDateTimePrefs();
   const treat = isTreatFood(existing);
   const meals =
     existing.meals_per_day != null && existing.meals_per_day >= 1
@@ -42,14 +44,14 @@ export default function PetFoodReadOnlyView({
           <>
             <ReadOnlyFieldRow
               label="Portion"
-              value={formatPetFoodPortionSubline(existing)}
+              value={formatPetFoodPortionSubline(existing, timeDisplay)}
             />
             <ReadOnlyFieldRow label="Times per day" value={meals} />
           </>
         ) : (
           <ReadOnlyFieldRow
             label="Feeding schedule"
-            value={formatPetFoodPortionSubline(existing)}
+            value={formatPetFoodPortionSubline(existing, timeDisplay)}
           />
         )}
         <ReadOnlyFieldRow

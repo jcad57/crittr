@@ -1,7 +1,8 @@
+import type { PetMedication } from "@/types/database";
 import type { HealthTrafficKind } from "@/utils/healthTraffic";
 import { medicationTraffic } from "@/utils/healthTraffic";
 import type { MedicationDosageProgress } from "@/utils/medicationDosageProgress";
-import type { PetMedication } from "@/types/database";
+import type { UserDateDisplay } from "@/utils/userDateTimeFormat";
 
 /**
  * Badge label + traffic kind for a medication row, matching Health tab behavior:
@@ -10,8 +11,9 @@ import type { PetMedication } from "@/types/database";
 export function getMedicationBadgeDisplay(
   m: PetMedication,
   prog: MedicationDosageProgress,
+  dateDisplay: UserDateDisplay = "mdy",
 ): { kind: HealthTrafficKind; label: string } {
-  const t = medicationTraffic(m);
+  const t = medicationTraffic(m, dateDisplay);
   if (prog.total > 0) {
     return {
       kind: prog.isComplete ? "current" : "due_today",

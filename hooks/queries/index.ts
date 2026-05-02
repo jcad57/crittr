@@ -6,6 +6,7 @@ export {
   petMedicalRecordsQueryKey,
   petMedicalRecordDetailQueryKey,
   petInsuranceFilesQueryKey,
+  petWeightEntriesQueryKey,
   petsQueryKey,
   profileQueryKey,
   subscriptionDetailsQueryKey,
@@ -37,6 +38,7 @@ export { usePetVetVisitsQuery } from "./usePetVetVisitsQuery";
 export { usePetMedicalRecordsQuery } from "./usePetMedicalRecordsQuery";
 export { usePetMedicalRecordDetailQuery } from "./usePetMedicalRecordDetailQuery";
 export { usePetInsuranceFilesQuery } from "./usePetInsuranceFilesQuery";
+export { usePetWeightEntriesQuery } from "./usePetWeightEntriesQuery";
 export { useProfileQuery } from "./useProfileQuery";
 export { useSubscriptionDetailsQuery } from "./useSubscriptionDetailsQuery";
 export { useProPricingQuery } from "./useProPricingQuery";

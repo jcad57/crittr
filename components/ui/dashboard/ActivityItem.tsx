@@ -7,20 +7,13 @@ import {
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { displayCategory, pottyBreakSummary } from "@/data/activityHistory";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { formatMedicationDosageDisplay } from "@/utils/medicationDosageDisplay";
 import type { PetActivity } from "@/types/database";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
 
 function buildRightValue(a: PetActivity): string {
   switch (a.activity_type) {
@@ -74,11 +67,12 @@ export default function ActivityItem({
   petType = null,
   onPress,
 }: Props) {
+  const { timeDisplay } = useUserDateTimePrefs();
   const category = displayCategory(activity);
   const iconCfg = ACTIVITY_ROW_ICONS[category];
   const iconSource = resolveActivityRowIconSource(category, petType);
   const rightVal = buildRightValue(activity);
-  const time = formatTime(activity.logged_at);
+  const time = formatUserTime(new Date(activity.logged_at), timeDisplay);
   const hasNotes = !!activity.notes?.trim();
   const showChevron = !!onPress;
 

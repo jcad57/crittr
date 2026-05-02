@@ -27,6 +27,7 @@ import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
@@ -68,6 +69,8 @@ export default function PetProfilePage() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const ownerId = useAuthStore((s) => s.session?.user?.id);
   const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
 
   const { data: details, isLoading } = usePetDetailsQuery(id);
 
@@ -112,8 +115,14 @@ export default function PetProfilePage() {
   }, [ownerId, id]);
 
   const profile = useMemo(
-    () => (details ? toProfile(details, todayActivities) : null),
-    [details, todayActivities],
+    () =>
+      details
+        ? toProfile(details, todayActivities, {
+            timeDisplay,
+            dateDisplay,
+          })
+        : null,
+    [details, todayActivities, timeDisplay, dateDisplay],
   );
 
   const handleLeaveCoCare = useCallback(() => {
@@ -152,6 +161,9 @@ export default function PetProfilePage() {
         label: "Weight",
         value: profile.weightDisplay,
         icon: "scale-bathroom",
+        accessibilityLabel: `Weight ${profile.weightDisplay}, view weight history`,
+        onPress: () =>
+          push(`/(logged-in)/pet/${profile.id}/weight-history` as Href),
       },
       {
         label: "Birthday",
@@ -164,7 +176,7 @@ export default function PetProfilePage() {
         icon: "gender-male-female",
       },
     ];
-  }, [profile]);
+  }, [profile, push]);
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
@@ -307,7 +319,7 @@ export default function PetProfilePage() {
               >
                 <PetFoodProfileCard
                   name={f.brand?.trim() || "Food"}
-                  subline={formatPetFoodPortionSubline(f)}
+                  subline={formatPetFoodPortionSubline(f, timeDisplay)}
                   isTreat={isTreatFood(f)}
                   petType={profile.pet_type ?? null}
                 />

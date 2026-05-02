@@ -2,8 +2,13 @@ import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styl
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetMedication, PetWithDetails } from "@/types/database";
 import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
+import {
+  formatReminderHHmmForDisplay,
+  formatUserLongDateFromYmd,
+} from "@/utils/userDateTimeFormat";
 import { ScrollView, View } from "react-native";
 
 type Props = {
@@ -21,9 +26,18 @@ export default function PetMedicationReadOnlyView({
   onBack,
   onAfterSwitchPet,
 }: Props) {
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const reminderTimes = getMedicationReminderTimes(med);
   const reminderLabel =
-    reminderTimes.length > 0 ? reminderTimes.join(", ") : "—";
+    reminderTimes.length > 0
+      ? reminderTimes
+          .map((t) => formatReminderHHmmForDisplay(t, timeDisplay))
+          .join(", ")
+      : "—";
+  const lastGiven =
+    formatUserLongDateFromYmd(med.last_given_on?.trim(), dateDisplay) ||
+    med.last_given_on?.trim() ||
+    "—";
 
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
@@ -52,10 +66,7 @@ export default function PetMedicationReadOnlyView({
         />
         <ReadOnlyFieldRow label="Notes" value={med.notes?.trim() || ""} />
         <ReadOnlyFieldRow label="Reminder time" value={reminderLabel} />
-        <ReadOnlyFieldRow
-          label="Last given"
-          value={med.last_given_on?.trim() || "—"}
-        />
+        <ReadOnlyFieldRow label="Last given" value={lastGiven} />
       </ScrollView>
     </View>
   );

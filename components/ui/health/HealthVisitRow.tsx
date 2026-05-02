@@ -1,6 +1,8 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { VetVisitWithPet } from "@/services/health";
+import { formatUserShortWeekdayMonthDayTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -10,19 +12,15 @@ type Props = {
   onPress: () => void;
 };
 
-function formatWhen(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export default function HealthVisitRow({ item, isLast, onPress }: Props) {
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
+  const when =
+    formatUserShortWeekdayMonthDayTime(
+      new Date(item.visit_at),
+      dateDisplay,
+      timeDisplay,
+    ) || "—";
+
   return (
     <Pressable
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -40,7 +38,7 @@ export default function HealthVisitRow({ item, isLast, onPress }: Props) {
           {item.title}
         </Text>
         <Text style={styles.sub} numberOfLines={2}>
-          {item.pet.name} · {formatWhen(item.visit_at)}
+          {item.pet.name} · {when}
         </Text>
         {item.location?.trim() ? (
           <Text style={styles.location} numberOfLines={2}>

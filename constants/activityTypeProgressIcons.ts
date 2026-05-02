@@ -22,10 +22,16 @@ export function getMealsActivityIcon(
 
 /**
  * PNG icons for the log-activity grid — aligned with daily progress ring assets
- * (exercise / meals / treats / meds / maintenance).
+ * (exercise / meals / treats / meds / maintenance / weigh-in).
  */
 export const ACTIVITY_TYPE_LOG_ICONS: Record<
-  "exercise" | "food" | "medication" | "training" | "potty" | "maintenance",
+  | "exercise"
+  | "food"
+  | "medication"
+  | "training"
+  | "potty"
+  | "maintenance"
+  | "weigh_in",
   ImageSource
 > = {
   exercise: EXERCISE_ACTIVITY_ICON_DOG,
@@ -34,6 +40,7 @@ export const ACTIVITY_TYPE_LOG_ICONS: Record<
   training: EXERCISE_ACTIVITY_ICON_DOG,
   potty: require("@/assets/icons/dog-bone-icon.png"),
   maintenance: require("@/assets/icons/litter-box-icon.png"),
+  weigh_in: require("@/assets/icons/weight-scale-icon.png"),
 };
 
 /** Daily progress ring icons by category `id` from `DailyProgressCategory`. */

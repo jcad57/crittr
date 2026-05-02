@@ -1,6 +1,8 @@
+import type { PetActivity, PetMedication } from "@/types/database";
 import { isMedicationDueToday } from "@/utils/healthTraffic";
 import { dueSoonScheduleKind } from "@/utils/medicationDueSchedule";
-import type { PetActivity, PetMedication } from "@/types/database";
+import type { UserTimeDisplay } from "@/utils/userDateTimeFormat";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 
 export type MedicationDosageProgress = {
   current: number;
@@ -10,14 +12,13 @@ export type MedicationDosageProgress = {
   isComplete: boolean;
 };
 
-function formatLastTaken(iso: string): string {
+function formatLastTaken(
+  iso: string,
+  timeDisplay: UserTimeDisplay,
+): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatUserTime(d, timeDisplay);
 }
 
 /**
@@ -88,6 +89,7 @@ export function buildMedicationDosageProgress(
   m: PetMedication,
   activities: PetActivity[],
   petId: string,
+  timeDisplay: UserTimeDisplay = "12h",
 ): MedicationDosageProgress {
   const total = getExpectedDosesToday(m);
   const raw = countMedicationLogsTodayForMed(activities, petId, m.id);
@@ -103,7 +105,9 @@ export function buildMedicationDosageProgress(
     (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
   );
   const lastTaken =
-    sorted[0]?.logged_at != null ? formatLastTaken(sorted[0].logged_at) : undefined;
+    sorted[0]?.logged_at != null
+      ? formatLastTaken(sorted[0].logged_at, timeDisplay)
+      : undefined;
 
   const isComplete = total === 0 ? true : current >= total;
 

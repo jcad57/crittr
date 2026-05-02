@@ -16,6 +16,7 @@ import {
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
 import type { Href } from "expo-router";
@@ -45,6 +46,7 @@ const BOTTOM_BAR_PADDING_TOP = 8;
 export default function PetActivityLogScreen() {
   const insets = useSafeAreaInsets();
   const { push, replace, router } = useNavigationCooldown();
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const setActivePetMutation = useSetActivePetMutation();
 
   const { id: petIdParam } = useLocalSearchParams<{
@@ -88,18 +90,23 @@ export default function PetActivityLogScreen() {
 
   const allEntries = useMemo(
     () =>
-      convertActivities(rawActivities ?? [], loggerNameByUserId, currentUserId),
-    [rawActivities, loggerNameByUserId, currentUserId],
+      convertActivities(
+        rawActivities ?? [],
+        loggerNameByUserId,
+        currentUserId,
+        timeDisplay,
+      ),
+    [rawActivities, loggerNameByUserId, currentUserId, timeDisplay],
   );
 
   const sections: Section[] = useMemo(
     () =>
-      groupActivityHistory(allEntries, "all", true).map((s) => ({
+      groupActivityHistory(allEntries, "all", true, dateDisplay).map((s) => ({
         title: s.title,
         dateKey: s.dateKey,
         data: s.data,
       })),
-    [allEntries],
+    [allEntries, dateDisplay],
   );
 
   const goToActivityTab = useCallback(() => {

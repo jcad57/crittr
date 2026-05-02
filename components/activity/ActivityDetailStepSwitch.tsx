@@ -6,6 +6,7 @@ import MedicationDetailStep from "@/components/activity/MedicationDetailStep";
 import PottyDetailStep from "@/components/activity/PottyDetailStep";
 import TrainingDetailStep from "@/components/activity/TrainingDetailStep";
 import VetVisitDetailStep from "@/components/activity/VetVisitDetailStep";
+import WeighInDetailStep from "@/components/activity/WeighInDetailStep";
 import type { ActivityType } from "@/types/database";
 import type { MutableRefObject } from "react";
 
@@ -24,6 +25,7 @@ type Props = {
   onSaveTraining: () => Promise<void>;
   onSavePotty: () => Promise<void>;
   onSaveMaintenance?: () => Promise<void>;
+  onSaveWeighIn?: () => Promise<void>;
   /** Only supported in the edit flow — add flow never hits vet_visit. */
   onSaveVetVisit?: () => Promise<void>;
 };
@@ -41,6 +43,7 @@ export default function ActivityDetailStepSwitch({
   onSaveTraining,
   onSavePotty,
   onSaveMaintenance,
+  onSaveWeighIn,
   onSaveVetVisit,
 }: Props) {
   if (activityType === "exercise") {
@@ -112,6 +115,18 @@ export default function ActivityDetailStepSwitch({
       <MaintenanceDetailStep
         ref={stepRef}
         onSave={onSaveMaintenance}
+        onBack={onBack}
+        saveLabel={saveLabel}
+        embeddedInScreen
+        hideEmbeddedSave
+      />
+    );
+  }
+  if (activityType === "weigh_in" && onSaveWeighIn) {
+    return (
+      <WeighInDetailStep
+        ref={stepRef}
+        onSave={onSaveWeighIn}
         onBack={onBack}
         saveLabel={saveLabel}
         embeddedInScreen

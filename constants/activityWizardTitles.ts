@@ -18,6 +18,8 @@ export function addActivityNavTitle(
       return "Log potty";
     case "maintenance":
       return "Log maintenance";
+    case "weigh_in":
+      return "Add weigh-in";
     default:
       return "Log activity";
   }
@@ -39,6 +41,8 @@ export function manageActivityNavTitle(t: string | null | undefined): string {
       return "Edit potty";
     case "maintenance":
       return "Edit maintenance";
+    case "weigh_in":
+      return "Edit weigh-in";
     default:
       return "Edit activity";
   }

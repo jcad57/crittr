@@ -6,7 +6,9 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import type {
@@ -28,6 +30,7 @@ const DOSAGE_TYPES = [
 const FREQ_OPTIONS = ["Daily", "Weekly", "Monthly", "Custom"];
 
 export default function PetMedicationsStep() {
+  const { timeDisplay } = useUserDateTimePrefs();
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({
@@ -227,7 +230,7 @@ export default function PetMedicationsStep() {
           color={Colors.orange}
         />
         <Text style={styles.reminderTimeText}>
-          {formatReminderTimeHHmm(medReminderDate)}
+          {formatUserTime(medReminderDate, timeDisplay)}
         </Text>
       </Pressable>
       <ReminderTimePickerSheet

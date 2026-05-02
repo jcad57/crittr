@@ -1,5 +1,6 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -38,6 +39,8 @@ export default function ReminderTimePickerSheet({
   onClose,
   title = "Reminder time",
 }: ReminderTimePickerSheetProps) {
+  const { timeDisplay } = useUserDateTimePrefs();
+  const is24Hour = timeDisplay === "24h";
   const handleNativeChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
@@ -58,6 +61,7 @@ export default function ReminderTimePickerSheet({
         value={value}
         mode="time"
         display="default"
+        is24Hour={is24Hour}
         onChange={handleNativeChange}
         positiveButton={{ label: "OK", textColor: Colors.black }}
         negativeButton={{ label: "Cancel", textColor: Colors.black }}
@@ -94,6 +98,7 @@ export default function ReminderTimePickerSheet({
             value={value}
             mode="time"
             display="spinner"
+            is24Hour={is24Hour}
             onChange={handleNativeChange}
             {...IOS_PICKER_PROPS}
             style={styles.iosPicker}

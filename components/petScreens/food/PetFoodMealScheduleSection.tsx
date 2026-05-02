@@ -1,6 +1,8 @@
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import { Colors } from "@/constants/colors";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 
@@ -19,22 +21,20 @@ export default function PetFoodMealScheduleSection({
   onEditPortion,
   onRemovePortion,
 }: Props) {
+  const { timeDisplay } = useUserDateTimePrefs();
   return (
     <>
       <Text style={styles.fieldLabel}>Feeding schedule</Text>
       <Text style={styles.mealHint}>
-        Add multiple portions if you feed {petNameForTitle} this
-        meal/treat multiple times a day. Each input includes amount,
-        unit, and the time you usually feed them!
+        Add multiple portions if you feed {petNameForTitle} this meal/treat
+        multiple times a day. Each input includes amount, unit, and the time you
+        usually feed them!
       </Text>
       {mealPortions.map((row, index) => (
         <View key={row.key} style={styles.portionCard}>
           <View style={styles.portionCardMain}>
             <Text style={styles.portionCardTitle}>
-              {row.feedTime.toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+              {formatUserTime(row.feedTime, timeDisplay)}
             </Text>
             <Text style={styles.portionCardSub} numberOfLines={2}>
               {[row.portionSize.trim(), row.portionUnit]

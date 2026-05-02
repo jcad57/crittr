@@ -1,4 +1,6 @@
 import type { Pet } from "@/types/database";
+import type { UserDateDisplay } from "@/utils/userDateTimeFormat";
+import { dateLocaleFor } from "@/utils/userDateTimeFormat";
 
 export function formatPetAgeDisplay(
   pet: Pick<Pet, "age" | "age_months">,
@@ -98,14 +100,17 @@ function calendarPartsFromYmd(ymd: string): { y: number; m: number; d: number } 
   return { y, m: mo, d };
 }
 
-export function formatDateOfBirth(iso: string | null): string | null {
+export function formatDateOfBirth(
+  iso: string | null,
+  dateDisplay: UserDateDisplay = "mdy",
+): string | null {
   const ymd = parseDateOnlyYmd(iso);
   if (!ymd) return null;
   const parts = calendarPartsFromYmd(ymd);
   if (!parts) return null;
   const date = new Date(parts.y, parts.m - 1, parts.d);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(dateLocaleFor(dateDisplay), {
     month: "long",
     day: "numeric",
     year: "numeric",

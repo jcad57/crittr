@@ -1,6 +1,11 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { VetVisitSummary } from "@/types/ui";
+import {
+  dateLocaleFor,
+  type UserDateDisplay,
+} from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -11,11 +16,16 @@ type UpcomingVisitFeatureCardProps = {
   empty?: boolean;
 };
 
-function badgeFromVisit(visit: VetVisitSummary): string {
+function badgeFromVisit(
+  visit: VetVisitSummary,
+  dateDisplay: UserDateDisplay,
+): string {
   if (visit.badgeLabel) return visit.badgeLabel;
   const t = Date.parse(visit.date);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleDateString("en-US", { month: "short" });
+  return new Date(t).toLocaleDateString(dateLocaleFor(dateDisplay), {
+    month: "short",
+  });
 }
 
 export default function UpcomingVisitFeatureCard({
@@ -23,6 +33,8 @@ export default function UpcomingVisitFeatureCard({
   onPress,
   empty,
 }: UpcomingVisitFeatureCardProps) {
+  const { dateDisplay } = useUserDateTimePrefs();
+
   if (empty || !visit) {
     const inner = (
       <View style={styles.emptyInner}>
@@ -60,7 +72,7 @@ export default function UpcomingVisitFeatureCard({
     return <View style={styles.card}>{inner}</View>;
   }
 
-  const badge = badgeFromVisit(visit);
+  const badge = badgeFromVisit(visit, dateDisplay);
 
   return (
     <TouchableOpacity

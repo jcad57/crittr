@@ -49,6 +49,10 @@ export type Profile = {
   notify_co_care_activities?: boolean;
   notify_medications?: boolean;
   notify_vet_visits?: boolean;
+  /** Clock style in lists, pickers, and labels: `12h` (default) or `24h`. */
+  time_display_format?: "12h" | "24h";
+  /** Calendar ordering in UI: `mdy` (MM/DD, default) vs `dmy` (DD/MM). */
+  date_display_format?: "mdy" | "dmy";
   created_at: string;
   updated_at: string;
 };
@@ -337,7 +341,8 @@ export type ActivityType =
   | "vet_visit"
   | "training"
   | "potty"
-  | "maintenance";
+  | "maintenance"
+  | "weigh_in";
 
 export type PetActivity = {
   id: string;
@@ -373,6 +378,13 @@ export type PetActivity = {
   potty_pee?: boolean | null;
   /** For `activity_type` potty only. */
   potty_poo?: boolean | null;
+
+  /** For `activity_type` weigh_in only — weight value at the entry time. */
+  weight_lbs?: number | null;
+  /** For `activity_type` weigh_in only — `lbs` or `kg` (mirrors pet_weight_entries.weight_unit). */
+  weight_unit?: "lbs" | "kg" | null;
+  /** Populated when this row mirrors `pet_weight_entries` (delete cascades both ways). */
+  weight_entry_id?: string | null;
 
   notes: string | null;
   created_at: string;
@@ -444,6 +456,15 @@ export type PottyActivityFormData = {
 /** Litter box / upkeep — time via `activityOccurredAt`. */
 export type MaintenanceActivityFormData = {
   label: string;
+  notes: string;
+};
+
+/** Weigh-in — record a new weight reading; updates pet_weight_entries + the pet's current weight. */
+export type WeighInActivityFormData = {
+  label: string;
+  /** Numeric string in the unit indicated by `weightUnit`. */
+  weight: string;
+  weightUnit: "lbs" | "kg";
   notes: string;
 };
 

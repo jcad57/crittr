@@ -9,6 +9,7 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import { getErrorMessage } from "@/utils/errorMessage";
@@ -35,6 +36,8 @@ export default function PetMedicationsListScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
 
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
+
   const { data: details, isLoading } = usePetDetailsQuery(petId);
   const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
@@ -45,14 +48,14 @@ export default function PetMedicationsListScreen() {
     if (!details || !petId) return [];
     const acts = todayActivities ?? [];
     return details.medications.map((m) => {
-      const prog = buildMedicationDosageProgress(m, acts, petId);
-      const badge = getMedicationBadgeDisplay(m, prog);
+      const prog = buildMedicationDosageProgress(m, acts, petId, timeDisplay);
+      const badge = getMedicationBadgeDisplay(m, prog, dateDisplay);
       const subline = [m.frequency, m.condition, m.dosage]
         .filter((s) => s && String(s).trim())
         .join(" · ");
       return { m, badge, subline };
     });
-  }, [details, petId, todayActivities]);
+  }, [details, petId, todayActivities, timeDisplay, dateDisplay]);
 
   const confirmDelete = useCallback(
     (medicationId: string, name: string) => {

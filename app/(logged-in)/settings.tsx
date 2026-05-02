@@ -90,6 +90,10 @@ export default function SettingsScreen() {
     void openBillingPortal();
   }, [isPro, push, openBillingPortal]);
 
+  const openDateAndTime = () => {
+    push("/(logged-in)/date-and-time" as Href);
+  };
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.nav}>
@@ -131,6 +135,33 @@ export default function SettingsScreen() {
             <Text style={styles.rowSub}>
               Meals, meds, vet visits, co-care activity nudges, and system
               permission
+            </Text>
+          </View>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={22}
+            color={Colors.gray400}
+          />
+        </Pressable>
+
+        <Text style={[styles.sectionLabel, styles.sectionSpaced]}>
+          General
+        </Text>
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          onPress={openDateAndTime}
+        >
+          <View style={styles.rowIconWrap}>
+            <MaterialCommunityIcons
+              name="calendar-clock"
+              size={22}
+              color={Colors.orange}
+            />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Date and Time</Text>
+            <Text style={styles.rowSub}>
+              12-hour or 24-hour time — calendar date layout (MM/DD or DD/MM)
             </Text>
           </View>
           <MaterialCommunityIcons

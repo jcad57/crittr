@@ -18,6 +18,7 @@ const FILTERS: { id: ActivityFilterCategory; label: string }[] = [
   { id: "vet_visit", label: "Vet Visits" },
   { id: "training", label: "Training" },
   { id: "potty", label: "Potty" },
+  { id: "weigh_in", label: "Weigh-ins" },
 ];
 
 type Props = {

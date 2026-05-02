@@ -13,6 +13,7 @@ import {
 } from "@/hooks/queries/queryKeys";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { getErrorMessage } from "@/utils/errorMessage";
@@ -24,6 +25,7 @@ import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutati
 import { usePetStore } from "@/stores/petStore";
 import type { Pet } from "@/types/database";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
+import { formatUserMediumDateTimeWithYear } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -62,6 +64,7 @@ export default function AddVetVisitScreen() {
     ? rawPetIdParam[0]
     : rawPetIdParam;
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const activePetId = usePetStore((s) => s.activePetId);
   const setActivePetMutation = useSetActivePetMutation();
   const { data: petsData } = usePetsQuery();
@@ -121,15 +124,8 @@ export default function AddVetVisitScreen() {
 
   const whenLabel = useMemo(
     () =>
-      visitAt.toLocaleString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    [visitAt],
+      formatUserMediumDateTimeWithYear(visitAt, dateDisplay, timeDisplay),
+    [visitAt, dateDisplay, timeDisplay],
   );
 
   const onSave = async () => {
@@ -332,7 +328,7 @@ export default function AddVetVisitScreen() {
         mode="datetime"
         date={visitAt}
         minimumDate={startOfToday()}
-        is24Hour={false}
+        is24Hour={timeDisplay === "24h"}
         display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
           setPickerOpen(false);

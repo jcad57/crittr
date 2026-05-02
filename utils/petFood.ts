@@ -1,6 +1,7 @@
 import type { PetFood, PetFoodPortion } from "@/types/database";
 
 import { formatFeedTimeLabel } from "@/utils/petFoodTime";
+import type { UserTimeDisplay } from "@/utils/userDateTimeFormat";
 
 /**
  * Meal vs treat is stored explicitly on `pet_foods.is_treat` (set during onboarding).
@@ -48,7 +49,10 @@ export function dailyProgressFoodTarget(f: PetFood): number {
 /**
  * Subline for food cards — treats use legacy fields; meals use `pet_food_portions` when present.
  */
-export function formatPetFoodPortionSubline(f: PetFood): string {
+export function formatPetFoodPortionSubline(
+  f: PetFood,
+  timeDisplay: UserTimeDisplay,
+): string {
   if (isTreatFood(f)) {
     const size = f.portion_size?.trim() ?? "";
     const unit = f.portion_unit?.trim() ?? "";
@@ -65,7 +69,7 @@ export function formatPetFoodPortionSubline(f: PetFood): string {
           [p.portion_size?.trim(), p.portion_unit?.trim()]
             .filter(Boolean)
             .join(" ") || "—";
-        const t = formatFeedTimeLabel(p.feed_time);
+        const t = formatFeedTimeLabel(p.feed_time, timeDisplay);
         return `${amt} @ ${t}`;
       })
       .join(" · ");

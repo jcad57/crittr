@@ -1,7 +1,12 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";
+import {
+  formatUserLongDate,
+  type UserDateDisplay,
+} from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -25,14 +30,13 @@ function toLocalIsoDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function formatDateFilterLabel(ymd: string): string {
+function formatDateFilterLabel(
+  ymd: string,
+  dateDisplay: UserDateDisplay,
+): string {
   const [yy, mm, dd] = ymd.split("-").map(Number);
   if (!yy || !mm || !dd) return ymd;
-  return new Date(yy, mm - 1, dd).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatUserLongDate(new Date(yy, mm - 1, dd), dateDisplay);
 }
 
 const SORT_OPTIONS: { label: string; newestFirst: boolean }[] = [
@@ -66,6 +70,7 @@ export default function ActivityHistoryFilterBar({
   dateFilterYmd,
   onDateFilterChange,
 }: Props) {
+  const { dateDisplay } = useUserDateTimePrefs();
   const { width: windowWidth } = useWindowDimensions();
   const [menu, setMenu] = useState<Menu>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
@@ -98,7 +103,7 @@ export default function ActivityHistoryFilterBar({
 
   const dateTriggerLabel =
     dateFilterYmd != null
-      ? formatDateFilterLabel(dateFilterYmd)
+      ? formatDateFilterLabel(dateFilterYmd, dateDisplay)
       : "Any date";
 
   const openFilter = () => {

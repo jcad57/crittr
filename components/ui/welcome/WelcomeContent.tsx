@@ -4,10 +4,10 @@ import { Font } from "@/constants/typography";
 import {
   getWelcomeCarouselSlideWidth,
   getWelcomeColumnOuterWidth,
-  welcomeAuthLayoutScale,
   WELCOME_CONTAINER_PADDING_H,
   WELCOME_CONTENT_MAX_WIDTH,
   WELCOME_SCREEN_WRAPPER_PADDING_H,
+  welcomeAuthLayoutScale,
 } from "@/hooks/useResponsiveUi";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
@@ -44,7 +44,7 @@ const FEATURES = [
 const AUTO_ADVANCE_MS = 5400;
 
 const WELCOME_BG = require("@/assets/images/welcome-bg.png");
-const DOG_CAT_LOGO = require("@/assets/images/dog-cat-img.png");
+const DOG_CAT_LOGO = require("@/assets/images/welcome-logo.png");
 const PET_PAWS = require("@/assets/images/pet-paws-img.png");
 
 /** Intrinsic ratio so we can size width = screen and height scales (contain in a matching box). */
@@ -162,10 +162,7 @@ export default function WelcomeContent() {
           ]}
         >
           <View
-            style={[
-              styles.contentColumn,
-              { paddingBottom: pawsBottomReserve },
-            ]}
+            style={[styles.contentColumn, { paddingBottom: pawsBottomReserve }]}
           >
             <Image
               source={DOG_CAT_LOGO}

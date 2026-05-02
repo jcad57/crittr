@@ -9,7 +9,9 @@ import {
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetSummary } from "@/types/ui";
+import { formatUserWeekdayLongMonthDay } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -51,6 +53,7 @@ export default function DashboardHeader({
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
   const isPro = useIsCrittrPro(profile);
+  const { dateDisplay } = useUserDateTimePrefs();
   const proBannerTheme = resolveProBannerTheme(
     normalizeProBannerThemeId(profile?.crittr_pro_banner_theme),
   );
@@ -66,13 +69,9 @@ export default function DashboardHeader({
   const { greeting, dateLine } = useMemo(() => {
     const now = new Date();
     const hour = now.getHours();
-    const dateLine = now.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
+    const dateLine = formatUserWeekdayLongMonthDay(now, dateDisplay);
     return { greeting: greetingLine(hour), dateLine };
-  }, []);
+  }, [dateDisplay]);
 
   return (
     <View style={styles.container}>

@@ -71,6 +71,10 @@ export const allActivitiesKey = (petId: string) =>
 export const petActivityQueryKey = (activityId: string) =>
   ["petActivity", activityId] as const;
 
+/** All weigh-in entries for a pet, oldest → newest. */
+export const petWeightEntriesQueryKey = (petId: string) =>
+  ["petWeightEntries", petId] as const;
+
 // ─── Co-Care ─────────────────────────────────────────────────────────────────
 
 export const coCarersForPetKey = (petId: string) =>

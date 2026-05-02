@@ -5,6 +5,8 @@ import {
   resolveNextDueDate,
 } from "@/utils/medicationDueSchedule";
 import type { PetMedication, PetVaccination } from "@/types/database";
+import type { UserDateDisplay } from "@/utils/userDateTimeFormat";
+import { formatUserShortMonthDay } from "@/utils/userDateTimeFormat";
 
 export type HealthTrafficKind = "due_today" | "due_soon" | "current";
 
@@ -23,8 +25,8 @@ function daysFromToday(target: Date): number {
   return Math.round((x - t) / 86400000);
 }
 
-function fmtShort(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function fmtShort(d: Date, dateDisplay: UserDateDisplay): string {
+  return formatUserShortMonthDay(d, dateDisplay);
 }
 
 /**
@@ -35,6 +37,7 @@ function fmtShort(d: Date): string {
  */
 export function medicationTraffic(
   m: PetMedication,
+  dateDisplay: UserDateDisplay = "mdy",
 ): { kind: HealthTrafficKind; label: string } {
   const scheduleKind = dueSoonScheduleKind(m);
 
@@ -51,9 +54,15 @@ export function medicationTraffic(
       return { kind: "due_today", label: "Due today" };
     }
     if (diff <= window) {
-      return { kind: "due_soon", label: `Due ${fmtShort(nextDue)}` };
+      return {
+        kind: "due_soon",
+        label: `Due ${fmtShort(nextDue, dateDisplay)}`,
+      };
     }
-    return { kind: "current", label: `Due ${fmtShort(nextDue)}` };
+    return {
+      kind: "current",
+      label: `Due ${fmtShort(nextDue, dateDisplay)}`,
+    };
   }
 
   const f = (m.frequency ?? "").toLowerCase();

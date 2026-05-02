@@ -17,10 +17,24 @@ import {
   formatPetWeightDisplay,
   parseDateOnlyYmd,
 } from "@/utils/petDisplay";
+import type { UserDateDisplay, UserTimeDisplay } from "@/utils/userDateTimeFormat";
+
+export type PetProfileFormatting = {
+  timeDisplay: UserTimeDisplay;
+  dateDisplay: UserDateDisplay;
+};
+
+const PET_PROFILE_FORMATTING_DEFAULT: PetProfileFormatting = {
+  timeDisplay: "12h",
+  dateDisplay: "mdy",
+};
 
 // ─── Data mapping ────────────────────────────────────────────────────────────
 
-export function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
+export function toFeedingSchedule(
+  details: PetWithDetails,
+  timeDisplay: UserTimeDisplay,
+): FeedingSchedule {
   const sorted = [...details.foods].sort((a, b) => {
     const ta = isTreatFood(a);
     const tb = isTreatFood(b);
@@ -29,7 +43,7 @@ export function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
   return {
     items: sorted.map((f) => ({
       brand: f.brand?.trim() || "Food",
-      portionLabel: formatPetFoodPortionSubline(f),
+      portionLabel: formatPetFoodPortionSubline(f, timeDisplay),
       isTreat: isTreatFood(f),
       notes: f.notes?.trim() || undefined,
     })),
@@ -40,10 +54,16 @@ export function toFeedingSchedule(details: PetWithDetails): FeedingSchedule {
 export function toMedications(
   details: PetWithDetails,
   todayActivities: PetActivity[],
+  formatting: PetProfileFormatting,
 ): MedicationSummary[] {
   return details.medications.map((m) => {
-    const prog = buildMedicationDosageProgress(m, todayActivities, details.id);
-    const badge = getMedicationBadgeDisplay(m, prog);
+    const prog = buildMedicationDosageProgress(
+      m,
+      todayActivities,
+      details.id,
+      formatting.timeDisplay,
+    );
+    const badge = getMedicationBadgeDisplay(m, prog, formatting.dateDisplay);
     return {
       id: m.id,
       name: m.name,
@@ -94,12 +114,13 @@ export function profileSubline(profile: PetProfile): string {
 export function toProfile(
   details: PetWithDetails,
   todayActivities: PetActivity[],
+  formatting: PetProfileFormatting = PET_PROFILE_FORMATTING_DEFAULT,
 ): PetProfile {
   const dob = details.date_of_birth;
   const dobYmd = parseDateOnlyYmd(
     typeof dob === "string" ? dob : dob != null ? String(dob) : null,
   );
-  const dobFormatted = formatDateOfBirth(dobYmd);
+  const dobFormatted = formatDateOfBirth(dobYmd, formatting.dateDisplay);
 
   return {
     id: details.id,
@@ -133,8 +154,8 @@ export function toProfile(
     isSterilized: details.is_sterilized ?? null,
     exercisesPerDay: details.exercises_per_day,
     about: details.about ?? "",
-    feeding: toFeedingSchedule(details),
-    medications: toMedications(details, todayActivities),
+    feeding: toFeedingSchedule(details, formatting.timeDisplay),
+    medications: toMedications(details, todayActivities, formatting),
     vetVisits: [],
   };
 }

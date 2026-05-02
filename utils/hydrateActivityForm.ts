@@ -9,6 +9,7 @@ import {
   type PottyActivityFormData,
   type TrainingActivityFormData,
   type VetVisitActivityFormData,
+  type WeighInActivityFormData,
 } from "@/types/database";
 
 const EXERCISE_TYPES = [
@@ -127,6 +128,20 @@ export function petActivityToMaintenanceForm(
 ): MaintenanceActivityFormData {
   return {
     label: a.label?.trim() ? (a.label ?? "") : "Litter box cleaning",
+    notes: a.notes ?? "",
+  };
+}
+
+export function petActivityToWeighInForm(
+  a: PetActivity,
+): WeighInActivityFormData {
+  return {
+    label: a.label?.trim() ? (a.label ?? "") : "Weigh-in",
+    weight:
+      a.weight_lbs != null && Number.isFinite(a.weight_lbs)
+        ? String(a.weight_lbs)
+        : "",
+    weightUnit: a.weight_unit === "kg" ? "kg" : "lbs",
     notes: a.notes ?? "",
   };
 }

@@ -6,6 +6,7 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import type { PetFood } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -29,6 +30,8 @@ export default function PetFoodManagerScreen() {
   const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
+
+  const { timeDisplay } = useUserDateTimePrefs();
 
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
@@ -172,7 +175,7 @@ export default function PetFoodManagerScreen() {
                 >
                   <PetFoodProfileCard
                     name={f.brand?.trim() || "Food"}
-                    subline={formatPetFoodPortionSubline(f)}
+                    subline={formatPetFoodPortionSubline(f, timeDisplay)}
                     isTreat={isTreatFood(f)}
                     petType={details?.pet_type ?? null}
                   />

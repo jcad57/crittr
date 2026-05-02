@@ -54,6 +54,11 @@ export const ACTIVITY_ROW_ICONS: Record<
     ring: Colors.progressTreats,
     track: Colors.progressTreatsTrack,
   },
+  weigh_in: {
+    source: ACTIVITY_TYPE_LOG_ICONS.weigh_in,
+    ring: Colors.skyDark,
+    track: Colors.sky,
+  },
 };
 
 /** Row icon PNG — cats use toy for exercise and bowl for meals; maintenance matches {@link ACTIVITY_TYPE_LOG_ICONS}. */
@@ -69,6 +74,9 @@ export function resolveActivityRowIconSource(
   }
   if (category === "maintenance") {
     return ACTIVITY_TYPE_LOG_ICONS.maintenance;
+  }
+  if (category === "weigh_in") {
+    return ACTIVITY_TYPE_LOG_ICONS.weigh_in;
   }
   return ACTIVITY_ROW_ICONS[category].source;
 }

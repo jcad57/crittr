@@ -12,6 +12,7 @@ import {
 } from "@/hooks/queries/queryKeys";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
@@ -23,6 +24,7 @@ import {
 import { deleteVetVisit, updateVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
+import { formatUserMediumDateTimeWithYear } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -47,6 +49,7 @@ export default function EditVetVisitScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const { id: rawPetId, visitId: rawVisitId } = useLocalSearchParams<{
     id: string;
     visitId: string;
@@ -88,15 +91,8 @@ export default function EditVetVisitScreen() {
 
   const whenLabel = useMemo(
     () =>
-      visitAt.toLocaleString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    [visitAt],
+      formatUserMediumDateTimeWithYear(visitAt, dateDisplay, timeDisplay),
+    [visitAt, dateDisplay, timeDisplay],
   );
 
   const invalidateCaches = useCallback(async () => {
@@ -355,7 +351,7 @@ export default function EditVetVisitScreen() {
         isVisible={pickerOpen}
         mode="datetime"
         date={visitAt}
-        is24Hour={false}
+        is24Hour={timeDisplay === "24h"}
         display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
           setPickerOpen(false);

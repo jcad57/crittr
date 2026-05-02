@@ -1,6 +1,8 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useActivityFormStore } from "@/stores/activityFormStore";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -26,13 +28,6 @@ export function mergeTodayLocalTime(timeSource: Date): Date {
   );
 }
 
-function formatTimeLabel(d: Date): string {
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 /**
  * Lets the user optionally set when the activity occurred. If they never pick a
  * time, `activityOccurredAt` stays null and save uses the time at save.
@@ -43,6 +38,7 @@ type Props = {
 };
 
 export default function ActivityOccurredTimeRow({ containerStyle }: Props) {
+  const { timeDisplay } = useUserDateTimePrefs();
   const activityOccurredAt = useActivityFormStore((s) => s.activityOccurredAt);
   const setActivityOccurredAt = useActivityFormStore(
     (s) => s.setActivityOccurredAt,
@@ -52,7 +48,7 @@ export default function ActivityOccurredTimeRow({ containerStyle }: Props) {
   const pickerValue = activityOccurredAt ?? new Date();
 
   /** Custom time, or “now” for display when save will use current time. */
-  const displayTime = formatTimeLabel(activityOccurredAt ?? new Date());
+  const displayTime = formatUserTime(activityOccurredAt ?? new Date(), timeDisplay);
 
   const onPickerChange = useCallback(
     (d: Date) => {

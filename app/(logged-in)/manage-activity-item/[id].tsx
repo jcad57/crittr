@@ -14,6 +14,7 @@ import {
   useUpdatePottyActivityMutation,
   useUpdateTrainingActivityMutation,
   useUpdateVetVisitActivityMutation,
+  useUpdateWeighInActivityMutation,
 } from "@/hooks/mutations/useManageActivityMutation";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import {
@@ -22,11 +23,13 @@ import {
   usePetsQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import type { PetWithDetails } from "@/types/database";
 import { confirmActivityDeletion } from "@/utils/manageActivityFormHelpers";
+import { formatUserShortWeekdayMonthDayTime } from "@/utils/userDateTimeFormat";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
@@ -58,6 +61,7 @@ export default function ManageActivityItemScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const activityId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
+  const { dateDisplay, timeDisplay } = useUserDateTimePrefs();
 
   const {
     data: activity,
@@ -94,6 +98,7 @@ export default function ManageActivityItemScreen() {
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
   const pottyForm = useActivityFormStore((s) => s.pottyForm);
   const maintenanceForm = useActivityFormStore((s) => s.maintenanceForm);
+  const weighInForm = useActivityFormStore((s) => s.weighInForm);
   const activityType = useActivityFormStore((s) => s.activityType);
   const userId = useAuthStore((s) => s.session?.user?.id);
 
@@ -112,6 +117,7 @@ export default function ManageActivityItemScreen() {
   const updateTraining = useUpdateTrainingActivityMutation(petId);
   const updatePotty = useUpdatePottyActivityMutation(petId);
   const updateMaintenance = useUpdateMaintenanceActivityMutation(petId);
+  const updateWeighIn = useUpdateWeighInActivityMutation(petId);
   const deleteMut = useDeleteActivityMutation(petId);
 
   const [hydrated, setHydrated] = useState(false);
@@ -239,6 +245,18 @@ export default function ManageActivityItemScreen() {
     finish();
   }, [activityId, updateMaintenance, maintenanceForm, finish]);
 
+  const saveWeighIn = useCallback(async () => {
+    if (!activityId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString();
+    await updateWeighIn.mutateAsync({
+      activityId,
+      form: weighInForm,
+      loggedAtIso,
+    });
+    finish();
+  }, [activityId, updateWeighIn, weighInForm, finish]);
+
   const goBack = useCallback(() => {
     reset();
     router.back();
@@ -270,17 +288,16 @@ export default function ManageActivityItemScreen() {
     updateVet.isPending ||
     updateTraining.isPending ||
     updatePotty.isPending ||
-    updateMaintenance.isPending;
+    updateMaintenance.isPending ||
+    updateWeighIn.isPending;
   const busy = saving || deleteMut.isPending;
 
   const loggedAtLabel = activity
-    ? new Date(activity.logged_at).toLocaleString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
+    ? formatUserShortWeekdayMonthDayTime(
+        new Date(activity.logged_at),
+        dateDisplay,
+        timeDisplay,
+      )
     : "";
 
   /** Fills scroll viewport when form is short so Save/Delete sit at the bottom. */
@@ -386,6 +403,7 @@ export default function ManageActivityItemScreen() {
               onSaveTraining={saveTraining}
               onSavePotty={savePotty}
               onSaveMaintenance={saveMaintenance}
+              onSaveWeighIn={saveWeighIn}
               onSaveVetVisit={saveVet}
             />
           </View>

@@ -73,13 +73,21 @@ const CAT_EXTRA: Option[] = [
   },
 ];
 
+const WEIGH_IN_OPTION: Option = {
+  type: "weigh_in",
+  label: "Weigh-in",
+  iconSource: ACTIVITY_TYPE_LOG_ICONS.weigh_in,
+  color: Colors.skyDark,
+  bg: Colors.sky,
+};
+
 function optionsForPetType(petType: string | null | undefined): Option[] {
   const exercise = exerciseOption(petType);
   const mid = midOptions(petType);
   if (petType === "cat") {
-    return [exercise, ...mid, ...CAT_EXTRA];
+    return [exercise, ...mid, ...CAT_EXTRA, WEIGH_IN_OPTION];
   }
-  return [exercise, ...mid, ...DOG_EXTRA];
+  return [exercise, ...mid, ...DOG_EXTRA, WEIGH_IN_OPTION];
 }
 
 type Props = {

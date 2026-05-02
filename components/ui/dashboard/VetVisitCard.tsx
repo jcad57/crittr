@@ -1,6 +1,11 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { VetVisitSummary } from "@/types/ui";
+import {
+  dateLocaleFor,
+  type UserDateDisplay,
+} from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -10,11 +15,16 @@ type VetVisitCardProps = {
   onAddToCalendar?: () => void;
 };
 
-function badgeFromVisit(visit: VetVisitSummary): string {
+function badgeFromVisit(
+  visit: VetVisitSummary,
+  dateDisplay: UserDateDisplay,
+): string {
   if (visit.badgeLabel) return visit.badgeLabel;
   const t = Date.parse(visit.date);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleDateString("en-US", { month: "short" });
+  return new Date(t).toLocaleDateString(dateLocaleFor(dateDisplay), {
+    month: "short",
+  });
 }
 
 export default function VetVisitCard({
@@ -22,7 +32,8 @@ export default function VetVisitCard({
   onPress,
   onAddToCalendar,
 }: VetVisitCardProps) {
-  const badge = badgeFromVisit(visit);
+  const { dateDisplay } = useUserDateTimePrefs();
+  const badge = badgeFromVisit(visit, dateDisplay);
   const sub =
     visit.subtitle ?? `${visit.date} · ${visit.time}`;
 

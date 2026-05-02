@@ -18,10 +18,12 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { isMedicationDueToday } from "@/utils/healthTraffic";
 import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import { medicationActivityFormForQuickLog } from "@/utils/medicationQuickLogForm";
+import { formatUserLongDate } from "@/utils/userDateTimeFormat";
 import { usePetStore } from "@/stores/petStore";
 import { useCallback, useEffect, useMemo } from "react";
 import {
@@ -52,6 +54,7 @@ export default function HealthScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
+  const { dateDisplay, timeDisplay } = useUserDateTimePrefs();
   const activePetId = usePetStore((s) => s.activePetId);
   const initActivePetFromList = usePetStore((s) => s.initActivePetFromList);
   const { data, isLoading, isError, error } = useHealthSnapshotQuery();
@@ -115,11 +118,12 @@ export default function HealthScreen() {
           m,
           todayActivitiesAllPets,
           m.pet_id,
+          timeDisplay,
         );
         if (prog.total > 0) return !prog.isComplete;
         return true;
       }),
-    [filteredMeds, todayActivitiesAllPets],
+    [filteredMeds, todayActivitiesAllPets, timeDisplay],
   );
 
   /** Don’t show until today’s activity query has settled — while pending, `[]` looks like no doses logged and inflates “due today” falsely. */
@@ -157,14 +161,10 @@ export default function HealthScreen() {
   }, [dueTodayMeds]);
 
   const updatedHint = useMemo(() => {
-    const t = new Date().toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    const t = formatUserLongDate(new Date(), dateDisplay);
     const name = pets.find((p) => p.id === effectivePetId)?.name?.trim();
     return name ? `${name} · Updated ${t}` : `Updated ${t}`;
-  }, [pets, effectivePetId]);
+  }, [pets, effectivePetId, dateDisplay]);
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
     if (!effectivePetId) return [];
@@ -290,6 +290,7 @@ export default function HealthScreen() {
                 m,
                 todayActivitiesAllPets,
                 m.pet_id,
+                timeDisplay,
               );
               const dosageLabel =
                 prog.total > 0 ? `${prog.current}/${prog.total}` : undefined;

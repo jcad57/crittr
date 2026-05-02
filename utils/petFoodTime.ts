@@ -1,3 +1,6 @@
+import type { UserTimeDisplay } from "@/utils/userDateTimeFormat";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
+
 /** Convert a Date's local time to Postgres `time` string `HH:MM:SS`. */
 export function dateToPgTime(d: Date): string {
   const h = d.getHours();
@@ -17,10 +20,10 @@ export function pgTimeToDate(feedTime: string): Date {
   return d;
 }
 
-/** Short label for UI lists, e.g. "8:00 AM". */
-export function formatFeedTimeLabel(feedTime: string): string {
-  return pgTimeToDate(feedTime).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+/** Short label for feeding-time rows (respects saved 12h/24h preference). */
+export function formatFeedTimeLabel(
+  feedTime: string,
+  timeDisplay: UserTimeDisplay,
+): string {
+  return formatUserTime(pgTimeToDate(feedTime), timeDisplay);
 }

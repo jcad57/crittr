@@ -7,6 +7,7 @@ import {
   petActivityToPottyForm,
   petActivityToTrainingForm,
   petActivityToVetVisitForm,
+  petActivityToWeighInForm,
 } from "@/utils/hydrateActivityForm";
 import type {
   ActivityType,
@@ -18,6 +19,7 @@ import type {
   PottyActivityFormData,
   TrainingActivityFormData,
   VetVisitActivityFormData,
+  WeighInActivityFormData,
 } from "@/types/database";
 import { create } from "zustand";
 
@@ -38,6 +40,7 @@ type ActivityFormState = {
   trainingForm: TrainingActivityFormData;
   pottyForm: PottyActivityFormData;
   maintenanceForm: MaintenanceActivityFormData;
+  weighInForm: WeighInActivityFormData;
 
   /**
    * When null, save uses the current time at submit. When set, that instant is
@@ -68,6 +71,7 @@ type ActivityFormState = {
   updateTraining: (patch: Partial<TrainingActivityFormData>) => void;
   updatePotty: (patch: Partial<PottyActivityFormData>) => void;
   updateMaintenance: (patch: Partial<MaintenanceActivityFormData>) => void;
+  updateWeighIn: (patch: Partial<WeighInActivityFormData>) => void;
   reset: () => void;
   hydrateFromActivity: (
     activity: PetActivity,
@@ -131,6 +135,13 @@ const EMPTY_MAINTENANCE: MaintenanceActivityFormData = {
   notes: "",
 };
 
+const EMPTY_WEIGH_IN: WeighInActivityFormData = {
+  label: "Weigh-in",
+  weight: "",
+  weightUnit: "lbs",
+  notes: "",
+};
+
 export const useActivityFormStore = create<ActivityFormState>((set) => ({
   step: "type",
   activityType: null,
@@ -144,6 +155,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
   trainingForm: { ...EMPTY_TRAINING },
   pottyForm: { ...EMPTY_POTTY },
   maintenanceForm: { ...EMPTY_MAINTENANCE },
+  weighInForm: { ...EMPTY_WEIGH_IN },
   activityOccurredAt: null,
 
   setStep: (step) => set({ step }),
@@ -212,6 +224,10 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
     set((s) => ({
       maintenanceForm: { ...s.maintenanceForm, ...patch },
     })),
+  updateWeighIn: (patch) =>
+    set((s) => ({
+      weighInForm: { ...s.weighInForm, ...patch },
+    })),
 
   reset: () =>
     set({
@@ -227,6 +243,7 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
       trainingForm: { ...EMPTY_TRAINING },
       pottyForm: { ...EMPTY_POTTY },
       maintenanceForm: { ...EMPTY_MAINTENANCE },
+      weighInForm: { ...EMPTY_WEIGH_IN },
       activityOccurredAt: null,
     }),
 
@@ -265,6 +282,10 @@ export const useActivityFormStore = create<ActivityFormState>((set) => ({
         type === "maintenance"
           ? petActivityToMaintenanceForm(activity)
           : { ...EMPTY_MAINTENANCE },
+      weighInForm:
+        type === "weigh_in"
+          ? petActivityToWeighInForm(activity)
+          : { ...EMPTY_WEIGH_IN },
       activityOccurredAt: new Date(activity.logged_at),
     });
   },

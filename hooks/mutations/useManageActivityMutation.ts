@@ -8,13 +8,19 @@ import {
   updatePottyActivity,
   updateTrainingActivity,
   updateVetVisitActivity,
+  updateWeighInActivity,
 } from "@/services/activities";
+import { deletePetWeightEntry } from "@/services/petWeightEntries";
 import {
   allActivitiesKey,
   petActivityQueryKey,
+  petDetailsQueryKey,
+  petsQueryKey,
+  petWeightEntriesQueryKey,
   todayActivitiesPrefixKey,
   activitiesSincePrefixKey,
 } from "@/hooks/queries/queryKeys";
+import { useAuthStore } from "@/stores/authStore";
 import type {
   ExerciseFormData,
   FoodActivityFormData,
@@ -23,6 +29,7 @@ import type {
   PottyActivityFormData,
   TrainingActivityFormData,
   VetVisitActivityFormData,
+  WeighInActivityFormData,
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
 
@@ -156,9 +163,92 @@ export function useUpdateMaintenanceActivityMutation(petId: string | null) {
   });
 }
 
+export function useUpdateWeighInActivityMutation(petId: string | null) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: ({
+      activityId,
+      form,
+      loggedAtIso,
+    }: {
+      activityId: string;
+      form: WeighInActivityFormData;
+      loggedAtIso?: string;
+    }) =>
+      updateWeighInActivity(activityId, form, {
+        loggedAt: loggedAtIso,
+      }),
+    onSuccess: (_, { activityId }) => {
+      invalidateActivityCaches(petId, activityId);
+      if (petId) {
+        void queryClient.invalidateQueries({
+          queryKey: petWeightEntriesQueryKey(petId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: petDetailsQueryKey(petId),
+        });
+      }
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+      }
+    },
+  });
+}
+
 export function useDeleteActivityMutation(petId: string | null) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
   return useMutation({
     mutationFn: (activityId: string) => deletePetActivity(activityId),
-    onSuccess: (_, activityId) => invalidateActivityCaches(petId, activityId),
+    onSuccess: (_, activityId) => {
+      invalidateActivityCaches(petId, activityId);
+      /** Weigh-in activities cascade-delete the linked pet_weight_entries row,
+       * so refresh the chart whether or not this was a weigh-in. */
+      if (petId) {
+        void queryClient.invalidateQueries({
+          queryKey: petWeightEntriesQueryKey(petId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: petDetailsQueryKey(petId),
+        });
+      }
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+      }
+    },
+  });
+}
+
+/**
+ * Delete a single weigh-in entry directly from `pet_weight_entries`. The
+ * matching `pet_activities` row is removed via the FK cascade, so we
+ * invalidate both the chart's data and the activity feed.
+ */
+export function useDeletePetWeightEntryMutation(petId: string | null) {
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  return useMutation({
+    mutationFn: (entryId: string) => deletePetWeightEntry(entryId),
+    onSuccess: () => {
+      if (petId) {
+        void queryClient.invalidateQueries({
+          queryKey: todayActivitiesPrefixKey(petId),
+        });
+        void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
+        void queryClient.invalidateQueries({
+          queryKey: activitiesSincePrefixKey(petId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: petWeightEntriesQueryKey(petId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: petDetailsQueryKey(petId),
+        });
+      }
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
+      }
+    },
   });
 }

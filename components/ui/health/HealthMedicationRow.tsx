@@ -2,6 +2,7 @@ import MedicationListRow from "@/components/ui/medication/MedicationListRow";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
 import type { MedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import type { MedicationWithPet } from "@/services/health";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 
 type Props = {
   item: MedicationWithPet;
@@ -27,6 +28,7 @@ export default function HealthMedicationRow({
   dosageLabel,
   dosageComplete,
 }: Props) {
+  const { dateDisplay } = useUserDateTimePrefs();
   const useDosageBadge =
     dosageLabel != null &&
     dosageLabel.length > 0 &&
@@ -42,13 +44,17 @@ export default function HealthMedicationRow({
           total: Number.isFinite(tot) ? tot : 0,
           isComplete: Boolean(dosageComplete),
         };
-        return getMedicationBadgeDisplay(item, prog);
+        return getMedicationBadgeDisplay(item, prog, dateDisplay);
       })()
-    : getMedicationBadgeDisplay(item, {
-        current: 0,
-        total: 0,
-        isComplete: true,
-      });
+    : getMedicationBadgeDisplay(
+        item,
+        {
+          current: 0,
+          total: 0,
+          isComplete: true,
+        },
+        dateDisplay,
+      );
 
   return (
     <MedicationListRow

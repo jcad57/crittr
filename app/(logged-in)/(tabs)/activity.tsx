@@ -13,6 +13,7 @@ import {
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
 import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";
+import { formatUserMonthYear } from "@/utils/userDateTimeFormat";
 import type { PetSummary } from "@/types/ui";
 import {
   useAllActivitiesQuery,
@@ -22,6 +23,7 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
@@ -51,6 +53,7 @@ export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push, replace } = useNavigationCooldown();
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const { petId: petIdParam } = useLocalSearchParams<{
     petId?: string | string[];
   }>();
@@ -147,12 +150,8 @@ export default function ActivityScreen() {
   );
 
   const subtitleMonth = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      }),
-    [],
+    () => formatUserMonthYear(new Date(), dateDisplay),
+    [dateDisplay],
   );
 
   const [filter, setFilter] = useState<ActivityFilterCategory>("all");
@@ -168,8 +167,13 @@ export default function ActivityScreen() {
 
   const allEntries = useMemo(
     () =>
-      convertActivities(rawActivities ?? [], loggerNameByUserId, currentUserId),
-    [rawActivities, loggerNameByUserId, currentUserId],
+      convertActivities(
+        rawActivities ?? [],
+        loggerNameByUserId,
+        currentUserId,
+        timeDisplay,
+      ),
+    [rawActivities, loggerNameByUserId, currentUserId, timeDisplay],
   );
 
   const weeklySummary = useMemo(
@@ -183,12 +187,13 @@ export default function ActivityScreen() {
         filterEntriesByDateKey(allEntries, dateFilterYmd),
         filter,
         newestFirst,
+        dateDisplay,
       ).map((s) => ({
         title: s.title,
         dateKey: s.dateKey,
         data: s.data,
       })),
-    [allEntries, filter, newestFirst, dateFilterYmd],
+    [allEntries, filter, newestFirst, dateFilterYmd, dateDisplay],
   );
 
   const handleLogActivity = useCallback(() => {

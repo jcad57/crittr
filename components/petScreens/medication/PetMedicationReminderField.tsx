@@ -1,7 +1,8 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
-import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -17,6 +18,7 @@ export default function PetMedicationReminderField({
   reminderDates,
   setReminderDates,
 }: Props) {
+  const { timeDisplay } = useUserDateTimePrefs();
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
 
   const openPicker = useCallback((index: number) => {
@@ -76,7 +78,9 @@ export default function PetMedicationReminderField({
               size={22}
               color={Colors.orange}
             />
-            <Text style={styles.timeBtnText}>{formatReminderTimeHHmm(d)}</Text>
+            <Text style={styles.timeBtnText}>
+              {formatUserTime(d, timeDisplay)}
+            </Text>
           </Pressable>
           {reminderDates.length > 1 ? (
             <Pressable

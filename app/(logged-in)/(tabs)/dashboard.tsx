@@ -26,6 +26,7 @@ import {
   useActivitiesSinceQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import {
   AUTH_CONTENT_MAX_WIDTH,
@@ -64,6 +65,7 @@ export default function Dashboard() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
   const { runWithProOrUpgrade } = useProGateNavigation();
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
 
   const goToAddPet = useCallback(() => {
     runWithProOrUpgrade(() => {
@@ -269,8 +271,10 @@ export default function Dashboard() {
         (a, b) =>
           new Date(a.visit_at).getTime() - new Date(b.visit_at).getTime(),
       )
-      .map(mapPetVetVisitToDashboard);
-  }, [vetVisitRows]);
+      .map((v) =>
+        mapPetVetVisitToDashboard(v, timeDisplay, dateDisplay),
+      );
+  }, [vetVisitRows, timeDisplay, dateDisplay]);
 
   const resolvedPetIdForPerm = useMemo(() => {
     if (
@@ -300,8 +304,13 @@ export default function Dashboard() {
     if (!activePetDetails || !activePetId) return [];
     const acts = todayActivities ?? [];
     return activePetDetails.medications.map((m) => {
-      const prog = buildMedicationDosageProgress(m, acts, activePetId);
-      const badge = getMedicationBadgeDisplay(m, prog);
+      const prog = buildMedicationDosageProgress(
+        m,
+        acts,
+        activePetId,
+        timeDisplay,
+      );
+      const badge = getMedicationBadgeDisplay(m, prog, dateDisplay);
       return {
         id: m.id,
         name: m.name,
@@ -315,7 +324,7 @@ export default function Dashboard() {
         badgeLabel: badge.label,
       };
     });
-  }, [activePetDetails, activePetId, todayActivities]);
+  }, [activePetDetails, activePetId, todayActivities, timeDisplay, dateDisplay]);
 
   const navigateToAddActivity = useCallback(() => {
     push("/(logged-in)/add-activity");

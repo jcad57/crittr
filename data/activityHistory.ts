@@ -1,6 +1,8 @@
 import { formatMedicationDosageDisplay } from "@/utils/medicationDosageDisplay";
 import { resolveActivityLoggerLabel } from "@/utils/profileDisplay";
 import type { PetActivity } from "@/types/database";
+import type { UserDateDisplay, UserTimeDisplay } from "@/utils/userDateTimeFormat";
+import { dateLocaleFor, formatUserTime } from "@/utils/userDateTimeFormat";
 
 export type ActivityDisplayCategory =
   | "exercise"
@@ -10,7 +12,8 @@ export type ActivityDisplayCategory =
   | "vet_visit"
   | "training"
   | "potty"
-  | "maintenance";
+  | "maintenance"
+  | "weigh_in";
 
 export type ActivityFilterCategory = "all" | ActivityDisplayCategory;
 
@@ -41,13 +44,8 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function formatLoggedAtTime(iso: string, timeDisplay: UserTimeDisplay): string {
+  return formatUserTime(new Date(iso), timeDisplay);
 }
 
 function toDateKey(iso: string): string {
@@ -80,6 +78,8 @@ export function displayCategory(a: PetActivity): ActivityDisplayCategory {
       return "potty";
     case "maintenance":
       return "maintenance";
+    case "weigh_in":
+      return "weigh_in";
   }
 }
 
@@ -115,6 +115,11 @@ function buildPrimaryStat(a: PetActivity): string {
       const loc = a.location?.trim();
       return loc ?? "";
     }
+    case "weigh_in": {
+      if (a.weight_lbs == null) return "";
+      const unit = a.weight_unit === "kg" ? "kg" : "lb";
+      return `${a.weight_lbs} ${unit}`;
+    }
   }
 }
 
@@ -122,6 +127,7 @@ export function petActivityToHistoryEntry(
   a: PetActivity,
   nameByUserId: Map<string, string>,
   currentUserId: string | null | undefined,
+  timeDisplay: UserTimeDisplay,
 ): ActivityHistoryEntry {
   return {
     id: a.id,
@@ -133,7 +139,7 @@ export function petActivityToHistoryEntry(
       currentUserId,
     ),
     primaryStat: buildPrimaryStat(a),
-    timeLabel: formatTime(a.logged_at),
+    timeLabel: formatLoggedAtTime(a.logged_at, timeDisplay),
     dateKey: toDateKey(a.logged_at),
     timestamp: new Date(a.logged_at).getTime(),
     hasNotes: !!a.notes?.trim(),
@@ -144,9 +150,10 @@ export function convertActivities(
   activities: PetActivity[],
   nameByUserId: Map<string, string>,
   currentUserId: string | null | undefined,
+  timeDisplay: UserTimeDisplay,
 ): ActivityHistoryEntry[] {
   return activities.map((a) =>
-    petActivityToHistoryEntry(a, nameByUserId, currentUserId),
+    petActivityToHistoryEntry(a, nameByUserId, currentUserId, timeDisplay),
   );
 }
 
@@ -157,6 +164,7 @@ function parseDateKey(dateKey: string): Date {
 
 export function formatActivitySectionTitle(
   dateKey: string,
+  dateDisplay: UserDateDisplay,
   today: Date = new Date(),
 ): string {
   const d = parseDateKey(dateKey);
@@ -168,13 +176,14 @@ export function formatActivitySectionTitle(
   const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.round((t0.getTime() - d0.getTime()) / 86400000);
 
-  const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const loc = dateLocaleFor(dateDisplay);
+  const month = d.toLocaleString(loc, { month: "short" }).toUpperCase();
   const dayNum = d.getDate();
 
   if (diffDays === 0) return `TODAY · ${month} ${dayNum}`;
   if (diffDays === 1) return `YESTERDAY · ${month} ${dayNum}`;
 
-  const weekday = d.toLocaleString("en-US", { weekday: "long" }).toUpperCase();
+  const weekday = d.toLocaleString(loc, { weekday: "long" }).toUpperCase();
   return `${weekday} · ${month} ${dayNum}`;
 }
 
@@ -191,6 +200,7 @@ export function groupActivityHistory(
   entries: ActivityHistoryEntry[],
   filter: ActivityFilterCategory,
   newestFirst: boolean,
+  dateDisplay: UserDateDisplay,
 ): { title: string; dateKey: string; data: ActivityHistoryEntry[] }[] {
   let list =
     filter === "all"
@@ -218,7 +228,7 @@ export function groupActivityHistory(
       newestFirst ? b.timestamp - a.timestamp : a.timestamp - b.timestamp,
     );
     return {
-      title: formatActivitySectionTitle(dateKey),
+      title: formatActivitySectionTitle(dateKey, dateDisplay),
       dateKey,
       data: sortedDay,
     };

@@ -14,6 +14,7 @@ import {
   useLogMedicationMutation,
   useLogPottyMutation,
   useLogTrainingMutation,
+  useLogWeighInMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
 import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
@@ -71,6 +72,7 @@ export default function AddActivityScreen() {
   const trainingForm = useActivityFormStore((s) => s.trainingForm);
   const pottyForm = useActivityFormStore((s) => s.pottyForm);
   const maintenanceForm = useActivityFormStore((s) => s.maintenanceForm);
+  const weighInForm = useActivityFormStore((s) => s.weighInForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: allPets } = usePetsQuery();
@@ -101,6 +103,7 @@ export default function AddActivityScreen() {
   const trainingMut = useLogTrainingMutation(activePetId);
   const pottyMut = useLogPottyMutation(activePetId);
   const maintenanceMut = useLogMaintenanceMutation(activePetId);
+  const weighInMut = useLogWeighInMutation(activePetId);
 
   const scrollKey = `${step}-${activityType ?? "none"}`;
 
@@ -247,13 +250,26 @@ export default function AddActivityScreen() {
     await finish();
   }, [maintenanceMut, maintenanceForm, activePetId, finish]);
 
+  const saveWeighIn = useCallback(async () => {
+    if (!activePetId) return;
+    const loggedAtIso =
+      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+      new Date().toISOString();
+    await weighInMut.mutateAsync({
+      form: weighInForm,
+      loggedAtIso,
+    });
+    await finish();
+  }, [weighInMut, weighInForm, activePetId, finish]);
+
   const saving =
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||
     trainingMut.isPending ||
     pottyMut.isPending ||
-    maintenanceMut.isPending;
+    maintenanceMut.isPending ||
+    weighInMut.isPending;
 
   const navTitle = addActivityNavTitle(step, activityType);
 
@@ -398,6 +414,7 @@ export default function AddActivityScreen() {
                 onSaveTraining={saveTraining}
                 onSavePotty={savePotty}
                 onSaveMaintenance={saveMaintenance}
+                onSaveWeighIn={saveWeighIn}
               />
             </View>
 

@@ -3,7 +3,9 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
+import { formatUserTime } from "@/utils/userDateTimeFormat";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -39,6 +41,8 @@ export default function MealPortionEditorModal({
   onClose,
   onSave,
 }: MealPortionEditorModalProps) {
+  const { timeDisplay } = useUserDateTimePrefs();
+  const is24Hour = timeDisplay === "24h";
   const [portionSize, setPortionSize] = useState("");
   const [portionUnit, setPortionUnit] = useState<string>("Cups");
   const [feedTime, setFeedTime] = useState(() => {
@@ -71,10 +75,7 @@ export default function MealPortionEditorModal({
     onClose();
   }, [portionSize, portionUnit, feedTime, initial, onSave, onClose]);
 
-  const timeLabel = feedTime.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const timeLabel = formatUserTime(feedTime, timeDisplay);
 
   const onTimePickerChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
@@ -204,6 +205,7 @@ export default function MealPortionEditorModal({
             value={feedTime}
             mode="time"
             display="default"
+            is24Hour={is24Hour}
             onChange={onTimePickerChange}
             positiveButton={{ label: "OK", textColor: Colors.black }}
             negativeButton={{ label: "Cancel", textColor: Colors.black }}
@@ -244,6 +246,7 @@ export default function MealPortionEditorModal({
                 value={feedTime}
                 mode="time"
                 display="spinner"
+                is24Hour={is24Hour}
                 onChange={onTimePickerChange}
                 {...IOS_PICKER_PROPS}
                 style={styles.iosPicker}
