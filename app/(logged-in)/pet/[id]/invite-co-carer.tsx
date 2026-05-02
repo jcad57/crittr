@@ -56,13 +56,19 @@ export default function InviteCoCarerScreen() {
     sendInvite.mutate(
       { email: trimmed, permissions: perms },
       {
-        onSuccess: ({ isRegistered, inviteeNeedsPro }) => {
+        onSuccess: ({ isRegistered, inviteeNeedsPro, inviteEmailSent }) => {
           const message = inviteeNeedsPro
             ? "They'll get an in-app notification with a link to upgrade to Crittr Pro. After they upgrade, they can accept the invite from Notifications."
             : isRegistered
               ? "They'll see a notification in the app."
-              : "We'll email them an invitation to join Crittr. They'll need Crittr Pro to accept co-care.";
-          Alert.alert("Invite sent", message, [
+              : inviteEmailSent === false
+                ? "Your invite was saved in Crittr, but we couldn't send the invitation email. Ask them to download the app and sign up with this email so they see the invite, or try sending again later."
+                : "We'll email them an invitation to join Crittr. They'll need Crittr Pro to accept co-care.";
+          const emailFailed =
+            !isRegistered &&
+            !inviteeNeedsPro &&
+            inviteEmailSent === false;
+          Alert.alert(emailFailed ? "Invite saved" : "Invite sent", message, [
             { text: "OK", onPress: () => router.back() },
           ]);
         },

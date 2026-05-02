@@ -41,3 +41,8 @@ verify_jwt = false
 
 [functions.get-pro-pricing]
 verify_jwt = false
+
+# Auth enforced in-function (Bearer + getUser + pet owner check); gateway JWT
+# verify can fail with ES256 before the handler runs.
+[functions.send-co-care-invite]
+verify_jwt = false

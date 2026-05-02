@@ -84,6 +84,8 @@ export async function sendCoCareInvite(
   invite: CoCarerInvite;
   isRegistered: boolean;
   inviteeNeedsPro: boolean;
+  /** Present only when the invitee has no account yet. */
+  inviteEmailSent?: boolean;
 }> {
   const normalised = email.trim().toLowerCase();
 
@@ -129,36 +131,39 @@ export async function sendCoCareInvite(
 
   if (error) throw error;
 
-  const { data: pet } = await supabase
-    .from("pets")
-    .select("name")
-    .eq("id", petId)
-    .single();
-
-  const { data: inviter } = await supabase
-    .from("profiles")
-    .select("first_name, last_name")
-    .eq("id", inviterUserId)
-    .single();
-
-  const inviterName =
-    [inviter?.first_name, inviter?.last_name].filter(Boolean).join(" ") ||
-    "Someone";
-
   // In-app notifications for registered invitees: DB trigger
   // `notify_co_carer_invite_after_insert` (handles Pro vs non‑Pro).
 
+  let inviteEmailSent: boolean | undefined;
   if (!invitedUserId) {
-    try {
-      await supabase.functions.invoke("send-co-care-invite", {
-        body: {
-          inviterName,
-          petName: pet?.name ?? "their pet",
-          inviteeEmail: normalised,
-        },
-      });
-    } catch {
-      // Email sending is best-effort; don't block the invite flow.
+    type SendCoCareInviteResponse = {
+      ok?: boolean;
+      id?: string | null;
+      error?: string;
+    };
+    const { data, error } = await supabase.functions.invoke<
+      SendCoCareInviteResponse
+    >("send-co-care-invite", {
+      body: {
+        petId,
+        inviteeEmail: normalised,
+      },
+    });
+
+    if (error) {
+      console.warn(
+        "[sendCoCareInvite] send-co-care-invite failed:",
+        error.message,
+      );
+      inviteEmailSent = false;
+    } else if (data?.ok === true) {
+      inviteEmailSent = true;
+    } else {
+      console.warn(
+        "[sendCoCareInvite] Email not accepted by edge function:",
+        data?.error ?? data,
+      );
+      inviteEmailSent = false;
     }
   }
 
@@ -166,6 +171,7 @@ export async function sendCoCareInvite(
     invite: invite as CoCarerInvite,
     isRegistered: !!invitedUserId,
     inviteeNeedsPro: !!invitedUserId && inviteeNeedsPro,
+    inviteEmailSent,
   };
 }
 
