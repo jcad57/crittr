@@ -23,7 +23,8 @@ import {
   usePetsQuery,
   useTodayActivitiesQuery,
   useUnreadNotificationCountQuery,
-  useActivitiesSinceQuery,
+  useTodayActivitiesForPetIdsQuery,
+  useActivitiesSinceForPetIdsQuery,
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -45,8 +46,9 @@ import {
   mapPetVetVisitToDashboard,
 } from "@/utils/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
+import { householdActiveCatIds, userHasAnyActiveCat } from "@/utils/householdCats";
 import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
-import { maintenancePeriodStart } from "@/utils/litterMaintenancePeriod";
+import { maintenancePeriodStart, formatHouseholdLitterGoalSubtitle } from "@/utils/litterMaintenancePeriod";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
@@ -104,9 +106,18 @@ export default function Dashboard() {
   } = usePetVetVisitsQuery(activePetId ?? undefined);
 
   const localYmd = useLocalCalendarYmd();
-  const litterPeriod = activePetDetails?.litter_cleaning_period;
+  const householdOwnerId = activePetDetails?.owner_id ?? null;
+  const householdCatIds = useMemo(
+    () => householdActiveCatIds(dbPets ?? [], householdOwnerId),
+    [dbPets, householdOwnerId],
+  );
+
+  const litterPeriod =
+    activePetDetails?.household_litter_cleaning_period ?? null;
+  const isCatProgress = activePetDetails?.pet_type === "cat";
+
   const needsMaintWindow =
-    activePetDetails?.pet_type === "cat" &&
+    isCatProgress &&
     !!litterPeriod &&
     litterPeriod !== "day";
 
@@ -116,12 +127,23 @@ export default function Dashboard() {
   }, [needsMaintWindow, litterPeriod, localYmd]);
 
   const {
-    data: maintenanceWindowActs = [],
-    isPending: maintenanceWindowPending,
-  } = useActivitiesSinceQuery(
-    activePetId,
+    data: householdCatTodayActs = [],
+    isPending: householdCatTodayPending,
+    refetch: refetchHouseholdCatToday,
+  } = useTodayActivitiesForPetIdsQuery(householdCatIds);
+
+  const {
+    data: householdMaintenanceWindowActs = [],
+    isPending: householdMaintWindowPending,
+    refetch: refetchHouseholdMaintWindow,
+  } = useActivitiesSinceForPetIdsQuery(
+    householdCatIds,
     maintenanceSinceIso,
-    Boolean(activePetId && needsMaintWindow && maintenanceSinceIso),
+    Boolean(
+      householdCatIds.length > 0 &&
+        needsMaintWindow &&
+        maintenanceSinceIso,
+    ),
   );
 
   const pets: PetSummary[] = useMemo(
@@ -173,18 +195,22 @@ export default function Dashboard() {
       (a) => a.activity_type === "food" && a.is_treat,
     ).length;
 
-    const maintSourceActs =
+    const litterGoalPeriod = details?.household_litter_cleaning_period;
+    const maintActsForHouseholdCats =
       isCatProgress &&
-      details?.litter_cleaning_period &&
-      details.litter_cleaning_period !== "day"
-        ? maintenanceWindowActs
-        : acts;
-    const currentMaintenance = maintSourceActs.filter(
-      (a) => a.activity_type === "maintenance",
-    ).length;
+      litterGoalPeriod &&
+      litterGoalPeriod !== "day"
+        ? householdMaintenanceWindowActs
+        : householdCatTodayActs;
+    const currentMaintenance =
+      isCatProgress && litterGoalPeriod
+        ? maintActsForHouseholdCats.filter(
+            (a) => a.activity_type === "maintenance",
+          ).length
+        : 0;
     const totalMaintenance = Math.max(
       0,
-      details?.litter_cleanings_per_period ?? 0,
+      details?.household_litter_cleanings_per_period ?? 0,
     );
 
     const exerciseRing: DailyProgressCategory = {
@@ -249,8 +275,8 @@ export default function Dashboard() {
   }, [
     activePetDetails,
     todayActivities,
-    activePetId,
-    maintenanceWindowActs,
+    householdCatTodayActs,
+    householdMaintenanceWindowActs,
   ]);
 
   const dailyProgressAllComplete = useMemo(
@@ -371,6 +397,19 @@ export default function Dashboard() {
     push(`/(logged-in)/add-vet-visit?petId=${activePetId}` as Href);
   }, [push, activePetId]);
 
+  const maintenanceCard = useMemo(() => {
+    if (!userHasAnyActiveCat(dbPets ?? [])) return null;
+    if (!activePetDetails) return null;
+    return {
+      title: "Maintenance",
+      subtitle: formatHouseholdLitterGoalSubtitle(
+        activePetDetails.household_litter_cleaning_period ?? null,
+        activePetDetails.household_litter_cleanings_per_period ?? null,
+      ),
+      onPress: () => push("/(logged-in)/litter-maintenance" as Href),
+    };
+  }, [dbPets, activePetDetails, push]);
+
   const handleDashboardRefresh = useCallback(async () => {
     const tasks: Promise<unknown>[] = [refetchPets(), refetchUnreadCount()];
     if (activePetId) {
@@ -380,21 +419,30 @@ export default function Dashboard() {
         refetchVetVisits(),
       );
     }
+    if (householdCatIds.length > 0) {
+      tasks.push(refetchHouseholdCatToday(), refetchHouseholdMaintWindow());
+    }
     await Promise.all(tasks);
   }, [
     activePetId,
+    householdCatIds,
     refetchPets,
     refetchUnreadCount,
     refetchPetDetails,
     refetchTodayActivities,
     refetchVetVisits,
+    refetchHouseholdCatToday,
+    refetchHouseholdMaintWindow,
   ]);
 
   const showDailyProgressSkeleton =
     Boolean(activePetId) &&
     (detailsPending ||
       todayActivitiesPending ||
-      (needsMaintWindow && maintenanceWindowPending));
+      (needsMaintWindow && householdMaintWindowPending) ||
+      (activePetDetails?.pet_type === "cat" &&
+        householdCatIds.length > 0 &&
+        householdCatTodayPending));
   const showActivitySkeleton =
     Boolean(activePetId) && todayActivitiesPending;
   const showHealthSkeleton =
@@ -501,6 +549,7 @@ export default function Dashboard() {
                         )
                     : undefined
                 }
+                maintenanceCard={maintenanceCard}
               />
             )}
           </View>

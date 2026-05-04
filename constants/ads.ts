@@ -76,5 +76,5 @@ export const ENABLED_AD_PLACEMENTS: Record<AdPlacement, boolean> = {
 /** App open (cold start + resume) — set false to ship without the format. */
 export const APP_OPEN_ADS_ENABLED = true;
 
-/** Interstitial (activity submit, post-onboarding upgrade decline) for non-Pro users. */
+/** Interstitial (e.g. activity submit) for non-Pro users. */
 export const INTERSTITIAL_ADS_ENABLED = true;

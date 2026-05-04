@@ -173,11 +173,9 @@ export default function FloatingBottomNav() {
                   router.push(tab.href);
                   return;
                 }
-                if (router.canDismiss()) {
-                  router.dismissTo(tab.href);
-                } else {
-                  router.navigate(tab.href);
-                }
+                // Tab switches must use `navigate` (JUMP_TO). `dismissTo`/POP_TO can no-op
+                // when `canDismiss()` is true due to nested stacks, breaking the bar until reload.
+                router.navigate(tab.href);
               }}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}

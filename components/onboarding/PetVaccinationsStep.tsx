@@ -7,7 +7,12 @@ import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import type { VaccinationFormEntry } from "@/types/database";
-import { useCallback, useEffect, useState } from "react";
+import {
+  defaultVaccinationExpiryYmd,
+  startOfTomorrowLocal,
+  vaccinationExpiryPickerMaxDate,
+} from "@/utils/localCalendarDate";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 export default function PetVaccinationsStep() {
@@ -24,24 +29,29 @@ export default function PetVaccinationsStep() {
   const pet = pets[currentPetIndex];
   const name = pet.name?.trim() || "your pet";
 
+  const vaccinationExpiryMinRef = useRef(startOfTomorrowLocal());
+  const vaccinationExpiryMaxRef = useRef(vaccinationExpiryPickerMaxDate());
+
   const [phase, setPhase] = useState<"prompt" | "form">(() =>
     pet.vaccinations.length > 0 ? "form" : "prompt",
   );
 
   const [vacName, setVacName] = useState("");
-  const [vacExpiresOn, setVacExpiresOn] = useState("");
+  const [vacExpiresOn, setVacExpiresOn] = useState(() =>
+    defaultVaccinationExpiryYmd(),
+  );
   const [vacNotes, setVacNotes] = useState("");
 
   useEffect(() => {
     const v = pet.vaccinations[0];
     if (!v) {
       setVacName("");
-      setVacExpiresOn("");
+      setVacExpiresOn(defaultVaccinationExpiryYmd());
       setVacNotes("");
       return;
     }
     setVacName(v.name);
-    setVacExpiresOn(v.expiresOn);
+    setVacExpiresOn(v.expiresOn.trim() || defaultVaccinationExpiryYmd());
     setVacNotes(v.notes);
   }, [pet.vaccinations[0]?.localId, currentPetIndex]);
 
@@ -102,6 +112,8 @@ export default function PetVaccinationsStep() {
         value={vacExpiresOn}
         onChangeDate={setVacExpiresOn}
         onClearDate={() => setVacExpiresOn("")}
+        minimumDate={vaccinationExpiryMinRef.current}
+        maximumDate={vaccinationExpiryMaxRef.current}
       />
       <FormInput
         placeholder="Notes"

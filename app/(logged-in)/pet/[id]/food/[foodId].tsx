@@ -8,6 +8,7 @@ import PetFoodTreatSection from "@/components/petScreens/food/PetFoodTreatSectio
 import PetFoodTypeToggle from "@/components/petScreens/food/PetFoodTypeToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import { foodBrandInputPlaceholder } from "@/constants/petFoodFormConstants";
 import {
   useInsertPetFoodMutation,
   usePetDetailsQuery,
@@ -302,7 +303,7 @@ export default function EditPetFoodScreen() {
               label="Brand / name *"
               value={brand}
               onChangeText={setBrand}
-              placeholder="e.g. Purina Pro Plan"
+              placeholder={foodBrandInputPlaceholder(details?.pet_type ?? null)}
               containerStyle={styles.field}
               error={attempted && !brand.trim()}
             />

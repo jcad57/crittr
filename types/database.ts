@@ -53,6 +53,13 @@ export type Profile = {
   time_display_format?: "12h" | "24h";
   /** Calendar ordering in UI: `mdy` (MM/DD, default) vs `dmy` (DD/MM). */
   date_display_format?: "mdy" | "dmy";
+  /**
+   * When the user keeps cats: household litter goal interval (daily progress “Maintenance”).
+   * Applies to all of the owner’s cats; see `profiles.litter_cleanings_per_period`.
+   */
+  litter_cleaning_period?: LitterCleaningPeriod | null;
+  /** Target cleanings per `litter_cleaning_period` for the household (all cats). */
+  litter_cleanings_per_period?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -88,10 +95,6 @@ export type Pet = {
   /** When true, pet stays in My Pets for remembrance; excluded from dashboard & active selection. */
   is_memorialized?: boolean;
   memorialized_at?: string | null;
-  /** Cats: goal interval for litter cleanings (daily progress “Maintenance”). */
-  litter_cleaning_period?: LitterCleaningPeriod | null;
-  /** Cats: number of cleanings expected per `litter_cleaning_period`. */
-  litter_cleanings_per_period?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -125,7 +128,10 @@ export type PetFood = {
 
 export type MedicationDosePeriod = "day" | "week" | "month";
 
-/** Litter box cleaning goal interval (cats). Mirrors `pets.litter_cleaning_period`. */
+/** Onboarding / draft medication schedule — matches pet medication edit UI (`day` | `week` | `month` | `custom`). */
+export type MedicationSchedulePeriod = MedicationDosePeriod | "custom";
+
+/** Litter box cleaning goal interval (household, all cats). Mirrors `profiles.litter_cleaning_period`. */
 export type LitterCleaningPeriod = "day" | "week" | "month";
 
 /**
@@ -475,6 +481,9 @@ export type PetWithDetails = Pet & {
   medications: PetMedication[];
   vaccinations: PetVaccination[];
   exercise: PetExercise | null;
+  /** Pet owner’s household litter goals (`profiles`), readable by owner and co-carers via RPC. */
+  household_litter_cleaning_period?: LitterCleaningPeriod | null;
+  household_litter_cleanings_per_period?: number | null;
 };
 
 // ─── Onboarding form types ──────────────────────────────────────────────────
@@ -491,6 +500,9 @@ export type ProfileFormData = {
   homeAddress: string;
   phoneNumber: string;
   avatarUri: string | null;
+  /** First cat onboarding: saved to `profiles` on finish. */
+  litterCleaningPeriod: LitterCleaningPeriod | "";
+  litterCleaningsPerPeriod: string;
 };
 
 /** Serialized meal portion for onboarding (meals only). */
@@ -520,14 +532,17 @@ export type MedicationFormEntry = {
   name: string;
   dosageAmount: string;
   dosageType: string;
-  frequency: string;
-  customFrequency: string;
   condition: string;
-  /** Doses per period, e.g. "2". */
+  /** Doses per period, e.g. "2" (ignored when `schedulePeriod === "custom"`). */
   dosesPerPeriod: string;
-  dosePeriod: MedicationDosePeriod | "";
-  /** HH:mm 24h */
-  reminderTime: string;
+  schedulePeriod: MedicationSchedulePeriod;
+  /** Custom interval count when `schedulePeriod === "custom"`. */
+  customIntervalCount: string;
+  customIntervalUnit: MedicationDosePeriod;
+  /** Sorted HH:mm (24h) reminder slots. */
+  reminderTimes: string[];
+  /** YYYY-MM-DD when known */
+  lastGivenOn: string;
   notes: string;
 };
 
@@ -559,7 +574,7 @@ export type PetFormData = {
   medications: MedicationFormEntry[];
   vaccinations: VaccinationFormEntry[];
   coCarerEmail: string;
-  /** null = prefer not to say */
+  /** null = not sure */
   isMicrochipped: boolean | null;
   /** ISO / registry number when known */
   microchipNumber: string;
@@ -571,10 +586,6 @@ export type PetFormData = {
   isInsured: boolean | null;
   insuranceProvider: string;
   insurancePolicyNumber: string;
-  /** Cats: litter goal interval (required in onboarding for cats). */
-  litterCleaningPeriod: LitterCleaningPeriod | "";
-  /** Cats: cleanings per interval, e.g. "2". */
-  litterCleaningsPerPeriod: string;
 };
 
 export const EMPTY_PET_FORM: PetFormData = {
@@ -605,6 +616,4 @@ export const EMPTY_PET_FORM: PetFormData = {
   isInsured: false,
   insuranceProvider: "",
   insurancePolicyNumber: "",
-  litterCleaningPeriod: "",
-  litterCleaningsPerPeriod: "",
 };

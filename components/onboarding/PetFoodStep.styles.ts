@@ -166,6 +166,10 @@ export const stepStyles = StyleSheet.create({
     backgroundColor: Colors.white,
     marginBottom: 16,
   },
+  addPortionBtnError: {
+    borderColor: Colors.error,
+    backgroundColor: Colors.white,
+  },
   addPortionBtnPressed: {
     opacity: 0.88,
   },
@@ -173,5 +177,15 @@ export const stepStyles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.orange,
+  },
+  addPortionBtnTextError: {
+    color: Colors.error,
+  },
+  portionCardError: {
+    borderColor: Colors.error,
+  },
+  portionCardSubError: {
+    color: Colors.error,
+    fontFamily: Font.uiSemiBold,
   },
 });

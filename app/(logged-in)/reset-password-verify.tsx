@@ -6,6 +6,7 @@ import {
   requestPasswordResetOtp,
   verifyPasswordResetOtp,
 } from "@/services/auth";
+import { maskEmailForPrivacy } from "@/utils/maskEmailForPrivacy";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -71,13 +72,7 @@ export default function ResetPasswordVerifyScreen() {
 
   const canConfirm = otp.length === OTP_LENGTH && !submitting && !!email;
 
-  const maskedEmail = useMemo(() => {
-    const [user, domain] = email.split("@");
-    if (!domain || !user) return email;
-    return user.length <= 2
-      ? `${user[0] ?? ""}••@${domain}`
-      : `${user.slice(0, 2)}•••@${domain}`;
-  }, [email]);
+  const maskedEmail = useMemo(() => maskEmailForPrivacy(email), [email]);
 
   const tickCooldown = useCallback(() => {
     clearCooldownInterval();

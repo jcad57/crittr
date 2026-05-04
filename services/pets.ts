@@ -16,6 +16,8 @@ import {
   readLocalImageUriAsArrayBuffer,
 } from "./localImageUpload";
 import { foodFormEntryToUpsertInput, insertPetFood } from "./petFoods";
+import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
+import { parseReminderTimeHHmm } from "@/utils/medicationSchedule";
 
 export async function createPet(
   ownerId: string,
@@ -77,17 +79,6 @@ export async function createPet(
         ? parseInt(petData.exercisesPerDay, 10)
         : null,
       allergies: petData.allergies,
-      litter_cleaning_period:
-        petData.petType === "cat" &&
-        (petData.litterCleaningPeriod === "day" ||
-          petData.litterCleaningPeriod === "week" ||
-          petData.litterCleaningPeriod === "month")
-          ? petData.litterCleaningPeriod
-          : null,
-      litter_cleanings_per_period:
-        petData.petType === "cat" && petData.litterCleaningsPerPeriod.trim() !== ""
-          ? parseInt(petData.litterCleaningsPerPeriod.trim(), 10)
-          : null,
       avatar_url: avatarUrl,
       is_microchipped: petData.isMicrochipped,
       microchip_number:
@@ -126,26 +117,39 @@ export async function createPet(
     if (vacError) throw vacError;
   }
 
-  // Insert medications
+  // Insert medications (same payload shape as logged-in add/edit medication)
   if (petData.medications.length > 0) {
     const medRows = petData.medications.map((m) => {
-      const freqText =
-        (m.frequency === "Custom" && m.customFrequency
-          ? m.customFrequency
-          : m.frequency) || null;
-      const doses = m.dosesPerPeriod.trim()
-        ? parseInt(m.dosesPerPeriod.trim(), 10)
-        : null;
+      const payload = buildMedicationSavePayload({
+        name: m.name,
+        dosageAmount: m.dosageAmount,
+        dosageType: m.dosageType,
+        dosesPerPeriod: m.dosesPerPeriod,
+        schedulePeriod: m.schedulePeriod,
+        customIntervalCount: m.customIntervalCount,
+        customIntervalUnit: m.customIntervalUnit,
+        condition: m.condition,
+        notes: m.notes,
+        reminderDates: m.reminderTimes.map((t) => parseReminderTimeHHmm(t)),
+        lastGivenOn: m.lastGivenOn,
+      });
+      if (!payload) {
+        throw new Error("Invalid medication data while creating pet.");
+      }
       return {
         pet_id: pet.id,
-        name: m.name,
-        dosage: [m.dosageAmount, m.dosageType].filter(Boolean).join(" ") || null,
-        frequency: freqText,
-        condition: m.condition || null,
-        notes: m.notes?.trim() || null,
-        doses_per_period: Number.isFinite(doses ?? NaN) ? doses : null,
-        dose_period: m.dosePeriod || null,
-        reminder_time: m.reminderTime?.trim() || null,
+        name: payload.name,
+        dosage: payload.dosage,
+        frequency: payload.frequency,
+        condition: payload.condition,
+        notes: payload.notes,
+        doses_per_period: payload.doses_per_period,
+        dose_period: payload.dose_period,
+        interval_count: payload.interval_count,
+        interval_unit: payload.interval_unit,
+        reminder_time: payload.reminder_time,
+        reminder_times: payload.reminder_times,
+        last_given_on: payload.last_given_on,
       };
     });
 
@@ -239,7 +243,13 @@ export async function fetchPetProfile(
 
   if (petError || !pet) return null;
 
-  const [foodsRes, medsRes, vacsRes, exerciseRes] = await Promise.all([
+  const [
+    foodsRes,
+    medsRes,
+    vacsRes,
+    exerciseRes,
+    litterRes,
+  ] = await Promise.all([
     supabase.from("pet_foods").select("*, pet_food_portions(*)").eq("pet_id", petId),
     supabase.from("pet_medications").select("*").eq("pet_id", petId),
     supabase.from("pet_vaccinations").select("*").eq("pet_id", petId),
@@ -248,7 +258,29 @@ export async function fetchPetProfile(
       .select("*")
       .eq("pet_id", petId)
       .maybeSingle(),
+    supabase.rpc("household_litter_goals_for_pet", { target_pet: petId }),
   ]);
+
+  const litterRpc = litterRes.data;
+
+  let household_litter_cleaning_period: LitterCleaningPeriod | null = null;
+  let household_litter_cleanings_per_period: number | null = null;
+  if (
+    litterRpc &&
+    typeof litterRpc === "object" &&
+    !Array.isArray(litterRpc) &&
+    litterRpc !== null
+  ) {
+    const o = litterRpc as Record<string, unknown>;
+    const p = o.litter_cleaning_period;
+    if (p === "day" || p === "week" || p === "month") {
+      household_litter_cleaning_period = p;
+    }
+    const n = o.litter_cleanings_per_period;
+    if (typeof n === "number" && Number.isFinite(n)) {
+      household_litter_cleanings_per_period = n;
+    }
+  }
 
   return {
     ...pet,
@@ -256,6 +288,8 @@ export async function fetchPetProfile(
     medications: medsRes.data ?? [],
     vaccinations: vacsRes.data ?? [],
     exercise: exerciseRes.data ?? null,
+    household_litter_cleaning_period,
+    household_litter_cleanings_per_period,
   };
 }
 
@@ -349,11 +383,6 @@ export type UpdatePetExerciseRequirementsInput = {
   exercises_per_day: number | null;
 };
 
-export type UpdatePetLitterMaintenanceInput = {
-  litter_cleaning_period: LitterCleaningPeriod;
-  litter_cleanings_per_period: number;
-};
-
 export async function updatePetDetails(
   petId: string,
   fields: UpdatePetDetailsInput,
@@ -398,24 +427,6 @@ export async function updatePetExerciseRequirements(
     .update({
       energy_level: fields.energy_level,
       exercises_per_day: fields.exercises_per_day,
-    })
-    .eq("id", petId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Pet;
-}
-
-export async function updatePetLitterMaintenance(
-  petId: string,
-  fields: UpdatePetLitterMaintenanceInput,
-): Promise<Pet> {
-  const { data, error } = await supabase
-    .from("pets")
-    .update({
-      litter_cleaning_period: fields.litter_cleaning_period,
-      litter_cleanings_per_period: fields.litter_cleanings_per_period,
     })
     .eq("id", petId)
     .select()

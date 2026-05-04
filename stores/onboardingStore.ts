@@ -13,6 +13,7 @@ export const ONBOARDING_STEPS = [
   "pending-invites",
   "pet-type",
   "pet-details",
+  "pet-litter-maintenance",
   "pet-food",
   "pet-vet-clinic",
   "pet-health-records",
@@ -112,6 +113,8 @@ const INITIAL_PROFILE: ProfileFormData = {
   homeAddress: "",
   phoneNumber: "",
   avatarUri: null,
+  litterCleaningPeriod: "",
+  litterCleaningsPerPeriod: "",
 };
 
 export const useOnboardingStore = create<OnboardingState>((set, get) => ({

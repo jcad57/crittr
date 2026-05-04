@@ -3,11 +3,8 @@ import { Colors } from "@/constants/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { isCrittrProFromProfile } from "@/lib/crittrPro";
-import { showNonProInterstitialThen } from "@/lib/showNonProInterstitial";
 import { fetchIntroTrialEligibility } from "@/lib/stripeCheckout";
 import { useAuthStore } from "@/stores/authStore";
-import { useCrittrProStore } from "@/stores/crittrProStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
@@ -74,16 +71,7 @@ export default function UpgradeScreen() {
 
   const goToDashboard = async () => {
     await refreshProfileOnly();
-    const profile = useAuthStore.getState().profile;
-    const isMock = useCrittrProStore.getState().isMockPro;
-    const isPro = isMock || isCrittrProFromProfile(profile);
-    if (fromOnboarding && !isPro) {
-      await showNonProInterstitialThen(() => {
-        replace("/(logged-in)/dashboard" as Href);
-      });
-    } else {
-      replace("/(logged-in)/dashboard" as Href);
-    }
+    replace("/(logged-in)/dashboard" as Href);
   };
 
   const handleBack = () => {
@@ -146,9 +134,8 @@ export default function UpgradeScreen() {
           styles.cardScrollContent,
           {
             paddingTop: 12,
-            paddingBottom: insets.bottom + 24,
+            paddingBottom: Math.max(insets.bottom, 12) + 8,
           },
-          !scrollCompact && { flexGrow: 1 },
         ]}
         showsVerticalScrollIndicator={scrollCompact}
         bounces={scrollCompact}

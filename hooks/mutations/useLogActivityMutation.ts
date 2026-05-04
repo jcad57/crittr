@@ -39,6 +39,18 @@ function invalidateLoggedActivityCaches(petId: string) {
   });
 }
 
+/** Maintenance (household cats) also rolls up in multi-pet dashboard caches. */
+function invalidateHouseholdActivityRollups() {
+  void queryClient.invalidateQueries({
+    predicate: (q) => {
+      const k = q.queryKey;
+      if (!Array.isArray(k) || k.length < 2) return false;
+      if (k[1] !== "multi") return false;
+      return k[0] === "todayActivities" || k[0] === "activitiesSince";
+    },
+  });
+}
+
 /** Caches that depend on pet weight + entries (chart, hero chip, dashboard pet rows). */
 function invalidateWeightCaches(petId: string, ownerId: string | undefined) {
   void queryClient.invalidateQueries({
@@ -177,6 +189,7 @@ export function useLogMaintenanceMutation(petId: string | null) {
     onSuccess: () => {
       if (petId) {
         invalidateLoggedActivityCaches(petId);
+        invalidateHouseholdActivityRollups();
       }
     },
   });

@@ -9,10 +9,6 @@ export type PetInfoMissingFields = {
   sex: boolean;
   energyLevel: boolean;
   exercisesPerDay: boolean;
-  /** Cats only: litter tracking interval. */
-  litterCleaningPeriod: boolean;
-  /** Cats only: cleanings per interval (positive int). */
-  litterCleaningsPerPeriod: boolean;
 };
 
 /** At least one of date of birth or years/months (non-empty numeric pair) is required. */
@@ -31,17 +27,6 @@ export function getPetInfoMissingFields(
   pet: PetFormData,
   showExercise: boolean,
 ): PetInfoMissingFields {
-  const needsLitter = pet.petType === "cat";
-  const periodOk =
-    pet.litterCleaningPeriod === "day" ||
-    pet.litterCleaningPeriod === "week" ||
-    pet.litterCleaningPeriod === "month";
-  const n = pet.litterCleaningsPerPeriod.trim();
-  const cleaningsOk =
-    n !== "" &&
-    Number.isFinite(parseInt(n, 10)) &&
-    parseInt(n, 10) >= 1;
-
   return {
     name: !pet.name.trim(),
     breed: !pet.breed.trim(),
@@ -50,8 +35,6 @@ export function getPetInfoMissingFields(
     sex: pet.sex === "",
     energyLevel: pet.energyLevel === "",
     exercisesPerDay: showExercise && !pet.exercisesPerDay.trim(),
-    litterCleaningPeriod: needsLitter && !periodOk,
-    litterCleaningsPerPeriod: needsLitter && !cleaningsOk,
   };
 }
 

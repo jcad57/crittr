@@ -37,3 +37,17 @@ export function maintenancePeriodStart(
 export function formatLocalYmd(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
+
+/** Short dashboard copy for profile / household litter goals. */
+export function formatHouseholdLitterGoalSubtitle(
+  period: LitterCleaningPeriod | null | undefined,
+  n: number | null | undefined,
+): string {
+  if (!period || n == null || n < 1) {
+    return "Set how often you scoop or change the litter. Applies to every cat.";
+  }
+  const interval =
+    period === "day" ? "day" : period === "week" ? "week" : "month";
+  const cleaningWord = n === 1 ? "cleaning" : "cleanings";
+  return `Goal: ${n} litter box ${cleaningWord} per ${interval} (all cats)`;
+}

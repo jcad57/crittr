@@ -1,10 +1,11 @@
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
+import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Modal,
   Platform,
@@ -14,9 +15,9 @@ import {
   View,
 } from "react-native";
 
+/** Match light sheets; omit `textColor` — forcing it uses private KVC and can glitch wheel styling. */
 const IOS_PICKER_PROPS = {
   themeVariant: "light" as const,
-  textColor: Colors.black,
 };
 
 type ReminderTimePickerSheetProps = {
@@ -29,8 +30,8 @@ type ReminderTimePickerSheetProps = {
 };
 
 /**
- * Time picker for medication reminders: black text on iOS, and on iOS a sheet
- * with Cancel / Done so the spinner can be dismissed (native spinner stays open otherwise).
+ * Time picker for medication reminders: iOS uses a sheet with Cancel / Done so the
+ * spinner can be dismissed (native spinner stays open otherwise).
  */
 export default function ReminderTimePickerSheet({
   visible,
@@ -41,16 +42,17 @@ export default function ReminderTimePickerSheet({
 }: ReminderTimePickerSheetProps) {
   const { timeDisplay } = useUserDateTimePrefs();
   const is24Hour = timeDisplay === "24h";
+  const pickerValue = useMemo(() => mergeWallClockOntoToday(value), [value]);
   const handleNativeChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
         if (event.type === "set" && date) {
-          onChange(date);
+          onChange(mergeWallClockOntoToday(date));
         }
         onClose();
         return;
       }
-      if (date) onChange(date);
+      if (date) onChange(mergeWallClockOntoToday(date));
     },
     [onChange, onClose],
   );
@@ -58,7 +60,7 @@ export default function ReminderTimePickerSheet({
   if (Platform.OS === "android") {
     return visible ? (
       <DateTimePicker
-        value={value}
+        value={pickerValue}
         mode="time"
         display="default"
         is24Hour={is24Hour}
@@ -95,10 +97,9 @@ export default function ReminderTimePickerSheet({
             </View>
           </View>
           <DateTimePicker
-            value={value}
+            value={pickerValue}
             mode="time"
             display="spinner"
-            is24Hour={is24Hour}
             onChange={handleNativeChange}
             {...IOS_PICKER_PROPS}
             style={styles.iosPicker}

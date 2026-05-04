@@ -5,6 +5,7 @@ import { Font } from "@/constants/typography";
 import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/queryClient";
 import { createPet, fetchUserPets } from "@/services/pets";
+import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
@@ -29,12 +30,14 @@ const HIGH_FIVE = require("@/assets/images/high-five.png");
 export default function FinishStep() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pets, editPetAtIndex, reset, petFlowMode } = useOnboardingStore(
+  const { pets, editPetAtIndex, reset, petFlowMode, profileData } =
+    useOnboardingStore(
     useShallow((s) => ({
       pets: s.pets,
       editPetAtIndex: s.editPetAtIndex,
       reset: s.reset,
       petFlowMode: s.petFlowMode,
+      profileData: s.profileData,
     })),
   );
   const session = useAuthStore((s) => s.session);
@@ -55,9 +58,30 @@ export default function FinishStep() {
         createdIds.push(pet.id);
       }
 
-      if (petFlowMode === "onboarding") {
-        await completeOnboarding();
-      } else {
+      if (
+        petFlowMode === "onboarding" &&
+        pets[0]?.petType === "cat" &&
+        (profileData.litterCleaningPeriod === "day" ||
+          profileData.litterCleaningPeriod === "week" ||
+          profileData.litterCleaningPeriod === "month")
+      ) {
+        const raw = profileData.litterCleaningsPerPeriod.trim();
+        const n = raw !== "" ? parseInt(raw, 10) : NaN;
+        if (Number.isFinite(n) && n >= 1) {
+          await updateProfile(session.user.id, {
+            litter_cleaning_period: profileData.litterCleaningPeriod,
+            litter_cleanings_per_period: n,
+          });
+        }
+      }
+
+      /**
+       * Add-pet: refresh so `hasPets` / counts match the new pet before leaving.
+       * Full onboarding: do **not** call `completeOnboarding` or full session
+       * refresh yet — `(auth)/_layout` redirects `isLoggedIn && !needsOnboarding` to
+       * the dashboard, which would skip the post-onboarding upgrade screen.
+       */
+      if (petFlowMode === "add-pet") {
         await refreshAuthSession();
       }
 
@@ -73,7 +97,9 @@ export default function FinishStep() {
         const lastId = createdIds[createdIds.length - 1];
         router.replace(`/(logged-in)/pet/${lastId}`);
       } else if (petFlowMode === "onboarding") {
-        router.push(UPGRADE_FROM_ONBOARDING_HREF as Href);
+        router.replace(UPGRADE_FROM_ONBOARDING_HREF as Href);
+        await completeOnboarding();
+        await refreshAuthSession();
       } else {
         router.replace("/(logged-in)/dashboard");
       }

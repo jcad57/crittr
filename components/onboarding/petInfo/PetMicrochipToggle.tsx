@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
+import { Font } from "@/constants/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type PetMicrochipToggleProps = {
@@ -52,7 +52,7 @@ export default function PetMicrochipToggle({
               value === null && styles.optionTextActive,
             ]}
           >
-            Prefer not to say
+            Not sure
           </Text>
         </Pressable>
       </View>

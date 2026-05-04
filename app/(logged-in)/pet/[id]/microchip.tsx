@@ -15,6 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,17 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+/** Same as notification toggles on Manage notifications: saturated on, neutral off. */
+const MICROCHIP_SWITCH_TRACK = {
+  false: Colors.gray200,
+  true: Colors.orange,
+} as const;
+
+const MICROCHIP_SWITCH_IOS_BG =
+  Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {};
+
+const MICROCHIP_SWITCH_THUMB = Colors.white;
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -180,9 +192,9 @@ export default function PetMicrochipScreen() {
           <Switch
             value={hasMicrochip}
             onValueChange={setHasMicrochip}
-            trackColor={{ false: Colors.gray300, true: Colors.orangeLight }}
-            thumbColor={hasMicrochip ? Colors.orange : Colors.gray400}
-            ios_backgroundColor={Colors.gray300}
+            trackColor={MICROCHIP_SWITCH_TRACK}
+            thumbColor={MICROCHIP_SWITCH_THUMB}
+            {...MICROCHIP_SWITCH_IOS_BG}
             accessibilityLabel="Pet has a microchip"
           />
         </View>

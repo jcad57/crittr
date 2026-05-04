@@ -1,13 +1,13 @@
-import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { requestPasswordResetOtp } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
+import { maskEmailForPrivacy } from "@/utils/maskEmailForPrivacy";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,35 +26,33 @@ function mapResetRequestError(message: string): string {
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const sessionEmail = useAuthStore((s) => s.session?.user?.email ?? "");
+  const accountEmail = useAuthStore((s) => s.session?.user?.email ?? "").trim();
 
-  const [email, setEmail] = useState(sessionEmail);
+  const maskedEmail = useMemo(
+    () => (accountEmail ? maskEmailForPrivacy(accountEmail) : ""),
+    [accountEmail],
+  );
+
   const [submitting, setSubmitting] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
   const handleSend = async () => {
     Keyboard.dismiss();
-    setEmailError(null);
     setSendError(null);
 
-    const trimmed = email.trim();
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-    if (!trimmed) {
-      setEmailError("Please enter your email.");
-      return;
-    }
-    if (!emailOk) {
-      setEmailError("Enter a valid email address.");
+    if (!accountEmail) {
+      setSendError(
+        "No email is on file for this account, so we can't send a reset code here.",
+      );
       return;
     }
 
     setSubmitting(true);
     try {
-      await requestPasswordResetOtp(trimmed);
+      await requestPasswordResetOtp(accountEmail);
       router.push({
         pathname: "/(logged-in)/reset-password-verify",
-        params: { email: trimmed },
+        params: { email: accountEmail },
       } as Href);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -93,33 +91,20 @@ export default function ForgotPasswordScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Enter the email associated with your account and we&apos;ll send a
-          6-digit code to reset your password.
+          We&apos;ll send a 6-digit code to{" "}
+          <Text style={styles.emailStrong}>
+            {accountEmail ? maskedEmail : "your account email"}
+          </Text>{" "}
+          to reset your password. For security, you can&apos;t choose a
+          different address during reset.
         </Text>
-
-        <FormInput
-          label="Email"
-          placeholder="you@example.com"
-          value={email}
-          onChangeText={(v) => {
-            setEmail(v);
-            if (emailError) setEmailError(null);
-            if (sendError) setSendError(null);
-          }}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          error={Boolean(emailError)}
-          errorMessage={emailError ?? undefined}
-          containerStyle={styles.fieldGap}
-        />
 
         {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
 
         <OrangeButton
           onPress={handleSend}
           loading={submitting}
-          disabled={submitting}
+          disabled={submitting || !accountEmail}
           style={styles.cta}
         >
           Send reset code
@@ -169,10 +154,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  fieldGap: {
-    marginBottom: 8,
+  emailStrong: {
+    fontFamily: Font.uiSemiBold,
+    color: Colors.textPrimary,
+  },
+  hint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 24,
   },
   errorText: {
     fontFamily: Font.uiSemiBold,

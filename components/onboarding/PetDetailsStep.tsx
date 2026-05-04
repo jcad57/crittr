@@ -4,7 +4,6 @@ import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSecti
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
-import PetCatLitterSection from "@/components/onboarding/petInfo/PetCatLitterSection";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
@@ -18,7 +17,6 @@ import {
 } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import type { LitterCleaningPeriod } from "@/types/database";
 import { useShallow } from "zustand/react/shallow";
 import { useAllergiesQuery, useBreedsQuery } from "@/hooks/queries";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
@@ -27,6 +25,11 @@ import {
   isPetInfoComplete,
   type PetInfoMissingFields,
 } from "@/utils/petInfoValidation";
+import {
+  PET_FOOD_STEP_INDEX,
+  PET_LITTER_MAINTENANCE_STEP_INDEX,
+  shouldShowFirstCatLitterOnboardingStep,
+} from "@/utils/onboardingPetFlow";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -38,16 +41,23 @@ import {
 } from "react-native";
 
 export default function PetDetailsStep() {
-  const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore(
-      useShallow((s) => ({
-        pets: s.pets,
-        currentPetIndex: s.currentPetIndex,
-        updateCurrentPet: s.updateCurrentPet,
-        nextStep: s.nextStep,
-        prevStep: s.prevStep,
-      })),
-    );
+  const {
+    pets,
+    currentPetIndex,
+    updateCurrentPet,
+    prevStep,
+    goToStep,
+    petFlowMode,
+  } = useOnboardingStore(
+    useShallow((s) => ({
+      pets: s.pets,
+      currentPetIndex: s.currentPetIndex,
+      updateCurrentPet: s.updateCurrentPet,
+      prevStep: s.prevStep,
+      goToStep: s.goToStep,
+      petFlowMode: s.petFlowMode,
+    })),
+  );
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
 
@@ -78,8 +88,24 @@ export default function PetDetailsStep() {
       setAttempted(true);
       return;
     }
-    nextStep();
-  }, [isValid, nextStep]);
+    if (
+      shouldShowFirstCatLitterOnboardingStep(
+        petFlowMode,
+        currentPetIndex,
+        pet.petType,
+      )
+    ) {
+      goToStep(PET_LITTER_MAINTENANCE_STEP_INDEX);
+    } else {
+      goToStep(PET_FOOD_STEP_INDEX);
+    }
+  }, [
+    isValid,
+    goToStep,
+    petFlowMode,
+    currentPetIndex,
+    pet.petType,
+  ]);
 
   const err = (field: keyof PetInfoMissingFields) =>
     attempted && missing[field];
@@ -218,21 +244,6 @@ export default function PetDetailsStep() {
           keyboardType="numeric"
           containerStyle={styles.inputSpacing}
           error={!!err("exercisesPerDay")}
-        />
-      ) : null}
-
-      {pet.petType === "cat" ? (
-        <PetCatLitterSection
-          litterCleaningPeriod={pet.litterCleaningPeriod}
-          litterCleaningsPerPeriod={pet.litterCleaningsPerPeriod}
-          onPeriodChange={(p: LitterCleaningPeriod) =>
-            updateCurrentPet({ litterCleaningPeriod: p })
-          }
-          onCleaningsChange={(v) =>
-            updateCurrentPet({ litterCleaningsPerPeriod: v })
-          }
-          periodError={!!err("litterCleaningPeriod")}
-          cleaningsError={!!err("litterCleaningsPerPeriod")}
         />
       ) : null}
 

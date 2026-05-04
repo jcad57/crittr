@@ -122,10 +122,10 @@ Deno.serve(async (req: Request) => {
 
   const profile = profileRaw as ProfileInviteRow | null;
   const inviterFirst =
-    typeof profile?.first_name === "string"
-      ? profile.first_name.trim()
-      : "";
-  const inviterName = singleLine(inviterFirst.length > 0 ? inviterFirst : "Someone");
+    typeof profile?.first_name === "string" ? profile.first_name.trim() : "";
+  const inviterName = singleLine(
+    inviterFirst.length > 0 ? inviterFirst : "Someone",
+  );
   const petName = singleLine(pet.name?.trim() || "their pet");
 
   const subject = singleLine(
@@ -154,7 +154,7 @@ Deno.serve(async (req: Request) => {
     <tr><td style="text-align:center;padding-bottom:24px;color:#6b7280;font-size:16px;line-height:1.5;">
       <strong>${safeInviter}</strong> wants you to co-care for
       <strong>${safePet}</strong> on <strong>Crittr</strong>
-      — the shared pet care app.
+      — the co-care app for pets.
     </td></tr>
     <tr><td style="text-align:center;padding-bottom:32px;color:#6b7280;font-size:15px;line-height:1.5;">
       Download the app, sign up with <strong>${safeEmail}</strong>,

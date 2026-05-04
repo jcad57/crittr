@@ -1,36 +1,58 @@
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
+import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
-import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
+import { petCareStyles as onboardingStyles } from "@/components/onboarding/petCareStyles";
+import PetMedicationDosageRow from "@/components/petScreens/medication/PetMedicationDosageRow";
+import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";
+import PetMedicationReminderField from "@/components/petScreens/medication/PetMedicationReminderField";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
-import { formatUserTime } from "@/utils/userDateTimeFormat";
+import type { SchedulePeriod } from "@/constants/medicationEditForm";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useShallow } from "zustand/react/shallow";
 import type {
   MedicationDosePeriod,
   MedicationFormEntry,
+  MedicationSchedulePeriod,
 } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, TouchableOpacity, View } from "react-native";
+import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
+import { sortTimesAscUnique } from "@/utils/medicationReminderTimes";
+import {
+  formatReminderTimeHHmm,
+  parseReminderTimeHHmm,
+} from "@/utils/medicationSchedule";
+import { useShallow } from "zustand/react/shallow";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import { styles as medStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 
-const DOSAGE_TYPES = [
-  "Tablet",
-  "Injection",
-  "Liquid",
-  "Topical",
-  "Chewable",
-  "Other",
-];
-const FREQ_OPTIONS = ["Daily", "Weekly", "Monthly", "Custom"];
+type LegacyMedicationShape = MedicationFormEntry & {
+  frequency?: string;
+  reminderTime?: string;
+  dosePeriod?: MedicationDosePeriod | "";
+};
+
+function scheduleFromLegacy(m: LegacyMedicationShape): MedicationSchedulePeriod {
+  if (m.schedulePeriod) return m.schedulePeriod;
+  switch (m.frequency) {
+    case "Weekly":
+      return "week";
+    case "Monthly":
+      return "month";
+    case "Custom":
+      return "custom";
+    default:
+      return "day";
+  }
+}
+
+function reminderDatesFromEntry(m: LegacyMedicationShape): Date[] {
+  if (m.reminderTimes?.length) {
+    return m.reminderTimes.map((t) => parseReminderTimeHHmm(t));
+  }
+  return [parseReminderTimeHHmm(m.reminderTime)];
+}
 
 export default function PetMedicationsStep() {
-  const { timeDisplay } = useUserDateTimePrefs();
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({
@@ -49,101 +71,177 @@ export default function PetMedicationsStep() {
   );
 
   const [medName, setMedName] = useState("");
-  const [medDosageAmt, setMedDosageAmt] = useState("");
-  const [medDosageType, setMedDosageType] = useState("");
-  const [medFreq, setMedFreq] = useState("");
-  const [medCustomFreq, setMedCustomFreq] = useState("");
-  const [medCondition, setMedCondition] = useState("");
-  const [medNotes, setMedNotes] = useState("");
-  const [medReminderDate, setMedReminderDate] = useState(() => {
+  const [dosageAmount, setDosageAmount] = useState("");
+  const [dosageType, setDosageType] = useState("");
+  const [dosesPerPeriod, setDosesPerPeriod] = useState("1");
+  const [schedulePeriod, setSchedulePeriod] = useState<SchedulePeriod>("day");
+  const [customIntervalCount, setCustomIntervalCount] = useState("1");
+  const [customIntervalUnit, setCustomIntervalUnit] =
+    useState<MedicationDosePeriod>("month");
+  const [condition, setCondition] = useState("");
+  const [notes, setNotes] = useState("");
+  const [reminderDates, setReminderDates] = useState<Date[]>(() => {
     const d = new Date();
     d.setHours(9, 0, 0, 0);
-    return d;
+    return [d];
   });
-  const [medShowTimePicker, setMedShowTimePicker] = useState(false);
+  const [lastGivenOn, setLastGivenOn] = useState("");
+  const [validationAttempted, setValidationAttempted] = useState(false);
 
   useEffect(() => {
-    const m = pet.medications[0];
-    if (!m) {
+    const raw = pet.medications[0];
+    if (!raw) {
       setMedName("");
-      setMedDosageAmt("");
-      setMedDosageType("");
-      setMedFreq("");
-      setMedCustomFreq("");
-      setMedCondition("");
-      setMedNotes("");
+      setDosageAmount("");
+      setDosageType("");
+      setDosesPerPeriod("1");
+      setSchedulePeriod("day");
+      setCustomIntervalCount("1");
+      setCustomIntervalUnit("month");
+      setCondition("");
+      setNotes("");
       const reset = new Date();
       reset.setHours(9, 0, 0, 0);
-      setMedReminderDate(reset);
+      setReminderDates([reset]);
+      setLastGivenOn("");
+      setValidationAttempted(false);
       return;
     }
+    const m = raw as LegacyMedicationShape;
     setMedName(m.name);
-    setMedDosageAmt(m.dosageAmount);
-    setMedDosageType(m.dosageType);
-    setMedFreq(m.frequency);
-    setMedCustomFreq(m.customFrequency || "");
-    setMedCondition(m.condition);
-    setMedNotes(m.notes);
-    if (m.reminderTime?.trim()) {
-      const parts = m.reminderTime.split(":");
-      const h = parseInt(parts[0] ?? "", 10);
-      const min = parseInt(parts[1] ?? "", 10);
-      if (Number.isFinite(h) && Number.isFinite(min)) {
-        const d = new Date();
-        d.setHours(h, min, 0, 0);
-        setMedReminderDate(d);
-      }
-    }
+    setDosageAmount(m.dosageAmount);
+    setDosageType(m.dosageType);
+    setDosesPerPeriod(m.dosesPerPeriod?.trim() ? m.dosesPerPeriod : "1");
+    setSchedulePeriod(scheduleFromLegacy(m));
+    setCustomIntervalCount(m.customIntervalCount?.trim() ? m.customIntervalCount : "1");
+    setCustomIntervalUnit(
+      m.customIntervalUnit === "day" ||
+        m.customIntervalUnit === "week" ||
+        m.customIntervalUnit === "month"
+        ? m.customIntervalUnit
+        : "month",
+    );
+    setCondition(m.condition);
+    setNotes(m.notes);
+    setReminderDates(reminderDatesFromEntry(m));
+    setLastGivenOn(m.lastGivenOn?.trim() ?? "");
+    setValidationAttempted(false);
   }, [pet.medications[0]?.localId, currentPetIndex]);
 
+  const parsedDoses = parseInt(dosesPerPeriod.trim(), 10);
+  const parsedCustomInterval = parseInt(customIntervalCount.trim(), 10);
+  const nameError = validationAttempted && !medName.trim();
+  const dosageAmountError = validationAttempted && !dosageAmount.trim();
+  const dosageTypeError = validationAttempted && !dosageType.trim();
+  const dosePeriodStd =
+    schedulePeriod === "custom"
+      ? null
+      : (schedulePeriod as MedicationDosePeriod);
+  const doseCountError =
+    validationAttempted &&
+    dosePeriodStd === "day" &&
+    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
+  const doseCountErrorWeekMonth =
+    validationAttempted &&
+    (dosePeriodStd === "week" || dosePeriodStd === "month") &&
+    dosesPerPeriod.trim() !== "" &&
+    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
+  const customIntervalError =
+    validationAttempted &&
+    schedulePeriod === "custom" &&
+    (!Number.isFinite(parsedCustomInterval) || parsedCustomInterval < 1);
+
   const buildMedicationEntry = useCallback((): MedicationFormEntry => {
-    const dosePeriod: MedicationDosePeriod | "" =
-      medFreq === "Daily"
-        ? "day"
-        : medFreq === "Weekly"
-          ? "week"
-          : medFreq === "Monthly"
-            ? "month"
-            : "";
-    const dosesPerPeriodStr =
-      medFreq === "Daily"
-        ? "1"
-        : medFreq === "Weekly" || medFreq === "Monthly"
-          ? "1"
-          : "";
+    const reminderTimes = sortTimesAscUnique(
+      reminderDates.map((d) => formatReminderTimeHHmm(d)),
+    );
     return {
       localId: pet.medications[0]?.localId ?? Date.now().toString(),
       name: medName.trim(),
-      dosageAmount: medDosageAmt,
-      dosageType: medDosageType,
-      frequency: medFreq,
-      customFrequency: medFreq === "Custom" ? medCustomFreq : "",
-      condition: medCondition,
-      dosesPerPeriod: dosesPerPeriodStr,
-      dosePeriod,
-      reminderTime: formatReminderTimeHHmm(medReminderDate),
-      notes: medNotes.trim(),
+      dosageAmount,
+      dosageType,
+      dosesPerPeriod,
+      schedulePeriod,
+      customIntervalCount,
+      customIntervalUnit,
+      condition,
+      notes,
+      reminderTimes,
+      lastGivenOn,
     };
   }, [
     pet.medications[0]?.localId,
     medName,
-    medDosageAmt,
-    medDosageType,
-    medFreq,
-    medCustomFreq,
-    medCondition,
-    medReminderDate,
-    medNotes,
+    dosageAmount,
+    dosageType,
+    dosesPerPeriod,
+    schedulePeriod,
+    customIntervalCount,
+    customIntervalUnit,
+    condition,
+    notes,
+    reminderDates,
+    lastGivenOn,
   ]);
 
   const handleContinue = useCallback(() => {
-    if (medName.trim()) {
-      updateCurrentPet({ medications: [buildMedicationEntry()] });
-    } else {
-      updateCurrentPet({ medications: [] });
-    }
+    setValidationAttempted(true);
+    if (!medName.trim()) return;
+    if (!dosageAmount.trim() || !dosageType.trim()) return;
+
+    const payload = buildMedicationSavePayload({
+      name: medName,
+      dosageAmount,
+      dosageType,
+      dosesPerPeriod,
+      schedulePeriod,
+      customIntervalCount,
+      customIntervalUnit,
+      condition,
+      notes,
+      reminderDates,
+      lastGivenOn,
+    });
+    if (!payload) return;
+
+    updateCurrentPet({ medications: [buildMedicationEntry()] });
     nextStep();
-  }, [medName, buildMedicationEntry, updateCurrentPet, nextStep]);
+  }, [
+    medName,
+    dosageAmount,
+    dosageType,
+    dosesPerPeriod,
+    schedulePeriod,
+    customIntervalCount,
+    customIntervalUnit,
+    condition,
+    notes,
+    reminderDates,
+    lastGivenOn,
+    buildMedicationEntry,
+    updateCurrentPet,
+    nextStep,
+  ]);
+
+  const showErrorHint = useMemo(
+    () =>
+      validationAttempted &&
+      (nameError ||
+        dosageAmountError ||
+        dosageTypeError ||
+        doseCountError ||
+        doseCountErrorWeekMonth ||
+        customIntervalError),
+    [
+      validationAttempted,
+      nameError,
+      dosageAmountError,
+      dosageTypeError,
+      doseCountError,
+      doseCountErrorWeekMonth,
+      customIntervalError,
+    ],
+  );
 
   if (phase === "prompt") {
     return (
@@ -160,7 +258,7 @@ export default function PetMedicationsStep() {
   }
 
   return (
-    <View style={styles.formContainer}>
+    <View style={onboardingStyles.formContainer}>
       <Text style={authOnboardingStyles.screenTitleForm}>
         Medications for {name}
       </Text>
@@ -169,92 +267,84 @@ export default function PetMedicationsStep() {
       </Text>
 
       <FormInput
+        label="Name"
+        required
         placeholder="Medication name"
         value={medName}
         onChangeText={setMedName}
-        containerStyle={styles.inputSpacing}
+        containerStyle={medStyles.field}
+        error={nameError}
       />
 
-      <Text style={styles.fieldLabel}>Dosage</Text>
-      <View style={[styles.row3, { zIndex: 60 }]}>
-        <FormInput
-          placeholder="Amt"
-          value={medDosageAmt}
-          onChangeText={setMedDosageAmt}
-          keyboardType="numeric"
-          containerStyle={styles.smallInput}
-        />
-        <DropdownSelect
-          placeholder="Select type"
-          value={medDosageType}
-          options={DOSAGE_TYPES}
-          onSelect={setMedDosageType}
-          containerStyle={{ flex: 1 }}
+      <PetMedicationDosageRow
+        dosageAmount={dosageAmount}
+        setDosageAmount={setDosageAmount}
+        dosageType={dosageType}
+        setDosageType={setDosageType}
+        dosageAmountError={dosageAmountError}
+        dosageTypeError={dosageTypeError}
+      />
+
+      <PetMedicationFrequencySection
+        schedulePeriod={schedulePeriod}
+        setSchedulePeriod={setSchedulePeriod}
+        dosesPerPeriod={dosesPerPeriod}
+        setDosesPerPeriod={setDosesPerPeriod}
+        customIntervalCount={customIntervalCount}
+        setCustomIntervalCount={setCustomIntervalCount}
+        customIntervalUnit={customIntervalUnit}
+        setCustomIntervalUnit={setCustomIntervalUnit}
+        parsedCustomInterval={parsedCustomInterval}
+        doseCountError={doseCountError}
+        doseCountErrorWeekMonth={doseCountErrorWeekMonth}
+        customIntervalError={customIntervalError}
+      />
+
+      <PetMedicationReminderField
+        reminderDates={reminderDates}
+        setReminderDates={setReminderDates}
+      />
+
+      <Text style={medStyles.fieldLabel}>Last given</Text>
+      <View style={medStyles.lastGivenWrap}>
+        <ExpiryDateField
+          value={lastGivenOn}
+          onChangeDate={setLastGivenOn}
+          onClearDate={() => setLastGivenOn("")}
+          placeholder="Select date"
         />
       </View>
 
-      <Text style={styles.fieldLabel}>Frequency</Text>
-      <View style={{ zIndex: 55 }}>
-        <DropdownSelect
-          placeholder="Select frequency"
-          value={medFreq}
-          options={FREQ_OPTIONS}
-          onSelect={setMedFreq}
-          containerStyle={styles.inputSpacing}
-        />
-      </View>
-      {medFreq === "Custom" && (
-        <FormInput
-          placeholder="Enter custom frequency"
-          value={medCustomFreq}
-          onChangeText={setMedCustomFreq}
-          containerStyle={styles.inputSpacing}
-        />
-      )}
-
       <FormInput
-        placeholder="Condition (e.g. Allergies)"
-        value={medCondition}
-        onChangeText={setMedCondition}
-        containerStyle={styles.inputSpacing}
-      />
-
-      <Text style={styles.fieldLabel}>Reminder time</Text>
-      <Pressable
-        style={styles.reminderTimeBtn}
-        onPress={() => setMedShowTimePicker(true)}
-      >
-        <MaterialCommunityIcons
-          name="clock-outline"
-          size={20}
-          color={Colors.orange}
-        />
-        <Text style={styles.reminderTimeText}>
-          {formatUserTime(medReminderDate, timeDisplay)}
-        </Text>
-      </Pressable>
-      <ReminderTimePickerSheet
-        visible={medShowTimePicker}
-        value={medReminderDate}
-        onChange={setMedReminderDate}
-        onClose={() => setMedShowTimePicker(false)}
+        label="Condition"
+        placeholder="e.g. Allergies"
+        value={condition}
+        onChangeText={setCondition}
+        containerStyle={medStyles.field}
       />
 
       <FormInput
+        label="Notes"
         placeholder="Notes"
-        value={medNotes}
-        onChangeText={setMedNotes}
+        value={notes}
+        onChangeText={setNotes}
         multiline
-        containerStyle={styles.inputSpacing}
+        containerStyle={medStyles.field}
       />
 
-      <View style={styles.spacer} />
+      {showErrorHint ? (
+        <Text style={medStyles.formErrorHint}>
+          Please fill in the required fields above.
+        </Text>
+      ) : null}
 
-      <OrangeButton onPress={handleContinue} style={styles.cta}>
+      <View style={onboardingStyles.spacer} />
+
+      <OrangeButton onPress={handleContinue} style={onboardingStyles.cta}>
         Continue
       </OrangeButton>
 
-      <TouchableOpacity onPress={() => setPhase("prompt")} style={styles.backButton}>
+      <TouchableOpacity onPress={() => setPhase("prompt")} style={onboardingStyles.backButton}>
         <Text style={authOnboardingStyles.backText}>Back</Text>
       </TouchableOpacity>
     </View>

@@ -23,6 +23,12 @@ type HealthSectionProps = {
   /** Shown only when at least one shot is on file with expiry overdue or within 60 days. */
   attentionVaccinations?: PetVaccination[];
   onVaccinationAttentionPress?: () => void;
+  /** Household litter goals (all cats); above vet visits. */
+  maintenanceCard?: {
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+  } | null;
 };
 
 export default function HealthSection({
@@ -34,6 +40,7 @@ export default function HealthSection({
   onAddMedicationPress,
   attentionVaccinations,
   onVaccinationAttentionPress,
+  maintenanceCard,
 }: HealthSectionProps) {
   const hasMeds = medications.length > 0;
   const hasVisits = vetVisits.length > 0;
@@ -89,6 +96,25 @@ export default function HealthSection({
               />
             ))}
           </HealthListCard>
+        </>
+      ) : null}
+
+      {maintenanceCard ? (
+        <>
+          <SectionLabel style={styles.visitsLabel}>
+            {maintenanceCard.title}
+          </SectionLabel>
+          <TouchableOpacity
+            style={styles.maintenanceCard}
+            activeOpacity={0.85}
+            onPress={maintenanceCard.onPress}
+          >
+            <Text style={styles.maintenanceTitle}>Litter box</Text>
+            <Text style={styles.maintenanceSubtitle}>
+              {maintenanceCard.subtitle}
+            </Text>
+            <Text style={styles.maintenanceCta}>Edit goals</Text>
+          </TouchableOpacity>
         </>
       ) : null}
 
@@ -165,5 +191,32 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     fontSize: 14,
     color: Colors.orange,
+  },
+  maintenanceCard: {
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 4,
+    gap: 6,
+  },
+  maintenanceTitle: {
+    fontFamily: Font.uiBold,
+    fontSize: 16,
+    color: Colors.textPrimary,
+  },
+  maintenanceSubtitle: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  maintenanceCta: {
+    fontFamily: Font.uiBold,
+    fontSize: 14,
+    color: Colors.orange,
+    marginTop: 4,
   },
 });

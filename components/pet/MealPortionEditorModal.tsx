@@ -4,13 +4,14 @@ import { Colors } from "@/constants/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
+import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Keyboard,
   Modal,
@@ -21,9 +22,9 @@ import {
   View,
 } from "react-native";
 
+/** Match light modal sheets; avoid `textColor` — native code sets it via KVC and can break wheel UX. */
 const IOS_PICKER_PROPS = {
   themeVariant: "light" as const,
-  textColor: Colors.black,
 };
 
 type MealPortionEditorModalProps = {
@@ -77,16 +78,21 @@ export default function MealPortionEditorModal({
 
   const timeLabel = formatUserTime(feedTime, timeDisplay);
 
+  const feedTimeForPicker = useMemo(
+    () => mergeWallClockOntoToday(feedTime),
+    [feedTime],
+  );
+
   const onTimePickerChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
         if (event.type === "set" && date) {
-          setFeedTime(date);
+          setFeedTime(mergeWallClockOntoToday(date));
         }
         setTimePickerOpen(false);
         return;
       }
-      if (date) setFeedTime(date);
+      if (date) setFeedTime(mergeWallClockOntoToday(date));
     },
     [],
   );
@@ -202,7 +208,7 @@ export default function MealPortionEditorModal({
         */}
         {timePickerOpen && Platform.OS === "android" ? (
           <DateTimePicker
-            value={feedTime}
+            value={feedTimeForPicker}
             mode="time"
             display="default"
             is24Hour={is24Hour}
@@ -243,10 +249,9 @@ export default function MealPortionEditorModal({
                 </View>
               </View>
               <DateTimePicker
-                value={feedTime}
+                value={feedTimeForPicker}
                 mode="time"
                 display="spinner"
-                is24Hour={is24Hour}
                 onChange={onTimePickerChange}
                 {...IOS_PICKER_PROPS}
                 style={styles.iosPicker}

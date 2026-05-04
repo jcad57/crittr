@@ -42,6 +42,21 @@ export const activitiesSincePrefixKey = (petId: string) =>
 export const activitiesSinceKey = (petId: string, sinceIso: string) =>
   ["activitiesSince", petId, sinceIso] as const;
 
+/** Activities since `sinceIso` across multiple pets (sorted ids). */
+export const activitiesSinceForPetIdsKey = (
+  petIds: string[],
+  sinceIso: string,
+) =>
+  [
+    "activitiesSince",
+    "multi",
+    [...petIds].sort().join(","),
+    sinceIso,
+  ] as const;
+
+export const activitiesSinceForPetIdsPrefixKey = (petIds: string[]) =>
+  ["activitiesSince", "multi", [...petIds].sort().join(",")] as const;
+
 /** Includes local calendar day so caches roll forward at local midnight. */
 export const todayActivitiesKey = (petId: string, localYmd: string) =>
   ["todayActivities", petId, localYmd] as const;

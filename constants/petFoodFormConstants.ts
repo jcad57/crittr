@@ -20,3 +20,15 @@ export const TIMES_QUICK: readonly string[] = [
   "7",
   "8",
 ];
+
+/** Brand field hint: dog-oriented default; cats get a familiar feline brand. */
+export const FOOD_BRAND_PLACEHOLDER_DEFAULT = "e.g. Purina Pro Plan";
+export const FOOD_BRAND_PLACEHOLDER_CAT = "e.g. Fancy Feast";
+
+export function foodBrandInputPlaceholder(
+  petType: string | null | undefined,
+): string {
+  return petType === "cat"
+    ? FOOD_BRAND_PLACEHOLDER_CAT
+    : FOOD_BRAND_PLACEHOLDER_DEFAULT;
+}

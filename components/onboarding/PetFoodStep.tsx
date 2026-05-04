@@ -1,4 +1,3 @@
-import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
 import FormInput from "@/components/onboarding/FormInput";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import PetFoodMealScheduleSection from "@/components/onboarding/petFood/PetFoodMealScheduleSection";
@@ -6,32 +5,60 @@ import PetFoodTreatSection from "@/components/onboarding/petFood/PetFoodTreatSec
 import PetFoodTypeToggle from "@/components/onboarding/petFood/PetFoodTypeToggle";
 import MealPortionEditorModal from "@/components/pet/MealPortionEditorModal";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { TIMES_QUICK } from "@/constants/petFoodFormConstants";
+import { foodBrandInputPlaceholder, TIMES_QUICK } from "@/constants/petFoodFormConstants";
+import { useOnboardingStore } from "@/stores/onboardingStore";
+import {
+  PET_DETAILS_STEP_INDEX,
+  PET_LITTER_MAINTENANCE_STEP_INDEX,
+  shouldShowFirstCatLitterOnboardingStep,
+} from "@/utils/onboardingPetFlow";
+import type { FoodFormEntry } from "@/types/database";
 import {
   deriveMealPortionsFromLegacyFields,
   type MealPortionDraft,
 } from "@/utils/petFood";
 import { dateToPgTime, pgTimeToDate } from "@/utils/petFoodTime";
-import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useShallow } from "zustand/react/shallow";
-import type { FoodFormEntry } from "@/types/database";
+import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 
 export default function PetFoodStep() {
-  const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
-    useOnboardingStore(
-      useShallow((s) => ({
-        pets: s.pets,
-        currentPetIndex: s.currentPetIndex,
-        updateCurrentPet: s.updateCurrentPet,
-        nextStep: s.nextStep,
-        prevStep: s.prevStep,
-      })),
-    );
+  const {
+    pets,
+    currentPetIndex,
+    updateCurrentPet,
+    nextStep,
+    goToStep,
+    petFlowMode,
+  } = useOnboardingStore(
+    useShallow((s) => ({
+      pets: s.pets,
+      currentPetIndex: s.currentPetIndex,
+      updateCurrentPet: s.updateCurrentPet,
+      nextStep: s.nextStep,
+      goToStep: s.goToStep,
+      petFlowMode: s.petFlowMode,
+    })),
+  );
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
+
+  const handleBackFromFood = useCallback(() => {
+    if (
+      shouldShowFirstCatLitterOnboardingStep(
+        petFlowMode,
+        currentPetIndex,
+        pet.petType,
+      )
+    ) {
+      goToStep(PET_LITTER_MAINTENANCE_STEP_INDEX);
+    } else {
+      goToStep(PET_DETAILS_STEP_INDEX);
+    }
+  }, [goToStep, petFlowMode, currentPetIndex, pet.petType]);
 
   const [foodBrand, setFoodBrand] = useState("");
   const [foodIsTreat, setFoodIsTreat] = useState(false);
@@ -113,11 +140,49 @@ export default function PetFoodStep() {
   }, [foodBrand, foodIsTreat, treatTimesPerDay, mealPortions]);
 
   const showFieldErrors = attempted && !isValid;
-  const brandErr = showFieldErrors && !foodBrand.trim();
+  const brandErr = attempted && !foodBrand.trim();
   const treatTimesErr =
-    showFieldErrors &&
+    attempted &&
     foodIsTreat &&
-    (!treatTimesPerDay.trim() || !TIMES_QUICK.includes(treatTimesPerDay));
+    (() => {
+      const t = parseInt(treatTimesPerDay.trim(), 10);
+      return !(
+        Number.isFinite(t) &&
+        t >= 1 &&
+        t <= 8 &&
+        TIMES_QUICK.includes(treatTimesPerDay)
+      );
+    })();
+
+  const mealNeedsFirstPortion =
+    attempted && !foodIsTreat && mealPortions.length < 1;
+  const mealPortionAmountMissing =
+    attempted &&
+    !foodIsTreat &&
+    mealPortions.length > 0 &&
+    mealPortions.some((p) => !p.portionSize.trim());
+  const feedingScheduleLabelError =
+    mealPortionAmountMissing && !mealNeedsFirstPortion;
+
+  const continueBlockedHint = useMemo(() => {
+    if (!showFieldErrors) return null;
+    if (foodIsTreat) {
+      if (!foodBrand.trim()) return "Enter a food brand.";
+      return "Pick how many times per day your pet gets this treat (1–8).";
+    }
+    if (!foodBrand.trim()) return "Enter a food brand.";
+    if (mealNeedsFirstPortion)
+      return "Add at least one feeding portion using Add a portion below.";
+    if (mealPortionAmountMissing)
+      return "Enter an amount for each feeding portion — tap a row to edit it.";
+    return "Finish the missing fields above.";
+  }, [
+    showFieldErrors,
+    foodIsTreat,
+    foodBrand,
+    mealNeedsFirstPortion,
+    mealPortionAmountMissing,
+  ]);
 
   const openAddPortion = () => {
     const d = new Date();
@@ -226,31 +291,23 @@ export default function PetFoodStep() {
 
         <View style={styles.iconCenter}>
           <Image
-            source={getMealsActivityIcon(pet.petType || null)}
+            source={getMealsActivityIcon(pet.petType)}
             style={{ width: 40, height: 40 }}
-            resizeMode="contain"
+            contentFit="contain"
           />
         </View>
 
         <View style={styles.foodSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              showFieldErrors && styles.sectionTitleError,
-            ]}
-          >
-            Meals & treats *
-          </Text>
+          <Text style={styles.sectionTitle}>Meals & treats *</Text>
           <Text style={styles.helperText}>
-            Add one meal or treat — same as on your pet profile. For meals, add
-            each feeding time and portion; for treats, set amount and how often
-            per day.
+            Add your first meal or treat. For meals, add each feeding time and
+            portion below; for treats, set amount and how often per day.
           </Text>
 
           <FormInput
             label="Food brand"
             required
-            placeholder="e.g. Purina Pro Plan"
+            placeholder={foodBrandInputPlaceholder(pet.petType || null)}
             value={foodBrand}
             onChangeText={setFoodBrand}
             containerStyle={styles.inputSpacing}
@@ -288,6 +345,13 @@ export default function PetFoodStep() {
               onAddPortion={openAddPortion}
               onEditPortion={openEditPortion}
               onRemovePortion={removePortion}
+              feedingScheduleLabelError={feedingScheduleLabelError}
+              addPortionButtonError={mealNeedsFirstPortion}
+              portionRowAmountMissing={(idx) =>
+                attempted &&
+                !foodIsTreat &&
+                !mealPortions[idx]?.portionSize.trim()
+              }
             />
           )}
 
@@ -302,19 +366,15 @@ export default function PetFoodStep() {
           />
         </View>
 
-        {showFieldErrors && (
-          <Text style={styles.errorHint}>
-            {foodIsTreat
-              ? "Enter a food brand and pick times per day (1–8)."
-              : "Enter a brand and at least one portion with an amount."}
-          </Text>
-        )}
+        {continueBlockedHint != null ? (
+          <Text style={styles.errorHint}>{continueBlockedHint}</Text>
+        ) : null}
 
         <OrangeButton onPress={handleContinue} style={styles.cta}>
           Continue
         </OrangeButton>
 
-        <TouchableOpacity onPress={prevStep} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackFromFood} style={styles.backButton}>
           <Text style={authOnboardingStyles.backText}>Back</Text>
         </TouchableOpacity>
       </View>

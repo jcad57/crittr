@@ -49,10 +49,4 @@ export const UPGRADE_COMPARISON_ROWS: UpgradeCompareRow[] = [
     free: { type: "x" },
     pro: { type: "check" },
   },
-  {
-    title: "Notifications & reminders",
-    subtitle: "Stay on schedule",
-    free: { type: "x" },
-    pro: { type: "check" },
-  },
 ];

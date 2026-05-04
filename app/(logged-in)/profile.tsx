@@ -232,7 +232,7 @@ export default function UserProfileScreen() {
           onFeedback={() => push("/(logged-in)/feedback")}
           onHelpCenter={() => push("/(logged-in)/help-center")}
           onPrivacy={() => push("/(logged-in)/privacy-policy")}
-          onTerms={() => push("/terms-of-service")}
+          onTerms={() => push("/(logged-in)/terms-of-service")}
         />
 
         <ProfileSignOutRow onSignOut={handleSignOut} />

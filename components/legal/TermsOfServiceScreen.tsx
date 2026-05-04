@@ -7,10 +7,6 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-/**
- * Root-level route so the document is reachable during auth onboarding (sign-up)
- * without entering the logged-in stack.
- */
 export default function TermsOfServiceScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();

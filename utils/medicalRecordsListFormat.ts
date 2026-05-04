@@ -3,11 +3,7 @@
  * Pure functions — no side effects.
  */
 
-import type {
-  PetMedicalRecord,
-  PetVaccination,
-  PetVetVisit,
-} from "@/types/database";
+import type { PetMedicalRecord, PetVaccination } from "@/types/database";
 
 export function vetKindIcon(
   kind: "visit" | "vaccination",
@@ -35,12 +31,6 @@ export function vaccinationDateLabel(v: PetVaccination): string {
     )}`;
   }
   return formatMediumDate(v.created_at);
-}
-
-export function buildVisitSummary(v: PetVetVisit, petName: string): string {
-  const parts = [v.location?.trim(), v.notes?.trim()].filter(Boolean);
-  if (parts.length) return parts.join(" · ");
-  return `Visit for ${petName}`;
 }
 
 export function buildVaccinationSummary(v: PetVaccination): string {

@@ -13,3 +13,29 @@ export function msUntilNextLocalMidnight(): number {
   next.setHours(0, 0, 0, 0);
   return Math.max(1, next.getTime() - now.getTime());
 }
+
+/** Midnight at the start of the next local calendar day (expiry must be after "today"). */
+export function startOfTomorrowLocal(from = new Date()): Date {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setDate(d.getDate() + 1);
+  return d;
+}
+
+/** Same local calendar day plus `years` (handles leap years via JS Date). */
+export function addCalendarYearsLocal(from: Date, years: number): Date {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setFullYear(d.getFullYear() + years);
+  return d;
+}
+
+/** Default vaccination next-expiry / expires-on field (one calendar year ahead). */
+export function defaultVaccinationExpiryYmd(): string {
+  return getLocalYmd(addCalendarYearsLocal(new Date(), 1));
+}
+
+/** Upper bound for vaccination expiry picker (~50 years). */
+export function vaccinationExpiryPickerMaxDate(from = new Date()): Date {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setFullYear(d.getFullYear() + 50);
+  return d;
+}

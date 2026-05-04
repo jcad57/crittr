@@ -57,6 +57,8 @@ export async function updateProfile(
       | "date_display_format"
       | "crittr_pro_banner_theme"
       | "has_password"
+      | "litter_cleaning_period"
+      | "litter_cleanings_per_period"
     >
   >,
 ): Promise<Profile | null> {

@@ -197,7 +197,7 @@ export default function SignUpStep() {
 
       {/* Terms */}
       <Pressable
-        onPress={() => router.push("/terms-of-service")}
+        onPress={() => router.push("/(auth)/terms-of-service")}
         style={styles.termsPressable}
       >
         <Text style={authOnboardingStyles.terms}>

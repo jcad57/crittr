@@ -18,19 +18,17 @@ import {
   useCreatePetMedicalRecordWithFilesMutation,
   usePetDetailsQuery,
   usePetMedicalRecordsQuery,
-  usePetVetVisitsQuery,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
 import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
 import { useAuthStore } from "@/stores/authStore";
-import { buildVisitSummary, formatMediumDate } from "@/utils/medicalRecordsListFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useLocalSearchParams, type Href } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -59,8 +57,6 @@ export default function PetMedicalRecordsScreen() {
   const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
   const { data: details, isLoading: loadingPet } = usePetDetailsQuery(petId);
-  const { data: vetVisits = [], isLoading: loadingVisits } =
-    usePetVetVisitsQuery(petId);
   const {
     data: medicalList,
     isLoading: loadingMedical,
@@ -122,36 +118,6 @@ export default function PetMedicalRecordsScreen() {
     setScanResult(pending);
     setReviewOpen(true);
   }, []);
-
-  /**
-   * "FROM YOUR VET" is reserved for clinic-provided documents (same idea as YOUR UPLOADS,
-   * different source) — not yet backed by data. We intentionally do **not** list pet
-   * vaccinations here: those live under Health → Vaccinations (including items added via
-   * document scan). Vet **visits** you log in the app are surfaced here as quick links;
-   * they are not confused with scanned meds/vacs.
-   */
-  const vetRows: VetRow[] = useMemo(() => {
-    if (!details || !petId) return [];
-    const name = details.name?.trim() || "your pet";
-    const dated: { row: VetRow; t: number }[] = [];
-
-    for (const v of vetVisits) {
-      dated.push({
-        t: new Date(v.visit_at).getTime(),
-        row: {
-          key: `visit-${v.id}`,
-          kind: "visit",
-          title: v.title,
-          dateLabel: formatMediumDate(v.visit_at),
-          summary: buildVisitSummary(v, name),
-          href: `/(logged-in)/pet/${petId}/vet-visits/${v.id}` as Href,
-        },
-      });
-    }
-
-    dated.sort((a, b) => b.t - a.t);
-    return dated.map((d) => d.row);
-  }, [details, vetVisits, petId]);
 
   const onCreateSubmit = useCallback(
     async (payload: { recordName?: string; pending: PendingMedicalFile[] }) => {
@@ -292,8 +258,8 @@ export default function PetMedicalRecordsScreen() {
       >
         <Text style={styles.lead}>
           Files you upload appear under Your uploads. Medications and vaccinations you add
-          (including from scanned documents) are saved under Health. Schedule visits from
-          Health → Upcoming visits.
+          (including from scanned documents) are saved under Health. Vet visits you log in
+          the app stay under Health → Vet visits only.
         </Text>
 
         {permLoading ? (
@@ -339,8 +305,8 @@ export default function PetMedicalRecordsScreen() {
 
         <HealthSectionHeader title="FROM YOUR VET" />
         <MedicalRecordsVetList
-          loading={loadingVisits}
-          vetRows={vetRows}
+          loading={false}
+          vetRows={[] satisfies VetRow[]}
           push={push}
         />
       </ScrollView>

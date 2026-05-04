@@ -9,6 +9,8 @@ type Props = {
   setDosageAmount: (v: string) => void;
   dosageType: string;
   setDosageType: (v: string) => void;
+  dosageAmountError?: boolean;
+  dosageTypeError?: boolean;
 };
 
 export default function PetMedicationDosageRow({
@@ -16,10 +18,20 @@ export default function PetMedicationDosageRow({
   setDosageAmount,
   dosageType,
   setDosageType,
+  dosageAmountError,
+  dosageTypeError,
 }: Props) {
+  const dosageLabelError = Boolean(dosageAmountError || dosageTypeError);
   return (
     <>
-      <Text style={styles.fieldLabel}>Dosage</Text>
+      <Text
+        style={[
+          styles.fieldLabel,
+          dosageLabelError && styles.fieldLabelError,
+        ]}
+      >
+        Dosage *
+      </Text>
       <View style={styles.row2}>
         <FormInput
           placeholder="Amt"
@@ -27,6 +39,7 @@ export default function PetMedicationDosageRow({
           onChangeText={setDosageAmount}
           keyboardType="default"
           containerStyle={styles.smallInput}
+          error={dosageAmountError}
         />
         <View style={{ flex: 1, zIndex: 40 }}>
           <DropdownSelect
@@ -34,6 +47,7 @@ export default function PetMedicationDosageRow({
             value={dosageType}
             options={DOSAGE_TYPES}
             onSelect={setDosageType}
+            error={dosageTypeError}
           />
         </View>
       </View>

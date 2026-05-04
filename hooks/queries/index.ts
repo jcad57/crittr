@@ -50,6 +50,7 @@ export {
   useActivityQuery,
 } from "./useActivitiesQuery";
 export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";
+export { useActivitiesSinceForPetIdsQuery } from "./useActivitiesSinceForPetIdsQuery";
 export {
   useCoCarersForPetQuery,
   useSentInvitesForPetQuery,
@@ -80,7 +81,6 @@ export {
   useUpdatePetExerciseRequirementsMutation,
   useUpdatePetFoodMutation,
   useUpdatePetNameAndBreedMutation,
-  useUpdatePetLitterMaintenanceMutation,
 } from "../mutations/usePetProfileMutations";
 export {
   useDeletePetMutation,

@@ -76,8 +76,7 @@ export const styles = StyleSheet.create({
   },
   /** Full-bleed content on gradient — no inset “card” panel. */
   cardShell: {
-    flex: 1,
-    paddingBottom: 8,
+    paddingBottom: 0,
   },
   billingToggleInCard: {
     flexDirection: "row",
@@ -258,7 +257,6 @@ export const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    marginBottom: 12,
   },
   noThanksBtnPressed: {
     opacity: 0.7,

@@ -16,10 +16,22 @@ import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/utils/errorMessage";
+import {
+  defaultVaccinationExpiryYmd,
+  startOfTomorrowLocal,
+  vaccinationExpiryPickerMaxDate,
+} from "@/utils/localCalendarDate";
 import { hydrateFromVaccination } from "@/utils/vaccinationEditHydration";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -66,8 +78,14 @@ export default function EditPetVaccinationScreen() {
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
   const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
+  const administeredMaximumDateRef = useRef(new Date());
+  const vaccinationExpiryMinRef = useRef(startOfTomorrowLocal());
+  const vaccinationExpiryMaxRef = useRef(vaccinationExpiryPickerMaxDate());
+
   const [name, setName] = useState("");
-  const [expiresOn, setExpiresOn] = useState("");
+  const [expiresOn, setExpiresOn] = useState(() =>
+    defaultVaccinationExpiryYmd(),
+  );
   const [notes, setNotes] = useState("");
   const [administeredOn, setAdministeredOn] = useState("");
   const [administeredBy, setAdministeredBy] = useState("");
@@ -309,6 +327,7 @@ export default function EditPetVaccinationScreen() {
               onChangeDate={setAdministeredOn}
               onClearDate={() => setAdministeredOn("")}
               placeholder="When was it given?"
+              maximumDate={administeredMaximumDateRef.current}
             />
           </View>
 
@@ -319,6 +338,8 @@ export default function EditPetVaccinationScreen() {
               onChangeDate={setExpiresOn}
               onClearDate={() => setExpiresOn("")}
               placeholder="When it expires or is due again (for reminders)"
+              minimumDate={vaccinationExpiryMinRef.current}
+              maximumDate={vaccinationExpiryMaxRef.current}
             />
           </View>
 

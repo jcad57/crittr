@@ -1,11 +1,9 @@
 import FormInput from "@/components/onboarding/FormInput";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
-import {
-  PET_INFO_FIELD_MARGIN_BOTTOM,
-} from "@/constants/petInfo";
+import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
-import type { LitterCleaningPeriod, PetFormData } from "@/types/database";
+import type { LitterCleaningPeriod } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const PERIOD_OPTIONS: { id: LitterCleaningPeriod; label: string }[] = [
@@ -15,7 +13,7 @@ const PERIOD_OPTIONS: { id: LitterCleaningPeriod; label: string }[] = [
 ];
 
 type Props = {
-  litterCleaningPeriod: PetFormData["litterCleaningPeriod"];
+  litterCleaningPeriod: LitterCleaningPeriod | "";
   litterCleaningsPerPeriod: string;
   onPeriodChange: (p: LitterCleaningPeriod) => void;
   onCleaningsChange: (v: string) => void;
@@ -46,7 +44,7 @@ export default function PetCatLitterSection({
         Maintenance on the dashboard.
       </Text>
 
-      <Text style={styles.fieldLabel}>Track every</Text>
+      <Text style={styles.fieldLabel}>Frequency</Text>
       <View style={styles.chipRow}>
         {PERIOD_OPTIONS.map((opt) => {
           const on = litterCleaningPeriod === opt.id;

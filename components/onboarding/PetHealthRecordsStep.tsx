@@ -8,11 +8,11 @@ import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/constants/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
-import type { PetFormData } from "@/types/database";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useShallow } from "zustand/react/shallow";
+import type { PetFormData } from "@/types/database";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 
 function hasHealthDetails(pet: PetFormData) {
   return (
@@ -46,7 +46,7 @@ export default function PetHealthRecordsStep() {
     return (
       <OptInStep
         title={`Add health records for ${name}?`}
-        subtitle="Microchip and insurance details on the next screen — or skip for now."
+        subtitle="Add microchip and insurance details for now - upgrade to Pro to upload medical records and documents directly to your pet's profile."
         yesLabel="Yes, add details"
         noLabel="Skip"
         onYes={() => setPhase("form")}
@@ -121,9 +121,7 @@ export default function PetHealthRecordsStep() {
             label="Policy number"
             placeholder="Policy or member ID"
             value={pet.insurancePolicyNumber}
-            onChangeText={(v) =>
-              updateCurrentPet({ insurancePolicyNumber: v })
-            }
+            onChangeText={(v) => updateCurrentPet({ insurancePolicyNumber: v })}
             autoCapitalize="none"
             containerStyle={styles.inputSpacing}
           />

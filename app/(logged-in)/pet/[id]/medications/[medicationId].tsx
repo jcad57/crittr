@@ -117,6 +117,9 @@ export default function EditPetMedicationScreen() {
     if (!name.trim()) {
       return;
     }
+    if (!dosageAmount.trim() || !dosageType.trim()) {
+      return;
+    }
 
     const payload = buildMedicationSavePayload({
       name,
@@ -275,6 +278,8 @@ export default function EditPetMedicationScreen() {
   const parsedDoses = parseInt(dosesPerPeriod.trim(), 10);
   const parsedCustomInterval = parseInt(customIntervalCount.trim(), 10);
   const nameError = validationAttempted && !name.trim();
+  const dosageAmountError = validationAttempted && !dosageAmount.trim();
+  const dosageTypeError = validationAttempted && !dosageType.trim();
   const dosePeriodStd =
     schedulePeriod === "custom"
       ? null
@@ -319,9 +324,11 @@ export default function EditPetMedicationScreen() {
           <View>
             <FormInput
               label="Name"
+              required
               value={name}
               onChangeText={setName}
               containerStyle={styles.field}
+              error={nameError}
             />
 
             <PetMedicationDosageRow
@@ -329,6 +336,8 @@ export default function EditPetMedicationScreen() {
               setDosageAmount={setDosageAmount}
               dosageType={dosageType}
               setDosageType={setDosageType}
+              dosageAmountError={dosageAmountError}
+              dosageTypeError={dosageTypeError}
             />
 
             <PetMedicationFrequencySection
@@ -383,6 +392,8 @@ export default function EditPetMedicationScreen() {
               showErrorHint={
                 validationAttempted &&
                 (nameError ||
+                  dosageAmountError ||
+                  dosageTypeError ||
                   doseCountError ||
                   doseCountErrorWeekMonth ||
                   customIntervalError)

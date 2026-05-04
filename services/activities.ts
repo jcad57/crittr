@@ -53,6 +53,23 @@ export async function fetchTodayActivities(
   return (data ?? []) as PetActivity[];
 }
 
+export async function fetchActivitiesSinceForPetIds(
+  petIds: string[],
+  sinceIso: string,
+): Promise<PetActivity[]> {
+  if (petIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("pet_activities")
+    .select("*")
+    .in("pet_id", petIds)
+    .gte("logged_at", sinceIso)
+    .order("logged_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as PetActivity[];
+}
+
 export async function fetchActivitiesSince(
   petId: string,
   sinceIso: string,

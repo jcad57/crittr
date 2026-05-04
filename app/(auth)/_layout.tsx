@@ -27,11 +27,19 @@ export default function AuthLayout() {
     segments.some((s) => s === "(onboarding)") ||
     (pathname?.includes("(onboarding)") ?? false);
 
+  const isTermsOfServiceRoute =
+    pathname?.includes("terms-of-service") ?? false;
+
   if (isLoggedIn && !needsOnboarding) {
     return <Redirect href="/(logged-in)/(tabs)/dashboard" />;
   }
 
-  if (isLoggedIn && needsOnboarding && !isOnOnboarding) {
+  if (
+    isLoggedIn &&
+    needsOnboarding &&
+    !isOnOnboarding &&
+    !isTermsOfServiceRoute
+  ) {
     return <Redirect href="/(auth)/(onboarding)" />;
   }
 
@@ -61,6 +69,7 @@ export default function AuthLayout() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="sign-in" />
       <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="terms-of-service" />
     </Stack>
   );
 }

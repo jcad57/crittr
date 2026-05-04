@@ -50,6 +50,20 @@ function invalidateActivityCaches(petId: string | null, activityId: string) {
   }
 }
 
+function invalidateHouseholdMaintenanceRollups() {
+  void queryClient.invalidateQueries({
+    predicate: (q) => {
+      const k = q.queryKey;
+      return (
+        Array.isArray(k) &&
+        k.length >= 2 &&
+        k[1] === "multi" &&
+        (k[0] === "todayActivities" || k[0] === "activitiesSince")
+      );
+    },
+  });
+}
+
 export function useUpdateExerciseActivityMutation(petId: string | null) {
   return useMutation({
     mutationFn: ({
@@ -158,8 +172,10 @@ export function useUpdateMaintenanceActivityMutation(petId: string | null) {
       updateMaintenanceActivity(activityId, form, {
         loggedAt: loggedAtIso,
       }),
-    onSuccess: (_, { activityId }) =>
-      invalidateActivityCaches(petId, activityId),
+    onSuccess: (_, { activityId }) => {
+      invalidateActivityCaches(petId, activityId);
+      invalidateHouseholdMaintenanceRollups();
+    },
   });
 }
 
@@ -203,6 +219,7 @@ export function useDeleteActivityMutation(petId: string | null) {
     mutationFn: (activityId: string) => deletePetActivity(activityId),
     onSuccess: (_, activityId) => {
       invalidateActivityCaches(petId, activityId);
+      invalidateHouseholdMaintenanceRollups();
       /** Weigh-in activities cascade-delete the linked pet_weight_entries row,
        * so refresh the chart whether or not this was a weigh-in. */
       if (petId) {

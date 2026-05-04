@@ -1,13 +1,16 @@
 import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/constants/ads";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import {
+  APP_OPEN_LAST_SHOWN_STORAGE_KEY,
+  markAppOpenLastShownNow,
+} from "@/lib/appOpenAdLastShown";
 import { useAuthStore } from "@/stores/authStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
+import { usePathname } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
-
-const APP_OPEN_LAST_SHOWN_KEY = "crittr_ad_app_open_last_shown_ms";
 
 /** Minimum time between app open ad impressions (relaxed in __DEV__ so you can test repeatedly). */
 const MIN_APP_OPEN_INTERVAL_MS = __DEV__ ? 0 : 4 * 60 * 60 * 1000;
@@ -20,7 +23,9 @@ const requestOptions = {
  * AdMob app open: full-screen when the app starts (first eligible load) and when returning
  * from the background, for signed-in, non–Crittr Pro users who have finished onboarding.
  * While `needsOnboarding` is true (sign-up → first-time setup), ads are suppressed so the
- * flow is not interrupted. Preloads the next ad after one is dismissed.
+ * flow is not interrupted. While the upgrade/paywall route is focused, app-open is also
+ * suppressed so it does not cover that screen (e.g. immediately after onboarding completes).
+ * Preloads the next ad after one is dismissed.
  */
 export default function AppOpenAdManager() {
   const session = useAuthStore((s) => s.session);
@@ -28,6 +33,9 @@ export default function AppOpenAdManager() {
   const isLoggedIn = Boolean(session);
   const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
+  const pathname = usePathname() ?? "";
+  /** Full-screen app-open over the paywall is jarring (especially right after onboarding completes). */
+  const suppressOnUpgradeScreen = pathname.includes("upgrade");
 
   const canRequest =
     APP_OPEN_ADS_ENABLED &&
@@ -35,7 +43,8 @@ export default function AppOpenAdManager() {
     !needsOnboarding &&
     !isPro &&
     !isPending &&
-    !isPlaceholderData;
+    !isPlaceholderData &&
+    !suppressOnUpgradeScreen;
 
   const adUnitId = canRequest ? AdUnitIds.appOpen : null;
 
@@ -64,7 +73,7 @@ export default function AppOpenAdManager() {
 
   const shouldThrottleShow = useCallback(async (): Promise<boolean> => {
     try {
-      const raw = await AsyncStorage.getItem(APP_OPEN_LAST_SHOWN_KEY);
+      const raw = await AsyncStorage.getItem(APP_OPEN_LAST_SHOWN_STORAGE_KEY);
       if (raw == null) return false;
       const last = Number.parseInt(raw, 10);
       if (Number.isNaN(last)) return false;
@@ -74,15 +83,8 @@ export default function AppOpenAdManager() {
     }
   }, []);
 
-  const markShown = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(
-        APP_OPEN_LAST_SHOWN_KEY,
-        String(Date.now()),
-      );
-    } catch {
-      // ignore
-    }
+  const markShown = useCallback(() => {
+    void markAppOpenLastShownNow();
   }, []);
 
   const tryShow = useCallback(async () => {

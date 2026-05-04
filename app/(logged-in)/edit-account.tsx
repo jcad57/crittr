@@ -5,7 +5,7 @@ import { Font } from "@/constants/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/queryClient";
-import { updateAuthEmail, updateAuthPassword } from "@/services/auth";
+import { updateAuthPassword } from "@/services/auth";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -37,7 +37,6 @@ export default function EditAccountScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -49,9 +48,8 @@ export default function EditAccountScreen() {
     setFirstName(profile.first_name?.trim() ?? "");
     setLastName(profile.last_name?.trim() ?? "");
     setPhone(profile.phone_number?.trim() ?? "");
-    setEmail(sessionEmail);
     setAddress(profile.home_address?.trim() ?? "");
-  }, [profile, sessionEmail]);
+  }, [profile]);
 
   /** Google/OAuth — until the user has saved a local password in Supabase. */
   const canSetLocalPassword = profile?.has_password === false;
@@ -76,8 +74,13 @@ export default function EditAccountScreen() {
       if (updated) setProfile(updated);
       setNewPassword("");
       setConfirmNewPassword("");
-      await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
-      Alert.alert("Password saved", "You can now sign in with this email and password as well as Google.");
+      await queryClient.invalidateQueries({
+        queryKey: profileQueryKey(userId),
+      });
+      Alert.alert(
+        "Password saved",
+        "You can now sign in with this email and password as well as Google.",
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       Alert.alert("Could not save password", msg);
@@ -94,12 +97,6 @@ export default function EditAccountScreen() {
 
   const handleSave = useCallback(async () => {
     if (!userId) return;
-    const trimmedEmail = email.trim();
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
-    if (!emailOk) {
-      Alert.alert("Check email", "Enter a valid email address.");
-      return;
-    }
 
     setSaving(true);
     try {
@@ -117,10 +114,6 @@ export default function EditAccountScreen() {
 
       if (updated) setProfile(updated);
 
-      if (trimmedEmail !== sessionEmail.trim()) {
-        await updateAuthEmail(trimmedEmail);
-      }
-
       await queryClient.invalidateQueries({
         queryKey: profileQueryKey(userId),
       });
@@ -137,9 +130,7 @@ export default function EditAccountScreen() {
     firstName,
     lastName,
     phone,
-    email,
     address,
-    sessionEmail,
     setProfile,
     router,
   ]);
@@ -184,8 +175,7 @@ export default function EditAccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Update your personal details, manage sign-in, and add an optional
-          email/password if you use Google to sign in.
+          Update and manage your personal details.
         </Text>
 
         <FormInput
@@ -221,11 +211,11 @@ export default function EditAccountScreen() {
         <FormInput
           label="Email"
           placeholder="you@example.com"
-          value={email}
-          onChangeText={setEmail}
+          value={sessionEmail}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
+          disabled
           containerStyle={styles.fieldGap}
         />
 
@@ -281,13 +271,15 @@ export default function EditAccountScreen() {
                 <Text style={styles.forgotLink}>Forgot password?</Text>
               </Pressable>
             </View>
-            <View style={styles.passwordInputContainer}>
+            <View style={styles.passwordInputContainerDisabled}>
               <TextInput
                 value="••••••••••"
                 editable={false}
                 secureTextEntry={false}
-                style={styles.passwordInput}
-                accessibilityLabel="Hidden password"
+                selectTextOnFocus={false}
+                style={styles.passwordInputDisabled}
+                accessibilityLabel="Password. Not editable here. Use Forgot password to reset."
+                accessibilityState={{ disabled: true }}
               />
             </View>
           </View>
@@ -380,21 +372,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.orange,
   },
-  passwordInputContainer: {
+  /** Visually disabled so users don’t expect to type a new password on this screen. */
+  passwordInputContainerDisabled: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: Colors.gray300,
     borderRadius: 14,
     height: 50,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.gray100,
   },
-  passwordInput: {
+  passwordInputDisabled: {
     flex: 1,
     fontFamily: Font.uiRegular,
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: Colors.gray500,
     paddingVertical: 0,
     letterSpacing: 2,
   },

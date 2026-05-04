@@ -21,6 +21,8 @@ type FormInputProps = TextInputProps & {
   /** Renders above the input; use with `required` for a trailing * on the label only. */
   label?: string;
   required?: boolean;
+  /** Non-interactive with muted container/text (read-only fields). */
+  disabled?: boolean;
 };
 
 export default function FormInput({
@@ -32,14 +34,21 @@ export default function FormInput({
   multiline,
   label,
   required,
+  disabled,
+  editable,
+  selectTextOnFocus,
+  accessibilityState,
   ...rest
 }: FormInputProps) {
   const isMultiline = Boolean(multiline);
+  const isDisabled = Boolean(disabled);
+  const effectiveEditable = isDisabled ? false : editable;
 
   const inputRow = (
     <View
       style={[
         styles.container,
+        isDisabled && styles.containerDisabled,
         isMultiline && styles.containerMultiline,
         error && styles.containerError,
       ]}
@@ -55,6 +64,7 @@ export default function FormInput({
       <TextInput
         style={[
           styles.input,
+          isDisabled && styles.inputDisabled,
           icon && styles.inputWithIcon,
           isMultiline ? styles.inputMultiline : styles.inputSingleLine,
           style,
@@ -62,6 +72,12 @@ export default function FormInput({
         placeholderTextColor={error ? Colors.error : Colors.gray400}
         multiline={multiline}
         {...rest}
+        editable={effectiveEditable}
+        selectTextOnFocus={isDisabled ? false : selectTextOnFocus}
+        accessibilityState={{
+          ...accessibilityState,
+          disabled: isDisabled ? true : accessibilityState?.disabled,
+        }}
         {...(!isMultiline && Platform.OS === "android"
           ? { textAlignVertical: "center" as const }
           : {})}
@@ -115,6 +131,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: Colors.white,
   },
+  containerDisabled: {
+    backgroundColor: Colors.gray100,
+    borderColor: Colors.gray300,
+  },
   /** Taller field with icon pinned to top so placeholder/text align with phone row. */
   containerMultiline: {
     minHeight: 88,
@@ -137,6 +157,9 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textPrimary,
+  },
+  inputDisabled: {
+    color: Colors.gray500,
   },
   /** Avoid `height: "100%"` — it can become NaN during keyboard/layout and trigger CoreGraphics warnings on iOS. */
   inputSingleLine: {

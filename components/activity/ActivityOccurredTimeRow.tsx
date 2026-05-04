@@ -2,6 +2,7 @@ import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
 import { Colors } from "@/constants/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useActivityFormStore } from "@/stores/activityFormStore";
+import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
@@ -13,20 +14,6 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-
-/** Merge picked clock time with today’s calendar date (local). */
-export function mergeTodayLocalTime(timeSource: Date): Date {
-  const now = new Date();
-  return new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    timeSource.getHours(),
-    timeSource.getMinutes(),
-    timeSource.getSeconds(),
-    0,
-  );
-}
 
 /**
  * Lets the user optionally set when the activity occurred. If they never pick a
@@ -52,7 +39,7 @@ export default function ActivityOccurredTimeRow({ containerStyle }: Props) {
 
   const onPickerChange = useCallback(
     (d: Date) => {
-      setActivityOccurredAt(mergeTodayLocalTime(d));
+      setActivityOccurredAt(mergeWallClockOntoToday(d));
     },
     [setActivityOccurredAt],
   );
