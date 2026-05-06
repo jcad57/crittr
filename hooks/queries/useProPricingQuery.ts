@@ -6,14 +6,15 @@ import { proPricingQueryKey } from "./queryKeys";
 const STALE_MS = 1000 * 60 * 15;
 
 /**
- * Live Pro list prices from Stripe (prefetched on app ready).
- * Uses placeholder fallback until the network returns; refetches on a modest interval
- * so Dashboard price changes propagate without an app release.
+ * Live Pro list prices from RevenueCat. Uses the static fallback while the
+ * RC offering catalog hasn't returned yet so the upgrade screen never blocks
+ * on a network round-trip. Refetches periodically so a price change in the
+ * App Store / Play Store dashboards propagates without an app release.
  */
 export function useProPricingQuery() {
   return useQuery({
     queryKey: proPricingQueryKey,
-    queryFn: fetchProPricing,
+    queryFn: async () => (await fetchProPricing()) ?? PRO_PRICING_FALLBACK,
     placeholderData: PRO_PRICING_FALLBACK,
     staleTime: STALE_MS,
     gcTime: 1000 * 60 * 60 * 24,

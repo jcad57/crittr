@@ -1,5 +1,5 @@
 /**
- * Display helpers for the Stripe subscription management screen.
+ * Display helpers for the subscription management screen (RevenueCat-backed).
  */
 
 export function formatStatus(status: string): string {
@@ -8,12 +8,12 @@ export function formatStatus(status: string): string {
       return "Trial";
     case "active":
       return "Active";
-    case "past_due":
-      return "Past due";
+    case "billing_issue":
+      return "Billing issue";
     case "canceled":
       return "Canceled";
-    case "unpaid":
-      return "Unpaid";
+    case "expired":
+      return "Expired";
     default:
       return status.replace(/_/g, " ");
   }

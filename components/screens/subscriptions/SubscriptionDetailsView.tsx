@@ -1,6 +1,6 @@
 import { styles } from "@/screen-styles/subscriptions.styles";
 import { SubscriptionRow } from "@/components/screens/subscriptions/SubscriptionRow";
-import type { SubscriptionDetails } from "@/services/stripeSubscription";
+import type { SubscriptionDetails } from "@/services/iapSubscription";
 import {
   formatSubscriptionDate as formatDate,
   formatStatus,
@@ -17,10 +17,8 @@ export function SubscriptionDetailsView({ sub }: { sub: SubscriptionDetails }) {
           {formatStatus(sub.status)}
         </Text>
         <Text style={styles.priceLine}>{sub.priceFormatted}</Text>
-        {sub.paymentMethodLabel ? (
-          <Text style={styles.subLine}>
-            Card on file: {sub.paymentMethodLabel}
-          </Text>
+        {sub.storeLabel ? (
+          <Text style={styles.subLine}>Billed via: {sub.storeLabel}</Text>
         ) : null}
       </View>
 

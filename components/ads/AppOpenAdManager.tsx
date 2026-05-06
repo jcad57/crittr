@@ -1,23 +1,21 @@
 import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/constants/ads";
+import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useTrackingConsent } from "@/hooks/useTrackingConsent";
 import {
   APP_OPEN_LAST_SHOWN_STORAGE_KEY,
   markAppOpenLastShownNow,
 } from "@/lib/appOpenAdLastShown";
 import { useAuthStore } from "@/stores/authStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
 import { usePathname } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
+import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
 
 /** Minimum time between app open ad impressions (relaxed in __DEV__ so you can test repeatedly). */
 const MIN_APP_OPEN_INTERVAL_MS = __DEV__ ? 0 : 4 * 60 * 60 * 1000;
-
-const requestOptions = {
-  requestNonPersonalizedAdsOnly: false,
-} as const;
 
 /**
  * AdMob app open: full-screen when the app starts (first eligible load) and when returning
@@ -36,9 +34,11 @@ export default function AppOpenAdManager() {
   const pathname = usePathname() ?? "";
   /** Full-screen app-open over the paywall is jarring (especially right after onboarding completes). */
   const suppressOnUpgradeScreen = pathname.includes("upgrade");
+  const { canRequestAds, personalizedAds } = useTrackingConsent();
 
   const canRequest =
     APP_OPEN_ADS_ENABLED &&
+    canRequestAds &&
     isLoggedIn &&
     !needsOnboarding &&
     !isPro &&
@@ -47,6 +47,11 @@ export default function AppOpenAdManager() {
     !suppressOnUpgradeScreen;
 
   const adUnitId = canRequest ? AdUnitIds.appOpen : null;
+
+  const requestOptions = useMemo(
+    () => ({ requestNonPersonalizedAdsOnly: !personalizedAds }),
+    [personalizedAds],
+  );
 
   const { isLoaded, isClosed, isShowing, error, load, show } = useAppOpenAd(
     adUnitId,
@@ -60,8 +65,8 @@ export default function AppOpenAdManager() {
   const initOnceRef = useRef<Promise<void> | null>(null);
   const ensureMobileAdsInitialized = useCallback(() => {
     if (!initOnceRef.current) {
-      initOnceRef.current = mobileAds()
-        .initialize()
+      initOnceRef.current = ensureTrackingConsent()
+        .then(() => mobileAds().initialize())
         .then(() => undefined)
         .catch((e) => {
           initOnceRef.current = null;

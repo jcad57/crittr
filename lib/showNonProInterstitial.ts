@@ -1,4 +1,5 @@
 import { AdUnitIds, INTERSTITIAL_ADS_ENABLED } from "@/constants/ads";
+import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
 import mobileAds, {
   AdEventType,
   InterstitialAd,
@@ -20,7 +21,13 @@ export function showNonProInterstitialThen(
   }
 
   return (async () => {
+    let consent;
     try {
+      consent = await ensureTrackingConsent();
+      if (!consent.canRequestAds) {
+        onComplete();
+        return;
+      }
       await mobileAds().initialize();
     } catch {
       onComplete();
@@ -29,7 +36,7 @@ export function showNonProInterstitialThen(
 
     const interstitial = InterstitialAd.createForAdRequest(
       AdUnitIds.interstitial,
-      { requestNonPersonalizedAdsOnly: false },
+      { requestNonPersonalizedAdsOnly: !consent.personalizedAds },
     );
 
     let finished = false;

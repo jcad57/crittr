@@ -4,7 +4,7 @@ import { useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useStripeBillingPortal } from "@/hooks/useStripeBillingPortal";
+import { openManageSubscriptions } from "@/services/iapSubscription";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
@@ -24,8 +24,7 @@ export default function SettingsScreen() {
   const isPro = useIsCrittrPro(profile);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const [accountDeletionPending, setAccountDeletionPending] = useState(false);
-  const { openBillingPortal, opening: billingPortalOpening } =
-    useStripeBillingPortal();
+  const [billingPortalOpening, setBillingPortalOpening] = useState(false);
 
   const runAccountDeletion = useCallback(async () => {
     setAccountDeletionPending(true);
@@ -82,13 +81,21 @@ export default function SettingsScreen() {
     }
   };
 
-  const openBilling = useCallback(() => {
+  const openBilling = useCallback(async () => {
     if (!isPro) {
       push("/(logged-in)/upgrade?returnTo=settings" as Href);
       return;
     }
-    void openBillingPortal();
-  }, [isPro, push, openBillingPortal]);
+    setBillingPortalOpening(true);
+    try {
+      await openManageSubscriptions();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't open subscription settings", msg);
+    } finally {
+      setBillingPortalOpening(false);
+    }
+  }, [isPro, push]);
 
   const openDateAndTime = () => {
     push("/(logged-in)/date-and-time" as Href);
@@ -221,9 +228,10 @@ export default function SettingsScreen() {
             )}
           </View>
           <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Billing</Text>
+            <Text style={styles.rowTitle}>Manage billing</Text>
             <Text style={styles.rowSub}>
-              Payment method and billing address
+              Update payment method or cancel via your Apple ID or Google
+              account
             </Text>
           </View>
           <MaterialCommunityIcons

@@ -8,7 +8,7 @@
 
 Crittr centers on **each pet’s profile**: who they are, what they eat, their vet, medications, vaccinations, and a running log of **activities** (walks, meals, notes, vet visits, and more). A **home dashboard** surfaces what matters today, and a **health** area pulls together medications, vaccines, weight, and upcoming visits so nothing slips through the cracks.
 
-The **free** tier is designed to get a single pet fully set up with core logging and profiles. **Crittr Pro** expands limits and unlocks sharing, document storage, AI help, and richer reminders—subscription handled through **Stripe**.
+The **free** tier is designed to get a single pet fully set up with core logging and profiles. **Crittr Pro** expands limits and unlocks sharing, document storage, AI help, and richer reminders—subscriptions are handled through **Apple In‑App Purchase / Google Play Billing** via **RevenueCat**.
 
 ---
 
@@ -50,7 +50,7 @@ The **free** tier is designed to get a single pet fully set up with core logging
 
 - **Guided onboarding** — Sign up, verify email, build your profile, and add pets through a stepped flow (with room to accept pending invites when applicable).
 - **Profile & account** — Avatar, bio, member info, and account editing.
-- **Crittr Pro** — Upgrade path with comparison of Free vs Pro, trial and subscription via Stripe, and **subscriptions / billing** management (plan details, cancel at period end, payment method and address through Stripe’s customer portal).
+- **Crittr Pro** — Upgrade path with comparison of Free vs Pro, trial and subscription via Apple/Google In‑App Purchase, and a **subscriptions** screen that links to the App Store / Play Store for plan management, restore purchases, and cancellation.
 - **Help center & feedback** — In-app FAQs, privacy policy access, and a channel to send feedback to the team.
 
 ---
@@ -62,7 +62,7 @@ The **free** tier is designed to get a single pet fully set up with core logging
 | App | [Expo](https://expo.dev) (SDK 54), [Expo Router](https://docs.expo.dev/router/introduction/), React Native |
 | Language | TypeScript |
 | Backend & auth | [Supabase](https://supabase.com) (PostgreSQL, Auth, Storage, Edge Functions) |
-| Payments | [Stripe](https://stripe.com) via `@stripe/stripe-react-native` + Supabase Edge Functions |
+| Payments | Apple IAP / Google Play Billing via [RevenueCat](https://www.revenuecat.com) (`react-native-purchases`) + Supabase Edge Functions |
 | Data fetching | [TanStack Query](https://tanstack.com/query) |
 | Client state | [Zustand](https://github.com/pmndrs/zustand) |
 
@@ -91,7 +91,22 @@ Useful scripts:
 
 ### Environment
 
-The app expects Supabase and (for Pro checkout) Stripe keys via Expo public env vars—configure them in `.env` or your host’s secret store and document them for your team. Edge Functions under `supabase/functions/` extend the backend (subscriptions, webhooks, AI, email, etc.) and are deployed separately with the Supabase CLI.
+The app expects the following public Expo env vars (configure in `.env` or your secret store):
+
+| Var | Purpose |
+|-----|---------|
+| `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase project |
+| `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | RevenueCat public SDK keys |
+
+Edge Function secrets (set via `supabase secrets set ...`):
+
+| Secret | Used by |
+|--------|---------|
+| `SUPABASE_SERVICE_ROLE_KEY` | All edge functions |
+| `REVENUECAT_SECRET_API_KEY` | `revenuecat-webhook`, `sync-crittr-pro-entitlement`, `delete-account` (best-effort subscriber purge) |
+| `REVENUECAT_WEBHOOK_AUTH` | `revenuecat-webhook` (shared secret matched against the `Authorization` header configured in the RevenueCat dashboard) |
+
+Edge Functions under `supabase/functions/` extend the backend (entitlement webhook + sync, AI, email, etc.) and are deployed separately with the Supabase CLI.
 
 ---
 

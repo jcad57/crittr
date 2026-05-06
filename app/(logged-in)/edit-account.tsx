@@ -199,7 +199,7 @@ export default function EditAccountScreen() {
         />
 
         <FormInput
-          label="Phone number"
+          label="Phone number (optional)"
           placeholder="(555) 000-0000"
           value={phone}
           onChangeText={setPhone}
@@ -286,8 +286,8 @@ export default function EditAccountScreen() {
         )}
 
         <FormInput
-          label="Address"
-          placeholder="Street, city, state, ZIP"
+          label="Address (optional)"
+          placeholder="City and state"
           value={address}
           onChangeText={setAddress}
           multiline

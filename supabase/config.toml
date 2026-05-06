@@ -3,13 +3,12 @@
 # When the dashboard has “Verify JWT with legacy secret” enabled, the gateway
 # can reject access tokens signed with the newer JWT Signing Keys (401 before
 # this function runs). Auth is still enforced inside the handler via getUser().
-[functions.create-subscription-payment-sheet]
-verify_jwt = false
-
-[functions.stripe-webhook]
-verify_jwt = false
-
 [functions.sync-crittr-pro-entitlement]
+verify_jwt = false
+
+# RevenueCat → Supabase webhook. Auth is verified inside the handler against
+# REVENUECAT_WEBHOOK_AUTH (no JWT involved).
+[functions.revenuecat-webhook]
 verify_jwt = false
 
 [functions.crittr-ai-chat]
@@ -27,19 +26,7 @@ verify_jwt = false
 [functions.submit-feedback]
 verify_jwt = false
 
-[functions.get-subscription-details]
-verify_jwt = false
-
-[functions.cancel-subscription]
-verify_jwt = false
-
 [functions.delete-account]
-verify_jwt = false
-
-[functions.create-billing-portal-session]
-verify_jwt = false
-
-[functions.get-pro-pricing]
 verify_jwt = false
 
 # Auth enforced in-function (Bearer + getUser + pet owner check); gateway JWT

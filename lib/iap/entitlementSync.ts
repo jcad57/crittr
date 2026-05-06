@@ -4,7 +4,17 @@ export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
 
 let inFlight: Promise<CrittrProEntitlementSyncResult> | null = null;
 
-async function requestCrittrProEntitlementSync(
+/**
+ * Asks the Supabase `sync-crittr-pro-entitlement` Edge Function to reconcile
+ * `profiles.crittr_pro_until` with whatever RevenueCat currently reports for
+ * this user. Used as a fallback for the RC webhook (which is the primary path)
+ * when the client wants a synchronous activation after a purchase, or after a
+ * fresh login on a new device.
+ *
+ * Concurrent callers share a single in-flight request so cold start +
+ * INITIAL_SESSION do not double-hit the function.
+ */
+async function requestEntitlementSync(
   body: Record<string, unknown>,
 ): Promise<CrittrProEntitlementSyncResult> {
   const { error } = await supabase.functions.invoke(
@@ -12,9 +22,7 @@ async function requestCrittrProEntitlementSync(
     { body, timeout: 25_000 },
   );
 
-  if (!error) {
-    return "synced";
-  }
+  if (!error) return "synced";
 
   const parsed = await parseFunctionsErrorPayload(error);
   if (parsed?.error === "no_subscription") {
@@ -22,12 +30,7 @@ async function requestCrittrProEntitlementSync(
   }
 
   const msg = await extractInvokeErrorMessage(error, parsed);
-  if (
-    msg.includes("no_subscription") ||
-    msg.includes("No Stripe subscription")
-  ) {
-    return "skipped";
-  }
+  if (msg.includes("no_subscription")) return "skipped";
 
   if (__DEV__) {
     console.warn("[sync-crittr-pro-entitlement]", msg);
@@ -35,13 +38,9 @@ async function requestCrittrProEntitlementSync(
   return "failed";
 }
 
-/**
- * Reconciles `crittr_pro_until` with Stripe via Edge Function (webhook fallback).
- * Concurrent callers share one request so cold start + INITIAL_SESSION do not double-hit Stripe.
- */
-export function ensureCrittrProSyncedFromStripe(): Promise<CrittrProEntitlementSyncResult> {
+export function ensureCrittrProSyncedFromRevenueCat(): Promise<CrittrProEntitlementSyncResult> {
   if (!inFlight) {
-    inFlight = requestCrittrProEntitlementSync({}).finally(() => {
+    inFlight = requestEntitlementSync({}).finally(() => {
       inFlight = null;
     });
   }
@@ -49,16 +48,12 @@ export function ensureCrittrProSyncedFromStripe(): Promise<CrittrProEntitlementS
 }
 
 /**
- * After PaymentSheet success: pass the subscription id from checkout so Supabase can sync
- * even if the Stripe webhook is delayed or metadata is missing.
+ * After a successful `Purchases.purchasePackage` we ask the backend to
+ * re-pull RevenueCat for this user immediately so the UI can flip to Pro
+ * without waiting for the webhook to fire.
  */
-export function syncCrittrProAfterCheckout(
-  subscriptionId?: string | null,
-): Promise<CrittrProEntitlementSyncResult> {
-  const sid = subscriptionId?.trim();
-  return requestCrittrProEntitlementSync(
-    sid ? { subscriptionId: sid } : {},
-  );
+export function syncCrittrProAfterCheckout(): Promise<CrittrProEntitlementSyncResult> {
+  return requestEntitlementSync({ source: "checkout" });
 }
 
 async function parseFunctionsErrorPayload(

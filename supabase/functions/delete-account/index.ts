@@ -1,20 +1,24 @@
 /**
  * Permanently delete the authenticated user's account:
- * - Cancel all Crittr Pro Stripe subscriptions for this user (profile subscription id
- *   plus any others on the same Stripe customer when present)
+ * - Best-effort delete the RevenueCat subscriber (purges PII / aliases)
+ *   NOTE: This does NOT cancel an active App Store / Google Play subscription.
+ *   Renewals are controlled by the user's Apple ID / Google account; we surface
+ *   the native "Manage Subscription" link before deletion in the client.
  * - Remove avatar + known file-upload storage paths
  * - `auth.admin.deleteUser` → cascades profiles, pets, co-care rows, AI chats, etc.
  *
  * Deploy:
  *   supabase functions deploy delete-account --no-verify-jwt
  *
- * Secrets: SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY (recommended for Pro users)
+ * Secrets: SUPABASE_SERVICE_ROLE_KEY, REVENUECAT_SECRET_API_KEY (optional but recommended)
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import Stripe from "npm:stripe@17.7.0";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -22,109 +26,33 @@ const corsHeaders: Record<string, string> = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
-  apiVersion: "2024-11-20.acacia",
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
-/** Statuses where `subscriptions.cancel` still applies (terminal ones are skipped). */
-const CANCELABLE_STATUSES = new Set([
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-  "incomplete",
-  "paused",
-]);
-
-function subscriptionBelongsToAccount(
-  sub: Stripe.Subscription,
-  userId: string,
-  profileCustomerId: string | null | undefined,
-): boolean {
-  const metaUid = sub.metadata?.supabase_user_id;
-  if (metaUid && metaUid !== userId) return false;
-
-  const cust =
-    typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
-  if (profileCustomerId && cust && cust !== profileCustomerId) {
-    return false;
-  }
-
-  if (metaUid === userId) return true;
-  if (profileCustomerId && cust === profileCustomerId) return true;
-  return false;
-}
-
-async function cancelAllStripeSubscriptionsForAccount(
-  userId: string,
-  profile: {
-    stripe_subscription_id: string | null;
-    stripe_customer_id: string | null;
-    crittr_pro_until: string | null;
-  } | null,
-) {
-  if (!Deno.env.get("STRIPE_SECRET_KEY")) {
-    console.warn("[delete-account] STRIPE_SECRET_KEY unset; skipping Stripe");
+async function deleteRevenueCatSubscriber(appUserId: string) {
+  const apiKey = Deno.env.get("REVENUECAT_SECRET_API_KEY");
+  if (!apiKey) {
+    console.warn(
+      "[delete-account] REVENUECAT_SECRET_API_KEY unset; skipping RevenueCat purge",
+    );
     return;
   }
-
-  const storedSubId = profile?.stripe_subscription_id?.trim() || null;
-  const customerId = profile?.stripe_customer_id?.trim() || null;
-
-  const subIds = new Set<string>();
-
-  if (storedSubId) {
-    try {
-      const sub = await stripe.subscriptions.retrieve(storedSubId);
-      if (
-        subscriptionBelongsToAccount(sub, userId, customerId) &&
-        CANCELABLE_STATUSES.has(sub.status)
-      ) {
-        subIds.add(sub.id);
-      }
-    } catch (e) {
-      console.warn("[delete-account] retrieve stored subscription:", e);
+  const url = `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`;
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok && res.status !== 404) {
+      const body = await res.text().catch(() => "");
+      console.warn(
+        "[delete-account] RevenueCat delete subscriber failed:",
+        res.status,
+        body,
+      );
     }
-  }
-
-  if (customerId) {
-    try {
-      const { data: list } = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 30,
-      });
-      for (const s of list) {
-        if (!CANCELABLE_STATUSES.has(s.status)) continue;
-        if (subscriptionBelongsToAccount(s, userId, customerId)) {
-          subIds.add(s.id);
-        }
-      }
-    } catch (e) {
-      console.warn("[delete-account] list subscriptions:", e);
-    }
-  }
-
-  for (const id of subIds) {
-    try {
-      await stripe.subscriptions.cancel(id);
-      console.log("[delete-account] canceled subscription", id);
-    } catch (e) {
-      console.warn("[delete-account] cancel subscription", id, e);
-    }
-  }
-
-  if (
-    subIds.size === 0 &&
-    profile?.crittr_pro_until &&
-    new Date(profile.crittr_pro_until) > new Date() &&
-    !storedSubId &&
-    !customerId
-  ) {
-    console.warn(
-      "[delete-account] Active Pro in DB but no Stripe customer/subscription ids; cannot cancel billing remotely",
-    );
+  } catch (e) {
+    console.warn("[delete-account] RevenueCat delete subscriber error:", e);
   }
 }
 
@@ -164,7 +92,8 @@ async function removePaths(
   for (let i = 0; i < paths.length; i += chunk) {
     const slice = paths.slice(i, i + chunk);
     const { error } = await admin.storage.from(bucket).remove(slice);
-    if (error) console.warn(`[delete-account] remove batch ${bucket}:`, error.message);
+    if (error)
+      console.warn(`[delete-account] remove batch ${bucket}:`, error.message);
   }
 }
 
@@ -205,11 +134,14 @@ Deno.serve(async (req: Request) => {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("stripe_subscription_id, stripe_customer_id, crittr_pro_until")
+      .select("revenuecat_app_user_id")
       .eq("id", userId)
       .maybeSingle();
 
-    await cancelAllStripeSubscriptionsForAccount(userId, profile ?? null);
+    const rcAppUserId =
+      (profile as { revenuecat_app_user_id?: string | null } | null)
+        ?.revenuecat_app_user_id ?? userId;
+    await deleteRevenueCatSubscriber(rcAppUserId);
 
     await removeFlatPrefix(supabaseAdmin, "avatars", userId);
     await removeFlatPrefix(supabaseAdmin, "avatars", `pets/${userId}`);
@@ -228,7 +160,8 @@ Deno.serve(async (req: Request) => {
       const medPaths = (med ?? [])
         .map((r: { storage_path: string }) => r.storage_path)
         .filter(Boolean);
-      if (medPaths.length) await removePaths(supabaseAdmin, "medical-records", medPaths);
+      if (medPaths.length)
+        await removePaths(supabaseAdmin, "medical-records", medPaths);
 
       const { data: ins } = await supabaseAdmin
         .from("pet_insurance_files")
@@ -237,7 +170,8 @@ Deno.serve(async (req: Request) => {
       const insPaths = (ins ?? [])
         .map((r: { storage_path: string }) => r.storage_path)
         .filter(Boolean);
-      if (insPaths.length) await removePaths(supabaseAdmin, "pet-insurance", insPaths);
+      if (insPaths.length)
+        await removePaths(supabaseAdmin, "pet-insurance", insPaths);
     }
 
     const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(userId);

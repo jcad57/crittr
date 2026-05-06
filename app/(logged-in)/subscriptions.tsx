@@ -10,13 +10,15 @@ import {
 } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
-import { cancelSubscriptionAtPeriodEnd } from "@/services/stripeSubscription";
+import {
+  ProPurchaseException,
+  restoreProPurchases,
+} from "@/lib/iap/checkout";
+import { syncCrittrProAfterCheckout } from "@/lib/iap/entitlementSync";
+import { openManageSubscriptions } from "@/services/iapSubscription";
 import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
-import {
-  formatSubscriptionDate as formatDate,
-  formatStatus,
-} from "@/utils/subscriptionDisplay";
+import { formatSubscriptionDate as formatDate } from "@/utils/subscriptionDisplay";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Href } from "expo-router";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
@@ -39,6 +41,7 @@ export default function SubscriptionsScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
   const isMockPro = useCrittrProStore((s) => s.isMockPro);
 
   const { data: profile, isLoading: profileLoading } = useProfileQuery();
@@ -54,32 +57,27 @@ export default function SubscriptionsScreen() {
     isFetching,
   } = useSubscriptionDetailsQuery(detailsEnabled);
 
-  const [canceling, setCanceling] = useState(false);
   const [pullRefreshing, setPullRefreshing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
-  /** Stripe: cancel at period end and paid access still in the future. */
+  /** True when the user has cancelled but their paid period hasn't ended yet. */
   const pendingNonRenewalAccess = useMemo(() => {
     if (!sub?.cancelAtPeriodEnd || !sub.currentPeriodEnd) return false;
     const end = new Date(sub.currentPeriodEnd);
     return !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
   }, [sub]);
 
-  const upgradeBillingAnchor = useMemo((): string | undefined => {
-    if (!pendingNonRenewalAccess || !sub?.currentPeriodEnd) return undefined;
-    return sub.currentPeriodEnd.slice(0, 10);
-  }, [pendingNonRenewalAccess, sub?.currentPeriodEnd]);
-
   const goUpgrade = useCallback(() => {
     const q = new URLSearchParams();
     q.set("returnTo", "subscriptions");
-    if (upgradeBillingAnchor) q.set("billingAnchor", upgradeBillingAnchor);
     router.push(`/(logged-in)/upgrade?${q.toString()}` as Href);
-  }, [router, upgradeBillingAnchor]);
+  }, [router]);
 
   const onRefresh = useCallback(async () => {
     if (!userId) return;
     setPullRefreshing(true);
     try {
+      await syncCrittrProAfterCheckout();
       await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
       await queryClient.invalidateQueries({
         queryKey: subscriptionDetailsQueryKey(userId),
@@ -90,7 +88,7 @@ export default function SubscriptionsScreen() {
     }
   }, [userId, queryClient, refetch]);
 
-  /** Same idea as notifications: global 5m staleTime would hide Stripe-side cancel until refocus/remount. */
+  /** App store cancellations don't push live updates; refetch on focus to catch them. */
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
@@ -100,44 +98,42 @@ export default function SubscriptionsScreen() {
     }, [queryClient, userId]),
   );
 
-  const onCancel = useCallback(() => {
-    if (!sub?.currentPeriodEnd) return;
-    const endLabel = formatDate(sub.currentPeriodEnd);
-    Alert.alert(
-      "Cancel subscription?",
-      `You keep Crittr Pro until ${endLabel}. Then your account moves to the free plan: you keep only the first pet you added (other pets and their data are removed), co-care ends with the usual in-app notifications, and your Crittr billing record in Stripe is removed once the subscription has fully ended.`,
-      [
-        { text: "Not now", style: "cancel" },
-        {
-          text: "Cancel subscription",
-          style: "destructive",
-          onPress: async () => {
-            setCanceling(true);
-            try {
-              await cancelSubscriptionAtPeriodEnd();
-              if (userId) {
-                await queryClient.invalidateQueries({
-                  queryKey: profileQueryKey(userId),
-                });
-                await queryClient.invalidateQueries({
-                  queryKey: subscriptionDetailsQueryKey(userId),
-                });
-              }
-              Alert.alert(
-                "Subscription canceled",
-                `Your plan will not renew. You keep Pro until ${endLabel}; after that, you're on the free plan with only your first pet, co-care ended, and other pets removed.`,
-              );
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : String(e);
-              Alert.alert("Could not cancel", msg);
-            } finally {
-              setCanceling(false);
-            }
-          },
-        },
-      ],
-    );
-  }, [sub?.currentPeriodEnd, queryClient, userId]);
+  const onManageSubscription = useCallback(async () => {
+    try {
+      await openManageSubscriptions();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't open subscription settings", msg);
+    }
+  }, []);
+
+  const onRestore = useCallback(async () => {
+    setRestoring(true);
+    try {
+      const result = await restoreProPurchases();
+      if (!result.hasCrittrPro) {
+        Alert.alert(
+          "Nothing to restore",
+          "We couldn't find an active Crittr Pro subscription on this account.",
+        );
+        return;
+      }
+      await syncCrittrProAfterCheckout();
+      await refreshProfileOnly();
+      if (userId) {
+        await queryClient.invalidateQueries({
+          queryKey: subscriptionDetailsQueryKey(userId),
+        });
+      }
+      Alert.alert("Restored", "Your Crittr Pro subscription is active again.");
+    } catch (e) {
+      if (e instanceof ProPurchaseException && e.userCancelled) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Restore failed", msg);
+    } finally {
+      setRestoring(false);
+    }
+  }, [queryClient, refreshProfileOnly, userId]);
 
   const showNavRefetch =
     detailsEnabled && isFetching && !detailsLoading && !pullRefreshing;
@@ -152,14 +148,8 @@ export default function SubscriptionsScreen() {
 
   if (!isPro && !isMockPro) {
     const subLoadSettled = !detailsLoading;
-    if (
-      subLoadSettled &&
-      !isError &&
-      !pendingNonRenewalAccess
-    ) {
-      return (
-        <Redirect href="/(logged-in)/upgrade?returnTo=subscriptions" />
-      );
+    if (subLoadSettled && !isError && !pendingNonRenewalAccess) {
+      return <Redirect href="/(logged-in)/upgrade?returnTo=subscriptions" />;
     }
 
     return (
@@ -189,33 +179,16 @@ export default function SubscriptionsScreen() {
             {isError
               ? "We couldn't refresh billing. Try again below."
               : detailsLoading
-                ? "Checking your billing status…"
+                ? "Checking your subscription status…"
                 : pendingNonRenewalAccess
-                  ? "Your plan is set to end with this billing period. You can set up billing again so Pro continues after that date."
+                  ? "Your plan is set to end with this billing period. You can resubscribe in the App Store or Play Store to continue without a gap."
                   : ""}
           </Text>
-
-          {sub && pendingNonRenewalAccess ? (
-            <View style={styles.card}>
-              <Text style={styles.planName}>Crittr Pro</Text>
-              <Text style={styles.planMeta}>
-                {sub.planLabel === "annual" ? "Annual" : "Monthly"} ·{" "}
-                {formatStatus(sub.status)}
-                {" · Will not renew"}
-              </Text>
-              {sub.currentPeriodEnd ? (
-                <Text style={styles.subLine}>
-                  Pro access until {formatDate(sub.currentPeriodEnd)}. Use
-                  Re-subscribe to continue without a gap.
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
 
           {detailsLoading ? (
             <View style={styles.blockCenter}>
               <ActivityIndicator size="large" color={Colors.orange} />
-              <Text style={styles.hint}>Checking billing…</Text>
+              <Text style={styles.hint}>Checking subscription…</Text>
             </View>
           ) : isError ? (
             <View style={styles.card}>
@@ -245,6 +218,20 @@ export default function SubscriptionsScreen() {
               </OrangeButton>
             </>
           ) : null}
+
+          <Pressable
+            onPress={onRestore}
+            disabled={restoring}
+            style={({ pressed }) => [
+              styles.restoreLink,
+              restoring && styles.cancelOutlineDisabled,
+              pressed && styles.cancelOutlinePressed,
+            ]}
+          >
+            <Text style={styles.restoreLinkText}>
+              {restoring ? "Restoring…" : "Restore purchases"}
+            </Text>
+          </Pressable>
         </ScrollView>
       </View>
     );
@@ -295,7 +282,9 @@ export default function SubscriptionsScreen() {
         ) : isError ? (
           <View style={styles.card}>
             <Text style={styles.errText}>
-              {error instanceof Error ? error.message : "Could not load subscription."}
+              {error instanceof Error
+                ? error.message
+                : "Could not load subscription."}
             </Text>
             <OrangeButton
               onPress={() => void refetch()}
@@ -320,26 +309,46 @@ export default function SubscriptionsScreen() {
                 </OrangeButton>
               </>
             ) : !sub.cancelAtPeriodEnd &&
-              (sub.status === "active" ||
-                sub.status === "trialing" ||
-                sub.status === "past_due") ? (
+              (sub.status === "active" || sub.status === "trialing") &&
+              !sub.isFamilyShared ? (
               <>
                 <View style={styles.cancelPushSpacer} />
                 <Pressable
-                  onPress={onCancel}
-                  disabled={canceling || isFetching}
+                  onPress={onManageSubscription}
                   style={({ pressed }) => [
                     styles.cancelOutline,
-                    (canceling || isFetching) && styles.cancelOutlineDisabled,
                     pressed && styles.cancelOutlinePressed,
                   ]}
                 >
                   <Text style={styles.cancelOutlineText}>
-                    {canceling ? "Canceling…" : "Cancel subscription"}
+                    Manage or cancel subscription
                   </Text>
                 </Pressable>
               </>
             ) : null}
+
+            <Pressable
+              onPress={onRestore}
+              disabled={restoring}
+              style={({ pressed }) => [
+                styles.restoreLink,
+                restoring && styles.cancelOutlineDisabled,
+                pressed && styles.cancelOutlinePressed,
+              ]}
+            >
+              <Text style={styles.restoreLinkText}>
+                {restoring ? "Restoring…" : "Restore purchases"}
+              </Text>
+            </Pressable>
+
+            {sub.isFamilyShared ? (
+              <Text style={styles.footnote}>
+                This subscription was shared with you via Apple Family Sharing.
+                The owner manages billing.
+              </Text>
+            ) : null}
+
+            {formatDate(sub.currentPeriodEnd) === "—" ? null : null}
           </>
         ) : !detailsLoading ? (
           <View style={styles.card}>
