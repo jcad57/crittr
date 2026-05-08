@@ -2,7 +2,8 @@ import { AdUnitIds, ENABLED_AD_PLACEMENTS, type AdPlacement } from "@/constants/
 import { Colors } from "@/constants/colors";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
-import { useCallback, useState } from "react";
+import { useTrackingConsent } from "@/hooks/useTrackingConsent";
+import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import {
   BannerAd,
@@ -34,6 +35,7 @@ type AdBannerProps = {
 export default function AdBanner({ placement, style, size }: AdBannerProps) {
   const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
+  const { canRequestAds, personalizedAds } = useTrackingConsent();
   const [failed, setFailed] = useState(false);
 
   const handleError = useCallback((error: unknown) => {
@@ -47,10 +49,16 @@ export default function AdBanner({ placement, style, size }: AdBannerProps) {
     setFailed(false);
   }, []);
 
+  const requestOptions = useMemo(
+    () => ({ requestNonPersonalizedAdsOnly: !personalizedAds }),
+    [personalizedAds],
+  );
+
   if (!ENABLED_AD_PLACEMENTS[placement]) return null;
   if (isPro) return null;
   /** Wait for the first real profile fetch so Pro users never briefly see an ad. */
   if (isPending || isPlaceholderData) return null;
+  if (!canRequestAds) return null;
   if (failed) return null;
 
   return (
@@ -58,9 +66,7 @@ export default function AdBanner({ placement, style, size }: AdBannerProps) {
       <BannerAd
         unitId={AdUnitIds.banner}
         size={size ?? BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{
-          requestNonPersonalizedAdsOnly: false,
-        }}
+        requestOptions={requestOptions}
         onAdLoaded={handleLoaded}
         onAdFailedToLoad={handleError}
       />

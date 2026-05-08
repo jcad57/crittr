@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crittr",
     "slug": "crittr",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-temp.png",
     "scheme": "crittr",
@@ -64,13 +64,6 @@
       ],
       "@react-native-community/datetimepicker",
       [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "",
-          "enableGooglePay": false
-        }
-      ],
-      [
         "expo-notifications",
         {
           "icon": "./assets/images/app-icon-temp.png",
@@ -92,7 +85,13 @@
         {
           "androidAppId": "ca-app-pub-8604165196940630~7346651942",
           "iosAppId": "ca-app-pub-8604165196940630~9737740514",
-          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+          "userTrackingUsageDescription": "Crittr uses this identifier to show you more relevant ads."
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Crittr uses this identifier to show you more relevant ads."
         }
       ]
     ],

@@ -1,4 +1,4 @@
-import { fetchSubscriptionDetails } from "@/services/stripeSubscription";
+import { fetchSubscriptionDetails } from "@/services/iapSubscription";
 import { useAuthStore } from "@/stores/authStore";
 import { useQuery } from "@tanstack/react-query";
 import { subscriptionDetailsQueryKey } from "./queryKeys";
@@ -10,7 +10,7 @@ export function useSubscriptionDetailsQuery(enabled: boolean) {
     queryKey: subscriptionDetailsQueryKey(userId ?? ""),
     queryFn: fetchSubscriptionDetails,
     enabled: Boolean(userId) && enabled,
-    /** Billing can change in Stripe (portal/dashboard); global staleTime is 5m — avoid stale UI. */
+    /** Subscription state can update outside the app (Apple ID/Play Store cancel); refetch on focus. */
     staleTime: 0,
   });
 }

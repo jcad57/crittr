@@ -7,13 +7,15 @@ const PROFILE_STEP = ONBOARDING_STEPS.indexOf("profile");
 const PENDING_INVITES_STEP = ONBOARDING_STEPS.indexOf("pending-invites");
 const PET_TYPE_STEP = ONBOARDING_STEPS.indexOf("pet-type");
 
-/** Profile onboarding step: home address and phone required; bio is optional. */
+/**
+ * Profile onboarding step is now optional in its entirety. Phone and address
+ * were removed from the App Store-required information set per Guideline
+ * 5.1.1(v) (apps must not require info unrelated to core functionality), so
+ * having a profile row is enough to consider the step complete. Users can
+ * still fill in the optional fields later from Edit account.
+ */
 export function isProfileStepComplete(profile: Profile | null): boolean {
-  if (!profile) return false;
-  return (
-    Boolean(profile.home_address?.trim()) &&
-    Boolean(profile.phone_number?.trim())
-  );
+  return profile != null;
 }
 
 export type ResolvedOnboarding = {

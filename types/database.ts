@@ -38,12 +38,18 @@ export type Profile = {
   auth_signup_method?: "email" | "google";
   /** Whether the account has a Supabase email/password (can sign in with password). */
   has_password?: boolean;
-  /** Pro access valid until this ISO time; null = no Pro. Set server-side (Stripe / admin). */
+  /** Pro access valid until this ISO time; null = no Pro. Set server-side (RevenueCat webhook / admin). */
   crittr_pro_until: string | null;
   /** Pro profile hero + dashboard crown palette: `slate` | `gold` | `purple`. */
   crittr_pro_banner_theme?: string | null;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
+  /** RevenueCat appUserID — should match `auth.users.id`; managed by edge function. */
+  revenuecat_app_user_id: string | null;
+  /** Store that issued the active subscription: `app_store`, `play_store`, or `promotional`. */
+  subscription_store: string | null;
+  /** Receipt-level identifier (originalTransactionId on iOS, purchaseToken on Android). */
+  original_purchase_id: string | null;
+  /** True when auto-renew is on, false when the user cancelled (still in paid period). */
+  subscription_will_renew: boolean | null;
   /** Local / FCM reminder categories (manage-notifications). Omitted until migration applied. */
   notify_meals_treats?: boolean;
   notify_co_care_activities?: boolean;

@@ -1,11 +1,11 @@
 /**
- * When Crittr Pro ends (Stripe subscription deleted), free-tier rules apply:
+ * When Crittr Pro ends (RevenueCat subscription expired), free-tier rules apply:
  * - User keeps one living (non-memorialized) pet (oldest by created_at); others are removed.
  * - Co-care ends: remove this user as co-carer on others' pets (notify owners) and
  *   remove all co-carers from this user's pets (notify co-carers, same types as app flows).
  * - Pending invites sent by this user are deleted.
  *
- * Invoked from stripe-webhook with service_role (bypasses RLS).
+ * Invoked from revenuecat-webhook with service_role (bypasses RLS).
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";

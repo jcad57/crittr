@@ -3,8 +3,8 @@ import SessionGate from "@/components/auth/SessionGate";
 import { Colors } from "@/constants/colors";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import { StyleSheet, View } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();

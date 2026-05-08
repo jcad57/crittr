@@ -1,8 +1,9 @@
 import type { ProPricing } from "@/services/proPricing";
 
 /**
- * Shown until live Stripe prices load or if the pricing Edge Function fails.
- * Keep roughly aligned with production Stripe Price objects.
+ * Shown until live RevenueCat prices load (offering catalog hasn't returned)
+ * or if the device cannot reach the IAP store. Keep roughly aligned with the
+ * App Store Connect / Play Console list prices.
  */
 export const PRO_PRICING_FALLBACK: ProPricing = {
   monthly: {

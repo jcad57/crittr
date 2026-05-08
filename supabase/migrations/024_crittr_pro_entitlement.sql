@@ -1,5 +1,9 @@
--- Crittr Pro: entitlement on profiles + helper for queries / future RLS / Stripe webhooks.
+-- Crittr Pro: entitlement on profiles + helper for queries / future RLS.
 -- Pro is active when crittr_pro_until IS NOT NULL AND crittr_pro_until > now().
+-- NOTE: This migration originally provisioned Stripe-specific columns. The
+-- columns and the trigger were later replaced in
+-- `20260505120000_iap_entitlement_columns.sql` when Crittr migrated to
+-- App Store / Google Play subscriptions via RevenueCat.
 
 -- ── Columns (Stripe hooks later) ────────────────────────────────────────────
 ALTER TABLE public.profiles

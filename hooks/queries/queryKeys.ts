@@ -8,7 +8,7 @@ export const profileQueryKey = (userId: string) =>
 export const subscriptionDetailsQueryKey = (userId: string) =>
   ["subscriptionDetails", userId] as const;
 
-/** Global — Stripe list prices, not per-user. */
+/** Global — Crittr Pro list prices from RevenueCat, not per-user. */
 export const proPricingQueryKey = ["proPricing"] as const;
 
 /** Sorted ids string for stable cache keys. */

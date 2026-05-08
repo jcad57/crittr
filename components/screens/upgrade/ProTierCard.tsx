@@ -14,7 +14,6 @@ export function ProTierCard({
   onCta,
   showNoThanks,
   onNoThanks,
-  billingAnchorActive,
   introTrialEligible,
 }: {
   pricing: ProPricing;
@@ -23,7 +22,6 @@ export function ProTierCard({
   onCta: () => void;
   showNoThanks?: boolean;
   onNoThanks?: () => void;
-  billingAnchorActive: boolean;
   introTrialEligible: boolean | null;
 }) {
   const isAnnual = billing === "annual";
@@ -133,19 +131,15 @@ export function ProTierCard({
       <View style={styles.featuresEndSpacer} />
 
       <Text style={styles.disclaimerOnDark}>
-        {billingAnchorActive
-          ? "Renewal timing follows your current paid-through date with Stripe."
-          : introTrialEligible === false
-            ? "No free intro trial — this account already has a Crittr Pro billing history. You are charged when you finish checkout."
-            : "No charge until your trial ends · Cancel anytime"}
+        {introTrialEligible === false
+          ? "Your Apple ID or Google account already used the free trial. You are charged when you finish checkout."
+          : "No charge until your trial ends · Cancel anytime"}
       </Text>
 
       <OrangeButton style={styles.cta} onPress={onCta}>
-        {billingAnchorActive
-          ? "Continue to checkout →"
-          : introTrialEligible === false
-            ? "Continue to Crittr Pro →"
-            : "Start free 7-day trial →"}
+        {introTrialEligible === false
+          ? "Continue to Crittr Pro →"
+          : "Start free 7-day trial →"}
       </OrangeButton>
 
       {showNoThanks && onNoThanks ? (

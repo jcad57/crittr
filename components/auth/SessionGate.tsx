@@ -1,8 +1,9 @@
 import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
-import StripeUrlHandler from "@/components/stripe/StripeUrlHandler";
 import { Colors } from "@/constants/colors";
 import { FONT_FACES } from "@/constants/fonts";
+import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
+import { configureRevenueCat } from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/queryClient";
 import { fetchProPricing } from "@/services/proPricing";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
@@ -20,7 +21,6 @@ import {
   Fraunces_600SemiBold,
   Fraunces_700Bold,
 } from "@expo-google-fonts/fraunces";
-import { StripeProvider } from "@stripe/stripe-react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
@@ -30,9 +30,6 @@ import { StyleSheet, View } from "react-native";
 setupReactQueryFocusManager();
 
 WebBrowser.maybeCompleteAuthSession();
-
-const stripePublishableKey =
-  process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 export default function SessionGate() {
   const isAuthLoading = useAuthStore((s) => s.isLoading);
@@ -63,6 +60,10 @@ export default function SessionGate() {
     return setupAppResumeHandler();
   }, []);
 
+  useEffect(() => {
+    void configureRevenueCat();
+  }, []);
+
   const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function SessionGate() {
     if (!isReady) return;
     void queryClient.prefetchQuery({
       queryKey: proPricingQueryKey,
-      queryFn: fetchProPricing,
+      queryFn: async () => (await fetchProPricing()) ?? PRO_PRICING_FALLBACK,
     });
   }, [isReady]);
 
@@ -82,16 +83,10 @@ export default function SessionGate() {
   }
 
   return (
-    <StripeProvider
-      publishableKey={stripePublishableKey}
-      urlScheme="crittr"
-    >
-      <QueryClientProvider client={queryClient}>
-        <AppOpenAdManager />
-        <StripeUrlHandler />
-        <Slot />
-      </QueryClientProvider>
-    </StripeProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppOpenAdManager />
+      <Slot />
+    </QueryClientProvider>
   );
 }
 

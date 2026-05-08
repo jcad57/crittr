@@ -1,8 +1,9 @@
 import { create } from "zustand";
 
 /**
- * Mock Crittr Pro subscription until Stripe is integrated.
- * `isMockPro === false` simulates a free user for gated flows (e.g. add pet).
+ * Manual Crittr Pro override used in dev/QA flows. The real entitlement comes
+ * from `profile.crittr_pro_until` (driven by RevenueCat). `isMockPro === false`
+ * simulates a free user for gated flows (e.g. add pet).
  */
 type CrittrProState = {
   isMockPro: boolean;

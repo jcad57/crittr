@@ -49,11 +49,6 @@ export default function ProfileStep() {
   const signOut = useAuthStore((s) => s.signOut);
   const setProfile = useAuthStore((s) => s.setProfile);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attempted, setAttempted] = useState(false);
-
-  const addressOk = Boolean(profileData.homeAddress.trim());
-  const phoneOk = Boolean(profileData.phoneNumber.trim());
-  const profileValid = addressOk && phoneOk;
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,8 +65,6 @@ export default function ProfileStep() {
 
   const handleContinue = async () => {
     if (!session) return;
-    setAttempted(true);
-    if (!profileValid) return;
 
     setIsSubmitting(true);
     setSkippedPendingInvitesEmpty(false);
@@ -84,8 +77,8 @@ export default function ProfileStep() {
       try {
         const updated = await updateProfile(session.user.id, {
           bio: profileData.bio.trim() || null,
-          home_address: profileData.homeAddress.trim(),
-          phone_number: profileData.phoneNumber.trim(),
+          home_address: profileData.homeAddress.trim() || null,
+          phone_number: profileData.phoneNumber.trim() || null,
           ...(avatarUrl && { avatar_url: avatarUrl }),
         });
         if (updated) {
@@ -164,10 +157,13 @@ export default function ProfileStep() {
 
       {/* <Divider /> */}
       <Text style={authOnboardingStyles.sectionTitle}>Basic Info</Text>
+      <Text style={styles.sectionHint}>
+        These details are optional and help us personalize your experience. You
+        can fill them in later from your account settings.
+      </Text>
       <FormInput
-        label="Home address"
-        required
-        placeholder="Street, city, ZIP"
+        label="Home address (optional)"
+        placeholder="City and state"
         value={profileData.homeAddress}
         onChangeText={(v) => setProfileData({ homeAddress: v })}
         autoCapitalize="words"
@@ -176,12 +172,10 @@ export default function ProfileStep() {
         numberOfLines={2}
         icon="map-marker-outline"
         style={styles.homeAddressInput}
-        error={attempted && !addressOk}
       />
 
       <FormInput
-        label="Phone number"
-        required
+        label="Phone number (optional)"
         placeholder="Mobile or home"
         value={profileData.phoneNumber}
         onChangeText={(v) => setProfileData({ phoneNumber: v })}
@@ -190,7 +184,6 @@ export default function ProfileStep() {
         textContentType="telephoneNumber"
         containerStyle={styles.inputSpacing}
         icon="phone-outline"
-        error={attempted && !phoneOk}
       />
 
       <FormInput
@@ -206,12 +199,6 @@ export default function ProfileStep() {
       />
 
       <View style={styles.spacer} />
-
-      {attempted && !profileValid ? (
-        <Text style={styles.errorHint}>
-          Home address and phone number are required.
-        </Text>
-      ) : null}
 
       <OrangeButton
         onPress={handleContinue}
@@ -287,12 +274,12 @@ const styles = StyleSheet.create({
   spacer: {
     flex: 1,
   },
-  errorHint: {
-    fontFamily: Font.uiSemiBold,
+  sectionHint: {
+    fontFamily: Font.uiRegular,
     fontSize: 13,
-    color: Colors.error,
-    textAlign: "center",
-    marginBottom: 8,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   cta: {
     marginTop: 24,

@@ -1,4 +1,3 @@
-import { ensureCrittrProSyncedFromStripe } from "@/lib/crittrProEntitlementSync";
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
 import {
   deriveProfileOnboardingState,
@@ -7,6 +6,10 @@ import {
   type ResolvedOnboarding,
 } from "@/lib/auth/resolveSession";
 import { isAuthUserStillRegistered } from "@/lib/auth/sessionValidity";
+import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
+import {
+  logoutRevenueCatUser,
+} from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/queryClient";
 import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -144,12 +147,21 @@ export const useAuthStore = create<AuthState>((set, get) => {
    */
   let lastResolvedSessionToken: string | null = null;
 
-  const reconcileCrittrProWithStripe = () => {
-    void ensureCrittrProSyncedFromStripe().then((r) => {
-      // Stripe sync only mutates profile fields (Pro entitlement); pet counts
-      // can't change, so a profile-only refresh is sufficient.
-      if (r === "synced") void get().refreshProfileOnly();
-    });
+  const reconcileCrittrProWithRevenueCat = (userId: string) => {
+    /**
+     * Log in RC with the Supabase user id, then ask the backend to reconcile
+     * `crittr_pro_until` using the same app user id the SDK reports (see
+     * `syncCrittrProForSession`). Only mutates profile Pro fields so a
+     * profile-only refresh is sufficient.
+     */
+    void (async () => {
+      try {
+        const r = await syncCrittrProForSession(userId);
+        if (r === "synced") void get().refreshProfileOnly();
+      } catch (e) {
+        if (__DEV__) console.warn("[authStore] RC Pro reconcile failed", e);
+      }
+    })();
   };
 
   const clearAuxiliarySessionState = () => {
@@ -161,6 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   const purgeInvalidSession = async () => {
     await wipeSupabaseAuthFromDevice();
     clearAuxiliarySessionState();
+    void logoutRevenueCatUser();
     lastResolvedSessionToken = null;
     set(loggedOutState);
   };
@@ -428,7 +441,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           });
           lastResolvedSessionToken = session.access_token;
           syncProfileRowToQuery(resolved.profile);
-          reconcileCrittrProWithStripe();
+          reconcileCrittrProWithRevenueCat(session.user.id);
           return true;
         } catch (e) {
           lastError = e;
@@ -517,6 +530,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       /* session may already be invalid */
     }
     await wipeSupabaseAuthFromDevice();
+    void logoutRevenueCatUser();
     hydrateInFlight = null;
     syncSessionFromSupabaseInFlight = null;
     lastResolvedSessionToken = null;
@@ -527,6 +541,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    void logoutRevenueCatUser();
     clearAuxiliarySessionState();
     set(loggedOutState);
   },

@@ -3,13 +3,13 @@ import { Colors } from "@/constants/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { fetchIntroTrialEligibility } from "@/lib/stripeCheckout";
+import { fetchProPackageForBilling } from "@/lib/iap/checkout";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -17,6 +17,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Purchases from "react-native-purchases";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/upgrade.styles";
 
@@ -35,8 +36,6 @@ export default function UpgradeScreen() {
   const params = useLocalSearchParams<{
     fromOnboarding?: string;
     returnTo?: string;
-    /** YYYY-MM-DD — aligns checkout trial end with existing cancel-at-period-end access. */
-    billingAnchor?: string;
   }>();
   const fromOnboarding =
     params.fromOnboarding === "1" || params.fromOnboarding === "true";
@@ -44,20 +43,28 @@ export default function UpgradeScreen() {
   const { data: pricingData } = useProPricingQuery();
   const pricing = pricingData ?? PRO_PRICING_FALLBACK;
 
-  const billingAnchorActive = useMemo(() => {
-    const a =
-      typeof params.billingAnchor === "string"
-        ? params.billingAnchor.trim()
-        : "";
-    return /^\d{4}-\d{2}-\d{2}$/.test(a);
-  }, [params.billingAnchor]);
-
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const ok = await fetchIntroTrialEligibility(billing);
-        if (!cancelled) setIntroTrialEligible(ok);
+        const pkg = await fetchProPackageForBilling(billing);
+        if (cancelled) return;
+        if (!pkg) {
+          /** No offering loaded yet — assume eligible so we show the trial CTA. */
+          setIntroTrialEligible(true);
+          return;
+        }
+        const status = await Purchases.checkTrialOrIntroductoryPriceEligibility(
+          [pkg.product.identifier],
+        );
+        if (cancelled) return;
+        const code = status[pkg.product.identifier]?.status;
+        /**
+         * `INTRO_ELIGIBILITY_STATUS_ELIGIBLE` (2) and the unknown bucket (0/3)
+         * keep the trial CTA visible. Only an explicit ineligible answer (1)
+         * should hide it.
+         */
+        setIntroTrialEligible(code !== 1);
       } catch {
         if (!cancelled) setIntroTrialEligible(true);
       }
@@ -144,19 +151,11 @@ export default function UpgradeScreen() {
           pricing={pricing}
           billing={billing}
           onBillingChange={setBilling}
-          billingAnchorActive={billingAnchorActive}
           introTrialEligible={introTrialEligible}
           onCta={() => {
             const q = new URLSearchParams();
             q.set("billing", billing);
             if (params.returnTo) q.set("returnTo", params.returnTo);
-            const anchor =
-              typeof params.billingAnchor === "string"
-                ? params.billingAnchor.trim()
-                : "";
-            if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
-              q.set("billingAnchor", anchor);
-            }
             push(`/(logged-in)/pro-checkout?${q.toString()}` as Href);
           }}
           showNoThanks={fromOnboarding}

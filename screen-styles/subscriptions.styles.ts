@@ -134,6 +134,17 @@ export const styles = StyleSheet.create({
     borderColor: Colors.error,
     alignItems: "center",
   },
+  /** Restore Purchases entry point — required by App Store guidelines on every paywall. */
+  restoreLink: {
+    marginTop: 18,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  restoreLinkText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.gray600,
+  },
   cancelOutlineDisabled: { opacity: 0.55 },
   cancelOutlinePressed: { opacity: 0.85 },
   cancelOutlineText: {
