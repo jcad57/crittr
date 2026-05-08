@@ -1,5 +1,5 @@
-import { CRITTR_PRO_ENTITLEMENT } from "@/constants/iap";
 import { getRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
+import { selectCrittrProEntitlementFromCustomerInfo } from "@/lib/iap/crittrProRevenueCat";
 import Purchases, {
   type CustomerInfo,
   type PurchasesEntitlementInfo,
@@ -130,10 +130,7 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
   const info: CustomerInfo | null = await getRevenueCatCustomerInfo();
   if (!info) return null;
 
-  const ent =
-    info.entitlements.active[CRITTR_PRO_ENTITLEMENT] ??
-    info.entitlements.all[CRITTR_PRO_ENTITLEMENT] ??
-    null;
+  const ent = selectCrittrProEntitlementFromCustomerInfo(info);
   if (!ent) return null;
 
   const productId = ent.productIdentifier;

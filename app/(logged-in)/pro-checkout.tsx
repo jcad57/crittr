@@ -9,11 +9,12 @@ import {
 } from "@/hooks/queries/queryKeys";
 import {
   ProPurchaseException,
-  fetchProPackageForBilling,
+  fetchProPackageForBillingDetailed,
   purchaseProPackage,
   restoreProPurchases,
   waitForProActivation,
   type ProBillingParam,
+  type ProPurchaseResult,
 } from "@/lib/iap/checkout";
 import { useAuthStore } from "@/stores/authStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +41,26 @@ type Phase =
   | "confirming"
   | "error";
 
+/** User-facing copy for each `loadCurrentOffering` failure mode. Detail string is logged separately. */
+function userFacingOfferingMessage(
+  reason:
+    | "rc_not_configured"
+    | "no_current_offering"
+    | "package_missing"
+    | "get_offerings_failed",
+): string {
+  switch (reason) {
+    case "rc_not_configured":
+      return "Subscriptions aren't available in this build. Please update Crittr or contact support.";
+    case "no_current_offering":
+      return "Crittr Pro isn't available right now. Please try again in a minute or contact support if this persists.";
+    case "package_missing":
+      return "This subscription option isn't available right now. Please try the other plan or try again later.";
+    case "get_offerings_failed":
+      return "We couldn't reach the App Store. Please check your connection and try again.";
+  }
+}
+
 export default function ProCheckoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -60,6 +81,7 @@ export default function ProCheckoutScreen() {
   const [restoring, setRestoring] = useState(false);
   /** Mirrors what the system sheet just charged so we can confirm the user. */
   const purchasedRef = useRef(false);
+  const purchaseResultRef = useRef<ProPurchaseResult | null>(null);
 
   const startPurchase = useCallback(async () => {
     setPhase("loading");
@@ -67,14 +89,23 @@ export default function ProCheckoutScreen() {
     purchasedRef.current = false;
 
     try {
-      const pkg = await fetchProPackageForBilling(billing);
-      if (!pkg) {
-        throw new Error(
-          "Crittr Pro is not available right now. Please try again in a moment.",
+      const offering = await fetchProPackageForBillingDetailed(billing);
+      if (!offering.ok) {
+        const baseMsg = userFacingOfferingMessage(offering.reason);
+        const msg =
+          __DEV__ && offering.detail
+            ? `${baseMsg}\n\n[debug] ${offering.reason}: ${offering.detail}`
+            : baseMsg;
+        console.warn(
+          "[pro-checkout] offering unavailable:",
+          offering.reason,
+          offering.detail,
         );
+        throw new Error(msg);
       }
-      const result = await purchaseProPackage(pkg);
+      const result = await purchaseProPackage(offering.package);
       purchasedRef.current = true;
+      purchaseResultRef.current = result;
       if (result.hasCrittrPro) {
         setPhase("confirming");
       } else {
@@ -103,7 +134,9 @@ export default function ProCheckoutScreen() {
 
     void (async () => {
       try {
-        await waitForProActivation(28_000);
+        await waitForProActivation(75_000, {
+          purchaseCustomerInfo: purchaseResultRef.current?.customerInfo,
+        });
         if (cancelled) return;
         const uid = useAuthStore.getState().session?.user?.id;
         if (uid) {

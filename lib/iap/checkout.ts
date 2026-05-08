@@ -1,8 +1,11 @@
-import { CRITTR_PRO_ENTITLEMENT } from "@/constants/iap";
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
+import {
+  customerInfoHasCrittrPro as rcCustomerInfoHasCrittrPro,
+} from "@/lib/iap/crittrProRevenueCat";
 import {
   configureRevenueCat,
   isRevenueCatConfigured,
+  loginRevenueCatUser,
 } from "@/lib/iap/revenueCat";
 import { syncCrittrProAfterCheckout } from "@/lib/iap/entitlementSync";
 import { supabase } from "@/lib/supabase";
@@ -42,39 +45,97 @@ export class ProPurchaseException extends Error {
   }
 }
 
-async function loadCurrentOffering(): Promise<PurchasesOffering | null> {
+export type OfferingFetchFailure =
+  /** RevenueCat SDK was never configured (missing public API key in build). */
+  | "rc_not_configured"
+  /** SDK call threw — usually App Store Connect agreements / banking / product approval. */
+  | "get_offerings_failed"
+  /** Offerings loaded but none flagged as "current" / default in the RC dashboard. */
+  | "no_current_offering"
+  /** Current offering exists but the requested package (monthly/annual) is missing. */
+  | "package_missing";
+
+export type OfferingFetchResult =
+  | { ok: true; package: PurchasesPackage }
+  | { ok: false; reason: OfferingFetchFailure; detail?: string };
+
+async function loadCurrentOffering(): Promise<
+  | { ok: true; offering: PurchasesOffering }
+  | { ok: false; reason: OfferingFetchFailure; detail?: string }
+> {
   await configureRevenueCat();
-  if (!isRevenueCatConfigured()) return null;
+  if (!isRevenueCatConfigured()) {
+    return {
+      ok: false,
+      reason: "rc_not_configured",
+      detail: "Missing EXPO_PUBLIC_REVENUECAT_API_KEY in this build.",
+    };
+  }
   try {
     const offerings = await Purchases.getOfferings();
-    return offerings.current ?? null;
+    const current = offerings.current;
+    if (!current) {
+      return {
+        ok: false,
+        reason: "no_current_offering",
+        detail: `RevenueCat returned no current offering. Available: ${
+          Object.keys(offerings.all).join(", ") || "(none)"
+        }`,
+      };
+    }
+    return { ok: true, offering: current };
   } catch (e) {
-    if (__DEV__) console.warn("[iapCheckout] getOfferings failed", e);
-    return null;
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[iapCheckout] getOfferings failed", msg);
+    return { ok: false, reason: "get_offerings_failed", detail: msg };
   }
+}
+
+export async function fetchProPackageForBillingDetailed(
+  billing: ProBillingParam,
+): Promise<OfferingFetchResult> {
+  const result = await loadCurrentOffering();
+  if (!result.ok) return result;
+  const pkg = billing === "annual"
+    ? result.offering.annual
+    : result.offering.monthly;
+  if (!pkg) {
+    const have =
+      result.offering.availablePackages?.map((p) => p.identifier).join(", ") ??
+        "(none)";
+    return {
+      ok: false,
+      reason: "package_missing",
+      detail:
+        `Offering "${result.offering.identifier}" has no ${billing} package. ` +
+        `Available packages: ${have}.`,
+    };
+  }
+  return { ok: true, package: pkg };
 }
 
 export async function fetchCurrentProPackages(): Promise<{
   monthly: PurchasesPackage | null;
   annual: PurchasesPackage | null;
 }> {
-  const offering = await loadCurrentOffering();
-  if (!offering) return { monthly: null, annual: null };
+  const result = await loadCurrentOffering();
+  if (!result.ok) return { monthly: null, annual: null };
   return {
-    monthly: offering.monthly ?? null,
-    annual: offering.annual ?? null,
+    monthly: result.offering.monthly ?? null,
+    annual: result.offering.annual ?? null,
   };
 }
 
 export async function fetchProPackageForBilling(
   billing: ProBillingParam,
 ): Promise<PurchasesPackage | null> {
-  const { monthly, annual } = await fetchCurrentProPackages();
-  return billing === "annual" ? annual : monthly;
+  const result = await fetchProPackageForBillingDetailed(billing);
+  return result.ok ? result.package : null;
 }
 
+
 export function customerInfoHasCrittrPro(info: CustomerInfo): boolean {
-  return Boolean(info.entitlements.active[CRITTR_PRO_ENTITLEMENT]?.isActive);
+  return rcCustomerInfoHasCrittrPro(info);
 }
 
 /**
@@ -85,7 +146,31 @@ export function customerInfoHasCrittrPro(info: CustomerInfo): boolean {
 export async function purchaseProPackage(
   pkg: PurchasesPackage,
 ): Promise<ProPurchaseResult> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new ProPurchaseException({
+      userCancelled: false,
+      message: "Sign in to complete your purchase.",
+    });
+  }
+
   await configureRevenueCat();
+  /**
+   * Ensure the StoreKit transaction is tied to this Supabase user before the
+   * sheet completes. Without this, RC may still be anonymous and the backend
+   * GET /subscribers/{supabaseUserId} can miss the new purchase (common with
+   * Xcode StoreKit Configuration + async auth RC login).
+   */
+  await loginRevenueCatUser(user.id);
+  if (!isRevenueCatConfigured()) {
+    throw new ProPurchaseException({
+      userCancelled: false,
+      message:
+        "Subscriptions aren't available in this build. Check your RevenueCat API key.",
+    });
+  }
   try {
     const result = await Purchases.purchasePackage(pkg);
     return {
@@ -112,7 +197,25 @@ export async function purchaseProPackage(
  * this entry point on every paywall and inside subscription management.
  */
 export async function restoreProPurchases(): Promise<ProPurchaseResult> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new ProPurchaseException({
+      userCancelled: false,
+      message: "Sign in to restore purchases.",
+    });
+  }
+
   await configureRevenueCat();
+  await loginRevenueCatUser(user.id);
+  if (!isRevenueCatConfigured()) {
+    throw new ProPurchaseException({
+      userCancelled: false,
+      message:
+        "Subscriptions aren't available in this build. Check your RevenueCat API key.",
+    });
+  }
   try {
     const customerInfo = await Purchases.restorePurchases();
     return {
@@ -138,29 +241,89 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
  * After a purchase or restore, ask the backend to reconcile `crittr_pro_until`
  * from RevenueCat (so the rest of the app — gates, ads, AI, co-care — sees
  * Pro), then poll the profile until the column reflects active Pro.
+ *
+ * The Edge Function polls RevenueCat REST internally (purchase propagation lag).
+ * We avoid hammering it every 2s: one sync, fast profile poll, optional second sync.
  */
-export async function waitForProActivation(maxWaitMs = 28_000): Promise<void> {
-  const start = Date.now();
-  const pollInterval = 500;
-  let lastSync = 0;
-
-  while (Date.now() - start < maxWaitMs) {
-    if (await profileShowsActivePro()) return;
-
-    const now = Date.now();
-    if (now - lastSync >= 2_000) {
-      lastSync = now;
-      await syncCrittrProAfterCheckout();
-    }
-    await sleep(pollInterval);
+export async function waitForProActivation(
+  maxWaitMs = 75_000,
+  options?: { purchaseCustomerInfo?: CustomerInfo },
+): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error(
+      "Your purchase succeeded but Pro status hasn't synced yet. Pull to refresh or reopen the app.",
+    );
   }
 
-  await syncCrittrProAfterCheckout();
+  await loginRevenueCatUser(user.id);
+
+  if (isRevenueCatConfigured()) {
+    try {
+      await Purchases.invalidateCustomerInfoCache();
+    } catch {
+      /* best-effort: nudge RC backend before Edge GET */
+    }
+    try {
+      await Purchases.getCustomerInfo();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const rcId = await safeGetRevenueCatAppUserId();
+  const alternates = alternateRcIdsForSync(
+    options?.purchaseCustomerInfo,
+    rcId,
+  );
+
+  await syncCrittrProAfterCheckout(rcId, alternates);
+  if (await profileShowsActivePro()) return;
+
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    if (await profileShowsActivePro()) return;
+    await sleep(350);
+  }
+
+  if (isRevenueCatConfigured()) {
+    try {
+      await Purchases.getCustomerInfo();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const rcIdRetry = await safeGetRevenueCatAppUserId();
+  await syncCrittrProAfterCheckout(rcIdRetry, alternates);
+
   if (await profileShowsActivePro()) return;
 
   throw new Error(
     "Your purchase succeeded but Pro status hasn't synced yet. Pull to refresh or reopen the app.",
   );
+}
+
+function alternateRcIdsForSync(
+  purchaseInfo: CustomerInfo | undefined,
+  currentRcId: string | null,
+): string[] {
+  const oid = purchaseInfo?.originalAppUserId;
+  if (!oid || !oid.length) return [];
+  if (currentRcId && oid === currentRcId) return [];
+  return [oid];
+}
+
+async function safeGetRevenueCatAppUserId(): Promise<string | null> {
+  if (!isRevenueCatConfigured()) return null;
+  try {
+    return await Purchases.getAppUserID();
+  } catch (e) {
+    if (__DEV__) console.warn("[iapCheckout] getAppUserID failed", e);
+    return null;
+  }
 }
 
 async function profileShowsActivePro(): Promise<boolean> {

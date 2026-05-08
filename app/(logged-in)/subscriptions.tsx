@@ -14,7 +14,7 @@ import {
   ProPurchaseException,
   restoreProPurchases,
 } from "@/lib/iap/checkout";
-import { syncCrittrProAfterCheckout } from "@/lib/iap/entitlementSync";
+import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import { openManageSubscriptions } from "@/services/iapSubscription";
 import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -77,7 +77,7 @@ export default function SubscriptionsScreen() {
     if (!userId) return;
     setPullRefreshing(true);
     try {
-      await syncCrittrProAfterCheckout();
+      await syncCrittrProForSession(userId);
       await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
       await queryClient.invalidateQueries({
         queryKey: subscriptionDetailsQueryKey(userId),
@@ -118,7 +118,7 @@ export default function SubscriptionsScreen() {
         );
         return;
       }
-      await syncCrittrProAfterCheckout();
+      await syncCrittrProForSession(userId);
       await refreshProfileOnly();
       if (userId) {
         await queryClient.invalidateQueries({

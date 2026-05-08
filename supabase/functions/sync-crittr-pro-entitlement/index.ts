@@ -13,7 +13,7 @@
  *   - SUPABASE_SERVICE_ROLE_KEY
  *   - REVENUECAT_SECRET_API_KEY
  *
- * Body: `{ "appUserId"?: string }` (optional; defaults to `user.id`)
+ * Body: `{ "appUserId"?: string, "source"?: string, "alternateAppUserIds"?: string[] }`
  */
 // @ts-nocheck — Deno edge (`npm:`, `https://esm.sh`) is not typed by the app tsconfig.
 
@@ -71,16 +71,32 @@ Deno.serve(async (req: Request) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       appUserId?: string;
+      source?: string;
+      alternateAppUserIds?: unknown;
     };
+
+    const alternateRaw = body.alternateAppUserIds;
+    const alternateAppUserIds = Array.isArray(alternateRaw)
+      ? alternateRaw.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : [];
+
     const appUserId =
       typeof body.appUserId === "string" && body.appUserId.length > 0
         ? body.appUserId
         : user.id;
 
+    const isCheckout = body.source === "checkout";
+
     const { before, after } = await reconcileCrittrProForUser(
       supabaseAdmin,
       user.id,
       appUserId,
+      {
+        alternateAppUserIds,
+        subscriberSync: isCheckout
+          ? { maxAttempts: 12, delayMs: 2_000 }
+          : { maxAttempts: 3, delayMs: 2_000 },
+      },
     );
 
     return json({ ok: true, crittr_pro_until: after, previous: before }, 200);

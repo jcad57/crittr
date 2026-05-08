@@ -6,9 +6,8 @@ import {
   type ResolvedOnboarding,
 } from "@/lib/auth/resolveSession";
 import { isAuthUserStillRegistered } from "@/lib/auth/sessionValidity";
-import { ensureCrittrProSyncedFromRevenueCat } from "@/lib/iap/entitlementSync";
+import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import {
-  loginRevenueCatUser,
   logoutRevenueCatUser,
 } from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/queryClient";
@@ -150,18 +149,18 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
   const reconcileCrittrProWithRevenueCat = (userId: string) => {
     /**
-     * Login RC with the Supabase user id, then ask the backend to reconcile
-     * `crittr_pro_until` against whatever RC reports. Only mutates profile
-     * fields (Pro entitlement) so a profile-only refresh is sufficient.
+     * Log in RC with the Supabase user id, then ask the backend to reconcile
+     * `crittr_pro_until` using the same app user id the SDK reports (see
+     * `syncCrittrProForSession`). Only mutates profile Pro fields so a
+     * profile-only refresh is sufficient.
      */
     void (async () => {
       try {
-        await loginRevenueCatUser(userId);
+        const r = await syncCrittrProForSession(userId);
+        if (r === "synced") void get().refreshProfileOnly();
       } catch (e) {
-        if (__DEV__) console.warn("[authStore] RC login failed", e);
+        if (__DEV__) console.warn("[authStore] RC Pro reconcile failed", e);
       }
-      const r = await ensureCrittrProSyncedFromRevenueCat();
-      if (r === "synced") void get().refreshProfileOnly();
     })();
   };
 

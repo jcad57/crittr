@@ -30,6 +30,10 @@ export function configureRevenueCat(appUserId?: string | null): Promise<void> {
         Platform.OS,
         "- skipping configure",
       );
+    } else {
+      console.error(
+        "[RevenueCat] Missing EXPO_PUBLIC_REVENUECAT_API_KEY for this platform — IAP will not work. Add it to EAS environment variables for production/TestFlight builds (baked in at compile time).",
+      );
     }
     return Promise.resolve();
   }

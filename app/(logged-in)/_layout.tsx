@@ -1,6 +1,7 @@
 import PushNotificationBootstrap from "@/components/push/PushNotificationBootstrap";
 import PushNotificationNavigationListener from "@/components/push/PushNotificationNavigationListener";
 import ReminderNotificationSync from "@/components/push/ReminderNotificationSync";
+import RevenueCatProSync from "@/components/iap/RevenueCatProSync";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/auth";
@@ -36,6 +37,7 @@ export default function LoggedInLayout() {
       <PushNotificationBootstrap />
       <PushNotificationNavigationListener />
       <ReminderNotificationSync />
+      <RevenueCatProSync />
       <LoggedInQueryBootstrap />
       <Stack
         screenOptions={{

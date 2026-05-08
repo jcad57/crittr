@@ -98,6 +98,8 @@ The app expects the following public Expo env vars (configure in `.env` or your 
 | `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase project |
 | `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | RevenueCat public SDK keys |
 
+Copy `.env.example` to `.env` locally. For EAS builds, mirror those `EXPO_PUBLIC_*` values in the Expo project’s environment variables.
+
 Edge Function secrets (set via `supabase secrets set ...`):
 
 | Secret | Used by |
@@ -105,6 +107,38 @@ Edge Function secrets (set via `supabase secrets set ...`):
 | `SUPABASE_SERVICE_ROLE_KEY` | All edge functions |
 | `REVENUECAT_SECRET_API_KEY` | `revenuecat-webhook`, `sync-crittr-pro-entitlement`, `delete-account` (best-effort subscriber purge) |
 | `REVENUECAT_WEBHOOK_AUTH` | `revenuecat-webhook` (shared secret matched against the `Authorization` header configured in the RevenueCat dashboard) |
+
+### iOS: TestFlight, App Store, and In-App Purchase
+
+**Expo / EAS**
+
+- **StoreKit Configuration** (Xcode) is for fast local iteration only. **TestFlight** uses **Apple’s sandbox** for subscriptions; behavior should match production more closely than a `.storekit` file.
+- **Embed env at build time:** `EXPO_PUBLIC_*` variables are inlined when the **native** binary is built. For `eas build`, define them under **Expo dashboard → Environment variables** for the **production** profile (or use `eas env:*` CLI). A build without `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` will not initialize RevenueCat (you’ll see a **native** log: missing API key).
+- **Bundle ID** in RevenueCat and App Store Connect must match **`app.json` → `ios.bundleIdentifier`** (`com.jcadeichmann.crittr`).
+
+**App Store Connect**
+
+- Sign the **Paid Applications** agreement and complete **banking / tax** if you charge for subscriptions.
+- Create the **auto-renewable subscriptions** (`crittr_pro_monthly`, `crittr_pro_annual` or your real IDs), attach them to a **subscription group**, and submit subscription **metadata** for review when required.
+- Product IDs must match what you configured in **RevenueCat** (products linked to entitlement **`crittr_pro`**) and what the Edge Function expects under **known product ids** in `supabase/functions/_shared/revenueCatEntitlement.ts`.
+
+**RevenueCat**
+
+- **iOS app** uses the same **bundle ID** as the store listing.
+- **Public** SDK key → app (`EXPO_PUBLIC_REVENUECAT_API_KEY_IOS`). **Secret** key → Supabase Edge Function secrets (`REVENUECAT_SECRET_API_KEY`) — same project as the public key.
+- **Webhook** URL: `https://<project-ref>.functions.supabase.co/revenuecat-webhook` with **`--no-verify-jwt`**, plus shared secret `REVENUECAT_WEBHOOK_AUTH` in RC and Supabase.
+
+**Supabase**
+
+- Deploy **`sync-crittr-pro-entitlement`** and **`revenuecat-webhook`** after changing shared entitlement code.
+- Pro state in the app comes from **`profiles.crittr_pro_until`** (updated by the webhook + client-triggered sync).
+
+**On-device TestFlight test**
+
+1. Install the build from TestFlight.
+2. Sign in to the app with a real Crittr account.
+3. Subscribe with a **Sandbox** Apple account (Settings → App Store → Sandbox Account on iOS, or sign in when prompted).
+4. Confirm **RevenueCat dashboard** shows the subscriber with entitlement **`crittr_pro`**, then **Supabase** `profiles.crittr_pro_until` is non-null and in the future.
 
 Edge Functions under `supabase/functions/` extend the backend (entitlement webhook + sync, AI, email, etc.) and are deployed separately with the Supabase CLI.
 

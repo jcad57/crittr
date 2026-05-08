@@ -1,8 +1,8 @@
+import { isRevenueCatConfigured, loginRevenueCatUser } from "@/lib/iap/revenueCat";
 import { supabase } from "@/lib/supabase";
+import Purchases from "react-native-purchases";
 
 export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
-
-let inFlight: Promise<CrittrProEntitlementSyncResult> | null = null;
 
 /**
  * Asks the Supabase `sync-crittr-pro-entitlement` Edge Function to reconcile
@@ -10,16 +10,15 @@ let inFlight: Promise<CrittrProEntitlementSyncResult> | null = null;
  * this user. Used as a fallback for the RC webhook (which is the primary path)
  * when the client wants a synchronous activation after a purchase, or after a
  * fresh login on a new device.
- *
- * Concurrent callers share a single in-flight request so cold start +
- * INITIAL_SESSION do not double-hit the function.
  */
 async function requestEntitlementSync(
   body: Record<string, unknown>,
 ): Promise<CrittrProEntitlementSyncResult> {
+  const longPoll =
+    body.source === "checkout" || body.source === "session";
   const { error } = await supabase.functions.invoke(
     "sync-crittr-pro-entitlement",
-    { body, timeout: 25_000 },
+    { body, timeout: longPoll ? 90_000 : 25_000 },
   );
 
   if (!error) return "synced";
@@ -38,22 +37,72 @@ async function requestEntitlementSync(
   return "failed";
 }
 
-export function ensureCrittrProSyncedFromRevenueCat(): Promise<CrittrProEntitlementSyncResult> {
-  if (!inFlight) {
-    inFlight = requestEntitlementSync({}).finally(() => {
-      inFlight = null;
-    });
+/**
+ * Call after Supabase session is known: log into RevenueCat with the same user id,
+ * then reconcile using the **SDK's** current `appUserID` (may differ from the
+ * auth uuid briefly, or match an Apple-ID–scoped subscriber after restore).
+ * Without `appUserId`, the Edge Function only GETs `/subscribers/{auth_uuid}` and
+ * can miss entitlements still keyed under another RC id → `crittr_pro_until` stays null
+ * while Apple/RC show active.
+ */
+export async function syncCrittrProForSession(
+  userId: string,
+): Promise<CrittrProEntitlementSyncResult> {
+  await loginRevenueCatUser(userId);
+  const rcAppUserId = await getRevenueCatAppUserIdForSync();
+  const alternates: string[] = [];
+  if (isRevenueCatConfigured()) {
+    try {
+      const info = await Purchases.getCustomerInfo();
+      if (
+        info.originalAppUserId &&
+        info.originalAppUserId !== rcAppUserId
+      ) {
+        alternates.push(info.originalAppUserId);
+      }
+    } catch {
+      /* ignore */
+    }
   }
-  return inFlight;
+  const body: Record<string, unknown> = { source: "session" };
+  if (typeof rcAppUserId === "string" && rcAppUserId.length > 0) {
+    body.appUserId = rcAppUserId;
+  }
+  if (alternates.length > 0) body.alternateAppUserIds = alternates;
+  return requestEntitlementSync(body);
+}
+
+/** Current RevenueCat app user id from the SDK (matches Edge Function `appUserId` param). */
+export async function getRevenueCatAppUserIdForSync(): Promise<string | null> {
+  if (!isRevenueCatConfigured()) return null;
+  try {
+    return await Purchases.getAppUserID();
+  } catch {
+    return null;
+  }
 }
 
 /**
  * After a successful `Purchases.purchasePackage` we ask the backend to
  * re-pull RevenueCat for this user immediately so the UI can flip to Pro
  * without waiting for the webhook to fire.
+ *
+ * Pass `revenueCatAppUserId` from `Purchases.getAppUserID()` and optional
+ * `alternateAppUserIds` (e.g. `customerInfo.originalAppUserId`) so the Edge
+ * Function queries merged RevenueCat subscribers.
  */
-export function syncCrittrProAfterCheckout(): Promise<CrittrProEntitlementSyncResult> {
-  return requestEntitlementSync({ source: "checkout" });
+export function syncCrittrProAfterCheckout(
+  revenueCatAppUserId?: string | null,
+  alternateAppUserIds?: string[],
+): Promise<CrittrProEntitlementSyncResult> {
+  const body: Record<string, unknown> = { source: "checkout" };
+  if (typeof revenueCatAppUserId === "string" && revenueCatAppUserId.length > 0) {
+    body.appUserId = revenueCatAppUserId;
+  }
+  if (alternateAppUserIds && alternateAppUserIds.length > 0) {
+    body.alternateAppUserIds = alternateAppUserIds;
+  }
+  return requestEntitlementSync(body);
 }
 
 async function parseFunctionsErrorPayload(

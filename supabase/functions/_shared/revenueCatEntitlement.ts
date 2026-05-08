@@ -16,7 +16,35 @@ import { applyCrittrProDowngradeCleanup } from "./crittrProDowngradeCleanup.ts";
 
 export const CRITTR_PRO_ENTITLEMENT = "crittr_pro";
 
+/** Legacy mis-label; keep until all RC projects use identifier `crittr_pro`. */
+const CRITTR_PRO_ENTITLEMENT_LEGACY = "Crittr Pro";
+
+/**
+ * Products that unlock Crittr Pro (must match App Store Connect + RevenueCat).
+ * Used when `subscriber.entitlements` is briefly stale after purchase but
+ * `subscriber.subscriptions` already lists the active sub.
+ */
+const KNOWN_CRITTR_PRO_PRODUCT_IDS = new Set([
+  "crittr_pro_monthly",
+  "crittr_pro_annual",
+]);
+
+/** Clock skew / RC propagation slack when comparing expiration to "now". */
+const EXPIRATION_SLACK_MS = 120_000;
+
 const RC_BASE = "https://api.revenuecat.com/v1";
+
+function findSubscriptionForProduct(
+  subs: Record<string, RcSubscription>,
+  productId: string,
+): RcSubscription | null {
+  if (subs[productId]) return subs[productId];
+  const lower = productId.toLowerCase();
+  for (const [k, v] of Object.entries(subs)) {
+    if (k.toLowerCase() === lower) return v;
+  }
+  return null;
+}
 
 type RcEntitlement = {
   expires_date: string | null;
@@ -98,11 +126,13 @@ function pickActiveEntitlement(payload: RcSubscriberPayload):
       sub: RcSubscription | null;
     }
   | null {
-  const ent = payload.subscriber.entitlements?.[CRITTR_PRO_ENTITLEMENT];
+  const ents = payload.subscriber.entitlements ?? {};
+  const ent =
+    ents[CRITTR_PRO_ENTITLEMENT] ?? ents[CRITTR_PRO_ENTITLEMENT_LEGACY] ?? null;
   if (!ent) return null;
 
   const subs = payload.subscriber.subscriptions ?? {};
-  const sub = subs[ent.product_identifier] ?? null;
+  const sub = findSubscriptionForProduct(subs, ent.product_identifier);
 
   const expiresIso = ent.expires_date ?? sub?.expires_date ?? null;
   const grace = ent.grace_period_expires_date ?? null;
@@ -110,42 +140,115 @@ function pickActiveEntitlement(payload: RcSubscriberPayload):
   if (!candidate) return null;
 
   const candidateMs = Date.parse(candidate);
-  if (!Number.isFinite(candidateMs) || candidateMs < Date.now()) {
+  if (
+    !Number.isFinite(candidateMs) ||
+    candidateMs < Date.now() - EXPIRATION_SLACK_MS
+  ) {
     return null;
   }
 
   return { ent, sub };
 }
 
+/**
+ * When entitlements lag behind subscriptions right after a purchase, RC may list
+ * the subscription with a future `expires_date` before `entitlements.crittr_pro` is populated.
+ */
+function summarizeFromKnownSubscriptionProducts(
+  payload: RcSubscriberPayload,
+): EntitlementSummary | null {
+  const subs = payload.subscriber.subscriptions ?? {};
+  let best: {
+    expMs: number;
+    productId: string;
+    sub: RcSubscription;
+  } | null = null;
+
+  for (const [productId, sub] of Object.entries(subs)) {
+    if (!KNOWN_CRITTR_PRO_PRODUCT_IDS.has(productId)) continue;
+    const expStr = sub.expires_date;
+    if (!expStr) continue;
+    const expMs = Date.parse(expStr);
+    if (!Number.isFinite(expMs)) continue;
+    if (expMs < Date.now() - EXPIRATION_SLACK_MS) continue;
+    if (!best || expMs > best.expMs) {
+      best = { expMs, productId, sub };
+    }
+  }
+
+  if (!best) return null;
+
+  const sub = best.sub;
+  const willRenew =
+    sub.unsubscribe_detected_at == null && sub.billing_issues_detected_at == null;
+
+  return {
+    crittrProUntil: sub.expires_date!,
+    productIdentifier: best.productId,
+    store: sub.store ?? null,
+    willRenew,
+    originalPurchaseId: sub.product_plan_identifier ?? best.productId,
+  };
+}
+
 export function summarizeEntitlement(
   payload: RcSubscriberPayload,
 ): EntitlementSummary {
   const active = pickActiveEntitlement(payload);
-  if (!active) {
+  if (active) {
+    const { ent, sub } = active;
+    const expires =
+      ent.grace_period_expires_date ?? ent.expires_date ?? sub?.expires_date ??
+        null;
+    const willRenew =
+      sub?.unsubscribe_detected_at == null &&
+        sub?.billing_issues_detected_at == null
+        ? true
+        : false;
+
     return {
-      crittrProUntil: null,
-      productIdentifier: null,
-      store: null,
-      willRenew: null,
-      originalPurchaseId: null,
+      crittrProUntil: expires,
+      productIdentifier: ent.product_identifier,
+      store: sub?.store ?? null,
+      willRenew,
+      originalPurchaseId:
+        sub?.product_plan_identifier ?? ent.product_identifier ?? null,
     };
   }
-  const { ent, sub } = active;
-  const expires =
-    ent.grace_period_expires_date ?? ent.expires_date ?? sub?.expires_date ?? null;
-  const willRenew =
-    sub?.unsubscribe_detected_at == null && sub?.billing_issues_detected_at == null
-      ? true
-      : false;
+
+  const fromProducts = summarizeFromKnownSubscriptionProducts(payload);
+  if (fromProducts) return fromProducts;
 
   return {
-    crittrProUntil: expires,
-    productIdentifier: ent.product_identifier,
-    store: sub?.store ?? null,
-    willRenew,
-    originalPurchaseId:
-      sub?.product_plan_identifier ?? ent.product_identifier ?? null,
+    crittrProUntil: null,
+    productIdentifier: null,
+    store: null,
+    willRenew: null,
+    originalPurchaseId: null,
   };
+}
+
+export type ReconcileCrittrProOptions = {
+  /** Poll RevenueCat REST; results often lag StoreKit / SDK after purchase. */
+  subscriberSync?: { maxAttempts: number; delayMs: number };
+  /** Try multiple subscriber ids (e.g. current vs `originalAppUserId` from merge). */
+  alternateAppUserIds?: string[];
+};
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function uniqueStrings(ids: (string | undefined | null)[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (typeof id !== "string" || id.length === 0) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
 }
 
 /**
@@ -161,8 +264,16 @@ export async function reconcileCrittrProForUser(
   admin: SupabaseClient,
   userId: string,
   appUserId?: string,
+  options?: ReconcileCrittrProOptions,
 ): Promise<{ before: string | null; after: string | null }> {
-  const id = appUserId ?? userId;
+  const primary = appUserId ?? userId;
+  const rcIds = uniqueStrings([
+    primary,
+    ...(options?.alternateAppUserIds ?? []),
+  ]);
+
+  const maxAttempts = options?.subscriberSync?.maxAttempts ?? 1;
+  const pollDelayMs = options?.subscriberSync?.delayMs ?? 2_000;
 
   const { data: profile } = await admin
     .from("profiles")
@@ -175,30 +286,46 @@ export async function reconcileCrittrProForUser(
   const before = profile?.crittr_pro_until ?? null;
   const wasPro = before != null && Date.parse(before) > Date.now();
 
-  let summary: EntitlementSummary;
-  try {
-    const payload = await fetchRevenueCatSubscriber(id);
-    summary = summarizeEntitlement(payload);
-  } catch (e) {
-    if (e instanceof RevenueCatRestError && e.status === 404) {
-      summary = {
-        crittrProUntil: null,
-        productIdentifier: null,
-        store: null,
-        willRenew: null,
-        originalPurchaseId: null,
-      };
-    } else {
-      throw e;
+  let summary: EntitlementSummary | null = null;
+  /** Last successfully fetched RC subscriber id (for `revenuecat_app_user_id`). */
+  let resolvedRcAppUserId: string | null = null;
+
+  outer:
+  for (const rcId of rcIds) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const payload = await fetchRevenueCatSubscriber(rcId);
+        summary = summarizeEntitlement(payload);
+        resolvedRcAppUserId = rcId;
+        if (summary.crittrProUntil != null) break outer;
+        if (attempt < maxAttempts - 1) await delay(pollDelayMs);
+      } catch (e) {
+        if (e instanceof RevenueCatRestError && e.status === 404) {
+          break;
+        }
+        throw e;
+      }
     }
   }
+
+  if (!summary) {
+    summary = {
+      crittrProUntil: null,
+      productIdentifier: null,
+      store: null,
+      willRenew: null,
+      originalPurchaseId: null,
+    };
+  }
+
+  const rcCol = resolvedRcAppUserId ?? primary;
 
   const updates: Record<string, unknown> = {
     crittr_pro_until: summary.crittrProUntil,
     subscription_store: summary.store,
     subscription_will_renew: summary.willRenew,
     original_purchase_id: summary.originalPurchaseId,
-    revenuecat_app_user_id: id,
+    revenuecat_app_user_id: rcCol,
   };
 
   const { error: upErr } = await admin

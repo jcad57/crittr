@@ -107,6 +107,9 @@ Deno.serve(async (req: Request) => {
   ].filter(Boolean);
   const supabaseUserId = candidates.find(isUuid) ?? null;
 
+  /** RevenueCat subscriber ids to try via REST besides `event.app_user_id` (merge / aliases). */
+  const alternateAppUserIds = candidates.filter((c) => c !== event.app_user_id);
+
   if (!supabaseUserId) {
     console.warn(
       "[revenuecat-webhook] no UUID app_user_id in event; skipping",
@@ -136,6 +139,7 @@ Deno.serve(async (req: Request) => {
       supabaseAdmin,
       supabaseUserId,
       event.app_user_id,
+      { alternateAppUserIds },
     );
     console.log(
       "[revenuecat-webhook]",
