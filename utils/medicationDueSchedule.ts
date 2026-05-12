@@ -188,6 +188,78 @@ export function resolveNextDueDate(m: PetMedication): Date | null {
   }
 }
 
+/**
+ * Next due calendar day after `fromDue` for non-daily schedules; mirrors the
+ * step size inside {@link computeNextDueDate}. Returns null for daily / unknown.
+ */
+export function advanceMedicationDueDate(
+  m: PetMedication,
+  fromDue: Date,
+): Date | null {
+  if (dueSoonScheduleKind(m) === "daily") return null;
+  const start = startOfDay(fromDue);
+
+  const ic = m.interval_count;
+  const iu = m.interval_unit;
+
+  if (ic != null && ic > 0 && iu) {
+    if (iu === "day" && ic === 1) return null;
+    if (iu === "day") return addDays(start, Math.max(1, ic));
+    if (iu === "week") return addDays(start, Math.max(1, ic) * 7);
+    if (iu === "month") return addCalendarMonths(start, Math.max(1, ic));
+  }
+
+  const dp = m.dose_period ?? null;
+  if (dp === "week") return addDays(start, 7);
+  if (dp === "month") return addCalendarMonths(start, 1);
+
+  const f = (m.frequency ?? "").toLowerCase();
+  if (f.includes("week") || f.includes("weekly")) return addDays(start, 7);
+  if (f.includes("month") || f.includes("monthly")) {
+    return addCalendarMonths(start, 1);
+  }
+  if (f.includes("every") && f.includes("month")) {
+    return addCalendarMonths(start, 1);
+  }
+  if (f.includes("every") && (f.includes("day") || f.includes("week"))) {
+    return addDays(start, 7);
+  }
+
+  return null;
+}
+
+const DEFAULT_MED_REMINDER_FUTURE_DATES = 48;
+
+/**
+ * Upcoming calendar due dates (local midnight) for interval medications.
+ * Empty when the med is daily or {@link resolveNextDueDate} is unknown.
+ */
+export function enumerateUpcomingMedicationDueDates(
+  m: PetMedication,
+  maxCount: number = DEFAULT_MED_REMINDER_FUTURE_DATES,
+): Date[] {
+  if (dueSoonScheduleKind(m) === "daily") return [];
+  const first = resolveNextDueDate(m);
+  if (!first) return [];
+
+  const today = startOfDay(new Date());
+  let cur = startOfDay(first);
+  while (cur < today) {
+    const next = advanceMedicationDueDate(m, cur);
+    if (!next) return [];
+    cur = startOfDay(next);
+  }
+
+  const out: Date[] = [];
+  for (let i = 0; i < maxCount; i++) {
+    out.push(cur);
+    const next = advanceMedicationDueDate(m, cur);
+    if (!next) break;
+    cur = startOfDay(next);
+  }
+  return out;
+}
+
 export const DUE_SOON_DAYS_WEEKLY = 3;
 export const DUE_SOON_DAYS_MONTHLY = 7;
 

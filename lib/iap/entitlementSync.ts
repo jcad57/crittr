@@ -1,6 +1,6 @@
 import { isRevenueCatConfigured, loginRevenueCatUser } from "@/lib/iap/revenueCat";
 import { supabase } from "@/lib/supabase";
-import Purchases from "react-native-purchases";
+import Purchases, { type CustomerInfo } from "react-native-purchases";
 
 export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
 
@@ -39,8 +39,9 @@ async function requestEntitlementSync(
 
 /**
  * Call after Supabase session is known: log into RevenueCat with the same user id,
- * then reconcile using the **SDK's** current `appUserID` (may differ from the
- * auth uuid briefly, or match an Apple-ID–scoped subscriber after restore).
+ * sync with the storefront (`Purchases.syncPurchasesForResult`) so offer codes and
+ * other purchases completed outside this app propagate to RevenueCat, then reconcile
+ * using the **SDK's** current `appUserID` (may differ from the auth uuid briefly).
  * Without `appUserId`, the Edge Function only GETs `/subscribers/{auth_uuid}` and
  * can miss entitlements still keyed under another RC id → `crittr_pro_until` stays null
  * while Apple/RC show active.
@@ -49,11 +50,24 @@ export async function syncCrittrProForSession(
   userId: string,
 ): Promise<CrittrProEntitlementSyncResult> {
   await loginRevenueCatUser(userId);
+
+  /** Pull receipts from Apple / Google so redemptions outside the app (offer codes, web) reach RevenueCat before we reconcile. */
+  let customerInfoAfterStoreSync: CustomerInfo | null = null;
+  if (isRevenueCatConfigured()) {
+    try {
+      const synced = await Purchases.syncPurchasesForResult();
+      customerInfoAfterStoreSync = synced.customerInfo;
+    } catch {
+      /* Best-effort: continue with REST + cached CustomerInfo when offline or billing unavailable. */
+    }
+  }
+
   const rcAppUserId = await getRevenueCatAppUserIdForSync();
   const alternates: string[] = [];
   if (isRevenueCatConfigured()) {
     try {
-      const info = await Purchases.getCustomerInfo();
+      const info =
+        customerInfoAfterStoreSync ?? (await Purchases.getCustomerInfo());
       if (
         info.originalAppUserId &&
         info.originalAppUserId !== rcAppUserId

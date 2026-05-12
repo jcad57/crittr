@@ -1,4 +1,5 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
+import { HealthVisitSummaryRow } from "@/components/ui/health/HealthVisitRow";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/constants/colors";
 import { Font } from "@/constants/typography";
@@ -8,7 +9,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MedicationCard from "./MedicationCard";
 import SectionLabel from "./SectionLabel";
 import UpcomingVisitFeatureCard from "./UpcomingVisitFeatureCard";
-import VetVisitCard from "./VetVisitCard";
 
 type HealthSectionProps = {
   medications: MedicationSummary[];
@@ -29,6 +29,8 @@ type HealthSectionProps = {
     subtitle: string;
     onPress: () => void;
   } | null;
+  /** Active pet name — shown on visit rows to match the Health tab line format. */
+  vetVisitPetName?: string | null;
 };
 
 export default function HealthSection({
@@ -41,10 +43,10 @@ export default function HealthSection({
   attentionVaccinations,
   onVaccinationAttentionPress,
   maintenanceCard,
+  vetVisitPetName,
 }: HealthSectionProps) {
   const hasMeds = medications.length > 0;
   const hasVisits = vetVisits.length > 0;
-  const [primaryVisit, ...otherVisits] = vetVisits;
   const vacs = attentionVaccinations ?? [];
   const showVacAttention = vacs.length > 0;
 
@@ -121,33 +123,27 @@ export default function HealthSection({
       <SectionLabel style={styles.visitsLabel}>
         Upcoming vet visits
       </SectionLabel>
-      {hasVisits && primaryVisit ? (
-        <>
-          <UpcomingVisitFeatureCard
-            visit={primaryVisit}
-            onPress={
-              onVetVisitPress
-                ? () => onVetVisitPress(primaryVisit.id)
-                : undefined
-            }
-          />
-          {otherVisits.map((visit) => (
-            <VetVisitCard
+      {hasVisits ? (
+        <HealthListCard>
+          {vetVisits.map((visit, i) => (
+            <HealthVisitSummaryRow
               key={visit.id}
-              visit={visit}
-              onPress={
-                onVetVisitPress
-                  ? () => onVetVisitPress(visit.id)
-                  : undefined
+              title={visit.title}
+              detailLine={
+                vetVisitPetName?.trim()
+                  ? `${vetVisitPetName.trim()} · ${visit.date} · ${visit.time}`
+                  : `${visit.date} · ${visit.time}`
               }
-              onAddToCalendar={
+              locationLine={visit.subtitle ?? null}
+              isLast={i === vetVisits.length - 1}
+              onPress={
                 onVetVisitPress
                   ? () => onVetVisitPress(visit.id)
                   : undefined
               }
             />
           ))}
-        </>
+        </HealthListCard>
       ) : (
         <UpcomingVisitFeatureCard empty onPress={onScheduleVisitPress} />
       )}

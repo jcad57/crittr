@@ -29,23 +29,22 @@ function SkeletonMedRow({
   );
 }
 
-function SkeletonVisitFeatureCard({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle> }) {
+function SkeletonVisitRow({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle> }) {
   return (
-    <View style={styles.visitCard}>
-      <View style={styles.visitRow}>
+    <View style={styles.visitRowWrap}>
+      <View style={styles.visitRowMain}>
         <Animated.View style={[styles.visitIcon, pulseStyle]} />
         <View style={styles.visitMid}>
           <Animated.View style={[styles.visitTitleBar, pulseStyle]} />
           <Animated.View style={[styles.visitSubBar, pulseStyle]} />
         </View>
-        <Animated.View style={[styles.visitMonthBadge, pulseStyle]} />
         <Animated.View style={[styles.visitChevron, pulseStyle]} />
       </View>
     </View>
   );
 }
 
-/** Mirrors {@link HealthSection}: medications list + upcoming visit feature card. */
+/** Mirrors {@link HealthSection}: medications list + vet visits in a health-style list card. */
 export default function HealthSectionSkeleton() {
   const pulseStyle = useSkeletonPulse();
 
@@ -64,7 +63,9 @@ export default function HealthSectionSkeleton() {
       </HealthListCard>
 
       <SectionLabel style={styles.visitsLabel}>Upcoming vet visits</SectionLabel>
-      <SkeletonVisitFeatureCard pulseStyle={pulseStyle} />
+      <HealthListCard>
+        <SkeletonVisitRow pulseStyle={pulseStyle} />
+      </HealthListCard>
     </View>
   );
 }
@@ -131,23 +132,25 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: Colors.gray200,
   },
-  visitCard: {
-    borderRadius: 24,
-    backgroundColor: Colors.featureDark,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  visitRow: {
+  visitRowWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    paddingRight: 4,
+  },
+  visitRowMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingLeft: 12,
+    gap: 10,
+    minWidth: 0,
   },
   visitIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: Colors.featureDarkElevated,
+    borderRadius: 12,
+    backgroundColor: Colors.gray200,
   },
   visitMid: {
     flex: 1,
@@ -155,29 +158,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   visitTitleBar: {
-    height: 17,
+    height: 15,
     borderRadius: 6,
-    width: "72%",
-    maxWidth: 220,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: "70%",
+    maxWidth: 200,
+    backgroundColor: Colors.gray200,
   },
   visitSubBar: {
-    height: 13,
+    height: 12,
     borderRadius: 5,
-    width: "88%",
-    maxWidth: 260,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  visitMonthBadge: {
-    width: 44,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    width: "85%",
+    maxWidth: 240,
+    backgroundColor: Colors.gray200,
   },
   visitChevron: {
     width: 10,
     height: 22,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: Colors.gray200,
   },
 });
