@@ -2,6 +2,10 @@ import {
   DEFAULT_ANDROID_CHANNEL_ID,
   getNotificationPermissionStatus,
 } from "@/lib/pushNotifications";
+import {
+  dueSoonScheduleKind,
+  enumerateUpcomingMedicationDueDates,
+} from "@/utils/medicationDueSchedule";
 import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/utils/petFood";
 import { supabase } from "@/lib/supabase";
@@ -9,7 +13,6 @@ import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { fetchTodayActivitiesForPetIds } from "@/services/activities";
 import type {
   PetFood,
-  PetFoodPortion,
   PetMedication,
   PetVetVisit,
   PetWithDetails,
@@ -60,6 +63,13 @@ function parseReminderHHmm(
   return { hour: h, minute: min };
 }
 
+function formatLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${da}`;
+}
+
 export async function cancelCrittrScheduledNotifications(): Promise<void> {
   if (Platform.OS === "web") return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
@@ -87,30 +97,71 @@ function petExerciseIncomplete(
   return done < target;
 }
 
-async function scheduleMealsForFood(
+/**
+ * One gentle daily nudge per pet after the latest configured feed/treat time
+ * (avoids one notification per portion / per missing serving).
+ */
+async function scheduleConsolidatedFeedingReminder(
   petName: string,
   petId: string,
-  food: PetFood,
-  portion: PetFoodPortion,
+  foods: PetFood[],
 ): Promise<void> {
-  const { hour, minute } = parsePgTimeToHourMinute(portion.feed_time);
-  const { hour: h, minute: m } = addMinutes(hour, minute, MEAL_AFTER_MIN);
-  const label = isTreatFood(food) ? "treat" : "meal";
-  const foodBit = food.brand?.trim() || label;
+  type Slot = { hour: number; minute: number; isTreat: boolean };
+  const slots: Slot[] = [];
+
+  for (const food of foods) {
+    const portions = portionsForPetFood(food);
+    const treat = isTreatFood(food);
+    if (portions.length > 0) {
+      for (const portion of portions) {
+        const { hour, minute } = parsePgTimeToHourMinute(portion.feed_time);
+        const { hour: h, minute: m } = addMinutes(
+          hour,
+          minute,
+          MEAL_AFTER_MIN,
+        );
+        slots.push({ hour: h, minute: m, isTreat: treat });
+      }
+    } else if (treat && dailyProgressFoodTarget(food) > 0) {
+      slots.push({ hour: 20, minute: 0, isTreat: true });
+    }
+  }
+
+  if (slots.length === 0) return;
+
+  let bestSlot = slots[0]!;
+  let bestT = -1;
+  for (const s of slots) {
+    const t = s.hour * 60 + s.minute;
+    if (t >= bestT) {
+      bestSlot = s;
+      bestT = t;
+    }
+  }
+
+  const hasTreat = slots.some((s) => s.isTreat);
+  const hasMeal = slots.some((s) => !s.isTreat);
+  const title =
+    hasTreat && hasMeal
+      ? "Meal & treat reminder"
+      : hasTreat
+        ? "Treat reminder"
+        : "Meal reminder";
+
   await Notifications.scheduleNotificationAsync({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}meal-${petId}-${food.id}-${portion.id}`,
+    identifier: `${CRITTR_NOTIF_ID_PREFIX}meals-${petId}`,
     content: {
-      title: isTreatFood(food) ? "Treat reminder" : "Meal reminder",
-      body: `${petName}: time for a ${label} (${foodBit}).`,
-      data: { type: "meal_reminder", petId, foodId: food.id },
+      title,
+      body: `${petName}: gentle reminder to log today's meals and treats if you haven't yet.`,
+      data: { type: "meal_reminder", petId },
       ...(Platform.OS === "android"
         ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
         : {}),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: h,
-      minute: m,
+      hour: bestSlot.hour,
+      minute: bestSlot.minute,
     },
   });
 }
@@ -135,18 +186,37 @@ function formatMedicationBatchReminderBody(
   return `${petName}: time to give ${namesPart} (${doseWord} due in about ${MED_BEFORE_MIN} minutes).`;
 }
 
-/** One daily notification per distinct reminder time; multiple meds at the same time are combined. */
+type SlotMed = { medicationId: string; name: string };
+
+function mergeUniqueSlotMeds(list: SlotMed[], addition: SlotMed): SlotMed[] {
+  if (list.some((x) => x.medicationId === addition.medicationId)) return list;
+  return [...list, addition];
+}
+
+/**
+ * Daily meds: one notification per reminder time (multiple meds at the same time batched).
+ * Interval meds (weekly/monthly/custom): DATE triggers only on scheduled due days.
+ */
 async function scheduleMedicationsForPet(
   petName: string,
   petId: string,
   medications: PetMedication[],
 ): Promise<void> {
-  type SlotMed = { medicationId: string; name: string };
-  const byTrigger = new Map<string, SlotMed[]>();
+  const dailyByTrigger = new Map<string, SlotMed[]>();
+  const dateByKey = new Map<
+    string,
+    { fireAt: Date; slotMeds: SlotMed[] }
+  >();
+  const nowMs = Date.now();
 
   for (const med of medications) {
     const slots = getMedicationReminderTimes(med);
+    if (slots.length === 0) continue;
+
     const medName = med.name.trim() || "medication";
+    const slotMed: SlotMed = { medicationId: med.id, name: medName };
+    const isDaily = dueSoonScheduleKind(med) === "daily";
+
     for (const slot of slots) {
       const t = parseReminderHHmm(slot);
       if (!t) continue;
@@ -155,17 +225,40 @@ async function scheduleMedicationsForPet(
         t.minute,
         -MED_BEFORE_MIN,
       );
-      const key = `${h}-${m}`;
-      const list = byTrigger.get(key) ?? [];
-      if (!list.some((x) => x.medicationId === med.id)) {
-        list.push({ medicationId: med.id, name: medName });
+      const triggerKey = `${h}-${m}`;
+
+      if (isDaily) {
+        const list = dailyByTrigger.get(triggerKey) ?? [];
+        dailyByTrigger.set(triggerKey, mergeUniqueSlotMeds(list, slotMed));
+      } else {
+        const dueDays = enumerateUpcomingMedicationDueDates(med);
+        for (const dueDay of dueDays) {
+          const ymd = formatLocalYmd(dueDay);
+          const mergeKey = `${ymd}|${triggerKey}`;
+          const fireAt = new Date(dueDay);
+          fireAt.setHours(h, m, 0, 0);
+          if (fireAt.getTime() <= nowMs) continue;
+
+          const prev = dateByKey.get(mergeKey);
+          if (prev) {
+            dateByKey.set(mergeKey, {
+              fireAt: prev.fireAt,
+              slotMeds: mergeUniqueSlotMeds(prev.slotMeds, slotMed),
+            });
+          } else {
+            dateByKey.set(mergeKey, {
+              fireAt,
+              slotMeds: mergeUniqueSlotMeds([], slotMed),
+            });
+          }
+        }
       }
-      byTrigger.set(key, list);
     }
   }
 
-  for (const [key, slotMeds] of byTrigger) {
-    const [hStr, mStr] = key.split("-");
+  for (const [triggerKey, slotMeds] of dailyByTrigger) {
+    if (slotMeds.length === 0) continue;
+    const [hStr, mStr] = triggerKey.split("-");
     const h = parseInt(hStr!, 10);
     const m = parseInt(mStr!, 10);
     const ids = slotMeds.map((x) => x.medicationId).sort();
@@ -191,6 +284,35 @@ async function scheduleMedicationsForPet(
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: h,
         minute: m,
+      },
+    });
+  }
+
+  for (const [mergeKey, { fireAt, slotMeds }] of dateByKey) {
+    if (slotMeds.length === 0) continue;
+    const ids = slotMeds.map((x) => x.medicationId).sort();
+    const safeId = mergeKey.replace(/\|/g, "--");
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${CRITTR_NOTIF_ID_PREFIX}med-date-${petId}-${safeId}`,
+      content: {
+        title: "Medication reminder",
+        body: formatMedicationBatchReminderBody(
+          petName,
+          slotMeds.map((x) => x.name),
+        ),
+        data: {
+          type: "medication_reminder",
+          petId,
+          medicationIds: ids,
+          ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
+        },
+        ...(Platform.OS === "android"
+          ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
+          : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: fireAt,
       },
     });
   }
@@ -292,34 +414,7 @@ export async function syncCrittrReminderNotifications(
 
   if (prefs.notify_meals_treats) {
     for (const d of detailsList) {
-      for (const food of d.foods) {
-        const portions = portionsForPetFood(food);
-        if (portions.length > 0) {
-          for (const portion of portions) {
-            await scheduleMealsForFood(d.name, d.id, food, portion);
-          }
-        } else if (isTreatFood(food)) {
-          const n = dailyProgressFoodTarget(food);
-          if (n > 0) {
-            await Notifications.scheduleNotificationAsync({
-              identifier: `${CRITTR_NOTIF_ID_PREFIX}treat-fallback-${d.id}-${food.id}`,
-              content: {
-                title: "Treat reminder",
-                body: `${d.name}: don't forget today's treats.`,
-                data: { type: "treat_reminder", petId: d.id, foodId: food.id },
-                ...(Platform.OS === "android"
-                  ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-                  : {}),
-              },
-              trigger: {
-                type: Notifications.SchedulableTriggerInputTypes.DAILY,
-                hour: 20,
-                minute: 0,
-              },
-            });
-          }
-        }
-      }
+      await scheduleConsolidatedFeedingReminder(d.name, d.id, d.foods);
     }
   }
 

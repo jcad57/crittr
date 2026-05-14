@@ -532,6 +532,7 @@ export default function Dashboard() {
               <HealthSection
                 medications={medications}
                 vetVisits={dashboardVetVisits}
+                vetVisitPetName={activePetDetails?.name ?? null}
                 onScheduleVisitPress={
                   canManageVetVisits === true ? scheduleVetVisit : undefined
                 }

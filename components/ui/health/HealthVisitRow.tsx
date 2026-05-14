@@ -12,19 +12,25 @@ type Props = {
   onPress: () => void;
 };
 
-export default function HealthVisitRow({ item, isLast, onPress }: Props) {
-  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
-  const when =
-    formatUserShortWeekdayMonthDayTime(
-      new Date(item.visit_at),
-      dateDisplay,
-      timeDisplay,
-    ) || "—";
-
+/** Visit row layout aligned with the Health tab (lavender icon tile + typography). */
+export function HealthVisitSummaryRow({
+  title,
+  detailLine,
+  locationLine,
+  isLast,
+  onPress,
+}: {
+  title: string;
+  detailLine: string;
+  locationLine?: string | null;
+  isLast?: boolean;
+  onPress?: () => void;
+}) {
   return (
     <Pressable
       style={[styles.row, !isLast && styles.rowBorder]}
       onPress={onPress}
+      disabled={!onPress}
     >
       <View style={styles.iconBox}>
         <MaterialCommunityIcons
@@ -35,14 +41,14 @@ export default function HealthVisitRow({ item, isLast, onPress }: Props) {
       </View>
       <View style={styles.mid}>
         <Text style={styles.title} numberOfLines={2}>
-          {item.title}
+          {title}
         </Text>
         <Text style={styles.sub} numberOfLines={2}>
-          {item.pet.name} · {when}
+          {detailLine}
         </Text>
-        {item.location?.trim() ? (
+        {locationLine?.trim() ? (
           <Text style={styles.location} numberOfLines={2}>
-            {item.location.trim()}
+            {locationLine.trim()}
           </Text>
         ) : null}
       </View>
@@ -52,6 +58,26 @@ export default function HealthVisitRow({ item, isLast, onPress }: Props) {
         color={Colors.gray400}
       />
     </Pressable>
+  );
+}
+
+export default function HealthVisitRow({ item, isLast, onPress }: Props) {
+  const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
+  const when =
+    formatUserShortWeekdayMonthDayTime(
+      new Date(item.visit_at),
+      dateDisplay,
+      timeDisplay,
+    ) || "—";
+
+  return (
+    <HealthVisitSummaryRow
+      title={item.title}
+      detailLine={`${item.pet.name} · ${when}`}
+      locationLine={item.location?.trim() || null}
+      isLast={isLast}
+      onPress={onPress}
+    />
   );
 }
 
