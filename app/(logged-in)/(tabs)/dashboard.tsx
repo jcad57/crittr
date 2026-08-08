@@ -31,11 +31,9 @@ import {
 } from "@/hooks/useResponsiveUi";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
+import { buildDailyProgressRings } from "@/utils/dailyProgressRings";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
-import {
-  buildMedicationDosageProgress,
-  sumMedicationDoseProgress,
-} from "@/utils/medicationDosageProgress";
+import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import {
   isUpcomingVetVisit,
@@ -43,8 +41,6 @@ import {
 } from "@/utils/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { householdActiveCatIds, userHasAnyActiveCat } from "@/utils/householdCats";
-import { dailyProgressExerciseTarget } from "@/utils/exercisePlans";
-import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
 import { maintenancePeriodStart, formatHouseholdLitterGoalSubtitle } from "@/utils/litterMaintenancePeriod";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
@@ -156,126 +152,23 @@ export default function Dashboard() {
     ),
   );
 
-  const dailyProgress: DailyProgressCategory[] = useMemo(() => {
-    const details = activePetDetails ?? null;
-    const acts = todayActivities ?? [];
-    const isCatProgress = details?.pet_type === "cat";
-
-    const totalMeals = details
-      ? details.foods
-          .filter((f) => !isTreatFood(f))
-          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
-      : 0;
-    const totalTreats = details
-      ? details.foods
-          .filter((f) => isTreatFood(f))
-          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
-      : 0;
-    const totalExercise = details
-      ? dailyProgressExerciseTarget(details)
-      : 0;
-    const medPetId = activePetDetails?.id ?? activePetId ?? "";
-    const medProgress =
-      details && medPetId
-        ? sumMedicationDoseProgress(details.medications, acts, medPetId)
-        : { fulfilled: 0, expected: 0 };
-    const currentMeds = medProgress.fulfilled;
-    const totalMedsRing = medProgress.expected;
-    const hasMeds = (details?.medications.length ?? 0) > 0;
-
-    const currentExercise = acts.filter(
-      (a) => a.activity_type === "exercise",
-    ).length;
-    const currentMeals = acts.filter(
-      (a) => a.activity_type === "food" && !a.is_treat,
-    ).length;
-    const currentTreats = acts.filter(
-      (a) => a.activity_type === "food" && a.is_treat,
-    ).length;
-
-    const litterGoalPeriod = details?.household_litter_cleaning_period;
-    const maintActsForHouseholdCats =
-      isCatProgress &&
-      litterGoalPeriod &&
-      litterGoalPeriod !== "day"
-        ? householdMaintenanceWindowActs
-        : householdCatTodayActs;
-    const currentMaintenance =
-      isCatProgress && litterGoalPeriod
-        ? maintActsForHouseholdCats.filter(
-            (a) => a.activity_type === "maintenance",
-          ).length
-        : 0;
-    const totalMaintenance = Math.max(
-      0,
-      details?.household_litter_cleanings_per_period ?? 0,
-    );
-
-    const exerciseRing: DailyProgressCategory = {
-      id: "exercise",
-      label: "Exercise",
-      icon: "run",
-      current: currentExercise,
-      total: totalExercise,
-      ringColor: Colors.progressExercise,
-      trackColor: Colors.progressExerciseTrack,
-    };
-    const mealsRing: DailyProgressCategory = {
-      id: "meals",
-      label: "Meals",
-      icon: "food-drumstick",
-      current: currentMeals,
-      total: totalMeals,
-      ringColor: Colors.progressMeals,
-      trackColor: Colors.progressMealsTrack,
-    };
-    const medsRing: DailyProgressCategory = {
-      id: "meds",
-      label: "Meds",
-      icon: "pill",
-      current: currentMeds,
-      total: hasMeds ? totalMedsRing : 0,
-      ringColor: Colors.progressMeds,
-      trackColor: Colors.progressMedsTrack,
-    };
-
-    if (!isCatProgress) {
-      return [
-        exerciseRing,
-        mealsRing,
-        {
-          id: "treats",
-          label: "Treats",
-          icon: "bone",
-          current: currentTreats,
-          total: totalTreats,
-          ringColor: Colors.progressTreats,
-          trackColor: Colors.progressTreatsTrack,
-        },
-        medsRing,
-      ];
-    }
-
-    return [
-      exerciseRing,
-      mealsRing,
-      {
-        id: "maintenance",
-        label: "Maintenance",
-        icon: "broom",
-        current: currentMaintenance,
-        total: totalMaintenance,
-        ringColor: Colors.progressTreats,
-        trackColor: Colors.progressTreatsTrack,
-      },
-      medsRing,
-    ];
-  }, [
-    activePetDetails,
-    todayActivities,
-    householdCatTodayActs,
-    householdMaintenanceWindowActs,
-  ]);
+  const dailyProgress: DailyProgressCategory[] = useMemo(
+    () =>
+      buildDailyProgressRings({
+        details: activePetDetails ?? null,
+        activities: todayActivities ?? [],
+        householdCatToday: householdCatTodayActs,
+        householdMaintenanceWindow: householdMaintenanceWindowActs,
+        activePetId,
+      }),
+    [
+      activePetDetails,
+      todayActivities,
+      householdCatTodayActs,
+      householdMaintenanceWindowActs,
+      activePetId,
+    ],
+  );
 
   const dailyProgressAllComplete = useMemo(
     () => isDailyProgressComplete(dailyProgress),
