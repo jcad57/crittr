@@ -1,6 +1,10 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
+import {
+  IOS_LIGHT_PICKER_PROPS,
+  iosSpinnerPickerStyle,
+} from "@/constants/dateTimePicker";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/constants/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -11,7 +15,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Keyboard,
   Modal,
@@ -21,11 +25,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-/** Match light modal sheets; avoid `textColor` — native code sets it via KVC and can break wheel UX. */
-const IOS_PICKER_PROPS = {
-  themeVariant: "light" as const,
-};
 
 type MealPortionEditorModalProps = {
   visible: boolean;
@@ -52,6 +51,11 @@ export default function MealPortionEditorModal({
     return d;
   });
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [timeDraft, setTimeDraft] = useState(() => {
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    return d;
+  });
   const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
@@ -59,8 +63,24 @@ export default function MealPortionEditorModal({
     setPortionSize(initial.portionSize);
     setPortionUnit(initial.portionUnit);
     setFeedTime(new Date(initial.feedTime.getTime()));
+    setTimePickerOpen(false);
     setAttempted(false);
   }, [visible, initial]);
+
+  const openTimePicker = useCallback(() => {
+    Keyboard.dismiss();
+    setTimeDraft(mergeWallClockOntoToday(feedTime));
+    setTimePickerOpen(true);
+  }, [feedTime]);
+
+  const closeTimePicker = useCallback(() => {
+    setTimePickerOpen(false);
+  }, []);
+
+  const confirmTimePicker = useCallback(() => {
+    setFeedTime(mergeWallClockOntoToday(timeDraft));
+    setTimePickerOpen(false);
+  }, [timeDraft]);
 
   const handleSave = useCallback(() => {
     setAttempted(true);
@@ -78,11 +98,6 @@ export default function MealPortionEditorModal({
 
   const timeLabel = formatUserTime(feedTime, timeDisplay);
 
-  const feedTimeForPicker = useMemo(
-    () => mergeWallClockOntoToday(feedTime),
-    [feedTime],
-  );
-
   const onTimePickerChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
@@ -92,7 +107,8 @@ export default function MealPortionEditorModal({
         setTimePickerOpen(false);
         return;
       }
-      if (date) setFeedTime(mergeWallClockOntoToday(date));
+      if (event.type === "dismissed") return;
+      if (date) setTimeDraft(mergeWallClockOntoToday(date));
     },
     [],
   );
@@ -178,10 +194,7 @@ export default function MealPortionEditorModal({
             <Text style={styles.fieldLabel}>Feeding time</Text>
             <Pressable
               style={styles.timeRow}
-              onPress={() => {
-                Keyboard.dismiss();
-                setTimePickerOpen(true);
-              }}
+              onPress={openTimePicker}
             >
               <MaterialCommunityIcons
                 name="clock-outline"
@@ -208,7 +221,7 @@ export default function MealPortionEditorModal({
         */}
         {timePickerOpen && Platform.OS === "android" ? (
           <DateTimePicker
-            value={feedTimeForPicker}
+            value={timeDraft}
             mode="time"
             display="default"
             is24Hour={is24Hour}
@@ -222,15 +235,12 @@ export default function MealPortionEditorModal({
           <View style={styles.timeOverlay} pointerEvents="box-none">
             <Pressable
               style={styles.timeBackdrop}
-              onPress={() => setTimePickerOpen(false)}
+              onPress={closeTimePicker}
             />
             <View style={styles.timeSheet}>
               <View style={styles.timeToolbar}>
                 <View style={styles.timeToolbarSide}>
-                  <Pressable
-                    onPress={() => setTimePickerOpen(false)}
-                    hitSlop={12}
-                  >
+                  <Pressable onPress={closeTimePicker} hitSlop={12}>
                     <Text style={styles.timeToolbarBtn}>Cancel</Text>
                   </Pressable>
                 </View>
@@ -238,10 +248,7 @@ export default function MealPortionEditorModal({
                   Feeding time
                 </Text>
                 <View style={[styles.timeToolbarSide, styles.timeToolbarSideEnd]}>
-                  <Pressable
-                    onPress={() => setTimePickerOpen(false)}
-                    hitSlop={12}
-                  >
+                  <Pressable onPress={confirmTimePicker} hitSlop={12}>
                     <Text style={[styles.timeToolbarBtn, styles.timeToolbarDone]}>
                       Done
                     </Text>
@@ -249,12 +256,13 @@ export default function MealPortionEditorModal({
                 </View>
               </View>
               <DateTimePicker
-                value={feedTimeForPicker}
+                value={timeDraft}
                 mode="time"
                 display="spinner"
+                is24Hour={is24Hour}
                 onChange={onTimePickerChange}
-                {...IOS_PICKER_PROPS}
-                style={styles.iosPicker}
+                {...IOS_LIGHT_PICKER_PROPS}
+                style={iosSpinnerPickerStyle}
               />
             </View>
           </View>
@@ -420,9 +428,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.black,
     textAlign: "center",
-  },
-  iosPicker: {
-    backgroundColor: Colors.white,
-    alignSelf: "center",
   },
 });

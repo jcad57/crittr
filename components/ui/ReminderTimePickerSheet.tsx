@@ -1,11 +1,15 @@
 import { Colors } from "@/constants/colors";
+import {
+  IOS_LIGHT_PICKER_PROPS,
+  iosSpinnerPickerStyle,
+} from "@/constants/dateTimePicker";
 import { Font } from "@/constants/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   Platform,
@@ -14,11 +18,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-/** Match light sheets; omit `textColor` — forcing it uses private KVC and can glitch wheel styling. */
-const IOS_PICKER_PROPS = {
-  themeVariant: "light" as const,
-};
 
 type ReminderTimePickerSheetProps = {
   visible: boolean;
@@ -30,8 +29,8 @@ type ReminderTimePickerSheetProps = {
 };
 
 /**
- * Time picker for medication reminders: iOS uses a sheet with Cancel / Done so the
- * spinner can be dismissed (native spinner stays open otherwise).
+ * Time picker: Android uses the system dialog; iOS uses a Cancel/Done sheet so the
+ * spinner can be dismissed. Draft state keeps Cancel from committing a partial scroll.
  */
 export default function ReminderTimePickerSheet({
   visible,
@@ -42,7 +41,13 @@ export default function ReminderTimePickerSheet({
 }: ReminderTimePickerSheetProps) {
   const { timeDisplay } = useUserDateTimePrefs();
   const is24Hour = timeDisplay === "24h";
-  const pickerValue = useMemo(() => mergeWallClockOntoToday(value), [value]);
+  const [draft, setDraft] = useState(() => mergeWallClockOntoToday(value));
+
+  useEffect(() => {
+    if (!visible) return;
+    setDraft(mergeWallClockOntoToday(value));
+  }, [visible, value]);
+
   const handleNativeChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
@@ -52,15 +57,21 @@ export default function ReminderTimePickerSheet({
         onClose();
         return;
       }
-      if (date) onChange(mergeWallClockOntoToday(date));
+      if (event.type === "dismissed") return;
+      if (date) setDraft(mergeWallClockOntoToday(date));
     },
     [onChange, onClose],
   );
 
+  const handleDone = useCallback(() => {
+    onChange(mergeWallClockOntoToday(draft));
+    onClose();
+  }, [draft, onChange, onClose]);
+
   if (Platform.OS === "android") {
     return visible ? (
       <DateTimePicker
-        value={pickerValue}
+        value={draft}
         mode="time"
         display="default"
         is24Hour={is24Hour}
@@ -91,19 +102,22 @@ export default function ReminderTimePickerSheet({
               {title}
             </Text>
             <View style={[styles.toolbarSide, styles.toolbarSideEnd]}>
-              <Pressable onPress={onClose} hitSlop={12}>
+              <Pressable onPress={handleDone} hitSlop={12}>
                 <Text style={[styles.toolbarBtn, styles.done]}>Done</Text>
               </Pressable>
             </View>
           </View>
-          <DateTimePicker
-            value={pickerValue}
-            mode="time"
-            display="spinner"
-            onChange={handleNativeChange}
-            {...IOS_PICKER_PROPS}
-            style={styles.iosPicker}
-          />
+          {visible ? (
+            <DateTimePicker
+              value={draft}
+              mode="time"
+              display="spinner"
+              is24Hour={is24Hour}
+              onChange={handleNativeChange}
+              {...IOS_LIGHT_PICKER_PROPS}
+              style={iosSpinnerPickerStyle}
+            />
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -159,9 +173,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.black,
     textAlign: "center",
-  },
-  iosPicker: {
-    backgroundColor: Colors.white,
-    alignSelf: "center",
   },
 });

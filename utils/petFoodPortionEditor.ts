@@ -9,6 +9,8 @@ type PortionEditorHandlersOpts = {
   setPortionEditorDraft: (draft: MealPortionDraft | null) => void;
   setPortionModalVisible: (visible: boolean) => void;
   setPortionModalTitle: (title: string) => void;
+  /** Default unit for newly added portions (treats use Piece(s)). */
+  defaultPortionUnit?: string;
 };
 
 export type PortionEditorHandlers = {
@@ -32,6 +34,7 @@ export function createPetFoodPortionHandlers({
   setPortionEditorDraft,
   setPortionModalVisible,
   setPortionModalTitle,
+  defaultPortionUnit = "Cups",
 }: PortionEditorHandlersOpts): PortionEditorHandlers {
   const openAddPortion = () => {
     const d = new Date();
@@ -41,7 +44,7 @@ export function createPetFoodPortionHandlers({
     setPortionEditorDraft({
       key: `new-${Date.now()}`,
       portionSize: "",
-      portionUnit: "Cups",
+      portionUnit: defaultPortionUnit,
       feedTime: d,
     });
     setPortionModalVisible(true);

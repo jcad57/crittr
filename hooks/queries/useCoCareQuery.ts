@@ -66,9 +66,14 @@ export function useUserPetPermissionsQuery(
     queryKey: userPetPermissionsKey(petId ?? "", userId ?? ""),
     queryFn: () => fetchUserPermissionsForPet(petId!, userId!),
     enabled: !!petId && !!userId,
-    /** Permissions change when the owner updates co-care; default 5m stale time hid updates. */
-    staleTime: 0,
-    refetchOnMount: "always",
+    /**
+     * Permissions gate buttons on nearly every screen, so the default 5m stale
+     * time hid co-care updates for too long. Realtime invalidation in
+     * `useLoggedInQueryBootstrap` is what actually keeps this correct; a short
+     * stale window bounds the damage if the socket drops, without refetching on
+     * every single navigation the way `refetchOnMount: "always"` did.
+     */
+    staleTime: 30 * 1000,
     refetchOnWindowFocus: true,
   });
 

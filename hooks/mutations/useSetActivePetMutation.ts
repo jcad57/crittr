@@ -11,27 +11,44 @@ type SetActivePetContext = {
   previousActivePetId: string | null;
 };
 
+const SET_ACTIVE_PET_MUTATION_KEY = ["setActivePet"] as const;
+
+/** Reflect which owned pet the server considers active, without a refetch. */
+function writeIsActiveToPetsCache(userId: string, activeOwnedPetId: string | null) {
+  queryClient.setQueryData<PetWithRole[]>(petsQueryKey(userId), (previous) =>
+    previous?.map((p) =>
+      p.role === "owner" ? { ...p, is_active: p.id === activeOwnedPetId } : p,
+    ),
+  );
+}
+
 /**
  * Mutation that sets the active pet:
- *   1. Optimistically flips `is_active` on owned pets in the `petsQueryKey`
- *      cache so consumers (e.g. `usePetsQuery`) reflect the change immediately
- *      without a refetch.
- *   2. Updates `petStore.activePetId` for snappy local navigation state.
- *   3. Persists to Supabase via `setActivePet` service.
- *   4. Rolls back the cache + selection on error.
+ *   1. Updates `petStore.activePetId` synchronously so the tap registers on the
+ *      next frame, before any network work.
+ *   2. Optimistically flips `is_active` on owned pets in the `petsQueryKey`
+ *      cache so consumers reflect the change without a refetch.
+ *   3. Persists to Supabase via the atomic `set_pet_active_flag` RPC.
+ *   4. Rolls back only if no newer tap has superseded this one.
  *
- * Co-care selections are tolerated: RLS prevents writes to non-owned pets, so
- * the DB write effectively no-ops while local + cache state still update for
- * UX consistency.
+ * Writes are serialised through a mutation `scope`: the persisted selection is
+ * account-wide, so overlapping writes used to resolve to the wrong pet — or to
+ * no pet at all. `onMutate` still runs immediately for every tap, so
+ * serialising the network calls costs nothing in perceived responsiveness.
+ *
+ * Co-care selections are UI-only. `is_active` lives on the owner's account, so
+ * the RPC leaves the caller's own pets alone and reports which one is still
+ * active.
  */
 export function useSetActivePetMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
-  return useMutation<void, Error, string, SetActivePetContext>({
-    mutationKey: ["setActivePet"],
+  return useMutation<string | null, Error, string, SetActivePetContext>({
+    mutationKey: SET_ACTIVE_PET_MUTATION_KEY,
+    scope: { id: "set-active-pet" },
     mutationFn: async (petId) => {
-      if (!userId) return;
-      await setActivePetService(userId, petId);
+      if (!userId) return null;
+      return setActivePetService(userId, petId);
     },
     onMutate: async (petId) => {
       const previousActivePetId = usePetStore.getState().activePetId;
@@ -54,12 +71,40 @@ export function useSetActivePetMutation() {
       }
       return { previous, previousActivePetId };
     },
-    onError: (_err, _petId, ctx) => {
+    onSuccess: (activeOwnedPetId, petId) => {
+      if (!userId) return;
+      /**
+       * Selecting a co-cared pet leaves a different owned pet active, so the
+       * optimistic "nothing is active" guess has to be corrected or the next
+       * launch would resolve the selection from a stale flag.
+       */
+      if (activeOwnedPetId !== petId) {
+        writeIsActiveToPetsCache(userId, activeOwnedPetId);
+      }
+    },
+    onError: (_err, petId, ctx) => {
       if (!ctx) return;
+      /**
+       * A newer tap already won. Restoring this one's snapshot would yank the
+       * user back to a pet they have since moved off.
+       */
+      if (usePetStore.getState().activePetId !== petId) return;
+
       usePetStore.getState().setActivePetId(ctx.previousActivePetId);
       if (userId && ctx.previous) {
         queryClient.setQueryData(petsQueryKey(userId), ctx.previous);
       }
+    },
+    onSettled: () => {
+      if (!userId) return;
+      /**
+       * Only the last tap in a burst reconciles, so scrubbing through pets
+       * costs one pets refetch instead of one per tap.
+       */
+      if (queryClient.isMutating({ mutationKey: SET_ACTIVE_PET_MUTATION_KEY }) > 1) {
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
     },
   });
 }

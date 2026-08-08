@@ -75,6 +75,7 @@ export function useUpdatePetInsuranceMutation(petId: string) {
             medications: old.medications,
             vaccinations: old.vaccinations,
             exercise: old.exercise,
+            exercise_plans: old.exercise_plans,
           };
         },
       );

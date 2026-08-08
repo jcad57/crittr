@@ -7,6 +7,15 @@ import type { AppNotification } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { notificationsKey, unreadNotificationCountKey } from "./queryKeys";
 
+/**
+ * Both of these are kept current by the realtime `notifications` subscription in
+ * `useLoggedInQueryBootstrap`, which invalidates them the moment a row changes.
+ * The short stale window is a backstop for a dropped socket, not the primary
+ * update path — refetching on every mount made opening the notifications screen
+ * wait on the network even though the correct list was already in hand.
+ */
+const NOTIFICATION_STALE_MS = 30 * 1000;
+
 export function useNotificationsQuery(): UseQueryResult<
   AppNotification[],
   Error
@@ -16,9 +25,7 @@ export function useNotificationsQuery(): UseQueryResult<
     queryKey: notificationsKey(userId ?? ""),
     queryFn: () => fetchNotifications(userId!),
     enabled: !!userId,
-    /** Global default staleTime is 5m; unread count polls every 30s so the badge can be ahead of a stale list. */
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: NOTIFICATION_STALE_MS,
   });
 }
 
@@ -31,9 +38,11 @@ export function useUnreadNotificationCountQuery(): UseQueryResult<
     queryKey: unreadNotificationCountKey(userId ?? ""),
     queryFn: () => fetchUnreadNotificationCount(userId!),
     enabled: !!userId,
-    refetchInterval: 30_000,
-    /** Same reason as notifications list: stay aligned when opening the app or returning to dashboard. */
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: NOTIFICATION_STALE_MS,
+    /**
+     * The badge is on the dashboard, so a 30s poll ran for as long as the app
+     * was open. Realtime already covers it; this only catches a dead socket.
+     */
+    refetchInterval: 5 * 60 * 1000,
   });
 }

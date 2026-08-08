@@ -1,11 +1,26 @@
 /**
  * When Crittr Pro ends (RevenueCat subscription expired), free-tier rules apply:
- * - User keeps one living (non-memorialized) pet (oldest by created_at); others are removed.
- * - Co-care ends: remove this user as co-carer on others' pets (notify owners) and
- *   remove all co-carers from this user's pets (notify co-carers, same types as app flows).
- * - Pending invites sent by this user are deleted.
  *
- * Invoked from revenuecat-webhook with service_role (bypasses RLS).
+ *   - Free tier keeps **one** living owned pet. Anything beyond the oldest
+ *     living pet is **soft-archived** (`is_archived = true`,
+ *     `archived_reason = 'pro_downgrade'`), never deleted, so the user gets
+ *     all of their data back the moment they re-upgrade.
+ *   - Co-care ends in both directions: this user is removed as a co-carer on
+ *     others' pets (owners are notified), and every co-carer is removed from
+ *     this user's pets (co-carers are notified). Pending invites sent by this
+ *     user are deleted.
+ *
+ * Invoked from `revenueCatEntitlement.ts` with service_role (bypasses RLS).
+ *
+ * Soft-archive design notes:
+ *   - We never `DELETE FROM pets`. A transient RC REST blip used to cause a
+ *     reconcile to look like a downgrade and irreversibly destroyed the user's
+ *     "extra" pets. With soft-archive, the same transient is harmless because
+ *     `restorePetsArchivedDuringDowngrade` flips everything back as soon as
+ *     the subscriber appears Pro again.
+ *   - The `is_active` flag is repaired afterwards so the dashboard always has
+ *     exactly one living, non-archived active pet (or zero, if the user has
+ *     no surviving pets — handled by `repair_pet_active_flag` RPC).
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -18,32 +33,43 @@ function displayName(
   return n.length > 0 ? n : "Someone";
 }
 
-async function ensureOneActiveLivingPet(
+async function repairActivePet(
   admin: SupabaseClient,
   ownerId: string,
 ): Promise<void> {
-  const { data: rows, error } = await admin
-    .from("pets")
-    .select("id, is_memorialized, is_active")
-    .eq("owner_id", ownerId)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  const pets = rows ?? [];
-  const living = pets.filter((p) => !p.is_memorialized);
-  if (living.length === 0) {
-    await admin.from("pets").update({ is_active: false }).eq("owner_id", ownerId);
-    return;
+  // Server-side helper (added in `20260514120000_pro_sync_hardening.sql`)
+  // guarantees exactly one living, non-archived owned pet is `is_active`.
+  const { error } = await admin.rpc("repair_pet_active_flag", {
+    target_owner: ownerId,
+  });
+  if (error) {
+    console.warn("[downgradeCleanup] repair_pet_active_flag failed:", error);
   }
-  const hasLivingActive = living.some((p) => p.is_active);
-  if (hasLivingActive) return;
+}
 
-  await admin.from("pets").update({ is_active: false }).eq("owner_id", ownerId);
-  await admin
-    .from("pets")
-    .update({ is_active: true })
-    .eq("id", living[0].id)
-    .eq("owner_id", ownerId);
+/**
+ * Reverses any prior Pro-downgrade soft-archival on the user's pets so that
+ * users who renew or re-subscribe (including via promo code) immediately see
+ * their old pets again without manual intervention.
+ *
+ * Safe to call on every successful reconcile — it's a no-op when no rows
+ * carry the `pro_downgrade` archive marker.
+ */
+export async function restorePetsArchivedDuringDowngrade(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<number> {
+  const { data, error } = await admin.rpc("restore_pro_archived_pets", {
+    target_owner: userId,
+  });
+  if (error) {
+    console.warn(
+      "[downgradeCleanup] restore_pro_archived_pets failed:",
+      error,
+    );
+    return 0;
+  }
+  return typeof data === "number" ? data : 0;
 }
 
 export async function applyCrittrProDowngradeCleanup(
@@ -58,11 +84,11 @@ export async function applyCrittrProDowngradeCleanup(
 
   const leaverName = displayName(profile?.first_name, profile?.last_name);
 
+  // 1. Drop co-care links the user has on OTHER people's pets (notify owners).
   const { data: myCoCarerRows, error: myCoErr } = await admin
     .from("pet_co_carers")
     .select("pet_id")
     .eq("user_id", userId);
-
   if (myCoErr) throw myCoErr;
 
   for (const row of myCoCarerRows ?? []) {
@@ -80,7 +106,6 @@ export async function applyCrittrProDowngradeCleanup(
       .delete()
       .eq("pet_id", petId)
       .eq("user_id", userId);
-
     if (delErr) throw delErr;
 
     if (pet.owner_id === userId) continue;
@@ -95,11 +120,11 @@ export async function applyCrittrProDowngradeCleanup(
     if (nErr) throw nErr;
   }
 
+  // 2. Remove co-carers from THIS user's owned pets (notify each co-carer).
   const { data: ownedPets, error: ownedErr } = await admin
     .from("pets")
     .select("id, name")
     .eq("owner_id", userId);
-
   if (ownedErr) throw ownedErr;
 
   for (const pet of ownedPets ?? []) {
@@ -108,7 +133,6 @@ export async function applyCrittrProDowngradeCleanup(
       .from("pet_co_carers")
       .select("user_id")
       .eq("pet_id", petId);
-
     if (cErr) throw cErr;
 
     for (const c of carers ?? []) {
@@ -118,7 +142,6 @@ export async function applyCrittrProDowngradeCleanup(
         .delete()
         .eq("pet_id", petId)
         .eq("user_id", coCarerUserId);
-
       if (delCoErr) throw delCoErr;
 
       const { error: nErr } = await admin.from("notifications").insert({
@@ -132,28 +155,38 @@ export async function applyCrittrProDowngradeCleanup(
     }
   }
 
+  // 3. Cancel pending invites this user sent.
   const { error: invErr } = await admin
     .from("co_carer_invites")
     .delete()
     .eq("invited_by", userId);
-
   if (invErr) throw invErr;
 
+  // 4. Free-tier pet limit — soft archive everything past the oldest living pet.
+  //    We never delete; the data comes back the moment they re-upgrade.
   const { data: living, error: livErr } = await admin
     .from("pets")
     .select("id")
     .eq("owner_id", userId)
     .eq("is_memorialized", false)
+    .eq("is_archived", false)
     .order("created_at", { ascending: true });
-
   if (livErr) throw livErr;
 
   const livingList = living ?? [];
   if (livingList.length > 1) {
-    const removeIds = livingList.slice(1).map((p) => p.id as string);
-    const { error: delPetErr } = await admin.from("pets").delete().in("id", removeIds);
-    if (delPetErr) throw delPetErr;
+    const archiveIds = livingList.slice(1).map((p) => p.id as string);
+    const { error: archErr } = await admin
+      .from("pets")
+      .update({
+        is_archived: true,
+        archived_reason: "pro_downgrade",
+        archived_at: new Date().toISOString(),
+        is_active: false,
+      })
+      .in("id", archiveIds);
+    if (archErr) throw archErr;
   }
 
-  await ensureOneActiveLivingPet(admin, userId);
+  await repairActivePet(admin, userId);
 }

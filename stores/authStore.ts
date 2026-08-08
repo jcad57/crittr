@@ -1,5 +1,10 @@
 import { profileQueryKey } from "@/hooks/queries/queryKeys";
 import {
+  clearAuthSnapshot,
+  readAuthSnapshot,
+  writeAuthSnapshot,
+} from "@/lib/auth/authSnapshot";
+import {
   deriveProfileOnboardingState,
   nextRequiresCoCareRemovedScreen,
   resolveSession,
@@ -10,7 +15,9 @@ import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import {
   logoutRevenueCatUser,
 } from "@/lib/iap/revenueCat";
+import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/queryClient";
+import { purgePersistedQueryCache } from "@/lib/queryPersistence";
 import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { usePetStore } from "@/stores/petStore";
@@ -166,6 +173,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
   const clearAuxiliarySessionState = () => {
     queryClient.clear();
+    void purgePersistedQueryCache();
+    void clearAuthSnapshot();
     usePetStore.getState().clear();
     useOnboardingStore.getState().reset();
   };
@@ -176,6 +185,98 @@ export const useAuthStore = create<AuthState>((set, get) => {
     void logoutRevenueCatUser();
     lastResolvedSessionToken = null;
     set(loggedOutState);
+  };
+
+  /**
+   * Remember the routing-relevant part of the resolved session so the next cold
+   * start can render the right screen before `resolveSession` comes back.
+   */
+  const persistAuthSnapshot = () => {
+    const s = get();
+    const userId = s.session?.user?.id;
+    if (!userId || !s.isLoggedIn) return;
+    void writeAuthSnapshot(userId, {
+      profile: s.profile,
+      hasPets: s.hasPets,
+      ownedPetCount: s.ownedPetCount,
+      coCarePetCount: s.coCarePetCount,
+      needsOnboarding: s.needsOnboarding,
+      onboardingResumeStep: s.onboardingResumeStep,
+      requiresCoCareRemovedScreen: s.requiresCoCareRemovedScreen,
+    });
+  };
+
+  const applyResolvedSession = (
+    session: Session,
+    resolved: ResolvedOnboarding,
+  ) => {
+    const prev = get();
+    const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
+      {
+        hasPets: prev.hasPets,
+        ownedPetCount: prev.ownedPetCount,
+        coCarePetCount: prev.coCarePetCount,
+        requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
+      },
+      resolved,
+    );
+    set({
+      session,
+      profile: resolved.profile,
+      hasPets: resolved.hasPets,
+      ownedPetCount: resolved.ownedPetCount,
+      coCarePetCount: resolved.coCarePetCount,
+      onboardingResumeStep: resolved.onboardingResumeStep,
+      isLoggedIn: true,
+      needsOnboarding: resolved.needsOnboarding,
+      requiresCoCareRemovedScreen,
+      isHydrating: false,
+    });
+    lastResolvedSessionToken = session.access_token;
+    syncProfileRowToQuery(resolved.profile);
+    persistAuthSnapshot();
+  };
+
+  /**
+   * Cold-start path for a user we already know. Applies the remembered
+   * onboarding answer so routing and the first paint happen immediately, then
+   * confirms the account still exists and re-resolves against the server.
+   */
+  const revalidateRestoredSession = async (session: Session) => {
+    try {
+      const stillRegistered = await isAuthUserStillRegistered();
+      if (!stillRegistered) {
+        await purgeInvalidSession();
+        return;
+      }
+
+      /** `refreshSession` inside the check above may have rotated tokens. */
+      const {
+        data: { session: latest },
+      } = await supabase.auth.getSession();
+      const active = latest ?? session;
+
+      if (active.access_token !== get().session?.access_token) {
+        set((prev) => ({ ...prev, session: active }));
+        lastResolvedSessionToken = active.access_token;
+      }
+
+      const resolved = await resolveSession(active);
+
+      /** The user may have signed out while this was in flight. */
+      if (get().session?.user?.id !== active.user.id) return;
+
+      applyResolvedSession(active, resolved);
+    } catch (e) {
+      /**
+       * Offline or a flaky first request. The restored snapshot is still the
+       * best answer we have, so leave the user where they are rather than
+       * bouncing them to sign-in.
+       */
+      if (__DEV__) {
+        console.warn("[authStore] background session revalidation failed", e);
+      }
+    }
   };
 
   return {
@@ -198,19 +299,56 @@ export const useAuthStore = create<AuthState>((set, get) => {
       } = await supabase.auth.getSession();
 
       if (session) {
-        const stillRegistered = await isAuthUserStillRegistered();
-        if (!stillRegistered) {
-          await purgeInvalidSession();
+        const snapshot = await readAuthSnapshot(session.user.id);
+
+        if (snapshot) {
+          /**
+           * Returning user. Everything needed to pick the right screen is on
+           * disk, so apply it and let the app paint now — validating the
+           * session and re-resolving onboarding costs several round trips and
+           * used to hold the splash screen for all of them.
+           */
+          set({
+            session,
+            profile: snapshot.profile,
+            hasPets: snapshot.hasPets,
+            ownedPetCount: snapshot.ownedPetCount,
+            coCarePetCount: snapshot.coCarePetCount,
+            onboardingResumeStep: snapshot.onboardingResumeStep,
+            isLoggedIn: true,
+            needsOnboarding: snapshot.needsOnboarding,
+            requiresCoCareRemovedScreen: snapshot.requiresCoCareRemovedScreen,
+            isHydrating: false,
+          });
+          lastResolvedSessionToken = session.access_token;
+          syncProfileRowToQuery(snapshot.profile);
+
+          /**
+           * Validating the session calls `refreshSession`, which holds GoTrue's
+           * lock — every PostgREST request waits on it for a token. Letting the
+           * user's data load first keeps that check off the critical path.
+           */
+          const warmed = snapshot.needsOnboarding
+            ? Promise.resolve()
+            : prefetchLoggedInSessionData(session.user.id);
+
+          void warmed.then(() => revalidateRestoredSession(session));
+          reconcileCrittrProWithRevenueCat(session.user.id);
         } else {
           /**
-           * Use the same hydrate path as fresh sign-ins so cold start gets
-           * retry + `isHydrating` for free. `refreshSession` inside
-           * `isAuthUserStillRegistered` may have rotated tokens, so re-read.
+           * First launch on this device (or a snapshot too old to trust).
+           * Resolve against the server before routing so we never flash the
+           * wrong screen.
            */
-          const {
-            data: { session: latestSession },
-          } = await supabase.auth.getSession();
-          await get().hydrateFromSupabaseSession(latestSession ?? session);
+          const stillRegistered = await isAuthUserStillRegistered();
+          if (!stillRegistered) {
+            await purgeInvalidSession();
+          } else {
+            const {
+              data: { session: latestSession },
+            } = await supabase.auth.getSession();
+            await get().hydrateFromSupabaseSession(latestSession ?? session);
+          }
         }
       }
 
@@ -243,6 +381,24 @@ export const useAuthStore = create<AuthState>((set, get) => {
              */
             const activeSession = session;
 
+            if (event === "TOKEN_REFRESHED") {
+              /**
+               * Token rotation does not change onboarding/pet counts. Applying a
+               * full `hydrateFromSupabaseSession` here races cold-start prefetch
+               * (and `revalidateRestoredSession`'s own `refreshSession`) and was
+               * timing out `resolveSession` under load — leaving WARN spam and
+               * starving the schedule tab of bandwidth.
+               *
+               * Only short-circuit when already routed; a TOKEN_REFRESHED during
+               * a fresh sign-in must still fall through to hydrate.
+               */
+              if (get().isLoggedIn) {
+                set({ session: activeSession });
+                lastResolvedSessionToken = activeSession.access_token;
+                return;
+              }
+            }
+
             if (event === "USER_UPDATED") {
               /**
                * `updateUser` (e.g. new password) awaits this callback before its
@@ -260,31 +416,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
               void (async () => {
                 try {
                   const resolved = await resolveSession(activeSession);
-                  const prevState = get();
-                  const requiresCoCareRemovedScreen =
-                    nextRequiresCoCareRemovedScreen(
-                      {
-                        hasPets: prevState.hasPets,
-                        ownedPetCount: prevState.ownedPetCount,
-                        coCarePetCount: prevState.coCarePetCount,
-                        requiresCoCareRemovedScreen:
-                          prevState.requiresCoCareRemovedScreen,
-                      },
-                      resolved,
-                    );
-                  set({
-                    session: activeSession,
-                    profile: resolved.profile,
-                    hasPets: resolved.hasPets,
-                    ownedPetCount: resolved.ownedPetCount,
-                    coCarePetCount: resolved.coCarePetCount,
-                    onboardingResumeStep: resolved.onboardingResumeStep,
-                    isLoggedIn: true,
-                    needsOnboarding: resolved.needsOnboarding,
-                    requiresCoCareRemovedScreen,
-                  });
-                  lastResolvedSessionToken = activeSession.access_token;
-                  syncProfileRowToQuery(resolved.profile);
+                  applyResolvedSession(activeSession, resolved);
                 } catch (e) {
                   if (__DEV__) {
                     console.warn(
@@ -397,6 +529,20 @@ export const useAuthStore = create<AuthState>((set, get) => {
       return true;
     }
 
+    /**
+     * Already routed from an auth snapshot (or a prior resolve) and the JWT
+     * merely rotated. Swap the session without flipping `isHydrating` or
+     * contending for PostgREST — background revalidation owns that work.
+     */
+    if (
+      prev.isLoggedIn &&
+      prev.session?.user?.id === session.user.id
+    ) {
+      set({ session, isHydrating: false });
+      lastResolvedSessionToken = session.access_token;
+      return true;
+    }
+
     const promise = (async () => {
       /**
        * Surface a "logging you in…" state to UI so layouts don't route to
@@ -416,31 +562,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
             RESOLVE_SESSION_ATTEMPT_TIMEOUT_MS,
             "Load account",
           );
-          const beforeSet = get();
-          const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
-            {
-              hasPets: beforeSet.hasPets,
-              ownedPetCount: beforeSet.ownedPetCount,
-              coCarePetCount: beforeSet.coCarePetCount,
-              requiresCoCareRemovedScreen:
-                beforeSet.requiresCoCareRemovedScreen,
-            },
-            resolved,
-          );
-          set({
-            session,
-            profile: resolved.profile,
-            hasPets: resolved.hasPets,
-            ownedPetCount: resolved.ownedPetCount,
-            coCarePetCount: resolved.coCarePetCount,
-            onboardingResumeStep: resolved.onboardingResumeStep,
-            isLoggedIn: true,
-            needsOnboarding: resolved.needsOnboarding,
-            requiresCoCareRemovedScreen,
-            isHydrating: false,
-          });
-          lastResolvedSessionToken = session.access_token;
-          syncProfileRowToQuery(resolved.profile);
+          applyResolvedSession(session, resolved);
+          if (!resolved.needsOnboarding) {
+            void prefetchLoggedInSessionData(session.user.id);
+          }
           reconcileCrittrProWithRevenueCat(session.user.id);
           return true;
         } catch (e) {
@@ -552,6 +677,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       ...deriveProfileOnboardingState(profile, s.hasPets),
     }));
     queryClient.setQueryData(profileQueryKey(profile.id), profile);
+    persistAuthSnapshot();
     void get().refreshProfileOnly();
   },
 
@@ -574,32 +700,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
       ...deriveProfileOnboardingState(profile ?? null, s.hasPets),
     }));
     syncProfileRowToQuery(profile ?? null);
+    persistAuthSnapshot();
   },
 
   refreshAuthSession: async () => {
     const session = get().session;
     if (!session) return;
-    const prev = get();
     const resolved = await resolveSession(session);
-    const requiresCoCareRemovedScreen = nextRequiresCoCareRemovedScreen(
-      {
-        hasPets: prev.hasPets,
-        ownedPetCount: prev.ownedPetCount,
-        coCarePetCount: prev.coCarePetCount,
-        requiresCoCareRemovedScreen: prev.requiresCoCareRemovedScreen,
-      },
-      resolved,
-    );
-    set({
-      profile: resolved.profile,
-      hasPets: resolved.hasPets,
-      ownedPetCount: resolved.ownedPetCount,
-      coCarePetCount: resolved.coCarePetCount,
-      onboardingResumeStep: resolved.onboardingResumeStep,
-      needsOnboarding: resolved.needsOnboarding,
-      requiresCoCareRemovedScreen,
-    });
-    syncProfileRowToQuery(resolved.profile);
+    applyResolvedSession(session, resolved);
   },
 
   completeOnboarding: async () => {

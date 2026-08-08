@@ -83,8 +83,24 @@ export const todayActivitiesForPetIdsPrefixKey = (petIds: string[]) =>
 export const allActivitiesKey = (petId: string) =>
   ["allActivities", petId] as const;
 
+/**
+ * A single local calendar day of a pet's history (activity screen date filter).
+ * Nested under `allActivitiesKey` so every existing history invalidation
+ * refreshes the filtered view too.
+ */
+export const activitiesOnDayKey = (petId: string, localYmd: string) =>
+  ["allActivities", petId, "day", localYmd] as const;
+
 export const petActivityQueryKey = (activityId: string) =>
   ["petActivity", activityId] as const;
+
+/** Schedule for one pet on one local calendar day. */
+export const scheduleDayKey = (petId: string, localYmd: string) =>
+  ["schedule", petId, localYmd] as const;
+
+/** Prefix: invalidate all schedule day caches for a pet. */
+export const schedulePetPrefixKey = (petId: string) =>
+  ["schedule", petId] as const;
 
 /** All weigh-in entries for a pet, oldest → newest. */
 export const petWeightEntriesQueryKey = (petId: string) =>

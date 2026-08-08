@@ -2,6 +2,7 @@ import { styles } from "@/screen-styles/upgrade.styles";
 import { CellIcon } from "@/components/screens/upgrade/CellIcon";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { UPGRADE_COMPARISON_ROWS } from "@/constants/upgradeComparison";
+import { storeAccountLabel } from "@/lib/iap/storeTerms";
 import type { ProPricing } from "@/services/proPricing";
 import { Pressable, Text, View } from "react-native";
 
@@ -14,7 +15,6 @@ export function ProTierCard({
   onCta,
   showNoThanks,
   onNoThanks,
-  introTrialEligible,
 }: {
   pricing: ProPricing;
   billing: BillingPeriod;
@@ -22,13 +22,36 @@ export function ProTierCard({
   onCta: () => void;
   showNoThanks?: boolean;
   onNoThanks?: () => void;
-  introTrialEligible: boolean | null;
 }) {
   const isAnnual = billing === "annual";
   const curUpper = pricing.monthly.currency.toUpperCase();
   const showSaveBadge =
     pricing.annual.savingsVsMonthlyPercent != null &&
     pricing.annual.savingsVsMonthlyPercent > 0;
+
+  /**
+   * Only advertise a trial once the store has confirmed one for the selected
+   * plan and this account. Until then the copy stays factual.
+   */
+  const trial = isAnnual ? pricing.annual.trial : pricing.monthly.trial;
+  const knownNoTrial = pricing.resolved && trial == null;
+
+  /**
+   * A missing trial can mean the account already used one or that the plan
+   * never had one, and the store doesn't say which — so the copy states the
+   * consequence rather than guessing the cause.
+   */
+  const disclaimer = trial
+    ? `No charge until your ${trial.durationLabel} trial ends · Cancel anytime`
+    : knownNoTrial
+      ? `No free trial is available for your ${storeAccountLabel()} — you are charged when you finish checkout. Cancel anytime.`
+      : "Cancel anytime";
+
+  const ctaLabel = trial
+    ? `Start ${trial.durationLabel} free trial →`
+    : knownNoTrial
+      ? "Continue to Crittr Pro →"
+      : "Get Crittr Pro →";
 
   return (
     <View style={styles.cardShell}>
@@ -130,16 +153,10 @@ export function ProTierCard({
 
       <View style={styles.featuresEndSpacer} />
 
-      <Text style={styles.disclaimerOnDark}>
-        {introTrialEligible === false
-          ? "Your Apple ID or Google account already used the free trial. You are charged when you finish checkout."
-          : "No charge until your trial ends · Cancel anytime"}
-      </Text>
+      <Text style={styles.disclaimerOnDark}>{disclaimer}</Text>
 
       <OrangeButton style={styles.cta} onPress={onCta}>
-        {introTrialEligible === false
-          ? "Continue to Crittr Pro →"
-          : "Start free 7-day trial →"}
+        {ctaLabel}
       </OrangeButton>
 
       {showNoThanks && onNoThanks ? (

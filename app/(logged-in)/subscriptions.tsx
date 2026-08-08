@@ -15,12 +15,12 @@ import {
   restoreProPurchases,
 } from "@/lib/iap/checkout";
 import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
+import { storeAccountLabel, storePhrase } from "@/lib/iap/storeTerms";
 import { openManageSubscriptions } from "@/services/iapSubscription";
 import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
 import { formatSubscriptionDate as formatDate } from "@/utils/subscriptionDisplay";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Href } from "expo-router";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -67,12 +67,6 @@ export default function SubscriptionsScreen() {
     return !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
   }, [sub]);
 
-  const goUpgrade = useCallback(() => {
-    const q = new URLSearchParams();
-    q.set("returnTo", "subscriptions");
-    router.push(`/(logged-in)/upgrade?${q.toString()}` as Href);
-  }, [router]);
-
   const onRefresh = useCallback(async () => {
     if (!userId) return;
     setPullRefreshing(true);
@@ -107,6 +101,14 @@ export default function SubscriptionsScreen() {
     }
   }, []);
 
+  /**
+   * A cancelled-but-still-active subscription can't be re-bought: both stores
+   * reject a second purchase of a product the account already owns, and the
+   * paywall would bounce straight back here because RevenueCat still reports
+   * the entitlement. Resubscribing happens in the store's own UI.
+   */
+  const onResubscribe = onManageSubscription;
+
   const onRestore = useCallback(async () => {
     setRestoring(true);
     try {
@@ -114,11 +116,13 @@ export default function SubscriptionsScreen() {
       if (!result.hasCrittrPro) {
         Alert.alert(
           "Nothing to restore",
-          "We couldn't find an active Crittr Pro subscription on this account.",
+          `We couldn't find an active Crittr Pro subscription on the ${storeAccountLabel()} signed in on this device.`,
         );
         return;
       }
-      await syncCrittrProForSession(userId);
+      if (userId) {
+        await syncCrittrProForSession(userId);
+      }
       await refreshProfileOnly();
       if (userId) {
         await queryClient.invalidateQueries({
@@ -181,7 +185,7 @@ export default function SubscriptionsScreen() {
               : detailsLoading
                 ? "Checking your subscription status…"
                 : pendingNonRenewalAccess
-                  ? "Your plan is set to end with this billing period. You can resubscribe in the App Store or Play Store to continue without a gap."
+                  ? `Your plan is set to end with this billing period. You can resubscribe in ${storePhrase()} to continue without a gap.`
                   : ""}
           </Text>
 
@@ -211,7 +215,7 @@ export default function SubscriptionsScreen() {
             <>
               <View style={styles.cancelPushSpacer} />
               <OrangeButton
-                onPress={goUpgrade}
+                onPress={onResubscribe}
                 accessibilityLabel="Re-subscribe to Crittr Pro"
               >
                 Re-subscribe to Crittr Pro
@@ -302,7 +306,7 @@ export default function SubscriptionsScreen() {
               <>
                 <View style={styles.cancelPushSpacer} />
                 <OrangeButton
-                  onPress={goUpgrade}
+                  onPress={onResubscribe}
                   accessibilityLabel="Re-subscribe to Crittr Pro"
                 >
                   Re-subscribe to Crittr Pro
@@ -353,8 +357,8 @@ export default function SubscriptionsScreen() {
         ) : !detailsLoading ? (
           <View style={styles.card}>
             <Text style={styles.errText}>
-              We couldn't find subscription details. Pull to refresh or try
-              again later.
+              We couldn&apos;t find subscription details. Pull to refresh or
+              try again later.
             </Text>
             <OrangeButton
               onPress={() => void refetch()}

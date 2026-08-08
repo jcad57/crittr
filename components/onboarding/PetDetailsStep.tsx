@@ -1,8 +1,7 @@
-import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
+import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSection";
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
-import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
@@ -13,7 +12,6 @@ import { Colors } from "@/constants/colors";
 import {
   getBreedLabelForPetType,
   PET_INFO_FIELD_MARGIN_BOTTOM,
-  shouldShowExerciseField,
 } from "@/constants/petInfo";
 import { Font } from "@/constants/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -26,7 +24,7 @@ import {
   type PetInfoMissingFields,
 } from "@/utils/petInfoValidation";
 import {
-  PET_FOOD_STEP_INDEX,
+  PET_EXERCISE_STEP_INDEX,
   PET_LITTER_MAINTENANCE_STEP_INDEX,
   shouldShowFirstCatLitterOnboardingStep,
 } from "@/utils/onboardingPetFlow";
@@ -74,12 +72,8 @@ export default function PetDetailsStep() {
   );
 
   const breedLabel = getBreedLabelForPetType(pet.petType);
-  const showExercise = shouldShowExerciseField(pet.petType);
 
-  const missing = useMemo(
-    () => getPetInfoMissingFields(pet, showExercise),
-    [pet, showExercise],
-  );
+  const missing = useMemo(() => getPetInfoMissingFields(pet), [pet]);
 
   const isValid = isPetInfoComplete(missing);
 
@@ -97,7 +91,7 @@ export default function PetDetailsStep() {
     ) {
       goToStep(PET_LITTER_MAINTENANCE_STEP_INDEX);
     } else {
-      goToStep(PET_FOOD_STEP_INDEX);
+      goToStep(PET_EXERCISE_STEP_INDEX);
     }
   }, [
     isValid,
@@ -224,29 +218,6 @@ export default function PetDetailsStep() {
         containerStyle={styles.inputSpacing}
       />
 
-      <PetEnergyLevelToggle
-        energyLevel={pet.energyLevel}
-        onChange={(level) => updateCurrentPet({ energyLevel: level })}
-        error={!!err("energyLevel")}
-      />
-
-      {showExercise ? (
-        <FormInput
-          label="Number of activities per day"
-          required
-          placeholder={
-            pet.petType === "cat"
-              ? "e.g. play time, laser pointer, wand toys"
-              : "Include walks, dog park visits, etc."
-          }
-          value={pet.exercisesPerDay}
-          onChangeText={(v) => updateCurrentPet({ exercisesPerDay: v })}
-          keyboardType="numeric"
-          containerStyle={styles.inputSpacing}
-          error={!!err("exercisesPerDay")}
-        />
-      ) : null}
-
       <Text style={authOnboardingStyles.sectionTitle}>Allergies</Text>
       <TagInput
         placeholder="Search or type an allergy…"
@@ -325,10 +296,6 @@ const styles = StyleSheet.create({
   },
   inputSpacing: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 24,
   },
   errorHint: {
     fontFamily: Font.uiSemiBold,

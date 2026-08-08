@@ -3,15 +3,23 @@ import {
   customerInfoHasCrittrPro as rcCustomerInfoHasCrittrPro,
 } from "@/lib/iap/crittrProRevenueCat";
 import {
+  mapPurchasesError,
+  type PurchaseFailureKind,
+} from "@/lib/iap/purchaseErrors";
+import {
+  canMakeStorePayments,
   configureRevenueCat,
+  getRevenueCatCustomerInfo,
   isRevenueCatConfigured,
   loginRevenueCatUser,
 } from "@/lib/iap/revenueCat";
-import { syncCrittrProAfterCheckout } from "@/lib/iap/entitlementSync";
+import {
+  syncCrittrProAfterCheckout,
+  syncCrittrProAfterRestore,
+} from "@/lib/iap/entitlementSync";
 import { supabase } from "@/lib/supabase";
 import Purchases, {
   type CustomerInfo,
-  type PurchasesError,
   type PurchasesOffering,
   type PurchasesPackage,
 } from "react-native-purchases";
@@ -28,6 +36,8 @@ export type ProPurchaseResult = {
 export type ProPurchaseError = {
   /** True when the user dismissed the StoreKit / Play Billing sheet. */
   userCancelled: boolean;
+  /** How the caller should recover — see `PurchaseFailureKind`. */
+  kind?: PurchaseFailureKind;
   /** RC error code when available (e.g. PURCHASE_INVALID_ERROR). */
   code?: string;
   message: string;
@@ -35,21 +45,38 @@ export type ProPurchaseError = {
 
 export class ProPurchaseException extends Error {
   readonly userCancelled: boolean;
+  readonly kind: PurchaseFailureKind;
   readonly code?: string;
 
   constructor(err: ProPurchaseError) {
     super(err.message);
     this.name = "ProPurchaseException";
     this.userCancelled = err.userCancelled;
+    this.kind = err.kind ?? (err.userCancelled ? "cancelled" : "failed");
     this.code = err.code;
   }
+}
+
+function toProPurchaseException(
+  raw: unknown,
+  fallbackMessage: string,
+): ProPurchaseException {
+  const mapped = mapPurchasesError(raw, fallbackMessage);
+  return new ProPurchaseException({
+    userCancelled: mapped.kind === "cancelled",
+    kind: mapped.kind,
+    code: mapped.code,
+    message: mapped.message,
+  });
 }
 
 export type OfferingFetchFailure =
   /** RevenueCat SDK was never configured (missing public API key in build). */
   | "rc_not_configured"
-  /** SDK call threw — usually App Store Connect agreements / banking / product approval. */
+  /** SDK call threw — usually store agreements / banking / product approval. */
   | "get_offerings_failed"
+  /** The device or account can't purchase at all (Play BILLING_UNAVAILABLE). */
+  | "billing_unavailable"
   /** Offerings loaded but none flagged as "current" / default in the RC dashboard. */
   | "no_current_offering"
   /** Current offering exists but the requested package (monthly/annual) is missing. */
@@ -87,6 +114,14 @@ async function loadCurrentOffering(): Promise<
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn("[iapCheckout] getOfferings failed", msg);
+    /**
+     * Google Play reports "no products" and "this device can't buy anything"
+     * through the same failed catalog fetch, so ask the store which one it is
+     * before we pick the message the user reads.
+     */
+    if (!(await canMakeStorePayments())) {
+      return { ok: false, reason: "billing_unavailable", detail: msg };
+    }
     return { ok: false, reason: "get_offerings_failed", detail: msg };
   }
 }
@@ -139,6 +174,27 @@ export function customerInfoHasCrittrPro(info: CustomerInfo): boolean {
 }
 
 /**
+ * Cheap RC-only check used by the upgrade / checkout screens to short-circuit
+ * the paywall when the user already has Pro on this device — e.g. a promo
+ * code was redeemed in the App Store before sign-up completed, or a previous
+ * session purchased and we're returning to the screen via deep link.
+ *
+ * Returns `null` when RC isn't configured / the SDK fails so callers fall
+ * back to the regular flow.
+ */
+export async function detectExistingCrittrProEntitlement(): Promise<
+  | { hasCrittrPro: true; customerInfo: CustomerInfo }
+  | { hasCrittrPro: false; customerInfo: CustomerInfo | null }
+> {
+  const info = await getRevenueCatCustomerInfo();
+  if (!info) return { hasCrittrPro: false, customerInfo: null };
+  return {
+    hasCrittrPro: customerInfoHasCrittrPro(info),
+    customerInfo: info,
+  };
+}
+
+/**
  * Fires the platform purchase sheet for the chosen package. Returns the new
  * CustomerInfo from RC; throws `ProPurchaseException` on cancel / error so the
  * caller can react accordingly.
@@ -179,22 +235,14 @@ export async function purchaseProPackage(
       hasCrittrPro: customerInfoHasCrittrPro(result.customerInfo),
     };
   } catch (raw) {
-    const err = raw as PurchasesError & {
-      userCancelled?: boolean;
-      message?: string;
-      code?: string;
-    };
-    throw new ProPurchaseException({
-      userCancelled: Boolean(err?.userCancelled),
-      code: err?.code,
-      message: err?.message ?? "Purchase could not be completed.",
-    });
+    throw toProPurchaseException(raw, "Purchase could not be completed.");
   }
 }
 
 /**
  * Restores prior in-app purchases via the active store account. Apple requires
- * this entry point on every paywall and inside subscription management.
+ * this entry point on every paywall and inside subscription management, and it
+ * is the recovery path on Play after a reinstall or account switch.
  */
 export async function restoreProPurchases(): Promise<ProPurchaseResult> {
   const {
@@ -224,16 +272,7 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
       hasCrittrPro: customerInfoHasCrittrPro(customerInfo),
     };
   } catch (raw) {
-    const err = raw as PurchasesError & {
-      userCancelled?: boolean;
-      message?: string;
-      code?: string;
-    };
-    throw new ProPurchaseException({
-      userCancelled: Boolean(err?.userCancelled),
-      code: err?.code,
-      message: err?.message ?? "We couldn't restore your purchases.",
-    });
+    throw toProPurchaseException(raw, "We couldn't restore your purchases.");
   }
 }
 
@@ -242,12 +281,21 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
  * from RevenueCat (so the rest of the app — gates, ads, AI, co-care — sees
  * Pro), then poll the profile until the column reflects active Pro.
  *
- * The Edge Function polls RevenueCat REST internally (purchase propagation lag).
- * We avoid hammering it every 2s: one sync, fast profile poll, optional second sync.
+ * `source` controls which entitlement-sync helper we call (purchase vs
+ * restore vs whatever came from outside). Both helpers use the long-poll
+ * patience budget in the edge function so promo / family-share propagation
+ * lag is tolerated.
+ *
+ * The Edge Function polls RevenueCat REST internally (purchase propagation
+ * lag). We avoid hammering it every 2s: one sync, fast profile poll,
+ * optional second sync.
  */
 export async function waitForProActivation(
   maxWaitMs = 75_000,
-  options?: { purchaseCustomerInfo?: CustomerInfo },
+  options?: {
+    purchaseCustomerInfo?: CustomerInfo;
+    source?: "purchase" | "restore";
+  },
 ): Promise<void> {
   const {
     data: { user },
@@ -273,13 +321,21 @@ export async function waitForProActivation(
     }
   }
 
-  const rcId = await safeGetRevenueCatAppUserId();
-  const alternates = alternateRcIdsForSync(
-    options?.purchaseCustomerInfo,
-    rcId,
-  );
+  const source = options?.source ?? "purchase";
+  const triggerSync = async (): Promise<void> => {
+    if (source === "restore") {
+      await syncCrittrProAfterRestore(user.id);
+      return;
+    }
+    const rcId = await safeGetRevenueCatAppUserId();
+    const alternates = alternateRcIdsForSync(
+      options?.purchaseCustomerInfo,
+      rcId,
+    );
+    await syncCrittrProAfterCheckout(rcId, alternates);
+  };
 
-  await syncCrittrProAfterCheckout(rcId, alternates);
+  await triggerSync();
   if (await profileShowsActivePro()) return;
 
   const deadline = Date.now() + maxWaitMs;
@@ -296,9 +352,7 @@ export async function waitForProActivation(
     }
   }
 
-  const rcIdRetry = await safeGetRevenueCatAppUserId();
-  await syncCrittrProAfterCheckout(rcIdRetry, alternates);
-
+  await triggerSync();
   if (await profileShowsActivePro()) return;
 
   throw new Error(

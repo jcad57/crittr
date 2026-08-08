@@ -73,6 +73,7 @@ Deno.serve(async (req: Request) => {
       appUserId?: string;
       source?: string;
       alternateAppUserIds?: unknown;
+      patience?: "short" | "long";
     };
 
     const alternateRaw = body.alternateAppUserIds;
@@ -85,7 +86,18 @@ Deno.serve(async (req: Request) => {
         ? body.appUserId
         : user.id;
 
-    const isCheckout = body.source === "checkout";
+    /**
+     * Long polling budget is used when the client knows a recent purchase /
+     * promo redemption is about to surface in RevenueCat (checkout success,
+     * Restore tap, first session after sign-up). Short budget is used for
+     * routine focus-triggered refreshes where we don't want to hammer RC.
+     */
+    const longPoll =
+      body.patience === "long" ||
+      body.source === "checkout" ||
+      body.source === "session" ||
+      body.source === "restore" ||
+      body.source === "app_launch";
 
     const { before, after } = await reconcileCrittrProForUser(
       supabaseAdmin,
@@ -93,7 +105,7 @@ Deno.serve(async (req: Request) => {
       appUserId,
       {
         alternateAppUserIds,
-        subscriberSync: isCheckout
+        subscriberSync: longPoll
           ? { maxAttempts: 12, delayMs: 2_000 }
           : { maxAttempts: 3, delayMs: 2_000 },
       },

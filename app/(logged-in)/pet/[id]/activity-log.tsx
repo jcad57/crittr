@@ -1,27 +1,33 @@
-import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import PetActivityLogRow from "@/components/ui/pet/PetActivityLogRow";
+import ActivityHistoryFilterBar from "@/components/ui/activity/ActivityHistoryFilterBar";
+import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
+import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import {
+  computeWeeklySummary,
   convertActivities,
   groupActivityHistory,
+  type ActivityFilterCategory,
   type ActivityHistoryEntry,
 } from "@/data/activityHistory";
+import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";
 import {
+  useActivitiesOnDayQuery,
   useAllActivitiesQuery,
   usePetDetailsQuery,
   useProfilesByIdsQuery,
 } from "@/hooks/queries";
-import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { buildActivityLoggerNameMap } from "@/utils/profileDisplay";
 import { useAuthStore } from "@/stores/authStore";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -38,16 +44,14 @@ type Section = {
   data: ActivityHistoryEntry[];
 };
 
-/** Matches `OrangeButton` wrapper height (50 + 5). */
-const ORANGE_BUTTON_WRAPPER_HEIGHT = 55;
-
-const BOTTOM_BAR_PADDING_TOP = 8;
-
-export default function PetActivityLogScreen() {
+/**
+ * Full activity history for a pet (formerly the Activity tab).
+ * Reached from the pet profile “Activity history” row.
+ */
+export default function PetActivityHistoryScreen() {
   const insets = useSafeAreaInsets();
   const { push, replace, router } = useNavigationCooldown();
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
-  const setActivePetMutation = useSetActivePetMutation();
 
   const { id: petIdParam } = useLocalSearchParams<{
     id?: string | string[];
@@ -61,19 +65,34 @@ export default function PetActivityLogScreen() {
 
   const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
 
-  const { data: details, isLoading: loadingPet } =
-    usePetDetailsQuery(petId);
-  const { data: rawActivities, isLoading: isActivitiesLoading } =
-    useAllActivitiesQuery(petId);
+  const { data: details, isLoading: loadingPet } = usePetDetailsQuery(petId);
+  const activityPetType = details?.pet_type ?? null;
+  const canLogActivities = useCanPerformAction(petId, "can_log_activities");
+
+  const [filter, setFilter] = useState<ActivityFilterCategory>("all");
+  const [newestFirst, setNewestFirst] = useState(true);
+  const [dateFilterYmd, setDateFilterYmd] = useState<string | null>(null);
+
+  const {
+    data: rawActivities,
+    isLoading: isActivitiesLoading,
+    isFetchingNextPage: isLoadingMoreActivities,
+    fetchNextPage: loadMoreActivities,
+  } = useAllActivitiesQuery(petId);
+
+  const { data: dayActivities, isLoading: isDayActivitiesLoading } =
+    useActivitiesOnDayQuery(petId, dateFilterYmd);
+
+  const visibleActivities = dateFilterYmd ? dayActivities : rawActivities;
   const currentUserId = useAuthStore((s) => s.session?.user?.id);
 
   const activityLoggerIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const a of rawActivities ?? []) {
+    for (const a of visibleActivities ?? []) {
       if (a.logged_by) ids.add(a.logged_by);
     }
     return [...ids];
-  }, [rawActivities]);
+  }, [visibleActivities]);
 
   const { data: loggerProfiles, isSuccess: loggerProfilesReady } =
     useProfilesByIdsQuery(activityLoggerIds);
@@ -88,31 +107,51 @@ export default function PetActivityLogScreen() {
     [loggerProfiles, activityLoggerIds, loggerProfilesReady],
   );
 
+  useEffect(() => {
+    const allowed = new Set(
+      activityFilterMenuItems(activityPetType).map((x) => x.id),
+    );
+    if (!allowed.has(filter)) setFilter("all");
+  }, [activityPetType, filter]);
+
   const allEntries = useMemo(
     () =>
       convertActivities(
-        rawActivities ?? [],
+        visibleActivities ?? [],
         loggerNameByUserId,
         currentUserId,
         timeDisplay,
       ),
-    [rawActivities, loggerNameByUserId, currentUserId, timeDisplay],
+    [visibleActivities, loggerNameByUserId, currentUserId, timeDisplay],
+  );
+
+  const weeklySummary = useMemo(
+    () => (rawActivities?.length ? computeWeeklySummary(rawActivities) : null),
+    [rawActivities],
   );
 
   const sections: Section[] = useMemo(
     () =>
-      groupActivityHistory(allEntries, "all", true, dateDisplay).map((s) => ({
-        title: s.title,
-        dateKey: s.dateKey,
-        data: s.data,
-      })),
-    [allEntries, dateDisplay],
+      groupActivityHistory(allEntries, filter, newestFirst, dateDisplay).map(
+        (s) => ({
+          title: s.title,
+          dateKey: s.dateKey,
+          data: s.data,
+        }),
+      ),
+    [allEntries, filter, newestFirst, dateDisplay],
   );
 
-  const goToActivityTab = useCallback(() => {
-    if (petId) setActivePetMutation.mutate(petId);
-    push("/(logged-in)/activity" as Href);
-  }, [petId, push, setActivePetMutation]);
+  const handleLogActivity = useCallback(() => {
+    push("/(logged-in)/add-activity");
+  }, [push]);
+
+  const openActivityEditor = useCallback(
+    (activityId: string) => {
+      push(`/(logged-in)/manage-activity-item/${activityId}` as Href);
+    },
+    [push],
+  );
 
   if (!petId) {
     return (
@@ -138,17 +177,29 @@ export default function PetActivityLogScreen() {
     );
   }
 
-  const listHeader = (
-    <View style={styles.listHeader}>
-      <Text style={styles.lead}>
-        A quick read-only timeline for {details.name}. Log new entries or edit
-        existing ones from the Activity tab.
-      </Text>
+  const listScrollHeader = (
+    <View style={styles.listScrollHeader}>
+      {weeklySummary ? (
+        <>
+          <Text style={styles.weekAtGlanceTitle}>Week at a glance</Text>
+          <ActivityWeeklySummaryStrip
+            summary={weeklySummary}
+            variant={activityPetType === "cat" ? "cat" : "default"}
+          />
+        </>
+      ) : null}
+
+      <ActivityHistoryFilterBar
+        petType={activityPetType}
+        filter={filter}
+        onFilterChange={setFilter}
+        newestFirst={newestFirst}
+        onNewestFirstChange={setNewestFirst}
+        dateFilterYmd={dateFilterYmd}
+        onDateFilterChange={setDateFilterYmd}
+      />
     </View>
   );
-
-  const listPaddingBottom =
-    BOTTOM_BAR_PADDING_TOP + ORANGE_BUTTON_WRAPPER_HEIGHT + insets.bottom;
 
   return (
     <View style={styles.screen}>
@@ -159,14 +210,25 @@ export default function PetActivityLogScreen() {
           </Pressable>
         </View>
         <Text style={styles.navTitle} numberOfLines={1}>
-          Activity log
+          Activity history
         </Text>
         <View style={styles.navSideRight}>
-          <PetNavAvatar
-            displayPet={details}
-            accessibilityLabelPrefix="Activity log for"
-            onAfterSwitchPet={onPetSwitch}
-          />
+          {canLogActivities === true ? (
+            <Pressable
+              style={styles.fab}
+              onPress={handleLogActivity}
+              accessibilityRole="button"
+              accessibilityLabel="Log activity"
+            >
+              <MaterialCommunityIcons name="plus" size={22} color={Colors.white} />
+            </Pressable>
+          ) : (
+            <PetNavAvatar
+              displayPet={details}
+              accessibilityLabelPrefix="Activity history for"
+              onAfterSwitchPet={onPetSwitch}
+            />
+          )}
         </View>
       </View>
 
@@ -181,46 +243,45 @@ export default function PetActivityLogScreen() {
           </View>
         )}
         renderItem={({ item }) => (
-          <PetActivityLogRow
-            entry={item}
-            petType={details?.pet_type ?? null}
-          />
+          <View style={styles.rowWrap}>
+            <ActivityHistoryRow
+              entry={item}
+              petType={activityPetType}
+              onPress={() => openActivityEditor(item.id)}
+            />
+          </View>
         )}
-        ItemSeparatorComponent={() => <View style={styles.rowSep} />}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
-        ListHeaderComponent={listHeader}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ListHeaderComponent={listScrollHeader}
+        onEndReached={dateFilterYmd ? undefined : loadMoreActivities}
+        onEndReachedThreshold={0.6}
+        ListFooterComponent={
+          isLoadingMoreActivities ? (
+            <View style={styles.listFooter}>
+              <ActivityIndicator size="small" color={Colors.orange} />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyBlock}>
-            {isActivitiesLoading ? (
+            {isActivitiesLoading || isDayActivitiesLoading ? (
               <ActivityIndicator size="large" color={Colors.orange} />
             ) : (
               <Text style={styles.emptyText}>
-                No activities yet for {details.name}.
+                {dateFilterYmd != null
+                  ? "No activities on this date for this pet."
+                  : `No activities yet for ${details.name}.`}
               </Text>
             )}
           </View>
         }
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: listPaddingBottom },
+          { paddingBottom: insets.bottom + 24 },
         ]}
         showsVerticalScrollIndicator={false}
       />
-
-      <View
-        style={[
-          styles.bottomBar,
-          { paddingBottom: insets.bottom },
-        ]}
-      >
-        <OrangeButton
-          onPress={goToActivityTab}
-          accessibilityLabel="Open Activity tab to log or edit activities"
-          accessibilityHint="Switches to the main Activity screen for this pet"
-        >
-          Manage in Activity
-        </OrangeButton>
-      </View>
     </View>
   );
 }
@@ -259,7 +320,7 @@ const styles = StyleSheet.create({
   },
   navSideRight: {
     width: 72,
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "center",
   },
   navBack: {
@@ -275,25 +336,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginHorizontal: 8,
   },
+  fab: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   list: { flex: 1 },
   listContent: {
     paddingHorizontal: 20,
     flexGrow: 1,
   },
-  listHeader: {
-    paddingTop: 6,
-    paddingBottom: 2,
+  listScrollHeader: {
+    gap: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  lead: {
+  weekAtGlanceTitle: {
     fontFamily: Font.uiRegular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    lineHeight: 22,
+    fontSize: 13,
+    color: Colors.gray500,
+    marginBottom: -8,
+  },
+  listFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
   stickyHeader: {
     backgroundColor: Colors.cream,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   sectionHeading: {
     fontFamily: Font.uiSemiBold,
@@ -302,14 +376,13 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
   },
   sectionGap: {
-    height: 6,
+    height: 8,
   },
-  rowSep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.gray100,
+  rowWrap: {
+    marginHorizontal: 0,
   },
   emptyBlock: {
-    paddingVertical: 20,
+    paddingVertical: 32,
     alignItems: "center",
   },
   emptyText: {
@@ -317,12 +390,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
     textAlign: "center",
-  },
-  bottomBar: {
-    paddingHorizontal: 20,
-    paddingTop: BOTTOM_BAR_PADDING_TOP,
-    backgroundColor: Colors.cream,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.creamDark,
   },
 });

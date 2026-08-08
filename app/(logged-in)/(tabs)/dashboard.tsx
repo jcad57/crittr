@@ -12,11 +12,7 @@ import PetManagement from "@/components/ui/dashboard/PetManagement";
 import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import { Colors } from "@/constants/colors";
-import type {
-  DailyProgressCategory,
-  MedicationSummary,
-  PetSummary,
-} from "@/types/ui";
+import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
 import {
   usePetDetailsQuery,
   usePetVetVisitsQuery,
@@ -47,14 +43,14 @@ import {
 } from "@/utils/vetVisitDashboard";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { householdActiveCatIds, userHasAnyActiveCat } from "@/utils/householdCats";
+import { dailyProgressExerciseTarget } from "@/utils/exercisePlans";
 import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
 import { maintenancePeriodStart, formatHouseholdLitterGoalSubtitle } from "@/utils/litterMaintenancePeriod";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
-import { usePetStore } from "@/stores/petStore";
+import { useActivePet } from "@/hooks/useActivePet";
 import type { Href } from "expo-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -69,25 +65,39 @@ export default function Dashboard() {
   const { runWithProOrUpgrade } = useProGateNavigation();
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
 
-  const goToAddPet = useCallback(() => {
-    runWithProOrUpgrade(() => {
-      push("/(logged-in)/add-pet" as Href);
-    });
-  }, [runWithProOrUpgrade, push]);
-
   const {
     data: dbPets,
     isLoading: isPetsLoading,
     refetch: refetchPets,
   } = usePetsQuery();
-  const activePetId = usePetStore((s) => s.activePetId);
-  const setActivePetMutation = useSetActivePetMutation();
+
+  /**
+   * First pet is always free (free-tier limit is one pet). Pro is only
+   * required to add a *second* (or later) pet. This guards against the
+   * "limbo zero-pet" state where a Pro user with stale entitlement gets
+   * gated out of adding a replacement pet after a Pro -> Free transition
+   * cleared their old one.
+   */
+  const livingOwnedPetCount = useMemo(() => {
+    if (!dbPets) return 0;
+    return dbPets.filter(
+      (p) => p.role === "owner" && isPetActiveForDashboard(p),
+    ).length;
+  }, [dbPets]);
+
+  const goToAddPet = useCallback(() => {
+    if (livingOwnedPetCount === 0) {
+      push("/(logged-in)/add-pet" as Href);
+      return;
+    }
+    runWithProOrUpgrade(() => {
+      push("/(logged-in)/add-pet" as Href);
+    });
+  }, [livingOwnedPetCount, runWithProOrUpgrade, push]);
+
+  const { activePetId, pets, switchPet } = useActivePet();
   const { data: unreadCount = 0, refetch: refetchUnreadCount } =
     useUnreadNotificationCountQuery();
-
-  useEffect(() => {
-    if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
-  }, [dbPets]);
 
   const {
     data: activePetDetails,
@@ -146,19 +156,6 @@ export default function Dashboard() {
     ),
   );
 
-  const pets: PetSummary[] = useMemo(
-    () =>
-      (dbPets ?? [])
-        .filter(isPetActiveForDashboard)
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          breed: p.breed ?? "",
-          imageUrl: p.avatar_url,
-        })),
-    [dbPets],
-  );
-
   const dailyProgress: DailyProgressCategory[] = useMemo(() => {
     const details = activePetDetails ?? null;
     const acts = todayActivities ?? [];
@@ -174,8 +171,9 @@ export default function Dashboard() {
           .filter((f) => isTreatFood(f))
           .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
       : 0;
-    const totalExercise =
-      details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
+    const totalExercise = details
+      ? dailyProgressExerciseTarget(details)
+      : 0;
     const medPetId = activePetDetails?.id ?? activePetId ?? "";
     const medProgress =
       details && medPetId
@@ -302,28 +300,16 @@ export default function Dashboard() {
       );
   }, [vetVisitRows, timeDisplay, dateDisplay]);
 
-  const resolvedPetIdForPerm = useMemo(() => {
-    if (
-      activePetId &&
-      (dbPets ?? []).some(
-        (p) => p.id === activePetId && isPetActiveForDashboard(p),
-      )
-    ) {
-      return activePetId;
-    }
-    return (dbPets ?? []).find((p) => isPetActiveForDashboard(p))?.id ?? null;
-  }, [activePetId, dbPets]);
-
   const canLogActivities = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_log_activities",
   );
   const canManageVetVisits = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_manage_vet_visits",
   );
   const canManageMedications = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_manage_medications",
   );
   const medications: MedicationSummary[] = useMemo(() => {
@@ -357,15 +343,9 @@ export default function Dashboard() {
   }, [push]);
 
   const navigateToActivity = useCallback(() => {
-    push("/(logged-in)/activity");
-  }, [push]);
-
-  const handleSwitchPet = useCallback(
-    (id: string) => {
-      setActivePetMutation.mutate(id);
-    },
-    [setActivePetMutation],
-  );
+    if (!activePetId) return;
+    push(`/(logged-in)/pet/${activePetId}/activity-log` as Href);
+  }, [push, activePetId]);
 
   const openMedicationEditor = useCallback(
     (medicationId: string) => {
@@ -471,7 +451,7 @@ export default function Dashboard() {
             <DashboardHeader
               pets={pets}
               activePetId={activePetId}
-              onSwitchPet={handleSwitchPet}
+              onSwitchPet={switchPet}
               unreadNotificationCount={unreadCount}
               onNotificationsPress={() =>
                 push("/(logged-in)/notifications" as Href)

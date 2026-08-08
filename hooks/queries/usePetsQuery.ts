@@ -1,26 +1,37 @@
 import { queryClient } from "@/lib/queryClient";
-import { fetchPetProfile } from "@/services/pets";
+import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetWithDetails, PetWithRole } from "@/types/database";
 import {
   type UseQueryResult,
   useQuery,
 } from "@tanstack/react-query";
-import { fetchAccessiblePetsAndPrefetchDetails } from "./prefetchPetsAndDetails";
+import { useEffect } from "react";
+import { warmPetDetailsCache } from "./prefetchPetsAndDetails";
 import { petDetailsQueryKey, petsQueryKey } from "./queryKeys";
 
 /**
  * All pets the logged-in user has access to (owned + co-cared).
- * Automatically prefetches details for every pet in the background.
+ *
+ * Each pet's full details are warmed in the background off the result, so
+ * switching pets or opening a pet profile has nothing left to wait on.
  */
 export function usePetsQuery(): UseQueryResult<PetWithRole[], Error> {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
-  return useQuery<PetWithRole[], Error>({
+  const query = useQuery<PetWithRole[], Error>({
     queryKey: petsQueryKey(userId ?? ""),
-    queryFn: () => fetchAccessiblePetsAndPrefetchDetails(queryClient, userId!),
+    queryFn: () => fetchAccessiblePets(userId!),
     enabled: !!userId,
   });
+
+  const pets = query.data;
+  useEffect(() => {
+    if (!pets?.length) return;
+    void warmPetDetailsCache(queryClient, pets);
+  }, [pets]);
+
+  return query;
 }
 
 /** Full details for a single pet. */

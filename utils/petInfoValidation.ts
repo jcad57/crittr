@@ -7,8 +7,6 @@ export type PetInfoMissingFields = {
   ageYears: boolean;
   weight: boolean;
   sex: boolean;
-  energyLevel: boolean;
-  exercisesPerDay: boolean;
 };
 
 /** At least one of date of birth or years/months (non-empty numeric pair) is required. */
@@ -23,18 +21,13 @@ export function hasAgeOrDob(pet: PetFormData): boolean {
   return true;
 }
 
-export function getPetInfoMissingFields(
-  pet: PetFormData,
-  showExercise: boolean,
-): PetInfoMissingFields {
+export function getPetInfoMissingFields(pet: PetFormData): PetInfoMissingFields {
   return {
     name: !pet.name.trim(),
     breed: !pet.breed.trim(),
     ageYears: !hasAgeOrDob(pet),
     weight: !pet.weight.trim(),
     sex: pet.sex === "",
-    energyLevel: pet.energyLevel === "",
-    exercisesPerDay: showExercise && !pet.exercisesPerDay.trim(),
   };
 }
 

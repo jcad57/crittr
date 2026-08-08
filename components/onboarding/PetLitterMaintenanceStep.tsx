@@ -7,7 +7,7 @@ import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { LitterCleaningPeriod } from "@/types/database";
 import {
   PET_DETAILS_STEP_INDEX,
-  PET_FOOD_STEP_INDEX,
+  PET_EXERCISE_STEP_INDEX,
 } from "@/utils/onboardingPetFlow";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useMemo, useState } from "react";
@@ -40,7 +40,7 @@ export default function PetLitterMaintenanceStep() {
       setAttempted(true);
       return;
     }
-    goToStep(PET_FOOD_STEP_INDEX);
+    goToStep(PET_EXERCISE_STEP_INDEX);
   }, [isValid, goToStep]);
 
   const handleBack = useCallback(() => {

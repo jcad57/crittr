@@ -5,6 +5,7 @@ import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
 import { configureRevenueCat } from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/queryClient";
+import { startQueryCachePersistence } from "@/lib/queryPersistence";
 import { fetchProPricing } from "@/services/proPricing";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
 import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
@@ -24,7 +25,7 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 setupReactQueryFocusManager();
@@ -43,7 +44,23 @@ export default function SessionGate() {
     DMSans_600SemiBold,
     DMSans_700Bold,
   });
+  const [cacheRestored, setCacheRestored] = useState(false);
   const initialized = useRef(false);
+
+  /**
+   * Restore before auth resolves and before the router mounts: screens read the
+   * cache on their first render, so anything restored later would arrive after
+   * they have already committed to a loading state.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void startQueryCachePersistence().finally(() => {
+      if (!cancelled) setCacheRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -64,7 +81,8 @@ export default function SessionGate() {
     void configureRevenueCat();
   }, []);
 
-  const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
+  const isReady =
+    (fontsLoaded || !!fontError) && cacheRestored && !isAuthLoading;
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();

@@ -2,6 +2,7 @@ import {
   healthSnapshotKey,
   petDetailsQueryKey,
 } from "@/hooks/queries/queryKeys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { queryClient } from "@/lib/queryClient";
 import {
   parseMedicalRecord,
@@ -170,7 +171,7 @@ export function useApplyMedicalRecordScanMutation(petId: string) {
 
       return { medsApplied, vacsApplied };
     },
-    onSuccess: () => {
+    onSuccess: ({ medsApplied }) => {
       void queryClient.invalidateQueries({
         queryKey: petDetailsQueryKey(petId),
       });
@@ -178,6 +179,9 @@ export function useApplyMedicalRecordScanMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+      }
+      if (medsApplied > 0) {
+        requestScheduleResync(petId);
       }
     },
   });

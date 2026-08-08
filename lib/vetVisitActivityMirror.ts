@@ -1,25 +1,43 @@
 import {
   allActivitiesKey,
   healthSnapshotKey,
+  petsQueryKey,
   todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
 import { queryClient } from "@/lib/queryClient";
 import { ensureTodayVetVisitMirrorActivities } from "@/services/activities";
+import { fetchAccessiblePets } from "@/services/pets";
 
-/** Materialize today’s vet visits into `pet_activities` (if missing) and refresh activity queries. */
+/**
+ * Materialize today's vet visits into `pet_activities` (if missing) and refresh
+ * the activity queries that would now be showing the wrong thing.
+ *
+ * On most launches there is nothing to mirror. Invalidating unconditionally
+ * threw away the data the bootstrap prefetch had just loaded and forced a
+ * second round of fetches, so refreshes are now scoped to pets that actually
+ * changed.
+ */
 export async function syncTodayVetVisitMirrorsToActivities(
   userId: string,
 ): Promise<void> {
-  const { petIds } = await ensureTodayVetVisitMirrorActivities(userId);
-  void queryClient.invalidateQueries({
-    queryKey: healthSnapshotKey(userId),
+  /** Shares the bootstrap's in-flight pets request instead of issuing another. */
+  const pets = await queryClient.fetchQuery({
+    queryKey: petsQueryKey(userId),
+    queryFn: () => fetchAccessiblePets(userId),
   });
-  for (const id of petIds) {
+
+  const { changedPetIds } = await ensureTodayVetVisitMirrorActivities(
+    userId,
+    pets,
+  );
+
+  if (changedPetIds.length === 0) return;
+
+  void queryClient.invalidateQueries({ queryKey: healthSnapshotKey(userId) });
+  for (const id of changedPetIds) {
     void queryClient.invalidateQueries({
       queryKey: todayActivitiesPrefixKey(id),
     });
-    void queryClient.invalidateQueries({
-      queryKey: allActivitiesKey(id),
-    });
+    void queryClient.invalidateQueries({ queryKey: allActivitiesKey(id) });
   }
 }

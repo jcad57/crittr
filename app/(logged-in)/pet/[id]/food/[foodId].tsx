@@ -4,7 +4,6 @@ import PetFoodMealScheduleSection from "@/components/petScreens/food/PetFoodMeal
 import PetFoodNavHeader from "@/components/petScreens/food/PetFoodNavHeader";
 import PetFoodNoPermissionAddView from "@/components/petScreens/food/PetFoodNoPermissionAddView";
 import PetFoodReadOnlyView from "@/components/petScreens/food/PetFoodReadOnlyView";
-import PetFoodTreatSection from "@/components/petScreens/food/PetFoodTreatSection";
 import PetFoodTypeToggle from "@/components/petScreens/food/PetFoodTypeToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
@@ -50,6 +49,9 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 
+const TREAT_DEFAULT_UNIT = "Piece(s)";
+const MEAL_DEFAULT_UNIT = "Cups";
+
 export default function EditPetFoodScreen() {
   const { id: rawPetId, foodId: rawFoodId } = useLocalSearchParams<{
     id: string;
@@ -80,13 +82,9 @@ export default function EditPetFoodScreen() {
     : undefined;
 
   const [brand, setBrand] = useState("");
-  const [portionSize, setPortionSize] = useState("");
-  const [portionUnit, setPortionUnit] = useState<string>("Cups");
-  const [mealsPerDay, setMealsPerDay] = useState("1");
   const [isTreat, setIsTreat] = useState(false);
   const [notes, setNotes] = useState("");
   const [attempted, setAttempted] = useState(false);
-  /** Meal-only: scheduled portions with times. */
   const [mealPortions, setMealPortions] = useState<MealPortionDraft[]>([]);
   const [portionModalVisible, setPortionModalVisible] = useState(false);
   const [portionModalTitle, setPortionModalTitle] = useState("Add a portion");
@@ -102,34 +100,31 @@ export default function EditPetFoodScreen() {
     setNotes(existing.notes?.trim() ?? "");
     const treat = isTreatFood(existing);
     setIsTreat(treat);
-    if (treat) {
-      setPortionSize(existing.portion_size?.trim() ?? "");
-      setPortionUnit(existing.portion_unit?.trim() || "Cups");
-      const n = existing.meals_per_day;
-      setMealsPerDay(n != null && n >= 1 ? String(n) : "1");
-      setMealPortions([]);
+    const parsed = portionsForPetFood(existing);
+    if (parsed.length > 0) {
+      setMealPortions(
+        parsed.map((p) => ({
+          key: p.id,
+          portionSize: p.portion_size?.trim() ?? "",
+          portionUnit:
+            p.portion_unit?.trim() ||
+            (treat ? TREAT_DEFAULT_UNIT : MEAL_DEFAULT_UNIT),
+          feedTime: pgTimeToDate(p.feed_time),
+        })),
+      );
     } else {
-      setPortionSize("");
-      setMealsPerDay("1");
-      const parsed = portionsForPetFood(existing);
-      if (parsed.length > 0) {
-        setMealPortions(
-          parsed.map((p) => ({
-            key: p.id,
-            portionSize: p.portion_size?.trim() ?? "",
-            portionUnit: p.portion_unit?.trim() || "Cups",
-            feedTime: pgTimeToDate(p.feed_time),
-          })),
-        );
-      } else {
-        setMealPortions(deriveMealPortionsFromLegacy(existing));
-      }
+      setMealPortions(
+        deriveMealPortionsFromLegacy(
+          existing,
+          treat ? TREAT_DEFAULT_UNIT : MEAL_DEFAULT_UNIT,
+        ),
+      );
     }
   }, [isNew, existing]);
 
   const isValid = useMemo(
-    () => isPetFoodFormValid({ brand, isTreat, mealsPerDay, mealPortions }),
-    [brand, isTreat, mealsPerDay, mealPortions],
+    () => isPetFoodFormValid({ brand, mealPortions }),
+    [brand, mealPortions],
   );
 
   const handleSave = useCallback(async () => {
@@ -139,9 +134,6 @@ export default function EditPetFoodScreen() {
     const payload = buildPetFoodPayload({
       brand,
       isTreat,
-      portionSize,
-      portionUnit,
-      mealsPerDay,
       notes,
       mealPortions,
     });
@@ -163,9 +155,6 @@ export default function EditPetFoodScreen() {
     foodIdParam,
     brand,
     isTreat,
-    portionSize,
-    portionUnit,
-    mealsPerDay,
     notes,
     mealPortions,
     insertMut,
@@ -268,6 +257,7 @@ export default function EditPetFoodScreen() {
     setPortionEditorDraft,
     setPortionModalVisible,
     setPortionModalTitle,
+    defaultPortionUnit: isTreat ? TREAT_DEFAULT_UNIT : MEAL_DEFAULT_UNIT,
   });
 
   return (
@@ -294,9 +284,7 @@ export default function EditPetFoodScreen() {
             <Text style={styles.lead}>
               {isNew
                 ? "Add a meal or treat for this pet."
-                : isTreat
-                  ? "Update brand, portion, and how often it’s given."
-                  : "Update brand and each meal portion with its feeding time."}
+                : "Update brand and each portion with its feeding time."}
             </Text>
 
             <FormInput
@@ -313,34 +301,16 @@ export default function EditPetFoodScreen() {
               onChange={(nextIsTreat) => {
                 if (nextIsTreat === isTreat) return;
                 setIsTreat(nextIsTreat);
-                setMealPortions([]);
-                if (nextIsTreat) {
-                  setPortionSize("");
-                  setMealsPerDay("1");
-                }
               }}
             />
 
-            {isTreat ? (
-              <PetFoodTreatSection
-                portionSize={portionSize}
-                setPortionSize={setPortionSize}
-                portionUnit={portionUnit}
-                setPortionUnit={setPortionUnit}
-                mealsPerDay={mealsPerDay}
-                setMealsPerDay={setMealsPerDay}
-                attempted={attempted}
-                isValid={isValid}
-              />
-            ) : (
-              <PetFoodMealScheduleSection
-                mealPortions={mealPortions}
-                petNameForTitle={petNameForTitle}
-                onAddPortion={openAddPortion}
-                onEditPortion={openEditPortion}
-                onRemovePortion={removePortion}
-              />
-            )}
+            <PetFoodMealScheduleSection
+              mealPortions={mealPortions}
+              petNameForTitle={petNameForTitle}
+              onAddPortion={openAddPortion}
+              onEditPortion={openEditPortion}
+              onRemovePortion={removePortion}
+            />
 
             <FormInput
               label="Notes"
@@ -353,9 +323,7 @@ export default function EditPetFoodScreen() {
 
             {attempted && !isValid ? (
               <Text style={styles.formError}>
-                {isTreat
-                  ? "Please enter a brand and a valid times-per-day (1–8)."
-                  : "Please enter a brand and at least one portion with an amount."}
+                Please enter a brand and at least one portion with an amount.
               </Text>
             ) : null}
           </View>

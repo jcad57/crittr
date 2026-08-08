@@ -9,17 +9,25 @@ import {
 } from "@/hooks/queries/queryKeys";
 import {
   ProPurchaseException,
+  detectExistingCrittrProEntitlement,
   fetchProPackageForBillingDetailed,
   purchaseProPackage,
   restoreProPurchases,
   waitForProActivation,
+  type OfferingFetchFailure,
   type ProBillingParam,
   type ProPurchaseResult,
 } from "@/lib/iap/checkout";
+import {
+  PLAY_REDEEM_URL,
+  storeAccountLabel,
+  storePhrase,
+} from "@/lib/iap/storeTerms";
 import { useAuthStore } from "@/stores/authStore";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,16 +47,12 @@ type Phase =
   | "ready"
   | "dismissed"
   | "confirming"
+  /** Play accepted the order but it needs to clear (cash, carrier, approval). */
+  | "pending"
   | "error";
 
 /** User-facing copy for each `loadCurrentOffering` failure mode. Detail string is logged separately. */
-function userFacingOfferingMessage(
-  reason:
-    | "rc_not_configured"
-    | "no_current_offering"
-    | "package_missing"
-    | "get_offerings_failed",
-): string {
+function userFacingOfferingMessage(reason: OfferingFetchFailure): string {
   switch (reason) {
     case "rc_not_configured":
       return "Subscriptions aren't available in this build. Please update Crittr or contact support.";
@@ -56,8 +60,10 @@ function userFacingOfferingMessage(
       return "Crittr Pro isn't available right now. Please try again in a minute or contact support if this persists.";
     case "package_missing":
       return "This subscription option isn't available right now. Please try the other plan or try again later.";
+    case "billing_unavailable":
+      return `Purchases aren't available on this device. Make sure you're signed in to ${storePhrase()} and that purchases aren't restricted for your ${storeAccountLabel()}.`;
     case "get_offerings_failed":
-      return "We couldn't reach the App Store. Please check your connection and try again.";
+      return `We couldn't reach ${storePhrase()}. Please check your connection and try again.`;
   }
 }
 
@@ -89,6 +95,29 @@ export default function ProCheckoutScreen() {
     purchasedRef.current = false;
 
     try {
+      /**
+       * Short-circuit if RevenueCat already reports an active Crittr Pro
+       * entitlement for this Apple/Google account. This is how we avoid
+       * showing a paywall to a user who redeemed a promo code outside the
+       * app (e.g. via App Store offer code link), or who has an existing
+       * subscription tied to a different login on the same store account.
+       *
+       * Important: we treat this as a "restore"-style activation. We don't
+       * want to charge the user a second time just because their Supabase
+       * profile hadn't picked up the RC entitlement yet.
+       */
+      const existing = await detectExistingCrittrProEntitlement();
+      if (existing.hasCrittrPro) {
+        purchaseResultRef.current = {
+          customerInfo: existing.customerInfo,
+          productIdentifier: "",
+          hasCrittrPro: true,
+        };
+        purchasedRef.current = true;
+        setPhase("confirming");
+        return;
+      }
+
       const offering = await fetchProPackageForBillingDetailed(billing);
       if (!offering.ok) {
         const baseMsg = userFacingOfferingMessage(offering.reason);
@@ -113,9 +142,27 @@ export default function ProCheckoutScreen() {
         setPhase("confirming");
       }
     } catch (e) {
-      if (e instanceof ProPurchaseException && e.userCancelled) {
-        setPhase("dismissed");
-        return;
+      if (e instanceof ProPurchaseException) {
+        if (e.kind === "cancelled") {
+          setPhase("dismissed");
+          return;
+        }
+        /**
+         * Play can accept an order that settles later, and it can reject a
+         * repeat purchase for a product the account already owns. Neither is
+         * a failed checkout, and in both cases charging again is the wrong
+         * move — activate or wait instead.
+         */
+        if (e.kind === "pending") {
+          setErrorMessage(e.message);
+          setPhase("pending");
+          return;
+        }
+        if (e.kind === "already_owned") {
+          purchasedRef.current = true;
+          setPhase("confirming");
+          return;
+        }
       }
       const msg = e instanceof Error ? e.message : "Something went wrong";
       setErrorMessage(msg);
@@ -134,8 +181,21 @@ export default function ProCheckoutScreen() {
 
     void (async () => {
       try {
+        /**
+         * The fast post-purchase path only applies when the store just handed
+         * us a receipt. Everything else that lands here — the
+         * existing-entitlement short-circuit, `restorePurchases`, or Play
+         * rejecting a repeat buy for a product the account already owns —
+         * needs the backend's long-poll patience budget instead.
+         */
+        const cachedResult = purchaseResultRef.current;
+        const source =
+          cachedResult && cachedResult.productIdentifier !== ""
+            ? ("purchase" as const)
+            : ("restore" as const);
         await waitForProActivation(75_000, {
-          purchaseCustomerInfo: purchaseResultRef.current?.customerInfo,
+          purchaseCustomerInfo: cachedResult?.customerInfo,
+          source,
         });
         if (cancelled) return;
         const uid = useAuthStore.getState().session?.user?.id;
@@ -186,7 +246,7 @@ export default function ProCheckoutScreen() {
       if (!result.hasCrittrPro) {
         Alert.alert(
           "Nothing to restore",
-          "We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, try signing in to the same Apple ID or Google account used for the original purchase.",
+          `We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, make sure this device is signed in to the ${storeAccountLabel()} used for the original purchase.`,
         );
         return;
       }
@@ -201,9 +261,12 @@ export default function ProCheckoutScreen() {
   }, []);
 
   const onPromoCode = useCallback(async () => {
-    if (Platform.OS !== "ios") return;
     try {
-      await Purchases.presentCodeRedemptionSheet();
+      if (Platform.OS === "ios") {
+        await Purchases.presentCodeRedemptionSheet();
+        return;
+      }
+      await WebBrowser.openBrowserAsync(PLAY_REDEEM_URL);
     } catch (e) {
       if (__DEV__) console.warn("[pro-checkout] redeem code", e);
     }
@@ -214,9 +277,11 @@ export default function ProCheckoutScreen() {
   }, [router]);
 
   const trialSubline = useMemo(() => {
-    return billing === "annual"
-      ? `${pricing.annual.formatted}/yr after your 7-day free trial`
-      : `${pricing.monthly.formatted}/mo after your 7-day free trial`;
+    const tier = billing === "annual" ? pricing.annual : pricing.monthly;
+    const cadence = billing === "annual" ? "yr" : "mo";
+    return tier.trial
+      ? `${tier.formatted}/${cadence} after your ${tier.trial.durationLabel} free trial`
+      : `${tier.formatted}/${cadence} · Cancel anytime`;
   }, [billing, pricing]);
 
   return (
@@ -240,6 +305,16 @@ export default function ProCheckoutScreen() {
         </View>
       ) : null}
 
+      {phase === "pending" ? (
+        <View style={styles.centered}>
+          <Text style={styles.title}>Payment in progress</Text>
+          <Text style={styles.sub}>{errorMessage}</Text>
+          <View style={styles.actions}>
+            <OrangeButton onPress={goBack}>Back to dashboard</OrangeButton>
+          </View>
+        </View>
+      ) : null}
+
       {phase === "dismissed" ? (
         <View style={styles.centered}>
           <Text style={styles.title}>Ready to checkout?</Text>
@@ -259,16 +334,14 @@ export default function ProCheckoutScreen() {
                 {restoring ? "Restoring…" : "Restore purchases"}
               </Text>
             </Pressable>
-            {Platform.OS === "ios" ? (
-              <Pressable
-                style={styles.secondaryBtn}
-                onPress={() => void onPromoCode()}
-                accessibilityRole="button"
-                accessibilityLabel="Redeem a promo code"
-              >
-                <Text style={styles.secondaryLabel}>Redeem promo code</Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              style={styles.secondaryBtn}
+              onPress={() => void onPromoCode()}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem a promo code"
+            >
+              <Text style={styles.secondaryLabel}>Redeem promo code</Text>
+            </Pressable>
             <Pressable
               style={styles.secondaryBtn}
               onPress={goBack}

@@ -33,3 +33,7 @@ verify_jwt = false
 # verify can fail with ES256 before the handler runs.
 [functions.send-co-care-invite]
 verify_jwt = false
+
+# Same ES256 gateway issue; auth enforced via Bearer + getUser + logged_by check.
+[functions.push-co-carer-activity]
+verify_jwt = false

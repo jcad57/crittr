@@ -7,9 +7,10 @@ import {
   enumerateUpcomingMedicationDueDates,
 } from "@/utils/medicationDueSchedule";
 import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
+import { dailyProgressExerciseTarget } from "@/utils/exercisePlans";
 import { dailyProgressFoodTarget, isTreatFood, portionsForPetFood } from "@/utils/petFood";
 import { supabase } from "@/lib/supabase";
-import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
+import { fetchAccessiblePets, fetchPetsWithDetails } from "@/services/pets";
 import { fetchTodayActivitiesForPetIds } from "@/services/activities";
 import type {
   PetFood,
@@ -87,8 +88,7 @@ function petExerciseIncomplete(
   todayActs: { pet_id: string; activity_type: string }[],
 ): boolean {
   if (detail.is_memorialized) return false;
-  const target =
-    detail.exercises_per_day ?? detail.exercise?.walks_per_day ?? 0;
+  const target = dailyProgressExerciseTarget(detail);
   if (target <= 0) return false;
   const done = todayActs.filter(
     (a) =>
@@ -153,7 +153,11 @@ async function scheduleConsolidatedFeedingReminder(
     content: {
       title,
       body: `${petName}: gentle reminder to log today's meals and treats if you haven't yet.`,
-      data: { type: "meal_reminder", petId },
+      data: {
+        type: "meal_reminder",
+        petId,
+        href: `/(logged-in)/add-activity`,
+      },
       ...(Platform.OS === "android"
         ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
         : {}),
@@ -262,6 +266,10 @@ async function scheduleMedicationsForPet(
     const h = parseInt(hStr!, 10);
     const m = parseInt(mStr!, 10);
     const ids = slotMeds.map((x) => x.medicationId).sort();
+    const medHref =
+      ids.length === 1
+        ? `/(logged-in)/pet/${petId}/medications/${ids[0]}`
+        : `/(logged-in)/pet/${petId}/medications`;
     await Notifications.scheduleNotificationAsync({
       identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${petId}-${h}-${m}`,
       content: {
@@ -274,6 +282,7 @@ async function scheduleMedicationsForPet(
           type: "medication_reminder",
           petId,
           medicationIds: ids,
+          href: medHref,
           ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
         },
         ...(Platform.OS === "android"
@@ -292,6 +301,10 @@ async function scheduleMedicationsForPet(
     if (slotMeds.length === 0) continue;
     const ids = slotMeds.map((x) => x.medicationId).sort();
     const safeId = mergeKey.replace(/\|/g, "--");
+    const medHref =
+      ids.length === 1
+        ? `/(logged-in)/pet/${petId}/medications/${ids[0]}`
+        : `/(logged-in)/pet/${petId}/medications`;
     await Notifications.scheduleNotificationAsync({
       identifier: `${CRITTR_NOTIF_ID_PREFIX}med-date-${petId}-${safeId}`,
       content: {
@@ -304,6 +317,7 @@ async function scheduleMedicationsForPet(
           type: "medication_reminder",
           petId,
           medicationIds: ids,
+          href: medHref,
           ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
         },
         ...(Platform.OS === "android"
@@ -330,7 +344,12 @@ async function scheduleVetVisit(
     content: {
       title: "Vet visit coming up",
       body: `${petName}: ${visit.title.trim() || "Vet visit"} in about an hour.`,
-      data: { type: "vet_reminder", petId: visit.pet_id, visitId: visit.id },
+      data: {
+        type: "vet_reminder",
+        petId: visit.pet_id,
+        visitId: visit.id,
+        href: `/(logged-in)/pet/${visit.pet_id}/vet-visits/${visit.id}`,
+      },
       ...(Platform.OS === "android"
         ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
         : {}),
@@ -358,7 +377,10 @@ async function scheduleActivityNudge(petNames: string[]): Promise<void> {
     content: {
       title: "Activity check-in",
       body: `You still have exercise goals to log today for ${names}.`,
-      data: { type: "activity_nudge" },
+      data: {
+        type: "activity_nudge",
+        href: "/(logged-in)/add-activity",
+      },
       ...(Platform.OS === "android"
         ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
         : {}),
@@ -406,11 +428,10 @@ export async function syncCrittrReminderNotifications(
   if (activePets.length === 0) return;
 
   const petIds = activePets.map((p) => p.id);
-  const detailsList = (
-    await Promise.all(petIds.map((id) => fetchPetProfile(id)))
-  ).filter(Boolean) as PetWithDetails[];
-
-  const todayActs = await fetchTodayActivitiesForPetIds(petIds);
+  const [detailsList, todayActs] = await Promise.all([
+    fetchPetsWithDetails(petIds),
+    fetchTodayActivitiesForPetIds(petIds),
+  ]);
 
   if (prefs.notify_meals_treats) {
     for (const d of detailsList) {

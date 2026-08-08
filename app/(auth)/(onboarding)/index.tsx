@@ -12,7 +12,7 @@ import {
   useOnboardingStore,
 } from "@/stores/onboardingStore";
 import { Redirect } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Resume onboarding at the correct step for returning sessions.
@@ -32,6 +32,26 @@ export default function Onboarding() {
   if (requiresCoCareRemovedScreen) {
     return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
   }
+
+  /**
+   * Self-heal "limbo zero-pet" state. A logged-in user can land here after
+   * a flaky `refreshAuthSession` (`hasPets` cached as false even though the
+   * pet exists in Supabase). We trigger a single fresh resolve so that if
+   * the user genuinely has pets, `(auth)/_layout` flips them to the
+   * dashboard. Run only once per session re-entry to avoid loops.
+   */
+  const selfHealedRef = useRef(false);
+  useEffect(() => {
+    if (!session || !needsOnboarding) {
+      selfHealedRef.current = false;
+      return;
+    }
+    if (selfHealedRef.current) return;
+    selfHealedRef.current = true;
+    void useAuthStore.getState().refreshAuthSession().catch(() => {
+      /* non-fatal */
+    });
+  }, [session, needsOnboarding]);
 
   useEffect(() => {
     if (!session || !needsOnboarding || resumeStep == null) return;

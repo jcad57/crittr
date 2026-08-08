@@ -95,6 +95,25 @@ export async function logoutRevenueCatUser(): Promise<void> {
   }
 }
 
+/**
+ * Whether the store can take a payment on this device at all.
+ *
+ * Android returns false on emulators without Play services, when no Google
+ * account is signed in, and inside work profiles that block purchases — the
+ * BILLING_UNAVAILABLE case. We only consult this to explain a failure we've
+ * already seen, and assume `true` when the check itself errors so a flaky
+ * probe can never block a paying customer.
+ */
+export async function canMakeStorePayments(): Promise<boolean> {
+  if (!isRevenueCatConfigured()) return true;
+  try {
+    return await Purchases.canMakePayments();
+  } catch (e) {
+    if (__DEV__) console.warn("[RevenueCat] canMakePayments failed", e);
+    return true;
+  }
+}
+
 export async function getRevenueCatCustomerInfo(): Promise<CustomerInfo | null> {
   if (!platformApiKey()) return null;
   await configureRevenueCat();

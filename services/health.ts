@@ -5,6 +5,7 @@ import type {
   PetMedication,
   PetVaccination,
   PetVetVisit,
+  PetWithRole,
 } from "@/types/database";
 
 export type MedicationWithPet = PetMedication & { pet: Pet };
@@ -30,10 +31,16 @@ function attachPet<T extends { pet_id: string }>(
   return out;
 }
 
+/**
+ * `accessiblePets` lets callers hand over an already-loaded pets list (the
+ * `pets` query result) so the health hub does not re-run the same two requests
+ * the app just made.
+ */
 export async function fetchOwnerHealthSnapshot(
   ownerId: string,
+  accessiblePets?: PetWithRole[],
 ): Promise<OwnerHealthSnapshot> {
-  const petsWithRole = await fetchAccessiblePets(ownerId);
+  const petsWithRole = accessiblePets ?? (await fetchAccessiblePets(ownerId));
   const pets = petsWithRole.map(
     ({ role: _r, permissions: _p, ...pet }) => pet,
   );
@@ -49,13 +56,6 @@ export async function fetchOwnerHealthSnapshot(
   const petMap = new Map(pets.map((p) => [p.id, p]));
   const ids = pets.map((p) => p.id);
 
-  const { data: medRows, error: medErr } = await supabase
-    .from("pet_medications")
-    .select("*")
-    .in("pet_id", ids);
-
-  if (medErr) throw medErr;
-
   const now = new Date();
   const startToday = new Date(
     now.getFullYear(),
@@ -63,7 +63,8 @@ export async function fetchOwnerHealthSnapshot(
     now.getDate(),
   );
 
-  const [vacRes, visitRes] = await Promise.all([
+  const [medRes, vacRes, visitRes] = await Promise.all([
+    supabase.from("pet_medications").select("*").in("pet_id", ids),
     supabase.from("pet_vaccinations").select("*").in("pet_id", ids),
     supabase
       .from("pet_vet_visits")
@@ -73,8 +74,10 @@ export async function fetchOwnerHealthSnapshot(
       .order("visit_at", { ascending: true }),
   ]);
 
+  if (medRes.error) throw medRes.error;
+
   const medications = attachPet(
-    (medRows ?? []) as PetMedication[],
+    (medRes.data ?? []) as PetMedication[],
     petMap,
   );
   const vaccinations = attachPet(

@@ -3,6 +3,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import { Colors } from "@/constants/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
@@ -10,6 +11,7 @@ import {
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -113,6 +115,7 @@ export default function EditVetVisitScreen() {
         queryKey: allActivitiesKey(petId),
       });
       await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      requestScheduleResync(petId);
     }
     const profile = useAuthStore.getState().profile;
     if (userId && profile) {
@@ -361,6 +364,7 @@ export default function EditVetVisitScreen() {
         confirmTextIOS="Save"
         cancelTextIOS="Cancel"
         buttonTextColorIOS={Colors.orange}
+        {...MODAL_DATETIME_PICKER_PROPS}
       />
     </View>
   );

@@ -18,6 +18,8 @@ export {
   todayActivitiesPrefixKey,
   activitiesSinceKey,
   activitiesSincePrefixKey,
+  scheduleDayKey,
+  schedulePetPrefixKey,
   coCarersForPetKey,
   sentInvitesForPetKey,
   pendingInvitesKey,
@@ -47,8 +49,15 @@ export {
   useTodayActivitiesQuery,
   useTodayActivitiesForPetIdsQuery,
   useAllActivitiesQuery,
+  useActivitiesOnDayQuery,
   useActivityQuery,
 } from "./useActivitiesQuery";
+export {
+  useScheduleDayQuery,
+  useCompleteScheduleItemMutation,
+  useUncompleteScheduleItemMutation,
+  requestScheduleResync,
+} from "./useScheduleQuery";
 export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";
 export { useActivitiesSinceForPetIdsQuery } from "./useActivitiesSinceForPetIdsQuery";
 export {

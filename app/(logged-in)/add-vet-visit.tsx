@@ -3,6 +3,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/constants/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
@@ -11,6 +12,7 @@ import {
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
 } from "@/hooks/queries/queryKeys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -69,6 +71,8 @@ export default function AddVetVisitScreen() {
   const setActivePetMutation = useSetActivePetMutation();
   const { data: petsData } = usePetsQuery();
   const pets: Pet[] = petsData ?? [];
+  /** Stable bound — new Date objects each render can lock/grey iOS spinner wheels. */
+  const minimumVisitDateRef = useRef(startOfToday());
 
   /** Apply ?petId= once when opening from a deep link; otherwise scheduling uses global active pet. */
   const appliedPetParamRef = useRef(false);
@@ -171,6 +175,7 @@ export default function AddVetVisitScreen() {
         queryKey: allActivitiesKey(petId),
       });
       await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      requestScheduleResync(petId);
       const profile = useAuthStore.getState().profile;
       if (userId && profile) {
         void syncCrittrReminderNotifications(
@@ -327,7 +332,7 @@ export default function AddVetVisitScreen() {
         isVisible={pickerOpen}
         mode="datetime"
         date={visitAt}
-        minimumDate={startOfToday()}
+        minimumDate={minimumVisitDateRef.current}
         is24Hour={timeDisplay === "24h"}
         display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
@@ -338,6 +343,7 @@ export default function AddVetVisitScreen() {
         confirmTextIOS="Save"
         cancelTextIOS="Cancel"
         buttonTextColorIOS={Colors.orange}
+        {...MODAL_DATETIME_PICKER_PROPS}
       />
     </View>
   );

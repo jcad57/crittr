@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
 import { Font } from "@/constants/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useRef, useState } from "react";
@@ -94,6 +95,7 @@ export default function PetDateOfBirthField({
         confirmTextIOS="Save"
         cancelTextIOS="Cancel"
         buttonTextColorIOS={Colors.orange}
+        {...MODAL_DATETIME_PICKER_PROPS}
       />
 
       {dateOfBirth ? (

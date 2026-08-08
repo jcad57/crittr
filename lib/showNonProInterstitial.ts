@@ -7,10 +7,128 @@ import mobileAds, {
 
 const LOAD_TIMEOUT_MS = 12_000;
 
+type LoadedInterstitial = {
+  ad: InterstitialAd;
+  unsubs: (() => void)[];
+};
+
+/** Preloaded unit owned by the add-activity screen until show / discard. */
+let cached: LoadedInterstitial | null = null;
+let loadInFlight: Promise<LoadedInterstitial | null> | null = null;
+/** Bumped on discard so in-flight loads do not re-publish after leave. */
+let preloadGeneration = 0;
+/** True while an interstitial is on screen — discard must not tear it down. */
+let showing = false;
+
+function detachListeners(unsubs: (() => void)[]) {
+  for (const u of unsubs) {
+    try {
+      u();
+    } catch {
+      // ignore
+    }
+  }
+  unsubs.length = 0;
+}
+
+function clearCached() {
+  if (!cached) return;
+  detachListeners(cached.unsubs);
+  cached = null;
+}
+
+async function ensureSdkReady(): Promise<{ personalizedAds: boolean } | null> {
+  try {
+    const consent = await ensureTrackingConsent();
+    if (!consent.canRequestAds) return null;
+    await mobileAds().initialize();
+    return { personalizedAds: consent.personalizedAds };
+  } catch {
+    return null;
+  }
+}
+
+function loadInterstitial(
+  personalizedAds: boolean,
+): Promise<LoadedInterstitial | null> {
+  return new Promise((resolve) => {
+    const interstitial = InterstitialAd.createForAdRequest(
+      AdUnitIds.interstitial,
+      { requestNonPersonalizedAdsOnly: !personalizedAds },
+    );
+    const unsubs: (() => void)[] = [];
+    let settled = false;
+
+    const settle = (value: LoadedInterstitial | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      if (!value) {
+        detachListeners(unsubs);
+      }
+      resolve(value);
+    };
+
+    unsubs.push(
+      interstitial.addAdEventListener(AdEventType.LOADED, () => {
+        settle({ ad: interstitial, unsubs });
+      }),
+    );
+    unsubs.push(
+      interstitial.addAdEventListener(AdEventType.ERROR, () => {
+        settle(null);
+      }),
+    );
+
+    const timeoutId = setTimeout(() => {
+      if (__DEV__) {
+        console.warn(
+          "[Interstitial] no fill before timeout, continuing navigation",
+        );
+      }
+      settle(null);
+    }, LOAD_TIMEOUT_MS);
+
+    interstitial.load();
+  });
+}
+
 /**
- * Loads a full-screen interstitial, shows it if inventory is available, then runs `onComplete`
- * (whether the ad was shown, failed, timed out, or the user closed it). Caller should only
- * invoke for non–Crittr Pro users after eligibility is certain.
+ * Warm a full-screen interstitial while the user is on the activity details step
+ * so it can show immediately after a successful save (non–Crittr Pro only).
+ */
+export function preloadNonProInterstitial(): void {
+  if (!INTERSTITIAL_ADS_ENABLED) return;
+  if (cached || loadInFlight || showing) return;
+
+  const gen = preloadGeneration;
+  loadInFlight = (async () => {
+    const ready = await ensureSdkReady();
+    if (!ready || gen !== preloadGeneration) return null;
+    const loaded = await loadInterstitial(ready.personalizedAds);
+    if (!loaded || gen !== preloadGeneration) {
+      if (loaded) detachListeners(loaded.unsubs);
+      return null;
+    }
+    cached = loaded;
+    return loaded;
+  })().finally(() => {
+    loadInFlight = null;
+  });
+}
+
+/** Drop a preloaded interstitial that was never shown (e.g. user left the form). */
+export function discardPreloadedInterstitial(): void {
+  if (showing) return;
+  preloadGeneration += 1;
+  clearCached();
+}
+
+/**
+ * Shows a full-screen interstitial when inventory is available, then runs `onComplete`
+ * (shown, failed, timed out, or closed). Caller should only invoke for non–Crittr Pro
+ * users **after** the activity save has already succeeded — closing the app during the
+ * ad must not affect persistence.
  */
 export function showNonProInterstitialThen(
   onComplete: () => void,
@@ -21,67 +139,57 @@ export function showNonProInterstitialThen(
   }
 
   return (async () => {
-    let consent;
-    try {
-      consent = await ensureTrackingConsent();
-      if (!consent.canRequestAds) {
+    let loaded: LoadedInterstitial | null = cached;
+    cached = null;
+
+    if (!loaded && loadInFlight) {
+      loaded = await loadInFlight;
+      // Preload publishes the same instance to `cached` when it settles.
+      if (!loaded) {
+        loaded = cached;
+      }
+      cached = null;
+    }
+
+    if (!loaded) {
+      const ready = await ensureSdkReady();
+      if (!ready) {
         onComplete();
         return;
       }
-      await mobileAds().initialize();
-    } catch {
+      loaded = await loadInterstitial(ready.personalizedAds);
+    }
+
+    if (!loaded) {
       onComplete();
       return;
     }
 
-    const interstitial = InterstitialAd.createForAdRequest(
-      AdUnitIds.interstitial,
-      { requestNonPersonalizedAdsOnly: !consent.personalizedAds },
-    );
-
+    showing = true;
     let finished = false;
     const finish = () => {
       if (finished) return;
       finished = true;
-      clearTimeout(timeoutId);
-      for (const u of unsubs) {
-        try {
-          u();
-        } catch {
-          // ignore
-        }
-      }
-      unsubs.length = 0;
+      showing = false;
+      detachListeners(loaded!.unsubs);
       onComplete();
     };
 
-    const unsubs: (() => void)[] = [];
-    unsubs.push(
-      interstitial.addAdEventListener(AdEventType.LOADED, () => {
-        clearTimeout(timeoutId);
-        void interstitial.show();
-      }),
-    );
-    unsubs.push(
-      interstitial.addAdEventListener(AdEventType.ERROR, () => {
+    loaded.unsubs.push(
+      loaded.ad.addAdEventListener(AdEventType.CLOSED, () => {
         finish();
       }),
     );
-    unsubs.push(
-      interstitial.addAdEventListener(AdEventType.CLOSED, () => {
+    loaded.unsubs.push(
+      loaded.ad.addAdEventListener(AdEventType.ERROR, () => {
         finish();
       }),
     );
 
-    const timeoutId = setTimeout(() => {
-      if (__DEV__) {
-        console.warn(
-          "[Interstitial] no fill before timeout, continuing navigation",
-        );
-      }
+    try {
+      await loaded.ad.show();
+    } catch {
       finish();
-    }, LOAD_TIMEOUT_MS);
-
-    interstitial.load();
+    }
   })();
 }

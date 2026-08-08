@@ -45,11 +45,11 @@ function resolveAppOpenId() {
 const PROD_INTERSTITIAL_UNIT_ID = Platform.select({
   ios:
     process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS ??
-    "ca-app-pub-8604165196940630/3415628001",
+    "ca-app-pub-8604165196940630/8942902043",
   android:
     process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID ??
-    "ca-app-pub-8604165196940630/3415628002",
-  default: "ca-app-pub-8604165196940630/3415628001",
+    "ca-app-pub-8604165196940630/8537522026",
+  default: "ca-app-pub-8604165196940630/8537522026",
 });
 
 function resolveInterstitialId() {

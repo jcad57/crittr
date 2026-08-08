@@ -23,9 +23,13 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
-import { showNonProInterstitialThen } from "@/lib/showNonProInterstitial";
+import {
+  discardPreloadedInterstitial,
+  preloadNonProInterstitial,
+  showNonProInterstitialThen,
+} from "@/lib/showNonProInterstitial";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -49,6 +53,8 @@ export default function AddActivityScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const scrollRef = useRef<ScrollView | null>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
+  /** Covers network save + interstitial so Save stays locked after mutations settle. */
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const step = useActivityFormStore((s) => s.step);
   const activityType = useActivityFormStore((s) => s.activityType);
@@ -118,6 +124,7 @@ export default function AddActivityScreen() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (isCompleting) return true;
       if (step === "details") {
         setStep("type");
         return true;
@@ -127,27 +134,44 @@ export default function AddActivityScreen() {
       return true;
     });
     return () => sub.remove();
-  }, [step, setStep, reset, router]);
+  }, [step, setStep, reset, router, isCompleting]);
+
+  /** Preload interstitial on the details step so it can show right after save. */
+  useEffect(() => {
+    if (step !== "details") {
+      discardPreloadedInterstitial();
+      return;
+    }
+    if (profilePending || profilePlaceholder || isPro) {
+      discardPreloadedInterstitial();
+      return;
+    }
+    preloadNonProInterstitial();
+    return () => {
+      discardPreloadedInterstitial();
+    };
+  }, [step, isPro, profilePending, profilePlaceholder]);
 
   const goBack = useCallback(() => {
+    if (isCompleting) return;
     if (step === "details") {
       setStep("type");
     } else {
       reset();
       router.back();
     }
-  }, [step, setStep, reset, router]);
+  }, [step, setStep, reset, router, isCompleting]);
 
+  /**
+   * Activity rows are already persisted when this runs. Ad presentation / dismiss /
+   * app kill must not affect that — we only navigate after the interstitial attempt.
+   */
   const finish = useCallback(async () => {
     const go = () => {
       reset();
       router.back();
     };
-    if (profilePending || profilePlaceholder) {
-      go();
-      return;
-    }
-    if (isPro) {
+    if (profilePending || profilePlaceholder || isPro) {
       go();
       return;
     }
@@ -161,108 +185,145 @@ export default function AddActivityScreen() {
   ]);
 
   const cancelDetails = useCallback(() => {
+    if (isCompleting) return;
     reset();
     router.back();
-  }, [reset, router]);
+  }, [reset, router, isCompleting]);
+
+  const runSaveThenFinish = useCallback(
+    async (persist: () => Promise<void>) => {
+      if (isCompleting) return;
+      setIsCompleting(true);
+      try {
+        // Persist first so closing the app during the ad cannot lose the log.
+        await persist();
+        await finish();
+      } catch (error) {
+        setIsCompleting(false);
+        throw error;
+      }
+    },
+    [finish, isCompleting],
+  );
 
   const saveExercise = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
-    for (const petId of ids) {
-      await exerciseMut.mutateAsync({
-        petId,
-        form: exerciseForm,
-        loggedAtIso,
-      });
-    }
-    await finish();
-  }, [exerciseMut, exerciseForm, exerciseExtraPetIds, activePetId, finish]);
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
+      for (const petId of ids) {
+        await exerciseMut.mutateAsync({
+          petId,
+          form: exerciseForm,
+          loggedAtIso,
+        });
+      }
+    });
+  }, [
+    exerciseMut,
+    exerciseForm,
+    exerciseExtraPetIds,
+    activePetId,
+    runSaveThenFinish,
+  ]);
 
   const saveFood = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await foodMut.mutateAsync({
-      petId: activePetId,
-      form: foodForm,
-      loggedAtIso,
-    });
-    for (const row of foodExtraRows) {
-      const { petId, ...petFields } = row;
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
       await foodMut.mutateAsync({
-        petId,
-        form: foodActivityFormForPet(foodForm, petFields),
+        petId: activePetId,
+        form: foodForm,
         loggedAtIso,
       });
-    }
-    await finish();
-  }, [foodMut, foodForm, foodExtraRows, activePetId, finish]);
+      for (const row of foodExtraRows) {
+        const { petId, ...petFields } = row;
+        await foodMut.mutateAsync({
+          petId,
+          form: foodActivityFormForPet(foodForm, petFields),
+          loggedAtIso,
+        });
+      }
+    });
+  }, [foodMut, foodForm, foodExtraRows, activePetId, runSaveThenFinish]);
 
   const saveMed = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
-    for (const petId of ids) {
-      await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
-    }
-    await finish();
-  }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
+      for (const petId of ids) {
+        await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
+      }
+    });
+  }, [
+    medMut,
+    medForm,
+    medicationExtraPetIds,
+    activePetId,
+    runSaveThenFinish,
+  ]);
 
   const saveTraining = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await trainingMut.mutateAsync({
-      form: trainingForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await trainingMut.mutateAsync({
+        form: trainingForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [trainingMut, trainingForm, activePetId, finish]);
+  }, [trainingMut, trainingForm, activePetId, runSaveThenFinish]);
 
   const savePotty = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await pottyMut.mutateAsync({
-      form: pottyForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await pottyMut.mutateAsync({
+        form: pottyForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [pottyMut, pottyForm, activePetId, finish]);
+  }, [pottyMut, pottyForm, activePetId, runSaveThenFinish]);
 
   const saveMaintenance = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await maintenanceMut.mutateAsync({
-      form: maintenanceForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await maintenanceMut.mutateAsync({
+        form: maintenanceForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [maintenanceMut, maintenanceForm, activePetId, finish]);
+  }, [maintenanceMut, maintenanceForm, activePetId, runSaveThenFinish]);
 
   const saveWeighIn = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await weighInMut.mutateAsync({
-      form: weighInForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await weighInMut.mutateAsync({
+        form: weighInForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [weighInMut, weighInForm, activePetId, finish]);
+  }, [weighInMut, weighInForm, activePetId, runSaveThenFinish]);
 
   const saving =
+    isCompleting ||
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||

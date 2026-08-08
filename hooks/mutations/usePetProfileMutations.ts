@@ -19,8 +19,24 @@ import {
   updatePetNameAndBreed,
 } from "@/services/pets";
 import type { PetWithDetails } from "@/types/database";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
+import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import { useAuthStore } from "@/stores/authStore";
+import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { useMutation } from "@tanstack/react-query";
+import { Platform } from "react-native";
+
+function requestReminderResync(userId: string | undefined) {
+  if (Platform.OS === "web" || !userId) return;
+  const profile = useAuthStore.getState().profile;
+  if (!profile) return;
+  void syncCrittrReminderNotifications(
+    userId,
+    notificationPrefsFromProfile(profile),
+  ).catch((e) => {
+    if (__DEV__) console.warn("[petProfile] reminder sync", e);
+  });
+}
 
 export function useUpdatePetExerciseRequirementsMutation(petId: string) {
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -28,11 +44,7 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
   return useMutation({
     mutationFn: (fields: UpdatePetExerciseRequirementsInput) =>
       updatePetExerciseRequirements(petId, fields),
-    onSuccess: (updated) => {
-      /**
-       * Server return merges into the cached `PetWithDetails` without changing
-       * nested arrays, so there's no need to also invalidate `petDetailsQueryKey`.
-       */
+    onSuccess: ({ pet: updated, exercise_plans }) => {
       queryClient.setQueryData<PetWithDetails | null>(
         petDetailsQueryKey(petId),
         (old) => {
@@ -44,6 +56,7 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
             medications: old.medications,
             vaccinations: old.vaccinations,
             exercise: old.exercise,
+            exercise_plans,
           };
         },
       );
@@ -52,7 +65,10 @@ export function useUpdatePetExerciseRequirementsMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
+      /** Fresh profile fetch inside resync; cache above is a head start for UI. */
+      requestScheduleResync(petId);
     },
   });
 }
@@ -81,6 +97,7 @@ export function useUpdatePetNameAndBreedMutation(petId: string) {
             medications: old.medications,
             vaccinations: old.vaccinations,
             exercise: old.exercise,
+            exercise_plans: old.exercise_plans,
           };
         },
       );
@@ -89,6 +106,7 @@ export function useUpdatePetNameAndBreedMutation(petId: string) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
     },
   });
@@ -118,6 +136,7 @@ export function useUpdatePetDetailsMutation(petId: string) {
             medications: old.medications,
             vaccinations: old.vaccinations,
             exercise: old.exercise,
+            exercise_plans: old.exercise_plans,
           };
         },
       );
@@ -136,14 +155,18 @@ export function useInsertPetFoodMutation(petId: string) {
 
   return useMutation({
     mutationFn: (input: UpsertPetFoodInput) => insertPetFood(petId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }
@@ -159,14 +182,18 @@ export function useUpdatePetFoodMutation(petId: string) {
       foodId: string;
       input: UpsertPetFoodInput;
     }) => updatePetFood(petId, foodId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }
@@ -176,14 +203,18 @@ export function useDeletePetFoodMutation(petId: string) {
 
   return useMutation({
     mutationFn: (foodId: string) => deletePetFood(petId, foodId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({ queryKey: petsQueryKey(userId) });
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
+        requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }

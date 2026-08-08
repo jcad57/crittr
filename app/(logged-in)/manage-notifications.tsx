@@ -222,8 +222,8 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Meals & treats</Text>
                 <Text style={styles.cardSub}>
-                  Daily alerts from each scheduled portion time (treats without
-                  times use an evening reminder)
+                  One daily reminder after your latest scheduled meal or treat
+                  time (treats without times use an evening reminder)
                 </Text>
               </View>
               <Switch

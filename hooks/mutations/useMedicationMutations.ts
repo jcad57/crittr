@@ -1,4 +1,5 @@
 import { healthSnapshotKey, petDetailsQueryKey } from "@/hooks/queries/queryKeys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { queryClient } from "@/lib/queryClient";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {
@@ -45,15 +46,18 @@ export function useInsertMedicationMutation(petId: string) {
   return useMutation({
     mutationFn: (input: UpdatePetMedicationInput) =>
       insertPetMedication(petId, input),
-    onSuccess: (newMed) => {
+    onSuccess: async (newMed) => {
       mergeMedicationIntoPetDetailsCache(petId, (meds) => [...meds, newMed]);
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
         requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }
@@ -69,17 +73,20 @@ export function useUpdateMedicationMutation(petId: string) {
       medicationId: string;
       updates: UpdatePetMedicationInput;
     }) => updatePetMedication(petId, medicationId, updates),
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       mergeMedicationIntoPetDetailsCache(petId, (meds) =>
         meds.map((m) => (m.id === updated.id ? updated : m)),
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
         requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }
@@ -90,17 +97,20 @@ export function useDeleteMedicationMutation(petId: string) {
   return useMutation({
     mutationFn: async (medicationId: string) =>
       deletePetMedication(petId, medicationId),
-    onSuccess: (_, medicationId) => {
+    onSuccess: async (_, medicationId) => {
       mergeMedicationIntoPetDetailsCache(petId, (meds) =>
         meds.filter((m) => m.id !== medicationId),
       );
-      void queryClient.invalidateQueries({ queryKey: petDetailsQueryKey(petId) });
+      await queryClient.invalidateQueries({
+        queryKey: petDetailsQueryKey(petId),
+      });
       if (userId) {
         void queryClient.invalidateQueries({
           queryKey: healthSnapshotKey(userId),
         });
         requestReminderResync(userId);
       }
+      requestScheduleResync(petId);
     },
   });
 }

@@ -1,7 +1,8 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import FormInput from "@/components/onboarding/FormInput";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
+import ExercisePlanEditorModal from "@/components/pet/ExercisePlanEditorModal";
+import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
@@ -12,9 +13,16 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetFormData } from "@/types/database";
 import { getErrorMessage } from "@/utils/errorMessage";
+import {
+  defaultExercisePlanDraft,
+  formatExercisePlanSubline,
+  type ExercisePlanDraft,
+} from "@/utils/exercisePlans";
 import { formatEnergyLabel } from "@/utils/petDisplay";
+import { dateToPgTime, pgTimeToDate } from "@/utils/petFoodTime";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -37,6 +45,7 @@ export default function ExerciseRequirementsScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
+  const { timeDisplay } = useUserDateTimePrefs();
 
   const scrollContentMinHeight = useMemo(() => {
     const topChrome = insets.top + 8 + 56 + 8 + 4;
@@ -50,8 +59,14 @@ export default function ExerciseRequirementsScreen() {
   const [energyLevel, setEnergyLevel] = useState<PetFormData["energyLevel"]>(
     "",
   );
-  const [exercisesPerDay, setExercisesPerDay] = useState("");
+  const [plans, setPlans] = useState<ExercisePlanDraft[]>([]);
   const [attempted, setAttempted] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState("Add activity");
+  const [editorDraft, setEditorDraft] = useState<ExercisePlanDraft | null>(
+    null,
+  );
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!details?.id) return;
@@ -62,35 +77,43 @@ export default function ExerciseRequirementsScreen() {
         ? details.energy_level
         : "",
     );
-    const n = details.exercises_per_day;
-    setExercisesPerDay(n != null && n > 0 ? String(n) : "");
-  }, [details?.id]);
+    setPlans(
+      (details.exercise_plans ?? []).map((p) => ({
+        key: p.id,
+        label: p.label,
+        daysOfWeek: [...(p.days_of_week ?? [])],
+        scheduledTime: pgTimeToDate(p.scheduled_time),
+        notes: p.notes?.trim() ?? "",
+      })),
+    );
+  }, [details?.id, details?.exercise_plans, details?.energy_level]);
 
-  const showExercise = details
+  const showActivities = details
     ? shouldShowExerciseField(details.pet_type ?? "")
     : false;
+
+  const energyOk =
+    energyLevel === "low" ||
+    energyLevel === "medium" ||
+    energyLevel === "high";
 
   const handleSave = useCallback(async () => {
     if (!details || !petId) return;
     setAttempted(true);
-    if (
-      energyLevel !== "low" &&
-      energyLevel !== "medium" &&
-      energyLevel !== "high"
-    ) {
-      return;
-    }
-    let exercisesPayload: number | null = details.exercises_per_day ?? null;
-    if (showExercise) {
-      const n = parseInt(exercisesPerDay.trim().replace(",", "."), 10);
-      if (!Number.isFinite(n) || n < 1) return;
-      exercisesPayload = n;
-    }
+    if (!energyOk) return;
+    if (showActivities && plans.length < 1) return;
 
     try {
       await updateMut.mutateAsync({
-        energy_level: energyLevel,
-        exercises_per_day: exercisesPayload,
+        energy_level: energyLevel as "low" | "medium" | "high",
+        exercise_plans: showActivities
+          ? plans.map((p) => ({
+              label: p.label.trim(),
+              days_of_week: [...p.daysOfWeek].sort((a, b) => a - b),
+              scheduled_time: dateToPgTime(p.scheduledTime),
+              notes: p.notes.trim() || null,
+            }))
+          : [],
       });
       router.back();
     } catch (e) {
@@ -99,26 +122,53 @@ export default function ExerciseRequirementsScreen() {
   }, [
     details,
     petId,
+    energyOk,
     energyLevel,
-    exercisesPerDay,
-    showExercise,
+    showActivities,
+    plans,
     updateMut,
     router,
   ]);
 
-  const energyError =
-    attempted &&
-    energyLevel !== "low" &&
-    energyLevel !== "medium" &&
-    energyLevel !== "high";
-  const exercisesError =
-    attempted &&
-    showExercise &&
-    (!exercisesPerDay.trim() ||
-      !Number.isFinite(
-        parseInt(exercisesPerDay.trim().replace(",", "."), 10),
-      ) ||
-      parseInt(exercisesPerDay.trim().replace(",", "."), 10) < 1);
+  const energyError = attempted && !energyOk;
+  const activitiesError = attempted && showActivities && plans.length < 1;
+
+  const openAdd = () => {
+    setModalTitle("Add activity");
+    setEditingIndex(null);
+    setEditorDraft(defaultExercisePlanDraft());
+    setModalVisible(true);
+  };
+
+  const openEdit = (index: number) => {
+    const row = plans[index];
+    if (!row) return;
+    setModalTitle("Edit activity");
+    setEditingIndex(index);
+    setEditorDraft({
+      ...row,
+      daysOfWeek: [...row.daysOfWeek],
+      scheduledTime: new Date(row.scheduledTime.getTime()),
+    });
+    setModalVisible(true);
+  };
+
+  const removePlan = (index: number) => {
+    setPlans((rows) => rows.filter((_, i) => i !== index));
+  };
+
+  const saveFromModal = (draft: ExercisePlanDraft) => {
+    if (editingIndex !== null) {
+      setPlans((rows) =>
+        rows.map((r, i) => (i === editingIndex ? draft : r)),
+      );
+    } else {
+      setPlans((rows) => [...rows, draft]);
+    }
+    setModalVisible(false);
+    setEditingIndex(null);
+    setEditorDraft(null);
+  };
 
   if (isLoading || !details || !petId) {
     return (
@@ -138,12 +188,6 @@ export default function ExerciseRequirementsScreen() {
 
   if (canEditProfile === false) {
     const showEx = shouldShowExerciseField(details.pet_type ?? "");
-    const activitiesLabel =
-      details.exercises_per_day != null && details.exercises_per_day > 0
-        ? String(details.exercises_per_day)
-        : showEx
-          ? "—"
-          : "Not tracked for this species";
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <View style={styles.nav}>
@@ -173,10 +217,24 @@ export default function ExerciseRequirementsScreen() {
             label="Energy level"
             value={formatEnergyLabel(details.energy_level)}
           />
-          <ReadOnlyFieldRow
-            label="Target activities per day"
-            value={activitiesLabel}
-          />
+          {showEx ? (
+            (details.exercise_plans ?? []).length > 0 ? (
+              (details.exercise_plans ?? []).map((p) => (
+                <ReadOnlyFieldRow
+                  key={p.id}
+                  label={p.label}
+                  value={formatExercisePlanSubline(p, timeDisplay)}
+                />
+              ))
+            ) : (
+              <ReadOnlyFieldRow label="Activities" value="—" />
+            )
+          ) : (
+            <ReadOnlyFieldRow
+              label="Activities"
+              value="Not tracked for this species"
+            />
+          )}
         </ScrollView>
       </View>
     );
@@ -216,9 +274,8 @@ export default function ExerciseRequirementsScreen() {
         >
           <View>
             <Text style={styles.lead}>
-              Energy and activity targets are part of your pet&apos;s baseline
-              care. You can update them anytime; they power daily progress on
-              the home screen.
+              Energy and planned activities power daily progress and the
+              schedule tab. Update them anytime.
             </Text>
 
             <PetEnergyLevelToggle
@@ -227,23 +284,28 @@ export default function ExerciseRequirementsScreen() {
               error={energyError}
             />
 
-            {showExercise ? (
-              <FormInput
-                label="Target activities per day"
-                required
-                placeholder="Walks, dog park, playtime, etc."
-                value={exercisesPerDay}
-                onChangeText={setExercisesPerDay}
-                keyboardType="number-pad"
-                containerStyle={styles.field}
-                error={exercisesError}
+            {showActivities ? (
+              <ExercisePlansSection
+                plans={plans}
+                onAdd={openAdd}
+                onEdit={openEdit}
+                onRemove={removePlan}
+                addButtonError={activitiesError}
+                helperText="Each activity needs a label, days of the week, and a time."
               />
             ) : (
               <Text style={styles.helperMuted}>
-                Activity count applies to dogs and similar companions. It
-                isn&apos;t tracked for this species; the value stays as stored.
+                Scheduled activities aren&apos;t tracked for this species.
               </Text>
             )}
+
+            {attempted && (!energyOk || activitiesError) ? (
+              <Text style={styles.formError}>
+                {!energyOk
+                  ? "Select an energy level."
+                  : "Add at least one activity."}
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.actionsBlock}>
@@ -257,6 +319,18 @@ export default function ExerciseRequirementsScreen() {
           </View>
         </View>
       </KeyboardAwareScrollView>
+
+      <ExercisePlanEditorModal
+        visible={modalVisible}
+        title={modalTitle}
+        initial={editorDraft}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingIndex(null);
+          setEditorDraft(null);
+        }}
+        onSave={saveFromModal}
+      />
     </View>
   );
 }
@@ -313,15 +387,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 16,
   },
-  field: {
-    marginBottom: 8,
-  },
   helperMuted: {
     fontFamily: Font.uiRegular,
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
+  },
+  formError: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 13,
+    color: Colors.error,
+    marginBottom: 8,
   },
   saveBtn: {
     marginTop: 0,

@@ -101,11 +101,26 @@ export type Pet = {
   /** When true, pet stays in My Pets for remembrance; excluded from dashboard & active selection. */
   is_memorialized?: boolean;
   memorialized_at?: string | null;
+  /**
+   * Idempotency key supplied by the client when creating a pet (see
+   * `services/pets.createPet`). Lets onboarding retries reuse the existing
+   * row instead of duplicating it.
+   */
+  client_request_id?: string | null;
+  /**
+   * True when the pet is soft-archived (e.g. Pro→Free downgrade hides extra
+   * pets from the dashboard until the user re-upgrades). Archived rows are
+   * still readable to the owner via RLS but are filtered out of
+   * `fetchUserPets` / `fetchAccessiblePets`.
+   */
+  is_archived?: boolean;
+  archived_reason?: string | null;
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 };
 
-/** Scheduled meal portion (meals only); see `025_pet_food_portions.sql`. */
+/** Scheduled feeding portion (meals and treats); see `025_pet_food_portions.sql`. */
 export type PetFoodPortion = {
   id: string;
   pet_food_id: string;
@@ -121,14 +136,16 @@ export type PetFood = {
   id: string;
   pet_id: string;
   brand: string;
+  /** Legacy flat portion fields; null when using `pet_food_portions`. */
   portion_size: string | null;
   portion_unit: string | null;
+  /** Mirrors portion count when using `pet_food_portions`. */
   meals_per_day: number | null;
   is_treat: boolean;
   /** Optional feeding notes (e.g. portion split across meals). */
   notes?: string | null;
   created_at: string;
-  /** Nested when using `select('*, pet_food_portions(*)')` — meals only. */
+  /** Nested when using `select('*, pet_food_portions(*)')`. */
   pet_food_portions?: PetFoodPortion[];
 };
 
@@ -220,6 +237,20 @@ export type PetExercise = {
   walk_duration_minutes: number | null;
   activities: string[];
   created_at: string;
+};
+
+/** Planned exercise activity; see `20260807150000_pet_exercise_plans.sql`. */
+export type PetExercisePlan = {
+  id: string;
+  pet_id: string;
+  label: string;
+  /** JS `Date.getDay()` values: 0=Sun … 6=Sat. */
+  days_of_week: number[];
+  /** `HH:MM:SS` from Postgres `time`. */
+  scheduled_time: string;
+  notes: string | null;
+  sort_order: number;
+  created_at?: string;
 };
 
 // ─── Co-Care ─────────────────────────────────────────────────────────────────
@@ -402,6 +433,55 @@ export type PetActivity = {
   created_at: string;
 };
 
+/** Source identity for schedule sync / upserts. */
+export type ScheduleSourceKind =
+  | "food_portion"
+  | "food_treat"
+  | "medication"
+  | "exercise"
+  | "vet_visit";
+
+/**
+ * Materialized daily schedule slot — see migration
+ * `20260807120000_pet_schedule_items.sql`.
+ */
+export type PetScheduleItem = {
+  id: string;
+  pet_id: string;
+  local_date: string;
+  /** `HH:MM:SS` from Postgres `time`. */
+  scheduled_time: string;
+  activity_type: ActivityType;
+  source_kind: ScheduleSourceKind;
+  source_id: string;
+  source_slot: string;
+  label: string;
+  detail_line: string | null;
+  quantity_line: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  activity_id: string | null;
+  meta: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Planned slot before DB upsert (no id / completion fields). */
+export type PlannedScheduleItem = {
+  pet_id: string;
+  local_date: string;
+  scheduled_time: string;
+  activity_type: ActivityType;
+  source_kind: ScheduleSourceKind;
+  source_id: string;
+  source_slot: string;
+  label: string;
+  detail_line: string | null;
+  quantity_line: string | null;
+  notes: string | null;
+  meta: Record<string, unknown>;
+};
+
 // ─── Activity form data (for the add-activity flow) ─────────────────────────
 
 /** Logged exercise activity — label, type, duration required; distance/location/notes optional. */
@@ -487,6 +567,8 @@ export type PetWithDetails = Pet & {
   medications: PetMedication[];
   vaccinations: PetVaccination[];
   exercise: PetExercise | null;
+  /** Planned activities with days/times (preferred over `exercises_per_day`). */
+  exercise_plans: PetExercisePlan[];
   /** Pet owner’s household litter goals (`profiles`), readable by owner and co-carers via RPC. */
   household_litter_cleaning_period?: LitterCleaningPeriod | null;
   household_litter_cleanings_per_period?: number | null;
@@ -511,7 +593,7 @@ export type ProfileFormData = {
   litterCleaningsPerPeriod: string;
 };
 
-/** Serialized meal portion for onboarding (meals only). */
+/** Serialized feeding portion for onboarding (meals and treats). */
 export type FoodMealPortionFormEntry = {
   key: string;
   portionSize: string;
@@ -523,13 +605,14 @@ export type FoodMealPortionFormEntry = {
 export type FoodFormEntry = {
   localId: string;
   brand: string;
+  /** Legacy flat fields; cleared when `mealPortions` is used. */
   portionSize: string;
   portionUnit: string;
-  /** Treats: times per day. Meals: mirrors `mealPortions.length` when portions are used. */
+  /** Mirrors `mealPortions.length` when portions are used. */
   mealsPerDay: string;
   isTreat: boolean;
   notes: string;
-  /** Meals only: scheduled portions; omit or leave empty for treats. */
+  /** Scheduled portions with feed times (meals and treats). */
   mealPortions?: FoodMealPortionFormEntry[];
 };
 
@@ -560,7 +643,25 @@ export type VaccinationFormEntry = {
   notes: string;
 };
 
+/** Onboarding / form draft for a planned exercise activity. */
+export type ExercisePlanFormEntry = {
+  localId: string;
+  label: string;
+  /** JS `Date.getDay()` values: 0=Sun … 6=Sat. */
+  daysOfWeek: number[];
+  /** Postgres `time` as `HH:MM:SS`. */
+  scheduledTimePg: string;
+  notes: string;
+};
+
 export type PetFormData = {
+  /**
+   * Stable client-generated idempotency key for this pet form. Persisted with
+   * the row so a network blip / retry during the onboarding `Finish` step
+   * never produces duplicate pets. Assigned the first time a new pet form is
+   * touched (see `EMPTY_PET_FORM` / `useOnboardingStore.startAddPetFlow`).
+   */
+  clientRequestId: string;
   petType: PetType | "";
   name: string;
   breed: string;
@@ -573,7 +674,9 @@ export type PetFormData = {
   color: string;
   about: string;
   energyLevel: "low" | "medium" | "high" | "";
+  /** @deprecated Prefer `exercisePlans`; kept for legacy reads during migration. */
   exercisesPerDay: string;
+  exercisePlans: ExercisePlanFormEntry[];
   allergies: string[];
   avatarUri: string | null;
   foods: FoodFormEntry[];
@@ -594,7 +697,65 @@ export type PetFormData = {
   insurancePolicyNumber: string;
 };
 
+/**
+ * Generate a new idempotency key for a fresh pet form. Uses
+ * `crypto.randomUUID` when available (modern RN runtimes / Hermes), falling
+ * back to a timestamp + random suffix that's still unique enough across a
+ * single user's onboarding session.
+ */
+export function createPetFormRequestId(): string {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  const uuid = g.crypto?.randomUUID?.();
+  if (uuid) return uuid;
+  return `pet-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Returns a fresh pet form with a new idempotency key. Always use this
+ * factory (not the const default) so two newly-added pets cannot share an
+ * idempotency key.
+ */
+export function makeEmptyPetForm(): PetFormData {
+  return {
+    clientRequestId: createPetFormRequestId(),
+    petType: "",
+    name: "",
+    breed: "",
+    ageYears: "",
+    ageMonths: "",
+    dateOfBirth: "",
+    weight: "",
+    weightUnit: "lbs",
+    sex: "",
+    color: "",
+    about: "",
+    energyLevel: "",
+    exercisesPerDay: "",
+    exercisePlans: [],
+    allergies: [],
+    avatarUri: null,
+    foods: [],
+    medications: [],
+    vaccinations: [],
+    coCarerEmail: "",
+    isMicrochipped: null,
+    microchipNumber: "",
+    isSterilized: null,
+    primaryVetClinic: "",
+    primaryVetAddress: "",
+    isInsured: false,
+    insuranceProvider: "",
+    insurancePolicyNumber: "",
+  };
+}
+
+/**
+ * Legacy const default kept for callers that still spread `EMPTY_PET_FORM`.
+ * It uses a placeholder request id — anywhere this is actually persisted you
+ * MUST overwrite the id with `createPetFormRequestId()` so retries are safe.
+ */
 export const EMPTY_PET_FORM: PetFormData = {
+  clientRequestId: "",
   petType: "",
   name: "",
   breed: "",
@@ -608,6 +769,7 @@ export const EMPTY_PET_FORM: PetFormData = {
   about: "",
   energyLevel: "",
   exercisesPerDay: "",
+  exercisePlans: [],
   allergies: [],
   avatarUri: null,
   foods: [],

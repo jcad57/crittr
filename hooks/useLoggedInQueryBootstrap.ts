@@ -1,6 +1,4 @@
-import { prefetchPetsAndDetails } from "@/hooks/queries/prefetchPetsAndDetails";
 import {
-  crittrAiThreadKey,
   healthSnapshotKey,
   notificationsKey,
   pendingInvitesKey,
@@ -10,13 +8,11 @@ import {
 } from "@/hooks/queries/queryKeys";
 import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
-import { fetchCrittrAiThread } from "@/services/crittrAi";
-import { fetchOwnerHealthSnapshot } from "@/services/health";
+import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/queryClient";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { supabase } from "@/lib/supabase";
 import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
-import { fetchProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import * as Notifications from "expo-notifications";
@@ -54,22 +50,13 @@ export function useLoggedInQueryBootstrap() {
       queryClient.setQueryData(profileQueryKey(userId), profile);
     }
 
-    void queryClient.prefetchQuery({
-      queryKey: profileQueryKey(userId),
-      queryFn: () => fetchProfile(userId),
-    });
-
-    void prefetchPetsAndDetails(queryClient, userId);
-
-    void queryClient.prefetchQuery({
-      queryKey: healthSnapshotKey(userId),
-      queryFn: () => fetchOwnerHealthSnapshot(userId),
-    });
-
-    void queryClient.prefetchQuery({
-      queryKey: crittrAiThreadKey(userId),
-      queryFn: () => fetchCrittrAiThread(userId),
-    });
+    /**
+     * Normally `authStore` has already started these as soon as the session
+     * resolved. Repeating them here is a no-op while that data is fresh, and
+     * covers the paths that reach the logged-in shell without a resolve
+     * (finishing onboarding, switching accounts).
+     */
+    void prefetchLoggedInSessionData(userId);
   }, [userId]);
 
   /**

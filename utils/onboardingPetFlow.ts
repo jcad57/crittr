@@ -5,6 +5,7 @@ export const PET_DETAILS_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-details");
 export const PET_LITTER_MAINTENANCE_STEP_INDEX = ONBOARDING_STEPS.indexOf(
   "pet-litter-maintenance",
 );
+export const PET_EXERCISE_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-exercise");
 export const PET_FOOD_STEP_INDEX = ONBOARDING_STEPS.indexOf("pet-food");
 
 export function shouldShowFirstCatLitterOnboardingStep(

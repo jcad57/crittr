@@ -1,7 +1,9 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/constants/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { useSubscriptionDetailsQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { storePhrase } from "@/lib/iap/storeTerms";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import type { ComponentProps } from "react";
@@ -50,6 +52,14 @@ export default function WelcomeToProScreen() {
   const insets = useSafeAreaInsets();
   const { replace } = useNavigationCooldown();
 
+  /**
+   * Not every new subscriber gets a trial — Play and the App Store both
+   * decline one for an account that already used it, and a plan may not offer
+   * one at all. Ask what actually happened rather than assuming.
+   */
+  const { data: sub } = useSubscriptionDetailsQuery(true);
+  const onTrial = sub?.status === "trialing";
+
   const goHome = () => {
     replace("/(logged-in)/dashboard" as Href);
   };
@@ -66,7 +76,9 @@ export default function WelcomeToProScreen() {
       >
         <Text style={styles.title}>Welcome to Crittr Pro!</Text>
         <Text style={styles.lead}>
-          Your trial is active. Here is everything you can use right now.
+          {onTrial
+            ? "Your trial is active. Here is everything you can use right now."
+            : "Your subscription is active. Here is everything you can use right now."}
         </Text>
 
         <View style={styles.card}>
@@ -94,8 +106,9 @@ export default function WelcomeToProScreen() {
         </View>
 
         <Text style={styles.footnote}>
-          Cancel anytime before your trial ends. Manage billing from your
-          account profile when billing is connected.
+          {onTrial
+            ? `Cancel anytime before your trial ends. Manage billing in ${storePhrase()} or from Subscriptions in your settings.`
+            : `Cancel anytime. Manage billing in ${storePhrase()} or from Subscriptions in your settings.`}
         </Text>
 
         <OrangeButton onPress={goHome} style={styles.cta}>

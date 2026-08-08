@@ -18,11 +18,24 @@ import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
 const MIN_APP_OPEN_INTERVAL_MS = __DEV__ ? 0 : 4 * 60 * 60 * 1000;
 
 /**
+ * Paywall and purchase routes. Checkout matters beyond the "don't cover the paywall" reason:
+ * the store's payment sheet backgrounds the app, so a resume there reads as an ad served for
+ * tapping "Get Crittr Pro".
+ */
+const AD_FREE_ROUTE_SEGMENTS = [
+  "upgrade",
+  "pro-checkout",
+  "welcome-to-pro",
+] as const;
+
+/** Why an auto-show is allowed. Any other load (route change, post-dismiss reload) stays silent. */
+type PendingShowReason = "cold_start" | "foreground";
+
+/**
  * AdMob app open: full-screen when the app starts (first eligible load) and when returning
  * from the background, for signed-in, non–Crittr Pro users who have finished onboarding.
  * While `needsOnboarding` is true (sign-up → first-time setup), ads are suppressed so the
- * flow is not interrupted. While the upgrade/paywall route is focused, app-open is also
- * suppressed so it does not cover that screen (e.g. immediately after onboarding completes).
+ * flow is not interrupted. The paywall and purchase routes are suppressed too.
  * Preloads the next ad after one is dismissed.
  */
 export default function AppOpenAdManager() {
@@ -32,8 +45,9 @@ export default function AppOpenAdManager() {
   const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
   const pathname = usePathname() ?? "";
-  /** Full-screen app-open over the paywall is jarring (especially right after onboarding completes). */
-  const suppressOnUpgradeScreen = pathname.includes("upgrade");
+  const onAdFreeRoute = AD_FREE_ROUTE_SEGMENTS.some((segment) =>
+    pathname.includes(segment),
+  );
   const { canRequestAds, personalizedAds } = useTrackingConsent();
 
   const canRequest =
@@ -44,7 +58,7 @@ export default function AppOpenAdManager() {
     !isPro &&
     !isPending &&
     !isPlaceholderData &&
-    !suppressOnUpgradeScreen;
+    !onAdFreeRoute;
 
   const adUnitId = canRequest ? AdUnitIds.appOpen : null;
 
@@ -59,7 +73,7 @@ export default function AppOpenAdManager() {
   );
 
   const suppressAutoshowAfterPreload = useRef(false);
-  const pendingAfterForegroundNotLoaded = useRef(false);
+  const pendingShowReason = useRef<PendingShowReason | null>("cold_start");
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   /** Dedupes concurrent inits; matches `AdMobBootstrap` but guarantees `load()` runs after SDK is ready. */
   const initOnceRef = useRef<Promise<void> | null>(null);
@@ -92,13 +106,18 @@ export default function AppOpenAdManager() {
     void markAppOpenLastShownNow();
   }, []);
 
+  const canRequestRef = useRef(canRequest);
+
   const tryShow = useCallback(async () => {
     if (!isLoaded || isShowing) return;
+    /** Spent whether or not the throttle lets this one through — a skip, not a deferral. */
+    pendingShowReason.current = null;
     if (await shouldThrottleShow()) return;
     await new Promise<void>((resolve) => {
       InteractionManager.runAfterInteractions(() => resolve());
     });
-    if (!isLoaded) return;
+    /** Re-read eligibility: navigation onto an ad-free route can land during the wait. */
+    if (!isLoaded || !canRequestRef.current) return;
     markShown();
     show();
   }, [isLoaded, isShowing, shouldThrottleShow, markShown, show]);
@@ -107,7 +126,6 @@ export default function AppOpenAdManager() {
   const tryShowRef = useRef(tryShow);
   const loadRef = useRef(load);
   const isLoadedRef = useRef(isLoaded);
-  const canRequestRef = useRef(canRequest);
   useEffect(() => {
     tryShowRef.current = tryShow;
   }, [tryShow]);
@@ -123,8 +141,8 @@ export default function AppOpenAdManager() {
 
   // When eligibility is lost (e.g. Pro), reset foreground reload intent.
   useEffect(() => {
-    if (!canRequest) {
-      pendingAfterForegroundNotLoaded.current = false;
+    if (!canRequest && pendingShowReason.current === "foreground") {
+      pendingShowReason.current = null;
     }
   }, [canRequest]);
 
@@ -137,10 +155,10 @@ export default function AppOpenAdManager() {
       appStateRef.current = next;
       if (!cameToForeground) return;
       if (!canRequestRef.current) return;
+      pendingShowReason.current = "foreground";
       if (isLoadedRef.current) {
         void tryShowRef.current();
       } else {
-        pendingAfterForegroundNotLoaded.current = true;
         void ensureMobileAdsInitialized()
           .then(() => loadRef.current())
           .catch((e) => {
@@ -192,27 +210,28 @@ export default function AppOpenAdManager() {
     };
   }, [isClosed, canRequest, load, ensureMobileAdsInitialized]);
 
-  // A failed request should not leave "suppress" or pending-foreground intent stuck.
+  // A failed request should not leave "suppress" or pending show intent stuck.
   useEffect(() => {
     if (error) {
       if (__DEV__) {
         console.warn("[AppOpenAd] ad error", error);
       }
       suppressAutoshowAfterPreload.current = false;
-      pendingAfterForegroundNotLoaded.current = false;
+      pendingShowReason.current = null;
     }
   }, [error]);
 
-  // When an ad becomes loaded: preloads after a dismiss are suppressed; otherwise show (first open or resuming a load that started in the background).
+  // When an ad becomes loaded, show it only if a cold start or a foreground return is still
+  // waiting on one. Requests also fire when eligibility returns — leaving the paywall or
+  // checkout, say — and those must not turn into an impression.
   useEffect(() => {
     if (!isLoaded || !canRequest) return;
     if (suppressAutoshowAfterPreload.current) {
       suppressAutoshowAfterPreload.current = false;
+      pendingShowReason.current = null;
       return;
     }
-    if (pendingAfterForegroundNotLoaded.current) {
-      pendingAfterForegroundNotLoaded.current = false;
-    }
+    if (!pendingShowReason.current) return;
     void tryShowRef.current();
   }, [isLoaded, canRequest]);
   return null;

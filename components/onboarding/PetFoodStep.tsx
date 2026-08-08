@@ -1,18 +1,15 @@
 import FormInput from "@/components/onboarding/FormInput";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import PetFoodMealScheduleSection from "@/components/onboarding/petFood/PetFoodMealScheduleSection";
-import PetFoodTreatSection from "@/components/onboarding/petFood/PetFoodTreatSection";
 import PetFoodTypeToggle from "@/components/onboarding/petFood/PetFoodTypeToggle";
 import MealPortionEditorModal from "@/components/pet/MealPortionEditorModal";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { foodBrandInputPlaceholder, TIMES_QUICK } from "@/constants/petFoodFormConstants";
+import { foodBrandInputPlaceholder } from "@/constants/petFoodFormConstants";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
-  PET_DETAILS_STEP_INDEX,
-  PET_LITTER_MAINTENANCE_STEP_INDEX,
-  shouldShowFirstCatLitterOnboardingStep,
+  PET_EXERCISE_STEP_INDEX,
 } from "@/utils/onboardingPetFlow";
 import type { FoodFormEntry } from "@/types/database";
 import {
@@ -25,6 +22,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 
+const TREAT_DEFAULT_UNIT = "Piece(s)";
+const MEAL_DEFAULT_UNIT = "Cups";
+
 export default function PetFoodStep() {
   const {
     pets,
@@ -32,7 +32,6 @@ export default function PetFoodStep() {
     updateCurrentPet,
     nextStep,
     goToStep,
-    petFlowMode,
   } = useOnboardingStore(
     useShallow((s) => ({
       pets: s.pets,
@@ -40,36 +39,20 @@ export default function PetFoodStep() {
       updateCurrentPet: s.updateCurrentPet,
       nextStep: s.nextStep,
       goToStep: s.goToStep,
-      petFlowMode: s.petFlowMode,
     })),
   );
   const pet = pets[currentPetIndex];
   const [attempted, setAttempted] = useState(false);
 
   const handleBackFromFood = useCallback(() => {
-    if (
-      shouldShowFirstCatLitterOnboardingStep(
-        petFlowMode,
-        currentPetIndex,
-        pet.petType,
-      )
-    ) {
-      goToStep(PET_LITTER_MAINTENANCE_STEP_INDEX);
-    } else {
-      goToStep(PET_DETAILS_STEP_INDEX);
-    }
-  }, [goToStep, petFlowMode, currentPetIndex, pet.petType]);
+    goToStep(PET_EXERCISE_STEP_INDEX);
+  }, [goToStep]);
 
   const [foodBrand, setFoodBrand] = useState("");
   const [foodIsTreat, setFoodIsTreat] = useState(false);
   const [foodNotes, setFoodNotes] = useState("");
 
-  /** Treat: single portion + times per day */
-  const [treatPortionSize, setTreatPortionSize] = useState("");
-  const [treatPortionUnit, setTreatPortionUnit] = useState<string>("Cups");
-  const [treatTimesPerDay, setTreatTimesPerDay] = useState("1");
-
-  /** Meal: scheduled portions */
+  /** Scheduled portions (meals and treats). */
   const [mealPortions, setMealPortions] = useState<MealPortionDraft[]>([]);
   const [portionModalVisible, setPortionModalVisible] = useState(false);
   const [portionModalTitle, setPortionModalTitle] = useState("Add a portion");
@@ -85,80 +68,47 @@ export default function PetFoodStep() {
       setFoodBrand("");
       setFoodIsTreat(false);
       setFoodNotes("");
-      setTreatPortionSize("");
-      setTreatPortionUnit("Cups");
-      setTreatTimesPerDay("1");
       setMealPortions([]);
       return;
     }
     setFoodBrand(f.brand);
     setFoodNotes(f.notes);
     setFoodIsTreat(f.isTreat);
-    if (f.isTreat) {
-      setTreatPortionSize(f.portionSize);
-      setTreatPortionUnit(f.portionUnit || "Cups");
-      const n = parseInt(f.mealsPerDay.trim(), 10);
-      setTreatTimesPerDay(
-        Number.isFinite(n) && n >= 1 && n <= 8 ? String(n) : "1",
+    if (f.mealPortions?.length) {
+      setMealPortions(
+        f.mealPortions.map((p) => ({
+          key: p.key,
+          portionSize: p.portionSize,
+          portionUnit: p.portionUnit,
+          feedTime: pgTimeToDate(p.feedTimePg),
+        })),
       );
-      setMealPortions([]);
+    } else if (f.portionSize.trim() || f.mealsPerDay.trim()) {
+      setMealPortions(
+        deriveMealPortionsFromLegacyFields({
+          mealsPerDayStr: f.mealsPerDay,
+          portionSize: f.portionSize,
+          portionUnit: f.portionUnit,
+          defaultUnit: f.isTreat ? TREAT_DEFAULT_UNIT : MEAL_DEFAULT_UNIT,
+        }),
+      );
     } else {
-      if (f.mealPortions?.length) {
-        setMealPortions(
-          f.mealPortions.map((p) => ({
-            key: p.key,
-            portionSize: p.portionSize,
-            portionUnit: p.portionUnit,
-            feedTime: pgTimeToDate(p.feedTimePg),
-          })),
-        );
-      } else {
-        setMealPortions(
-          deriveMealPortionsFromLegacyFields({
-            mealsPerDayStr: f.mealsPerDay,
-            portionSize: f.portionSize,
-            portionUnit: f.portionUnit,
-          }),
-        );
-      }
+      setMealPortions([]);
     }
   }, [pet.foods[0]?.localId, currentPetIndex]);
 
   const isValid = useMemo(() => {
     if (!foodBrand.trim()) return false;
-    if (foodIsTreat) {
-      const t = parseInt(treatTimesPerDay.trim(), 10);
-      return (
-        Number.isFinite(t) &&
-        t >= 1 &&
-        t <= 8 &&
-        TIMES_QUICK.includes(treatTimesPerDay)
-      );
-    }
     if (mealPortions.length < 1) return false;
     return mealPortions.every((p) => p.portionSize.trim().length > 0);
-  }, [foodBrand, foodIsTreat, treatTimesPerDay, mealPortions]);
+  }, [foodBrand, mealPortions]);
 
   const showFieldErrors = attempted && !isValid;
   const brandErr = attempted && !foodBrand.trim();
-  const treatTimesErr =
-    attempted &&
-    foodIsTreat &&
-    (() => {
-      const t = parseInt(treatTimesPerDay.trim(), 10);
-      return !(
-        Number.isFinite(t) &&
-        t >= 1 &&
-        t <= 8 &&
-        TIMES_QUICK.includes(treatTimesPerDay)
-      );
-    })();
 
-  const mealNeedsFirstPortion =
-    attempted && !foodIsTreat && mealPortions.length < 1;
+  const mealNeedsFirstPortion = attempted && mealPortions.length < 1;
   const mealPortionAmountMissing =
     attempted &&
-    !foodIsTreat &&
     mealPortions.length > 0 &&
     mealPortions.some((p) => !p.portionSize.trim());
   const feedingScheduleLabelError =
@@ -166,10 +116,6 @@ export default function PetFoodStep() {
 
   const continueBlockedHint = useMemo(() => {
     if (!showFieldErrors) return null;
-    if (foodIsTreat) {
-      if (!foodBrand.trim()) return "Enter a food brand.";
-      return "Pick how many times per day your pet gets this treat (1–8).";
-    }
     if (!foodBrand.trim()) return "Enter a food brand.";
     if (mealNeedsFirstPortion)
       return "Add at least one feeding portion using Add a portion below.";
@@ -178,11 +124,12 @@ export default function PetFoodStep() {
     return "Finish the missing fields above.";
   }, [
     showFieldErrors,
-    foodIsTreat,
     foodBrand,
     mealNeedsFirstPortion,
     mealPortionAmountMissing,
   ]);
+
+  const defaultPortionUnit = foodIsTreat ? TREAT_DEFAULT_UNIT : MEAL_DEFAULT_UNIT;
 
   const openAddPortion = () => {
     const d = new Date();
@@ -192,7 +139,7 @@ export default function PetFoodStep() {
     setPortionEditorDraft({
       key: `new-${Date.now()}`,
       portionSize: "",
-      portionUnit: "Cups",
+      portionUnit: defaultPortionUnit,
       feedTime: d,
     });
     setPortionModalVisible(true);
@@ -233,35 +180,21 @@ export default function PetFoodStep() {
       return;
     }
     const localId = pet.foods[0]?.localId ?? Date.now().toString();
-    let entry: FoodFormEntry;
-    if (foodIsTreat) {
-      const times = parseInt(treatTimesPerDay.trim(), 10);
-      entry = {
-        localId,
-        brand: foodBrand.trim(),
-        portionSize: treatPortionSize,
-        portionUnit: treatPortionUnit,
-        mealsPerDay: String(times),
-        isTreat: true,
-        notes: foodNotes.trim(),
-      };
-    } else {
-      entry = {
-        localId,
-        brand: foodBrand.trim(),
-        portionSize: "",
-        portionUnit: "Cups",
-        mealsPerDay: String(mealPortions.length),
-        isTreat: false,
-        notes: foodNotes.trim(),
-        mealPortions: mealPortions.map((p) => ({
-          key: p.key,
-          portionSize: p.portionSize.trim(),
-          portionUnit: p.portionUnit,
-          feedTimePg: dateToPgTime(p.feedTime),
-        })),
-      };
-    }
+    const entry: FoodFormEntry = {
+      localId,
+      brand: foodBrand.trim(),
+      portionSize: "",
+      portionUnit: defaultPortionUnit,
+      mealsPerDay: String(mealPortions.length),
+      isTreat: foodIsTreat,
+      notes: foodNotes.trim(),
+      mealPortions: mealPortions.map((p) => ({
+        key: p.key,
+        portionSize: p.portionSize.trim(),
+        portionUnit: p.portionUnit,
+        feedTimePg: dateToPgTime(p.feedTime),
+      })),
+    };
     updateCurrentPet({ foods: [entry] });
     nextStep();
   }, [
@@ -271,10 +204,8 @@ export default function PetFoodStep() {
     foodBrand,
     foodIsTreat,
     foodNotes,
-    treatPortionSize,
-    treatPortionUnit,
-    treatTimesPerDay,
     mealPortions,
+    defaultPortionUnit,
     updateCurrentPet,
   ]);
 
@@ -300,8 +231,8 @@ export default function PetFoodStep() {
         <View style={styles.foodSection}>
           <Text style={styles.sectionTitle}>Meals & treats *</Text>
           <Text style={styles.helperText}>
-            Add your first meal or treat. For meals, add each feeding time and
-            portion below; for treats, set amount and how often per day.
+            Add your first meal or treat. Add each feeding time and portion
+            below — we&apos;ll use those times on the schedule.
           </Text>
 
           <FormInput
@@ -316,44 +247,22 @@ export default function PetFoodStep() {
 
           <PetFoodTypeToggle
             isTreat={foodIsTreat}
-            onSelectMeal={() => {
-              setFoodIsTreat(false);
-              setMealPortions([]);
-            }}
-            onSelectTreat={() => {
-              setFoodIsTreat(true);
-              setMealPortions([]);
-              setTreatPortionSize("");
-              setTreatTimesPerDay("1");
-            }}
+            onSelectMeal={() => setFoodIsTreat(false)}
+            onSelectTreat={() => setFoodIsTreat(true)}
           />
 
-          {foodIsTreat ? (
-            <PetFoodTreatSection
-              portionSize={treatPortionSize}
-              setPortionSize={setTreatPortionSize}
-              portionUnit={treatPortionUnit}
-              setPortionUnit={setTreatPortionUnit}
-              timesPerDay={treatTimesPerDay}
-              setTimesPerDay={setTreatTimesPerDay}
-              timesError={treatTimesErr}
-            />
-          ) : (
-            <PetFoodMealScheduleSection
-              mealPortions={mealPortions}
-              petName={pet.name}
-              onAddPortion={openAddPortion}
-              onEditPortion={openEditPortion}
-              onRemovePortion={removePortion}
-              feedingScheduleLabelError={feedingScheduleLabelError}
-              addPortionButtonError={mealNeedsFirstPortion}
-              portionRowAmountMissing={(idx) =>
-                attempted &&
-                !foodIsTreat &&
-                !mealPortions[idx]?.portionSize.trim()
-              }
-            />
-          )}
+          <PetFoodMealScheduleSection
+            mealPortions={mealPortions}
+            petName={pet.name}
+            onAddPortion={openAddPortion}
+            onEditPortion={openEditPortion}
+            onRemovePortion={removePortion}
+            feedingScheduleLabelError={feedingScheduleLabelError}
+            addPortionButtonError={mealNeedsFirstPortion}
+            portionRowAmountMissing={(idx) =>
+              attempted && !mealPortions[idx]?.portionSize.trim()
+            }
+          />
 
           <FormInput
             label="Notes"

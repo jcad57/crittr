@@ -1,5 +1,6 @@
 import { getRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
 import { selectCrittrProEntitlementFromCustomerInfo } from "@/lib/iap/crittrProRevenueCat";
+import { baseProductId } from "@/lib/iap/storeTerms";
 import Purchases, {
   type CustomerInfo,
   type PurchasesEntitlementInfo,
@@ -51,7 +52,7 @@ function storeLabel(store: Store): string {
     case "MAC_APP_STORE":
       return "App Store";
     case "PLAY_STORE":
-      return "Play Store";
+      return "Google Play";
     case "AMAZON":
       return "Amazon";
     case "PROMOTIONAL":
@@ -68,15 +69,19 @@ function storeLabel(store: Store): string {
   }
 }
 
+/**
+ * Google Play carries the cadence on the base plan rather than the
+ * subscription, so check both. `productPlanIdentifier` is Play-only and null
+ * on the App Store.
+ */
 function planLabelFromProductId(
   productId: string,
-  intro: { period?: string; periodUnit?: string } | null,
+  productPlanIdentifier: string | null,
 ): SubscriptionDetails["planLabel"] {
-  const lower = productId.toLowerCase();
-  if (lower.includes("annual") || lower.includes("year")) return "annual";
-  if (lower.includes("month")) return "monthly";
-  /** Fall back to RC intro period (`P1Y` / `P1M`) when the product id naming is unclear. */
-  if (intro?.periodUnit?.toLowerCase().startsWith("year")) return "annual";
+  const lower = `${productId} ${productPlanIdentifier ?? ""}`.toLowerCase();
+  if (lower.includes("annual") || lower.includes("year") || lower.includes("p1y")) {
+    return "annual";
+  }
   return "monthly";
 }
 
@@ -100,15 +105,24 @@ function statusFromEntitlement(
 }
 
 async function priceLabelForProduct(
-  productId: string,
+  storeProductId: string,
   fallbackInterval: "month" | "year",
 ): Promise<{ priceFormatted: string; currency: string }> {
-  if (!productId) {
+  if (!storeProductId) {
     return { priceFormatted: "—", currency: "" };
   }
   try {
-    const products = await Purchases.getProducts([productId]);
-    const product = products[0];
+    /**
+     * Play identifies an owned subscription as `subscriptionId:basePlanId` but
+     * only accepts the bare subscription id in a catalog lookup, and then
+     * returns one product per base plan — so we query wide and pick the plan
+     * the user actually holds.
+     */
+    const products = await Purchases.getProducts([
+      baseProductId(storeProductId),
+    ]);
+    const product =
+      products.find((p) => p.identifier === storeProductId) ?? products[0];
     if (product) {
       const period = fallbackInterval === "year" ? "year" : "month";
       const formatted = product.priceString
@@ -134,12 +148,23 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
   if (!ent) return null;
 
   const productId = ent.productIdentifier;
-  const subRecord = info.subscriptionsByProductIdentifier[productId];
+  /**
+   * `subscriptionsByProductIdentifier` is keyed the way the store names the
+   * thing that was bought: the bare product on the App Store, and
+   * `subscriptionId:basePlanId` on Play — which is not what the entitlement's
+   * `productIdentifier` holds there.
+   */
+  const storeProductId = ent.productPlanIdentifier
+    ? `${productId}:${ent.productPlanIdentifier}`
+    : productId;
+  const subRecord =
+    info.subscriptionsByProductIdentifier[storeProductId] ??
+    info.subscriptionsByProductIdentifier[productId];
 
-  const planLabel = planLabelFromProductId(productId, null);
+  const planLabel = planLabelFromProductId(productId, ent.productPlanIdentifier);
   const interval = intervalFromPlanLabel(planLabel);
   const { priceFormatted, currency } = await priceLabelForProduct(
-    productId,
+    storeProductId,
     interval,
   );
 
