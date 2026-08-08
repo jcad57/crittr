@@ -1,4 +1,4 @@
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";

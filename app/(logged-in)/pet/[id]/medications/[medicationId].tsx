@@ -1,5 +1,5 @@
-import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
-import FormInput from "@/components/onboarding/FormInput";
+import ExpiryDateField from "@/components/ui/form/ExpiryDateField";
+import FormInput from "@/components/ui/form/FormInput";
 import PetMedicationDosageRow from "@/components/petScreens/medication/PetMedicationDosageRow";
 import PetMedicationFormActions from "@/components/petScreens/medication/PetMedicationFormActions";
 import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";

@@ -1,5 +1,5 @@
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
-import FormInput from "@/components/onboarding/FormInput";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
+import FormInput from "@/components/ui/form/FormInput";
 import { Colors } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/theme/typography";

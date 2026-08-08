@@ -1,11 +1,11 @@
-import FormInput from "@/components/onboarding/FormInput";
-import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
+import FormInput from "@/components/ui/form/FormInput";
+import AutocompleteInput from "@/components/ui/form/AutocompleteInput";
 import PetAgeOrDobSection from "@/components/onboarding/petInfo/PetAgeOrDobSection";
 import PetAvatarSection from "@/components/onboarding/petInfo/PetAvatarSection";
 import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
 import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSterilizationToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
-import TagInput from "@/components/onboarding/TagInput";
+import TagInput from "@/components/ui/form/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/theme/colors";

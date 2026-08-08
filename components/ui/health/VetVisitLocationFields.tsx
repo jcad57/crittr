@@ -1,4 +1,4 @@
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { VET_VISIT_LOCATION_OTHER } from "@/utils/vetVisitLocationUi";

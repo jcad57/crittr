@@ -1,5 +1,5 @@
-import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
-import FormInput from "@/components/onboarding/FormInput";
+import ExpiryDateField from "@/components/ui/form/ExpiryDateField";
+import FormInput from "@/components/ui/form/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";

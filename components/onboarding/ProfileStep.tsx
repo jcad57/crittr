@@ -1,4 +1,4 @@
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/theme/colors";

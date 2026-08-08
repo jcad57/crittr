@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import MealPortionEditorModal from "@/components/pet/MealPortionEditorModal";
 import PetFoodMealScheduleSection from "@/components/petScreens/food/PetFoodMealScheduleSection";
 import PetFoodNoPermissionAddView from "@/components/petScreens/food/PetFoodNoPermissionAddView";

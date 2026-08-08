@@ -1,8 +1,8 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
-import FormInput from "@/components/onboarding/FormInput";
+import AutocompleteInput from "@/components/ui/form/AutocompleteInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { getBreedLabelForPetType } from "@/constants/petInfo";

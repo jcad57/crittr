@@ -1,4 +1,4 @@
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
 import { petCareStyles } from "@/components/onboarding/petCareStyles";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";

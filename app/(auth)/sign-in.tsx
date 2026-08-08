@@ -1,5 +1,5 @@
 import AuthBackToWelcome from "@/components/onboarding/AuthBackToWelcome";
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";

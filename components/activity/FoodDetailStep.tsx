@@ -2,8 +2,8 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import FoodPetFieldsRow from "@/components/activity/FoodPetFieldsRow";
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
-import FormInput from "@/components/onboarding/FormInput";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
