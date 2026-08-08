@@ -1,11 +1,11 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   IOS_LIGHT_PICKER_PROPS,
   iosSpinnerPickerStyle,
-} from "@/constants/dateTimePicker";
-import { Font } from "@/constants/typography";
+} from "@/theme/dateTimePicker";
+import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import {
   EXERCISE_DOW_OPTIONS,

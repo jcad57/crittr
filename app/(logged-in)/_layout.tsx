@@ -3,7 +3,7 @@ import PushNotificationNavigationListener from "@/components/push/PushNotificati
 import ReminderNotificationSync from "@/components/push/ReminderNotificationSync";
 import RevenueCatProSync from "@/components/iap/RevenueCatProSync";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
 import { useLoggedInQueryBootstrap } from "@/hooks/useLoggedInQueryBootstrap";
 import { Redirect, Stack, usePathname } from "expo-router";

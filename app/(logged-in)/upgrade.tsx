@@ -1,5 +1,5 @@
 import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";

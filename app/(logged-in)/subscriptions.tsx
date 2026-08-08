@@ -1,7 +1,7 @@
 import { SubscriptionDetailsView } from "@/components/screens/subscriptions/SubscriptionDetailsView";
 import { SubscriptionsNavHeader } from "@/components/screens/subscriptions/SubscriptionsNavHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   profileQueryKey,
   subscriptionDetailsQueryKey,

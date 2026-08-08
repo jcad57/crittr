@@ -2,7 +2,7 @@ import {
   getContentInsetWithoutFloatingNav,
   getFloatingNavContentInsetBottom,
   shouldShowFloatingNav,
-} from "@/constants/floatingNav";
+} from "@/lib/navigation/floatingNav";
 import { usePathname, useSegments } from "expo-router";
 import { useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

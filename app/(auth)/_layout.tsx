@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {

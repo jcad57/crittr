@@ -2,8 +2,8 @@ import PetProfileNavBar from "@/components/petScreens/petProfile/PetProfileNavBa
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetWeightLineChart from "@/components/ui/health/PetWeightLineChart";
 import WeightRangeSelector from "@/components/ui/health/WeightRangeSelector";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import {
   usePetDetailsQuery,
   usePetWeightEntriesQuery,

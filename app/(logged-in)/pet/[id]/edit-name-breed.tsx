@@ -3,9 +3,9 @@ import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   useBreedsQuery,
   usePetDetailsQuery,

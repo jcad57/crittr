@@ -2,8 +2,8 @@ import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import ScheduleDateSelector from "@/components/ui/schedule/ScheduleDateSelector";
 import ScheduleDaySkeleton from "@/components/ui/schedule/ScheduleDaySkeleton";
 import SchedulePeriodSection from "@/components/ui/schedule/SchedulePeriodSection";
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   usePetDetailsQuery,
   useUnreadNotificationCountQuery,

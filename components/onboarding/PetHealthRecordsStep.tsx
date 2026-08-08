@@ -5,9 +5,9 @@ import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceTogg
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { PetFormData } from "@/types/database";
 import { useState } from "react";

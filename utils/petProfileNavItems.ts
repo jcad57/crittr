@@ -1,5 +1,5 @@
 import type { RecordsNavItem } from "@/components/ui/pet/RecordsNavCard";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { PetProfile } from "@/types/ui";
 import type { Href } from "expo-router";
 

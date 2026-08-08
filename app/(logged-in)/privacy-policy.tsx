@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import { privacyPolicySections } from "@/constants/privacyPolicyContent";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { privacyPolicySections } from "@/content/privacyPolicy";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";

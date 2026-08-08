@@ -1,8 +1,8 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { CO_CARE_PERMISSION_ROWS } from "@/constants/coCarePermissionRows";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { usePetDetailsQuery, useSendInviteMutation } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";

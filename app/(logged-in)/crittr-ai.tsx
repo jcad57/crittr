@@ -1,6 +1,6 @@
 import CrittrAiAssistantTypingReveal from "@/components/crittr-ai/CrittrAiAssistantTypingReveal";
 import { TypingBubble } from "@/components/screens/crittr-ai/TypingBubble";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { CRITTR_AI_WELCOME_ASSISTANT_TEXT } from "@/constants/crittrAiCopy";
 import { useCrittrAiThreadQuery } from "@/hooks/queries";
 import { crittrAiThreadKey } from "@/hooks/queries/queryKeys";

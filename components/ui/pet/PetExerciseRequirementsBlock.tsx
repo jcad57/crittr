@@ -1,7 +1,7 @@
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetWithDetails } from "@/types/database";
 import {

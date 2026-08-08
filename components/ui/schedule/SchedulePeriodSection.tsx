@@ -1,6 +1,6 @@
 import ScheduleActivityCard from "@/components/ui/schedule/ScheduleActivityCard";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { PetScheduleItem } from "@/types/database";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeInDown } from "react-native-reanimated";

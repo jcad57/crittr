@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { usePushNotificationPreferences } from "@/hooks/usePushNotificationPreferences";
 import {

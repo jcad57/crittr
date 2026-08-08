@@ -1,5 +1,5 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import { formatUserTime } from "@/utils/userDateTimeFormat";

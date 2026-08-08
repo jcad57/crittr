@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import { termsOfServiceSections } from "@/constants/termsOfServiceContent";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { termsOfServiceSections } from "@/content/termsOfService";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";

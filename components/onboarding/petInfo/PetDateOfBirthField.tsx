@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useRef, useState } from "react";
 import {

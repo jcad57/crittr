@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
+import { Font } from "@/theme/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { activityFilterMenuItems } from "@/utils/activityHistoryFilters";

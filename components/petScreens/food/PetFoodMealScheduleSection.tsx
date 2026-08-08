@@ -1,5 +1,5 @@
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";

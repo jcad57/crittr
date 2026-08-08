@@ -4,7 +4,7 @@ import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { manageActivityNavTitle } from "@/constants/activityWizardTitles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useDeleteActivityMutation,
   useUpdateExerciseActivityMutation,

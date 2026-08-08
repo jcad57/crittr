@@ -6,7 +6,7 @@ import PetFoodNoPermissionAddView from "@/components/petScreens/food/PetFoodNoPe
 import PetFoodReadOnlyView from "@/components/petScreens/food/PetFoodReadOnlyView";
 import PetFoodTypeToggle from "@/components/petScreens/food/PetFoodTypeToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { foodBrandInputPlaceholder } from "@/constants/petFoodFormConstants";
 import {
   useInsertPetFoodMutation,

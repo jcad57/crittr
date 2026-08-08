@@ -1,8 +1,8 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { profileQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/queryClient";
 import { updateProfile, uploadAvatar } from "@/services/profiles";

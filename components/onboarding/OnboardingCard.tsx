@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import {
   AUTH_STACK_HORIZONTAL_PADDING,

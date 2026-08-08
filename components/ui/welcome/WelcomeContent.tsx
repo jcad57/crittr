@@ -1,6 +1,6 @@
 import StepIndicator from "@/components/onboarding/StepIndicator";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import {
   getWelcomeCarouselSlideWidth,
   getWelcomeColumnOuterWidth,

@@ -1,6 +1,6 @@
 import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";

@@ -1,5 +1,5 @@
-import { AdUnitIds, ENABLED_AD_PLACEMENTS, type AdPlacement } from "@/constants/ads";
-import { Colors } from "@/constants/colors";
+import { AdUnitIds, ENABLED_AD_PLACEMENTS, type AdPlacement } from "@/config/ads";
+import { Colors } from "@/theme/colors";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useTrackingConsent } from "@/hooks/useTrackingConsent";

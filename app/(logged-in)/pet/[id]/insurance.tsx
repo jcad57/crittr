@@ -3,7 +3,7 @@ import InsuranceNavHeader from "@/components/petScreens/petInsurance/InsuranceNa
 import InsurancePolicyDocsSection from "@/components/petScreens/petInsurance/InsurancePolicyDocsSection";
 import InsuranceReadOnlyView from "@/components/petScreens/petInsurance/InsuranceReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useDeletePetInsuranceFileMutation,
   usePetDetailsQuery,

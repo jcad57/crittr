@@ -1,4 +1,4 @@
-import { CRITTR_PRO_ENTITLEMENT } from "@/constants/iap";
+import { CRITTR_PRO_ENTITLEMENT } from "@/config/iap";
 import type {
   CustomerInfo,
   PurchasesEntitlementInfo,

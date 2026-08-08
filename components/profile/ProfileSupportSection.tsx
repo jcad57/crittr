@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
 import ProfileSectionHeader from "./ProfileSectionHeader";
 import ProfileSupportRow from "./ProfileSupportRow";

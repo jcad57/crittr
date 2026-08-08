@@ -1,9 +1,9 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   IOS_LIGHT_PICKER_PROPS,
   iosSpinnerPickerStyle,
-} from "@/constants/dateTimePicker";
-import { Font } from "@/constants/typography";
+} from "@/theme/dateTimePicker";
+import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import DateTimePicker, {

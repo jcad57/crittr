@@ -5,7 +5,7 @@ import MedicalRecordFilePreviewModal from "@/components/medical/MedicalRecordFil
 import MedicalRecordEditFilesList from "@/components/petScreens/medicalRecords/MedicalRecordEditFilesList";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useDeleteMedicalRecordFileMutation,
   useDeletePetMedicalRecordMutation,

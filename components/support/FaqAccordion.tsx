@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import type { HelpCenterFaq } from "@/constants/helpCenterFaqs";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import type { HelpCenterFaq } from "@/content/helpCenterFaqs";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";

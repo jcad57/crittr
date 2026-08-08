@@ -1,12 +1,12 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   PRO_GRADIENT_END,
   PRO_GRADIENT_START,
   normalizeProBannerThemeId,
   resolveProBannerTheme,
 } from "@/constants/proBannerThemes";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";

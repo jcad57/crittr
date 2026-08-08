@@ -1,13 +1,13 @@
 import ProHeroWithShine from "@/components/profile/ProHeroWithShine";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   PRO_BANNER_THEME_ORDER,
   type ProBannerThemeId,
   normalizeProBannerThemeId,
   resolveProBannerTheme,
 } from "@/constants/proBannerThemes";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { queryClient } from "@/lib/queryClient";

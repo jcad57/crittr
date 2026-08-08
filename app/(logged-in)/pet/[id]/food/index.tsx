@@ -1,6 +1,6 @@
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";

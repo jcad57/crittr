@@ -8,12 +8,12 @@ import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/onboarding/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   getBreedLabelForPetType,
   PET_INFO_FIELD_MARGIN_BOTTOM,
 } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import { useAllergiesQuery, useBreedsQuery } from "@/hooks/queries";

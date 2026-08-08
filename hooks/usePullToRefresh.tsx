@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import {
   InteractionManager,

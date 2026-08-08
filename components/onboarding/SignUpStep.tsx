@@ -1,9 +1,9 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/constants/authUi";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/config/featureFlags";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { useAuthStore } from "@/stores/authStore";
 import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
 import { Image } from "expo-image";

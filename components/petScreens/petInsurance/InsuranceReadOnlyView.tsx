@@ -1,6 +1,6 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { PetInsuranceFile, PetWithDetails } from "@/types/database";
 import { formatBytes, mimeKind } from "@/utils/fileAttachmentDisplay";
 import { insuranceStatusLabel } from "@/utils/insuranceScreenHelpers";

@@ -1,6 +1,6 @@
 import AdMobBootstrap from "@/components/ads/AdMobBootstrap";
 import SessionGate from "@/components/auth/SessionGate";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View } from "react-native";

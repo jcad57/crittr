@@ -1,4 +1,4 @@
-import { AdUnitIds, INTERSTITIAL_ADS_ENABLED } from "@/constants/ads";
+import { AdUnitIds, INTERSTITIAL_ADS_ENABLED } from "@/config/ads";
 import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
 import mobileAds, {
   AdEventType,

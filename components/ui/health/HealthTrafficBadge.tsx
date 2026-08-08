@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { HealthTrafficKind } from "@/utils/healthTraffic";
 import { StyleSheet, Text, View } from "react-native";
 

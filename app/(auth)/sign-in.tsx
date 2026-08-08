@@ -4,7 +4,7 @@ import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/constants/authUi";
+import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/config/featureFlags";
 import {
   getAuthFlowColumnOuterWidth,
   welcomeAuthLayoutScale,

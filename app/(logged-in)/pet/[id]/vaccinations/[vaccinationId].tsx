@@ -4,7 +4,7 @@ import FormInput from "@/components/onboarding/FormInput";
 import VaccinationReadOnlyView from "@/components/petScreens/vaccinations/VaccinationReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useDeletePetVaccinationMutation,
   useInsertPetVaccinationMutation,

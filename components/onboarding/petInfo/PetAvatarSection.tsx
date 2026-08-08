@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { AVATAR_SIZE } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 

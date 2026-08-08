@@ -1,6 +1,6 @@
 import { getDailyProgressRingIcons } from "@/constants/activityTypeProgressIcons";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { DailyProgressCategory } from "@/types/ui";
 import { Image } from "expo-image";
 import { useMemo } from "react";

@@ -6,7 +6,7 @@ import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { addActivityNavTitle } from "@/constants/activityWizardTitles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,

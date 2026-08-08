@@ -2,8 +2,8 @@ import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitRead
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
-import { Colors } from "@/constants/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
+import { Colors } from "@/theme/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,

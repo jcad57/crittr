@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { usePetAccessGuard } from "@/hooks/usePetAccessGuard";
 import { Stack, useLocalSearchParams } from "expo-router";
 

@@ -7,8 +7,8 @@ import PetSexToggle from "@/components/onboarding/petInfo/PetSexToggle";
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   useBreedsQuery,
   usePetDetailsQuery,

@@ -1,8 +1,8 @@
 import DropdownSelect from "@/components/onboarding/DropdownSelect";
 import FormInput from "@/components/onboarding/FormInput";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import type { FoodActivityExtraPetRow } from "@/utils/foodActivityMerge";
 import { FOOD_ACTIVITY_OTHER_ID } from "@/types/database";

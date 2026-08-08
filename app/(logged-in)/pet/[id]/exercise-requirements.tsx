@@ -4,9 +4,9 @@ import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevel
 import ExercisePlanEditorModal from "@/components/pet/ExercisePlanEditorModal";
 import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   usePetDetailsQuery,
   useUpdatePetExerciseRequirementsMutation,

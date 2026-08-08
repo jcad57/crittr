@@ -9,7 +9,7 @@ import MedicalRecordsVetList, {
 } from "@/components/petScreens/medicalRecords/MedicalRecordsVetList";
 import HealthSectionHeader from "@/components/ui/health/HealthSectionHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useApplyMedicalRecordScanMutation,
   useParseMedicalRecordMutation,

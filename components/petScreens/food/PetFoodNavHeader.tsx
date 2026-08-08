@@ -1,5 +1,5 @@
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 

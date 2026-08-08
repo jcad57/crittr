@@ -7,7 +7,7 @@ import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedica
 import PetMedicationNoPermissionAddView from "@/components/petScreens/medication/PetMedicationNoPermissionAddView";
 import PetMedicationReadOnlyView from "@/components/petScreens/medication/PetMedicationReadOnlyView";
 import PetMedicationReminderField from "@/components/petScreens/medication/PetMedicationReminderField";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { type SchedulePeriod } from "@/constants/medicationEditForm";
 import {
   useDeleteMedicationMutation,

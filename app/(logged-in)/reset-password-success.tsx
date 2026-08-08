@@ -1,6 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";

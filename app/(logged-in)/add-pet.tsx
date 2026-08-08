@@ -1,7 +1,7 @@
 import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import StepIndicator from "@/components/onboarding/StepIndicator";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   FINISH_STEP_INDEX,
   ONBOARDING_STEPS,

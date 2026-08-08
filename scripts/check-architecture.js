@@ -66,7 +66,7 @@ const ALLOWED = {
   store: ["lib", "services", "utils", "constants", "config", "types", "store"],
   stores: ["lib", "services", "utils", "constants", "config", "types", "stores"],
   utils: ["utils", "constants", "theme", "config", "types"],
-  constants: ["constants", "types"],
+  constants: ["constants", "theme", "types"],
   theme: ["theme", "constants", "types"],
   config: ["config", "types"],
   content: ["content", "types"],

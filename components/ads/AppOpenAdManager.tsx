@@ -1,4 +1,4 @@
-import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/constants/ads";
+import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/config/ads";
 import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";

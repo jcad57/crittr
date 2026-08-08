@@ -2,9 +2,9 @@ import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/constants/dateTimePicker";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,

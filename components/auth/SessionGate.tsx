@@ -1,6 +1,6 @@
 import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
-import { Colors } from "@/constants/colors";
-import { FONT_FACES } from "@/constants/fonts";
+import { Colors } from "@/theme/colors";
+import { FONT_FACES } from "@/theme/fonts";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
 import { configureRevenueCat } from "@/lib/iap/revenueCat";

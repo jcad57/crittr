@@ -11,7 +11,7 @@ import HealthSectionSkeleton from "@/components/ui/dashboard/HealthSectionSkelet
 import PetManagement from "@/components/ui/dashboard/PetManagement";
 import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
 import {
   usePetDetailsQuery,

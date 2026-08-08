@@ -1,7 +1,7 @@
 import FaqAccordion from "@/components/support/FaqAccordion";
-import { Colors } from "@/constants/colors";
-import { HelpCenterFaq, helpCenterFaqs } from "@/constants/helpCenterFaqs";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { HelpCenterFaq, helpCenterFaqs } from "@/content/helpCenterFaqs";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";

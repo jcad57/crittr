@@ -1,7 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useProPricingQuery } from "@/hooks/queries";
 import {
   profileQueryKey,

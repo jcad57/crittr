@@ -14,7 +14,7 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   petDetailsQueryKey,
   petsQueryKey,

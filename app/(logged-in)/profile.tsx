@@ -10,7 +10,7 @@ import {
   formatMemberSince,
   initialsFromProfile,
 } from "@/components/profile";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { normalizeProBannerThemeId } from "@/constants/proBannerThemes";
 import {
   profileQueryKey,

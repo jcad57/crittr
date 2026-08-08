@@ -1,5 +1,5 @@
 import { styles } from "@/screen-styles/upgrade.styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { UpgradeCellDisplay } from "@/constants/upgradeComparison";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";

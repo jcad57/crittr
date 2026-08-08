@@ -1,5 +1,5 @@
 import { styles } from "@/screen-styles/subscriptions.styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 

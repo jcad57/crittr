@@ -1,7 +1,7 @@
 import FormInput from "@/components/onboarding/FormInput";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import type { PetFormData } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 

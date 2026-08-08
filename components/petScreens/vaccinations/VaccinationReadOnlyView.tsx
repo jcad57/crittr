@@ -1,7 +1,7 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
 import type { PetVaccination, PetWithDetails } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

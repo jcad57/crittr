@@ -2,8 +2,8 @@ import ActivityHistoryFilterBar from "@/components/ui/activity/ActivityHistoryFi
 import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
 import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   computeWeeklySummary,
   convertActivities,

@@ -1,12 +1,12 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   FLOATING_NAV_BAR_HEIGHT,
   FLOATING_NAV_HORIZONTAL_MARGIN_PERCENT,
   FLOATING_NAV_OUTER_BOTTOM_GAP,
   getFloatingNavSlideOutDistance,
   shouldShowFloatingNav,
-} from "@/constants/floatingNav";
-import { Font } from "@/constants/typography";
+} from "@/lib/navigation/floatingNav";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { usePathname, useRouter, useSegments } from "expo-router";

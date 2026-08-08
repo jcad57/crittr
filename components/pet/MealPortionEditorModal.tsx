@@ -1,12 +1,12 @@
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   IOS_LIGHT_PICKER_PROPS,
   iosSpinnerPickerStyle,
-} from "@/constants/dateTimePicker";
+} from "@/theme/dateTimePicker";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import type { MealPortionDraft } from "@/utils/petFood";
