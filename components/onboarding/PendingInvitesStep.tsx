@@ -126,7 +126,7 @@ export default function PendingInvitesStep() {
         await queryClient.invalidateQueries({
           queryKey: petsQueryKey(session.user.id),
         });
-        router.replace("/(logged-in)/dashboard");
+        router.replace("/(logged-in)/(tabs)/dashboard");
       } catch (err: any) {
         Alert.alert("Error", err.message ?? "Failed to complete setup.");
       } finally {

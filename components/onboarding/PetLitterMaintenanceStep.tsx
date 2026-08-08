@@ -10,8 +10,9 @@ import {
   PET_EXERCISE_STEP_INDEX,
 } from "@/utils/onboardingPetFlow";
 import { useShallow } from "zustand/react/shallow";
+import { Image } from "expo-image";
 import { useCallback, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function PetLitterMaintenanceStep() {
   const { profileData, setProfileData, goToStep } = useOnboardingStore(
@@ -68,7 +69,7 @@ export default function PetLitterMaintenanceStep() {
           <Image
             source={ACTIVITY_TYPE_LOG_ICONS.maintenance}
             style={{ width: 40, height: 40 }}
-            resizeMode="contain"
+            contentFit="contain"
           />
         </View>
 

@@ -29,10 +29,6 @@ export default function Onboarding() {
     (s) => s.requiresCoCareRemovedScreen,
   );
 
-  if (requiresCoCareRemovedScreen) {
-    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
-  }
-
   /**
    * Self-heal "limbo zero-pet" state. A logged-in user can land here after
    * a flaky `refreshAuthSession` (`hasPets` cached as false even though the
@@ -42,6 +38,7 @@ export default function Onboarding() {
    */
   const selfHealedRef = useRef(false);
   useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
     if (!session || !needsOnboarding) {
       selfHealedRef.current = false;
       return;
@@ -51,21 +48,33 @@ export default function Onboarding() {
     void useAuthStore.getState().refreshAuthSession().catch(() => {
       /* non-fatal */
     });
-  }, [session, needsOnboarding]);
+  }, [session, needsOnboarding, requiresCoCareRemovedScreen]);
 
   useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
     if (!session || !needsOnboarding || resumeStep == null) return;
     const step = useOnboardingStore.getState().currentStep;
     if (step !== 0) return;
     goToStep(resumeStep);
-  }, [session?.user.id, needsOnboarding, resumeStep, goToStep]);
+  }, [
+    session?.user.id,
+    needsOnboarding,
+    resumeStep,
+    goToStep,
+    requiresCoCareRemovedScreen,
+  ]);
 
   /** If session exists, do not show verify-email (OTP already completed or stale step). */
   useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
     if (!session) return;
     if (currentStep !== VERIFY_EMAIL_STEP_INDEX) return;
     goToStep(PROFILE_STEP_INDEX);
-  }, [session, currentStep, goToStep]);
+  }, [session, currentStep, goToStep, requiresCoCareRemovedScreen]);
+
+  if (requiresCoCareRemovedScreen) {
+    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
+  }
 
   const StepComponent =
     ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[0];

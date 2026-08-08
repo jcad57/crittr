@@ -19,7 +19,7 @@ export default function LoggedInTabsLayout() {
          */
         lazy: false,
         freezeOnBlur: true,
-        sceneContainerStyle: { backgroundColor: Colors.cream },
+        sceneStyle: { backgroundColor: Colors.cream },
       }}
     />
   );

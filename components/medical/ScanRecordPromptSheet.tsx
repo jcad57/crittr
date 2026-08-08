@@ -142,7 +142,7 @@ export default function ScanRecordPromptSheet({
           <Text style={styles.title}>Scan with Crittr AI?</Text>
           <Text style={styles.body}>
             Let Crittr read the document you just uploaded and pull out any
-            medications or vaccinations so we can add them to your pet's
+            medications or vaccinations so we can add them to your pet&apos;s
             profile.
           </Text>
 

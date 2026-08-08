@@ -188,7 +188,7 @@ export default function WeightHistoryScreen() {
           </View>
         ) : isError ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Couldn't load weight history</Text>
+            <Text style={styles.emptyTitle}>Couldn&apos;t load weight history</Text>
             <Text style={styles.emptyHint}>
               {error?.message ?? "Please try again."}
             </Text>

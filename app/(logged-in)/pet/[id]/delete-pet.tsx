@@ -40,7 +40,7 @@ export default function DeletePetScreen() {
             void (async () => {
               try {
                 await deleteMut.mutateAsync();
-                router.replace("/(logged-in)/pets");
+                router.replace("/(logged-in)/(tabs)/pets");
               } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e);
                 Alert.alert("Could not delete", msg);

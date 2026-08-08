@@ -89,7 +89,7 @@ export default function ActivityFeed({
     return (
       <View style={styles.container}>
         <View style={styles.listHeader}>
-          <SectionLabel>Today's Activity</SectionLabel>
+          <SectionLabel>Today&apos;s Activity</SectionLabel>
         </View>
         {showLogActivity ? (
           <TouchableOpacity
@@ -124,7 +124,7 @@ export default function ActivityFeed({
     <View style={styles.container}>
       <View style={styles.listHeader}>
         <SectionLabel style={styles.sectionLabelFlush}>
-          Today's Activity
+          Today&apos;s Activity
         </SectionLabel>
         <View style={styles.headerRight}>
           {onSeeAllPress && (

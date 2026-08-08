@@ -19,7 +19,7 @@ export default function CoCareReadOnlyNotice() {
         <Text style={styles.title}>View only</Text>
       </View>
       <Text style={styles.body}>
-        You don't have permission to update these details.
+        You don&apos;t have permission to update these details.
       </Text>
     </View>
   );

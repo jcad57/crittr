@@ -17,7 +17,6 @@ import {
 import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import { storeAccountLabel, storePhrase } from "@/lib/iap/storeTerms";
 import { openManageSubscriptions } from "@/services/iapSubscription";
-import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
 import { formatSubscriptionDate as formatDate } from "@/utils/subscriptionDisplay";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,12 +41,9 @@ export default function SubscriptionsScreen() {
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.session?.user?.id);
   const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
-  const isMockPro = useCrittrProStore((s) => s.isMockPro);
-
   const { data: profile, isLoading: profileLoading } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
 
-  const detailsEnabled = !isMockPro;
   const {
     data: sub,
     isLoading: detailsLoading,
@@ -55,7 +51,7 @@ export default function SubscriptionsScreen() {
     error,
     refetch,
     isFetching,
-  } = useSubscriptionDetailsQuery(detailsEnabled);
+  } = useSubscriptionDetailsQuery();
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -139,8 +135,7 @@ export default function SubscriptionsScreen() {
     }
   }, [queryClient, refreshProfileOnly, userId]);
 
-  const showNavRefetch =
-    detailsEnabled && isFetching && !detailsLoading && !pullRefreshing;
+  const showNavRefetch = isFetching && !detailsLoading && !pullRefreshing;
 
   if (profileLoading && !profile) {
     return (
@@ -150,7 +145,7 @@ export default function SubscriptionsScreen() {
     );
   }
 
-  if (!isPro && !isMockPro) {
+  if (!isPro) {
     const subLoadSettled = !detailsLoading;
     if (subLoadSettled && !isError && !pendingNonRenewalAccess) {
       return <Redirect href="/(logged-in)/upgrade?returnTo=subscriptions" />;
@@ -237,20 +232,6 @@ export default function SubscriptionsScreen() {
             </Text>
           </Pressable>
         </ScrollView>
-      </View>
-    );
-  }
-
-  if (isMockPro) {
-    return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <SubscriptionsNavHeader onBack={() => router.back()} />
-        <View style={[styles.body, { paddingBottom: scrollInsetBottom }]}>
-          <Text style={styles.lead}>
-            Mock Pro is enabled for testing. Connect a real subscription in a
-            non-mock session to manage billing here.
-          </Text>
-        </View>
       </View>
     );
   }

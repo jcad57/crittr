@@ -1,0 +1,36 @@
+{
+  "layerViolations": [
+    "constants/activityRowIcons.ts -> data/activityHistory.ts",
+    "constants/proBannerThemes.ts -> utils/smoothGradient.ts",
+    "constants/proPricingFallback.ts -> services/proPricing.ts",
+    "lib/auth/resolveSession.ts -> stores/onboardingStore.ts",
+    "lib/prefetchSessionData.ts -> hooks/queries/prefetchPetsAndDetails.ts",
+    "lib/prefetchSessionData.ts -> hooks/queries/queryKeys.ts",
+    "lib/prefetchSessionData.ts -> hooks/queries/useHealthSnapshotQuery.ts",
+    "lib/prefetchSessionData.ts -> services/crittrAi.ts",
+    "lib/prefetchSessionData.ts -> services/notifications.ts",
+    "lib/prefetchSessionData.ts -> services/profiles.ts",
+    "lib/prefetchSessionData.ts -> services/schedule.ts",
+    "lib/prefetchSessionData.ts -> stores/petStore.ts",
+    "lib/reminderNotificationSchedule.ts -> services/activities.ts",
+    "lib/reminderNotificationSchedule.ts -> services/pets.ts",
+    "lib/vetVisitActivityMirror.ts -> hooks/queries/queryKeys.ts",
+    "lib/vetVisitActivityMirror.ts -> services/activities.ts",
+    "lib/vetVisitActivityMirror.ts -> services/pets.ts",
+    "services/schedule.ts -> hooks/queries/queryKeys.ts",
+    "stores/authStore.ts -> hooks/queries/queryKeys.ts",
+    "types/ui.ts -> utils/healthTraffic.ts",
+    "utils/activityHistoryFilters.ts -> data/activityHistory.ts",
+    "utils/manageActivityFormHelpers.ts -> hooks/queries/queryKeys.ts",
+    "utils/manageActivityFormHelpers.ts -> lib/queryClient.ts",
+    "utils/manageActivityFormHelpers.ts -> services/health.ts",
+    "utils/onboardingPetFlow.ts -> stores/onboardingStore.ts",
+    "utils/petFoodFormHelpers.ts -> services/petFoods.ts",
+    "utils/petProfileMapping.ts -> components/ui/pet/PetProfileHero.tsx",
+    "utils/petProfileNavItems.ts -> components/ui/pet/RecordsNavCard.tsx",
+    "utils/scheduleDisplayFromActivity.ts -> data/activityHistory.ts"
+  ],
+  "cycles": [
+    "hooks/queries/useHealthSnapshotQuery.ts | lib/prefetchSessionData.ts | stores/authStore.ts"
+  ]
+}

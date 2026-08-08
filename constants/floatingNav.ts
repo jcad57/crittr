@@ -49,8 +49,6 @@ export function shouldShowFloatingNav(
   if (p.includes("upgrade")) return false;
   if (p.includes("pro-checkout")) return false;
   if (p.includes("welcome-to-pro")) return false;
-  if (p.includes("membership-mock")) return false;
-
   /** Nested pet stack (/pet/:id/medications/..., food/..., etc.) — must run before segment tab checks. */
   if (/\/pet\/[^/]+\/.+/.test(p)) return false;
 

@@ -5,7 +5,6 @@ import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { fetchProfile } from "@/services/profiles";
-import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
@@ -19,14 +18,12 @@ export function useProGateNavigation() {
   const queryClient = useQueryClient();
   const { data: profile, isPlaceholderData } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
-  const isMockPro = useCrittrProStore((s) => s.isMockPro);
   const { push, replace } = useNavigationCooldown();
 
   /** True after the first successful `profiles` fetch for this session (not Zustand-only placeholder). */
   const isProfileReady = !isPlaceholderData;
 
   const resolveProFromServer = useCallback(async (): Promise<boolean> => {
-    if (isMockPro) return true;
     const uid = useAuthStore.getState().session?.user?.id;
     if (!uid) return false;
     const fresh = await queryClient.fetchQuery({
@@ -34,7 +31,7 @@ export function useProGateNavigation() {
       queryFn: () => fetchProfile(uid),
     });
     return isCrittrProFromProfile(fresh);
-  }, [queryClient, isMockPro]);
+  }, [queryClient]);
 
   const goToUpgrade = useCallback(() => {
     push(UPGRADE_HREF);

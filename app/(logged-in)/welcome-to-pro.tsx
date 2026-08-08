@@ -57,7 +57,7 @@ export default function WelcomeToProScreen() {
    * decline one for an account that already used it, and a plan may not offer
    * one at all. Ask what actually happened rather than assuming.
    */
-  const { data: sub } = useSubscriptionDetailsQuery(true);
+  const { data: sub } = useSubscriptionDetailsQuery();
   const onTrial = sub?.status === "trialing";
 
   const goHome = () => {
