@@ -1,5 +1,6 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { queryClient } from "@/lib/query/client";
@@ -87,19 +88,10 @@ export default function DateAndTimeScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          Date and Time
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Date and Time"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -238,20 +230,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

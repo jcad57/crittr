@@ -1,6 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -104,19 +105,10 @@ export default function PetFoodManagerScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Food & treats
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Food & treats"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -213,21 +205,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/onboarding/AutocompleteInput";
@@ -8,7 +9,7 @@ import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import {
   useBreedsQuery,
   usePetDetailsQuery,
@@ -31,7 +32,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -163,15 +163,10 @@ export default function EditPetDetailsScreen() {
     const dobFormatted = formatDateOfBirth(dobYmd);
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Pet details
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ScreenHeader
+          title="Pet details"
+          onBack={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -216,15 +211,10 @@ export default function EditPetDetailsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Edit details
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Edit details"
+        onBack={() => router.back()}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -312,27 +302,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    minWidth: 72,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

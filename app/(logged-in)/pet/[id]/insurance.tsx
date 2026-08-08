@@ -1,5 +1,6 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
-import InsuranceNavHeader from "@/components/petScreens/petInsurance/InsuranceNavHeader";
 import InsurancePolicyDocsSection from "@/components/petScreens/petInsurance/InsurancePolicyDocsSection";
 import InsuranceReadOnlyView from "@/components/petScreens/petInsurance/InsuranceReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -227,10 +228,16 @@ export default function PetInsuranceScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <InsuranceNavHeader
-        displayPet={details}
+      <ScreenHeader
+        title="Insurance"
         onBack={() => router.back()}
-        onAfterSwitchPet={onPetSwitch}
+        right={
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Insurance for"
+            onAfterSwitchPet={onPetSwitch}
+          />
+        }
       />
 
       <KeyboardAwareScrollView

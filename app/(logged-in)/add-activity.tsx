@@ -1,7 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
-import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -365,7 +365,7 @@ export default function AddActivityScreen() {
   if (resolvedPetId && canLogActivities === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <ActivityWizardChrome
+        <ScreenHeader
           title="Log activity"
           onBack={() => router.back()}
           right={
@@ -396,7 +396,7 @@ export default function AddActivityScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <ActivityWizardChrome
+      <ScreenHeader
         title={navTitle}
         onBack={goBack}
         right={

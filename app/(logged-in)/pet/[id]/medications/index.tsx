@@ -1,6 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import {
   useDeleteMedicationMutation,
   usePetDetailsQuery,
@@ -83,19 +84,10 @@ export default function PetMedicationsListScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medications
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Medications"
+        onBack={() => router.back()}
+      />
 
       {isLoading && !details ? (
         <View style={styles.centered}>
@@ -181,21 +173,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

@@ -70,12 +70,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 4,
   },
-  hint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray400,
-    marginBottom: 8,
-  },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",

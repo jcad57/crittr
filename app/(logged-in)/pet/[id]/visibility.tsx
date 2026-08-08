@@ -1,7 +1,8 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
@@ -42,23 +43,17 @@ export default function PetVisibilityScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Visibility
-        </Text>
-        <View style={styles.navSideRight}>
+      <ScreenHeader
+        title="Visibility"
+        onBack={() => router.back()}
+        right={
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Visibility for"
             onAfterSwitchPet={onPetSwitch}
           />
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -104,35 +99,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: "center",
     alignItems: "center",
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
   },
   scroll: { flex: 1 },
   body: {

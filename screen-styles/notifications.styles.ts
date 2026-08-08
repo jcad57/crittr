@@ -1,35 +1,10 @@
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.cream },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "flex-end",
-    justifyContent: "center",
-  },
-  navBack: { fontFamily: Font.uiSemiBold, fontSize: 16, color: Colors.orange },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
   markAllText: {
     fontFamily: Font.uiSemiBold,
     fontSize: 13,

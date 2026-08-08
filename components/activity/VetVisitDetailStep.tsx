@@ -266,9 +266,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
-  fieldLabelError: {
-    color: Colors.error,
-  },
   spacing: { marginBottom: 12 },
   spacingScreen: { marginBottom: 16 },
   spacer: { flex: 1, minHeight: 24 },

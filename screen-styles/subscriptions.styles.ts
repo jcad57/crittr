@@ -1,5 +1,5 @@
 import { Colors } from "@/theme/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -8,24 +8,6 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.cream,
   },
   centered: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MAIN_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: {
-    width: 28,
     alignItems: "center",
     justifyContent: "center",
   },

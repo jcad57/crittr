@@ -1,8 +1,9 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import PetCatLitterSection from "@/components/onboarding/petInfo/PetCatLitterSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import { useProfileLitterMaintenanceMutation } from "@/hooks/mutations/useProfileLitterMaintenanceMutation";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -19,7 +20,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -104,15 +104,10 @@ export default function HouseholdLitterMaintenanceScreen() {
   if (!householdCats.length) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Maintenance
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ScreenHeader
+          title="Maintenance"
+          onBack={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -139,15 +134,10 @@ export default function HouseholdLitterMaintenanceScreen() {
   if (details.pet_type !== "cat") {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Maintenance
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ScreenHeader
+          title="Maintenance"
+          onBack={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -167,15 +157,10 @@ export default function HouseholdLitterMaintenanceScreen() {
   if (!isPetOwner) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Maintenance
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ScreenHeader
+          title="Maintenance"
+          onBack={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -191,15 +176,10 @@ export default function HouseholdLitterMaintenanceScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Maintenance
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Maintenance"
+        onBack={() => router.back()}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -246,27 +226,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    minWidth: 72,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

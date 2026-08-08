@@ -4,7 +4,6 @@ import StepIndicator from "@/components/onboarding/StepIndicator";
 import { Colors } from "@/theme/colors";
 import {
   FINISH_STEP_INDEX,
-  ONBOARDING_STEPS,
   PET_TYPE_STEP_INDEX,
   useOnboardingStore,
 } from "@/stores/onboardingStore";

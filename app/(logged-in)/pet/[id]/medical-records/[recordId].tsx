@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
@@ -26,7 +27,6 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { getErrorMessage } from "@/utils/errorMessage";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -252,19 +252,11 @@ export default function EditMedicalRecordScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medical record
-        </Text>
-        <View style={styles.navRight}>
-          {details ? (
+      <ScreenHeader
+        title="Medical record"
+        onBack={() => router.back()}
+        right={
+          details ? (
             <PetNavAvatar
               displayPet={details}
               accessibilityLabelPrefix="Medical record for"
@@ -272,9 +264,9 @@ export default function EditMedicalRecordScreen() {
             />
           ) : (
             <View style={{ width: 40 }} />
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}

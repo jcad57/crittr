@@ -1,5 +1,5 @@
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -11,22 +11,6 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   scrollContentGrow: {
     flexGrow: 1,
@@ -54,9 +38,6 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
-  },
-  fieldLabelError: {
-    color: Colors.error,
   },
   field: {
     marginBottom: 16,
@@ -95,67 +76,6 @@ export const styles = StyleSheet.create({
   },
   typeToggleTextActiveTreat: {
     color: "#C2410C",
-  },
-  portionAmt: {
-    width: 100,
-    marginBottom: 0,
-  },
-  portionUnits: {
-    flex: 1,
-    flexDirection: "row",
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    height: 50,
-  },
-  unitChip: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.white,
-  },
-  unitChipBorder: {
-    borderRightWidth: 1,
-    borderRightColor: Colors.gray200,
-  },
-  unitChipActive: {
-    backgroundColor: Colors.orangeLight,
-  },
-  unitChipText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  unitChipTextActive: {
-    color: Colors.orange,
-  },
-  timesRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
-  timeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    backgroundColor: Colors.white,
-  },
-  timeChipActive: {
-    backgroundColor: Colors.orangeLight,
-    borderColor: Colors.orange,
-  },
-  timeChipText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  timeChipTextActive: {
-    color: Colors.orange,
   },
   formError: {
     fontFamily: Font.uiSemiBold,

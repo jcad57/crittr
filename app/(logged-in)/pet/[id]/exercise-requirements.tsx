@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
@@ -6,7 +7,7 @@ import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import {
   usePetDetailsQuery,
   useUpdatePetExerciseRequirementsMutation,
@@ -31,7 +32,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -190,20 +190,10 @@ export default function ExerciseRequirementsScreen() {
     const showEx = shouldShowExerciseField(details.pet_type ?? "");
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </TouchableOpacity>
-          <Text
-            style={styles.navTitle}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-          >
-            Exercise requirements
-          </Text>
-          <View style={styles.navSpacer} />
-        </View>
+        <ScreenHeader
+          title="Exercise requirements"
+          onBack={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -242,20 +232,10 @@ export default function ExerciseRequirementsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </TouchableOpacity>
-        <Text
-          style={styles.navTitle}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-        >
-          Exercise requirements
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Exercise requirements"
+        onBack={() => router.back()}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -344,27 +324,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    minWidth: 72,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
   scrollContentGrow: {
     flexGrow: 1,

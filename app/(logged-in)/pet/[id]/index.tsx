@@ -45,7 +45,6 @@ import {
   buildRecordsItems,
 } from "@/utils/petProfileNavItems";
 import { formatBirthdayChip } from "@/utils/petDisplay";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";

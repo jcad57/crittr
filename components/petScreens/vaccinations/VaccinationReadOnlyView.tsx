@@ -1,11 +1,10 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
 import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
 import type { PetVaccination, PetWithDetails } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 type VaccinationReadOnlyViewProps = {
   vaccination: PetVaccination;
@@ -34,23 +33,18 @@ export default function VaccinationReadOnlyView({
   const administeredOnLabel = fmt(vaccination.administered_on);
   return (
     <View style={[styles.screen, { paddingTop: insetsTop + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={onBack} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
+      <ScreenHeader
+        title="Vaccination details"
+        onBack={onBack}
+        titleLines={2}
+        right={
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Vaccination details for"
+            onAfterSwitchPet={onAfterSwitchPet}
           />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={2}>
-          Vaccination details
-        </Text>
-        <PetNavAvatar
-          displayPet={details}
-          accessibilityLabelPrefix="Vaccination details for"
-          onAfterSwitchPet={onAfterSwitchPet}
-        />
-      </View>
+        }
+      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.body, { paddingBottom: 24 }]}

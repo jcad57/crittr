@@ -1,5 +1,5 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { SubscriptionDetailsView } from "@/components/screens/subscriptions/SubscriptionDetailsView";
-import { SubscriptionsNavHeader } from "@/components/screens/subscriptions/SubscriptionsNavHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import {
@@ -153,10 +153,15 @@ export default function SubscriptionsScreen() {
 
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <SubscriptionsNavHeader
-          onBack={() => router.back()}
-          showRefetchSpinner={showNavRefetch}
-        />
+        <ScreenHeader
+        title="Subscriptions"
+        onBack={() => router.back()}
+        right={
+          showNavRefetch ? (
+            <ActivityIndicator size="small" color={Colors.orange} />
+          ) : null
+        }
+      />
 
         <ScrollView
           style={styles.scroll}
@@ -238,9 +243,14 @@ export default function SubscriptionsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <SubscriptionsNavHeader
+      <ScreenHeader
+        title="Subscriptions"
         onBack={() => router.back()}
-        showRefetchSpinner={showNavRefetch}
+        right={
+          showNavRefetch ? (
+            <ActivityIndicator size="small" color={Colors.orange} />
+          ) : null
+        }
       />
 
       <ScrollView

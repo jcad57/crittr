@@ -1,4 +1,4 @@
-import type { MedicationDosePeriod, PetMedication } from "@/types/database";
+import type { PetMedication } from "@/types/database";
 
 /** How we widen the "due soon" window before the next due date. */
 export type DueSoonScheduleKind = "daily" | "weekly_horizon" | "monthly_horizon";

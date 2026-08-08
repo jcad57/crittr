@@ -1,7 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import PetFoodNavHeader from "@/components/petScreens/food/PetFoodNavHeader";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetFood } from "@/types/database";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
@@ -24,7 +24,7 @@ export default function PetFoodReadOnlyView({
   const treat = isTreatFood(existing);
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
-      <PetFoodNavHeader title="Food details" onBack={onBack} />
+      <ScreenHeader title="Food details" onBack={onBack} titleLines={2} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.body, { paddingBottom: bottomPadding }]}

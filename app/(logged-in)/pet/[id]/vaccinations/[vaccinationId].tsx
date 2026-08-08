@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
 import FormInput from "@/components/onboarding/FormInput";
@@ -22,7 +23,6 @@ import {
   vaccinationExpiryPickerMaxDate,
 } from "@/utils/localCalendarDate";
 import { hydrateFromVaccination } from "@/utils/vaccinationEditHydration";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import {
   useCallback,
@@ -231,19 +231,11 @@ export default function EditPetVaccinationScreen() {
   if (isNew && canManageVaccinations === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={28}
-              color={Colors.textPrimary}
-            />
-          </Pressable>
-          <Text style={styles.navTitle} numberOfLines={2}>
-            Add vaccination
-          </Text>
-          <View style={styles.navSpacerWide} />
-        </View>
+        <ScreenHeader
+          title="Add vaccination"
+          onBack={() => router.back()}
+          titleLines={2}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
@@ -277,25 +269,20 @@ export default function EditPetVaccinationScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
+      <ScreenHeader
+        title={navTitle}
+        onBack={() => router.back()}
+        titleLines={2}
+        right={
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix={
+              isNew ? "Adding vaccination for" : "Editing vaccination for"
+            }
+            onAfterSwitchPet={onPetSwitch}
           />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={2}>
-          {navTitle}
-        </Text>
-        <PetNavAvatar
-          displayPet={details}
-          accessibilityLabelPrefix={
-            isNew ? "Adding vaccination for" : "Editing vaccination for"
-          }
-          onAfterSwitchPet={onPetSwitch}
-        />
-      </View>
+        }
+      />
 
       <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
         <KeyboardAwareScrollView

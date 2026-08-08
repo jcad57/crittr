@@ -232,11 +232,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.gray500,
   },
-  notes: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray400,
-  },
   rightCol: {
     alignItems: "flex-end",
     justifyContent: "center",

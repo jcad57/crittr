@@ -1,6 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import {
   useMemorializePetMutation,
   usePetDetailsQuery,
@@ -16,7 +17,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -94,15 +94,10 @@ export default function MemorializePetScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          {isLiving ? "Memorialize" : "Restore pet"}
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title={isLiving ? "Memorialize" : "Restore pet"}
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -168,27 +163,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-    minWidth: 72,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { minWidth: 72 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

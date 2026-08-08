@@ -1,7 +1,8 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { CO_CARE_PERMISSION_ROWS } from "@/constants/coCarePermissionRows";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import {
   useCoCarersForPetQuery,
   usePetDetailsQuery,
@@ -121,17 +122,10 @@ export default function CoCarerPermissionsScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       {/* Nav */}
-      <View style={styles.nav}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Permissions
-        </Text>
-        <View style={styles.navSideRight} />
-      </View>
+      <ScreenHeader
+        title="Permissions"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -226,27 +220,6 @@ const AVATAR_SIZE = 64;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.cream },
   centered: { justifyContent: "center", alignItems: "center" },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: { width: 72 },
-  navBack: { fontFamily: Font.uiSemiBold, fontSize: 16, color: Colors.orange },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
   scroll: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 8 },
   profileHeader: {

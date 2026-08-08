@@ -7,14 +7,6 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  petContextHint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
   scroll: { flex: 1 },
   scrollContentGrow: {
     flexGrow: 1,

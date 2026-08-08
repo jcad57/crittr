@@ -1,3 +1,5 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import { Colors } from "@/theme/colors";
@@ -14,7 +16,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
-import InsuranceNavHeader from "./InsuranceNavHeader";
 
 type Props = {
   details: PetWithDetails;
@@ -39,10 +40,16 @@ export default function InsuranceReadOnlyView({
   const st = insuranceStatusLabel(details.is_insured ?? null);
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <InsuranceNavHeader
-        displayPet={details}
+      <ScreenHeader
+        title="Insurance"
         onBack={onBack}
-        onAfterSwitchPet={onAfterSwitchPet}
+        right={
+          <PetNavAvatar
+            displayPet={details}
+            accessibilityLabelPrefix="Insurance for"
+            onAfterSwitchPet={onAfterSwitchPet}
+          />
+        }
       />
       <ScrollView
         style={styles.scroll}

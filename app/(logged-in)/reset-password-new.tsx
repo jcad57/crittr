@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import FormInput from "@/components/onboarding/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
@@ -84,24 +85,11 @@ export default function ResetPasswordNewScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
-        <Pressable
-          style={styles.navButton}
-          hitSlop={12}
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-        >
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          New password
-        </Text>
-        <View style={styles.navButton} />
-      </View>
+      <ScreenHeader
+        title="New password"
+        onBack={() => router.back()}
+        topInset={insets.top + 4}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -209,28 +197,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
-  },
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.cream,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: 24,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
   },
   scroll: {
     flex: 1,

@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
@@ -230,23 +231,17 @@ export default function PetMedicalRecordsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medical Records
-        </Text>
-        <View style={styles.navSideRight}>
+      <ScreenHeader
+        title="Medical Records"
+        onBack={() => router.back()}
+        right={
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Medical records for"
             onAfterSwitchPet={onPetSwitch}
           />
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}

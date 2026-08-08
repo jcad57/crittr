@@ -1,6 +1,6 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
-import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { manageActivityNavTitle } from "@/constants/activityWizardTitles";
@@ -359,7 +359,7 @@ export default function ManageActivityItemScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <ActivityWizardChrome
+      <ScreenHeader
         title={manageActivityNavTitle(activityType)}
         onBack={goBack}
         right={

@@ -7,7 +7,7 @@ import type { Pet } from "@/types/database";
 import type { Href } from "expo-router";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**

@@ -130,16 +130,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
   },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.orangeLight,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 20,
-  },
   title: {
     fontFamily: Font.displayBold,
     fontSize: MAIN_SCREEN_TITLE_SIZE,

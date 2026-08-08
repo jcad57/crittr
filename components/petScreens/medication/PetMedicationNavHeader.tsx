@@ -1,9 +1,6 @@
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
 import type { Pet } from "@/types/database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
 
 type Props = {
   title: string;
@@ -23,26 +20,19 @@ export default function PetMedicationNavHeader({
   onAfterSwitchPet,
 }: Props) {
   return (
-    <View style={styles.nav}>
-      <Pressable onPress={onBack} hitSlop={8}>
-        <MaterialCommunityIcons
-          name="chevron-left"
-          size={28}
-          color={Colors.textPrimary}
-        />
-      </Pressable>
-      <Text style={styles.navTitle} numberOfLines={2}>
-        {title}
-      </Text>
-      {showAvatar && displayPet ? (
-        <PetNavAvatar
-          displayPet={displayPet}
-          accessibilityLabelPrefix={accessibilityLabelPrefix}
-          onAfterSwitchPet={onAfterSwitchPet}
-        />
-      ) : (
-        <View style={styles.navSpacer} />
-      )}
-    </View>
+    <ScreenHeader
+      title={title}
+      onBack={onBack}
+      titleLines={2}
+      right={
+        showAvatar && displayPet ? (
+          <PetNavAvatar
+            displayPet={displayPet}
+            accessibilityLabelPrefix={accessibilityLabelPrefix}
+            onAfterSwitchPet={onAfterSwitchPet}
+          />
+        ) : null
+      }
+    />
   );
 }

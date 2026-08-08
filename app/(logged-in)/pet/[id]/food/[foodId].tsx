@@ -1,7 +1,7 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import FormInput from "@/components/onboarding/FormInput";
 import MealPortionEditorModal from "@/components/pet/MealPortionEditorModal";
 import PetFoodMealScheduleSection from "@/components/petScreens/food/PetFoodMealScheduleSection";
-import PetFoodNavHeader from "@/components/petScreens/food/PetFoodNavHeader";
 import PetFoodNoPermissionAddView from "@/components/petScreens/food/PetFoodNoPermissionAddView";
 import PetFoodReadOnlyView from "@/components/petScreens/food/PetFoodReadOnlyView";
 import PetFoodTypeToggle from "@/components/petScreens/food/PetFoodTypeToggle";
@@ -262,7 +262,7 @@ export default function EditPetFoodScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <PetFoodNavHeader title={foodNavTitle} onBack={() => router.back()} />
+      <ScreenHeader title={foodNavTitle} onBack={() => router.back()} titleLines={2} />
 
       <KeyboardAwareScrollView
         style={styles.scroll}

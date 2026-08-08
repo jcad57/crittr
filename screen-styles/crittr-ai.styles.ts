@@ -38,22 +38,6 @@ export const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 12,
   },
-  betaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: Colors.orangeLight,
-    marginBottom: 8,
-  },
-  betaText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    color: Colors.orangeDark,
-  },
   errorBanner: {
     padding: 12,
     borderRadius: 12,

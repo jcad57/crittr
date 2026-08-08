@@ -1,14 +1,14 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { requestPasswordResetOtp } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { maskEmailForPrivacy } from "@/utils/maskEmailForPrivacy";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import { Keyboard, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,24 +64,11 @@ export default function ForgotPasswordScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
-        <Pressable
-          style={styles.navButton}
-          hitSlop={12}
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-        >
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Forgot password
-        </Text>
-        <View style={styles.navButton} />
-      </View>
+      <ScreenHeader
+        title="Forgot password"
+        onBack={() => router.back()}
+        topInset={insets.top + 4}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -119,28 +106,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.cream,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: 24,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   scroll: {
     flex: 1,
   },
@@ -159,13 +124,6 @@ const styles = StyleSheet.create({
   emailStrong: {
     fontFamily: Font.uiSemiBold,
     color: Colors.textPrimary,
-  },
-  hint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 24,
   },
   errorText: {
     fontFamily: Font.uiSemiBold,

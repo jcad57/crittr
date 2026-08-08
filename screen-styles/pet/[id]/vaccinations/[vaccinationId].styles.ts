@@ -1,5 +1,5 @@
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -11,27 +11,11 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  navSpacerWide: { width: 28 },
   leadReadOnly: {
     fontFamily: Font.uiRegular,
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 22,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
   },
   scrollSafe: {
     flex: 1,

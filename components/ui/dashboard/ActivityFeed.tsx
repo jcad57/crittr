@@ -200,14 +200,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.orange,
   },
-  plusCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   ctaCard: {
     flexDirection: "row",
     alignItems: "center",

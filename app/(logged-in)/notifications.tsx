@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { NotificationRow } from "@/components/screens/notifications/NotificationRow";
 import { Colors } from "@/theme/colors";
 import {
@@ -163,23 +164,17 @@ export default function NotificationsScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       {/* Nav */}
-      <View style={styles.nav}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Notifications
-        </Text>
-        <View style={styles.navSideRight}>
-          {unreadCount > 0 && (
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => router.back()}
+        right={
+          unreadCount > 0 && (
             <Pressable onPress={() => markAllRead.mutate()} hitSlop={8}>
               <Text style={styles.markAllText}>Read all</Text>
             </Pressable>
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
 
       {isLoading ? (
         <View style={styles.centered}>

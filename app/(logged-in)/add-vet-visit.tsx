@@ -1,10 +1,11 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { Colors } from "@/theme/colors";
 import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
@@ -194,17 +195,10 @@ export default function AddVetVisitScreen() {
   if (pets.length === 0) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Vet visit
-          </Text>
-          <View style={styles.navSideRight} />
-        </View>
+        <ScreenHeader
+          title="Vet visit"
+          onBack={() => router.back()}
+        />
         <Text style={styles.hint}>Add a pet before scheduling a visit.</Text>
       </View>
     );
@@ -223,17 +217,10 @@ export default function AddVetVisitScreen() {
   if (petId && canManageVetVisits === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Schedule visit
-          </Text>
-          <View style={styles.navSideRight} />
-        </View>
+        <ScreenHeader
+          title="Schedule visit"
+          onBack={() => router.back()}
+        />
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           <CoCareReadOnlyNotice />
           <Text style={styles.hint}>
@@ -248,22 +235,16 @@ export default function AddVetVisitScreen() {
   return (
     <View style={styles.keyboardRoot}>
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Schedule visit
-          </Text>
-          <View style={styles.navSideRight}>
+        <ScreenHeader
+          title="Schedule visit"
+          onBack={() => router.back()}
+          right={
             <PetNavAvatar
               displayPet={schedulingPet ?? undefined}
               accessibilityLabelPrefix="Scheduling visit for"
             />
-          </View>
-        </View>
+          }
+        />
 
         <KeyboardAwareScrollView
           style={styles.scroll}
@@ -362,36 +343,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
   /** Same width as navSideRight so the title centers on screen (matches pet edit screens). */
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
   scroll: {
     flex: 1,
   },

@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import ProHeroWithShine from "@/components/profile/ProHeroWithShine";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
@@ -99,23 +100,11 @@ export default function ProBannerThemeScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.nav, { paddingTop: insets.top + 8 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={styles.navBackHit}
-        >
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Pro banner
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Pro banner"
+        onBack={() => router.back()}
+        topInset={insets.top + 8}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -224,31 +213,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.cream,
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.creamDark,
-  },
-  navBackHit: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: {
-    width: 40,
-    height: 40,
   },
   scroll: { flex: 1 },
   body: {

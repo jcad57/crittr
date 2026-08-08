@@ -18,35 +18,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.cream,
-  },
-  navBack: {
-    minWidth: 72,
-  },
-  navBackText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
   /** Balances the back control so the title stays centered. */
-  navSpacer: {
-    minWidth: 72,
-  },
 
   scroll: {
     flex: 1,

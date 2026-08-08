@@ -1,12 +1,12 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import FaqAccordion from "@/components/support/FaqAccordion";
 import { Colors } from "@/theme/colors";
 import { HelpCenterFaq, helpCenterFaqs } from "@/content/helpCenterFaqs";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HelpCenterScreen() {
@@ -28,19 +28,10 @@ export default function HelpCenterScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          Help center
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Help center"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -73,19 +64,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MAIN_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
   faqTitle: {
     flex: 1,
     fontFamily: Font.displayBold,
@@ -98,7 +76,6 @@ const styles = StyleSheet.create({
   accordionContainer: {
     marginBottom: 24,
   },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

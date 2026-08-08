@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -246,25 +247,16 @@ export default function EditVetVisitScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Edit visit
-        </Text>
-        <View
-          style={[
-            styles.navSpacer,
-            { alignItems: "flex-end", justifyContent: "center" },
-          ]}
-        >
+      <ScreenHeader
+        title="Edit visit"
+        onBack={() => router.back()}
+        right={
           <PetNavAvatar
             displayPet={petDetails ?? null}
             accessibilityLabelPrefix="Editing vet visit for"
           />
-        </View>
-      </View>
+        }
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}

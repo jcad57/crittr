@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import ActivityHistoryFilterBar from "@/components/ui/activity/ActivityHistoryFilterBar";
 import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
 import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
@@ -203,24 +204,23 @@ export default function PetActivityHistoryScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.nav, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Activity history
-        </Text>
-        <View style={styles.navSideRight}>
-          {canLogActivities === true ? (
+      <ScreenHeader
+        title="Activity history"
+        onBack={() => router.back()}
+        topInset={insets.top + 8}
+        right={
+          canLogActivities === true ? (
             <Pressable
               style={styles.fab}
               onPress={handleLogActivity}
               accessibilityRole="button"
               accessibilityLabel="Log activity"
             >
-              <MaterialCommunityIcons name="plus" size={22} color={Colors.white} />
+              <MaterialCommunityIcons
+                name="plus"
+                size={22}
+                color={Colors.white}
+              />
             </Pressable>
           ) : (
             <PetNavAvatar
@@ -228,9 +228,9 @@ export default function PetActivityHistoryScreen() {
               accessibilityLabelPrefix="Activity history for"
               onAfterSwitchPet={onPetSwitch}
             />
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
 
       <SectionList
         style={styles.list}
@@ -303,38 +303,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: "center",
-  },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.creamDark,
-    backgroundColor: Colors.cream,
-  },
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "flex-end",
-    justifyContent: "center",
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
   },
   fab: {
     width: 40,

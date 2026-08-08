@@ -1,5 +1,6 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { usePushNotificationPreferences } from "@/hooks/usePushNotificationPreferences";
 import {
@@ -119,19 +120,10 @@ export default function ManageNotificationsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Push notifications
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Push notifications"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -303,20 +295,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,
@@ -329,10 +307,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: Colors.textSecondary,
     marginBottom: 8,
-  },
-  leadEm: {
-    fontFamily: Font.uiSemiBold,
-    color: Colors.textPrimary,
   },
   sectionLabel: {
     fontFamily: Font.uiSemiBold,
