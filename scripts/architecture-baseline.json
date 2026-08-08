@@ -8,7 +8,7 @@
     "lib/prefetchSessionData.ts -> services/health.ts",
     "lib/prefetchSessionData.ts -> services/notifications.ts",
     "lib/prefetchSessionData.ts -> services/profiles.ts",
-    "lib/prefetchSessionData.ts -> services/schedule.ts",
+    "lib/prefetchSessionData.ts -> services/schedule/index.ts",
     "lib/prefetchSessionData.ts -> stores/petStore.ts",
     "utils/activityHistoryFilters.ts -> data/activityHistory.ts",
     "utils/manageActivityFormHelpers.ts -> lib/query/client.ts",
