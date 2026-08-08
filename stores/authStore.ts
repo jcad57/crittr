@@ -19,6 +19,8 @@ import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/query/client";
 import { purgePersistedQueryCache } from "@/lib/query/persistence";
 import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
+import * as authService from "@/services/auth";
+import { fetchProfileRow, markOnboardingComplete } from "@/services/profiles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { usePetStore } from "@/stores/petStore";
 import type { Profile } from "@/types/database";
@@ -28,7 +30,6 @@ import { create } from "zustand";
 
 export type { ResolvedOnboarding };
 
-const AUTH_EMAIL_ACTION_TIMEOUT_MS = 45_000;
 const AUTH_GET_SESSION_TIMEOUT_MS = 20_000;
 /**
  * Per-attempt cap on `resolveSession`. Kept tight so a slow/dead first request
@@ -445,49 +446,15 @@ export const useAuthStore = create<AuthState>((set, get) => {
     }
   },
 
-  signUp: async (email, password, firstName, lastName) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { first_name: firstName, last_name: lastName },
-      },
-    });
-    if (error) throw error;
-    return { needsEmailVerification: !data.session };
-  },
+  signUp: (email, password, firstName, lastName) =>
+    authService.signUpWithEmail(email, password, firstName, lastName),
 
-  verifyEmailOtp: async (email, token) => {
-    const { error } = await withTimeout(
-      supabase.auth.verifyOtp({
-        email,
-        token,
-        type: "signup",
-      }),
-      AUTH_EMAIL_ACTION_TIMEOUT_MS,
-      "Confirm email",
-    );
-    if (error) throw error;
-  },
+  verifyEmailOtp: (email, token) => authService.verifySignupOtp(email, token),
 
-  resendSignupOtp: async (email) => {
-    const { error } = await withTimeout(
-      supabase.auth.resend({
-        type: "signup",
-        email,
-      }),
-      AUTH_EMAIL_ACTION_TIMEOUT_MS,
-      "Resend code",
-    );
-    if (error) throw error;
-  },
+  resendSignupOtp: (email) => authService.resendSignupOtp(email),
 
   signInWithEmail: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    await authService.signInWithEmail(email, password);
     // Session resolution is handled by the onAuthStateChange listener
     // registered in initialize(). No manual getSession/resolve needed.
   },
@@ -632,28 +599,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   },
 
   deleteAccount: async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not signed in.");
-
-    const { data, error } = await supabase.functions.invoke("delete-account", {
-      method: "POST",
-    });
-
-    if (error) {
-      throw new Error(error.message ?? "Could not delete account.");
-    }
-    if (data && typeof data === "object" && data !== null && "error" in data) {
-      const d = data as { error?: string; message?: string };
-      throw new Error(d.message ?? d.error ?? "Could not delete account.");
-    }
-
-    try {
-      await supabase.auth.signOut({ scope: "local" });
-    } catch {
-      /* session may already be invalid */
-    }
+    await authService.requestAccountDeletion();
     await wipeSupabaseAuthFromDevice();
     void logoutRevenueCatUser();
     hydrateInFlight = null;
@@ -664,8 +610,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   },
 
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await authService.signOut();
     void logoutRevenueCatUser();
     clearAuxiliarySessionState();
     set(loggedOutState);
@@ -686,20 +631,20 @@ export const useAuthStore = create<AuthState>((set, get) => {
   refreshProfileOnly: async () => {
     const session = get().session;
     if (!session) return;
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .maybeSingle();
-    if (error) {
+
+    let profile: Profile | null;
+    try {
+      profile = await fetchProfileRow(session.user.id);
+    } catch (error) {
       if (__DEV__) console.warn("[authStore] refreshProfileOnly failed", error);
       return;
     }
+
     set((s) => ({
-      profile: profile ?? null,
-      ...deriveProfileOnboardingState(profile ?? null, s.hasPets),
+      profile,
+      ...deriveProfileOnboardingState(profile, s.hasPets),
     }));
-    syncProfileRowToQuery(profile ?? null);
+    syncProfileRowToQuery(profile);
     persistAuthSnapshot();
   },
 
@@ -714,16 +659,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
     const { session } = get();
     if (!session) throw new Error("No session");
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ onboarding_complete: true })
-      .eq("id", session.user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    if (data) {
-      queryClient.setQueryData(profileQueryKey(data.id), data);
+    const profile = await markOnboardingComplete(session.user.id);
+    if (profile) {
+      queryClient.setQueryData(profileQueryKey(profile.id), profile);
     }
     await get().refreshProfileOnly();
   },

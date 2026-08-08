@@ -20,6 +20,40 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
+/**
+ * Like `fetchProfile`, but distinguishes a failed request from a missing row:
+ * it throws on the former and returns `null` only for the latter.
+ *
+ * Callers that keep displaying the profile they already hold need that
+ * difference — collapsing a network error into "no profile" would blank the
+ * account UI the moment the user goes offline.
+ */
+export async function fetchProfileRow(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+/** Returns the updated row so the caller can seed it into the query cache. */
+export async function markOnboardingComplete(
+  userId: string,
+): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ onboarding_complete: true })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function fetchProfilesByIds(userIds: string[]): Promise<Profile[]> {
   const unique = [...new Set(userIds.filter(Boolean))];
   if (unique.length === 0) return [];
