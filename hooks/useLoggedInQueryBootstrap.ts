@@ -10,7 +10,7 @@ import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/query/client";
-import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
+import { syncTodayVetVisitMirrorsToActivities } from "@/services/vetVisitActivityMirror";
 import { supabase } from "@/lib/supabase";
 import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
 import { useAuthStore } from "@/stores/authStore";

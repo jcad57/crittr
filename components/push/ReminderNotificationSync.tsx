@@ -1,7 +1,7 @@
 import {
   cancelCrittrScheduledNotifications,
   syncCrittrReminderNotifications,
-} from "@/lib/reminderNotificationSchedule";
+} from "@/services/reminderNotificationSchedule";
 import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useAuthStore } from "@/stores/authStore";

@@ -20,7 +20,7 @@ import {
 } from "@/services/pets";
 import type { PetWithDetails } from "@/types/database";
 import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
-import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import { useAuthStore } from "@/stores/authStore";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { useMutation } from "@tanstack/react-query";

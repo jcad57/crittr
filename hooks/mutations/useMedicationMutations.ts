@@ -1,7 +1,7 @@
 import { healthSnapshotKey, petDetailsQueryKey } from "@/lib/query/keys";
 import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { queryClient } from "@/lib/query/client";
-import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import {
   deletePetMedication,
   insertPetMedication,

@@ -18,8 +18,8 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { queryClient } from "@/lib/query/client";
-import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
-import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
+import { syncTodayVetVisitMirrorsToActivities } from "@/services/vetVisitActivityMirror";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import {
   hydrateVetVisitLocationState,
   resolveVetVisitLocation,
