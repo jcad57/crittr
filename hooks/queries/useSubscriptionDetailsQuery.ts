@@ -1,7 +1,7 @@
 import { fetchSubscriptionDetails } from "@/services/iapSubscription";
 import { useAuthStore } from "@/stores/authStore";
 import { useQuery } from "@tanstack/react-query";
-import { subscriptionDetailsQueryKey } from "./queryKeys";
+import { subscriptionDetailsQueryKey } from "@/lib/query/keys";
 
 export function useSubscriptionDetailsQuery() {
   const userId = useAuthStore((s) => s.session?.user?.id);

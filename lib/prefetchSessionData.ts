@@ -1,14 +1,14 @@
 import { prefetchPetsAndDetails } from "@/hooks/queries/prefetchPetsAndDetails";
-import { fetchHealthSnapshotUsingCachedPets } from "@/hooks/queries/useHealthSnapshotQuery";
 import {
   crittrAiThreadKey,
   healthSnapshotKey,
   petsQueryKey,
   profileQueryKey,
   unreadNotificationCountKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import { fetchCrittrAiThread } from "@/services/crittrAi";
+import { fetchOwnerHealthSnapshot } from "@/services/health";
 import { fetchUnreadNotificationCount } from "@/services/notifications";
 import { fetchProfile } from "@/services/profiles";
 import { prefetchScheduleDay, warmScheduleForPets } from "@/services/schedule";
@@ -46,12 +46,15 @@ export function prefetchLoggedInSessionData(userId: string): Promise<void> {
      * cache on first open.
      */
     prefetchPetsAndDetails(queryClient, userId).then(async () => {
+      const cachedPets = queryClient.getQueryData<PetWithRole[]>(
+        petsQueryKey(userId),
+      );
       await Promise.allSettled([
         queryClient.prefetchQuery({
           queryKey: healthSnapshotKey(userId),
-          queryFn: () => fetchHealthSnapshotUsingCachedPets(userId),
+          queryFn: () => fetchOwnerHealthSnapshot(userId, cachedPets),
         }),
-        prefetchTodaySchedules(userId),
+        prefetchTodaySchedules(cachedPets),
       ]);
     }),
   ]);
@@ -63,8 +66,9 @@ export function prefetchLoggedInSessionData(userId: string): Promise<void> {
  * Today's schedule for the pet we'll land on, then the rest of the household so
  * the first pet switch is a cache read rather than a round trip.
  */
-async function prefetchTodaySchedules(userId: string): Promise<void> {
-  const pets = queryClient.getQueryData<PetWithRole[]>(petsQueryKey(userId));
+async function prefetchTodaySchedules(
+  pets: PetWithRole[] | undefined,
+): Promise<void> {
   if (!pets?.length) return;
 
   const living = pets.filter((p) => isPetActiveForDashboard(p));

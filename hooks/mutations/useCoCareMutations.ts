@@ -6,8 +6,8 @@ import {
   petsQueryKey,
   sentInvitesForPetKey,
   unreadNotificationCountKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import {
   acceptInvite,
   declineInvite,

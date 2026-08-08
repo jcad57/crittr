@@ -6,7 +6,7 @@ import { useProPricingQuery } from "@/hooks/queries";
 import {
   profileQueryKey,
   subscriptionDetailsQueryKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import {
   ProPurchaseException,
   detectExistingCrittrProEntitlement,

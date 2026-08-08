@@ -1,6 +1,6 @@
 import { Colors } from "@/theme/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
-import { userPetPermissionsKey } from "@/hooks/queries/queryKeys";
+import { userPetPermissionsKey } from "@/lib/query/keys";
 import { usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { fetchUserPermissionsForPet } from "@/services/coCare";

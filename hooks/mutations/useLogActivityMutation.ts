@@ -1,4 +1,4 @@
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   logExercise,
   logFood,
@@ -16,7 +16,7 @@ import {
   petWeightEntriesQueryKey,
   todayActivitiesPrefixKey,
   activitiesSincePrefixKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   ExerciseFormData,

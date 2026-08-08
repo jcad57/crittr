@@ -4,7 +4,7 @@ import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updateAuthPassword } from "@/services/auth";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";

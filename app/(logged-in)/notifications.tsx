@@ -14,7 +14,7 @@ import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";

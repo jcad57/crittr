@@ -3,8 +3,8 @@ import {
   profileQueryKey,
   petDetailsQueryKey,
   todayActivitiesForPetIdsPrefixKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import { updateProfile } from "@/services/profiles";
 import type { LitterCleaningPeriod } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";

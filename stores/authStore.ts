@@ -1,4 +1,4 @@
-import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import { profileQueryKey } from "@/lib/query/keys";
 import {
   clearAuthSnapshot,
   readAuthSnapshot,
@@ -16,8 +16,8 @@ import {
   logoutRevenueCatUser,
 } from "@/lib/iap/revenueCat";
 import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
-import { queryClient } from "@/lib/queryClient";
-import { purgePersistedQueryCache } from "@/lib/queryPersistence";
+import { queryClient } from "@/lib/query/client";
+import { purgePersistedQueryCache } from "@/lib/query/persistence";
 import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { usePetStore } from "@/stores/petStore";

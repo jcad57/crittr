@@ -1,7 +1,7 @@
 import { fetchProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useQuery } from "@tanstack/react-query";
-import { profileQueryKey } from "./queryKeys";
+import { profileQueryKey } from "@/lib/query/keys";
 
 /**
  * Current user's profile from the `profiles` table.

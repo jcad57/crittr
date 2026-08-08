@@ -3,8 +3,8 @@ import {
   petDetailsQueryKey,
   petInsuranceFilesQueryKey,
   petsQueryKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import {
   deletePetInsuranceFile,
   type UploadPetInsuranceFileInput,

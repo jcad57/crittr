@@ -1,7 +1,7 @@
 import { fetchProfilesByIds } from "@/services/profiles";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { profilesByIdsQueryKey } from "./queryKeys";
+import { profilesByIdsQueryKey } from "@/lib/query/keys";
 
 export function useProfilesByIdsQuery(userIds: string[]) {
   const sortedIds = useMemo(

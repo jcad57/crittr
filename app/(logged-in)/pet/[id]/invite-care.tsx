@@ -12,7 +12,7 @@ import {
 } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { type CoCarerWithProfile } from "@/services/coCare";
 import type { CoCarerInvite } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

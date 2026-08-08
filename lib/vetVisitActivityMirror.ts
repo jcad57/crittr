@@ -3,8 +3,8 @@ import {
   healthSnapshotKey,
   petsQueryKey,
   todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import { ensureTodayVetVisitMirrorActivities } from "@/services/activities";
 import { fetchAccessiblePets } from "@/services/pets";
 

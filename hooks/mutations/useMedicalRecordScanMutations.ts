@@ -1,9 +1,9 @@
 import {
   healthSnapshotKey,
   petDetailsQueryKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   parseMedicalRecord,
   type ExtractedMedication,

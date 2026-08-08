@@ -28,7 +28,7 @@ export {
   unreadNotificationCountKey,
   breedsQueryKey,
   allergiesQueryKey,
-} from "./queryKeys";
+} from "@/lib/query/keys";
 export { useBreedsQuery } from "./useBreedsQuery";
 export { useAllergiesQuery } from "./useAllergiesQuery";
 export {

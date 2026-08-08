@@ -1,7 +1,7 @@
 import { fetchAccessiblePets, fetchPetsWithDetails } from "@/services/pets";
 import type { PetWithRole } from "@/types/database";
 import type { QueryClient } from "@tanstack/react-query";
-import { petDetailsQueryKey, petsQueryKey } from "./queryKeys";
+import { petDetailsQueryKey, petsQueryKey } from "@/lib/query/keys";
 
 /**
  * Warm every pet's detail cache from a single request.

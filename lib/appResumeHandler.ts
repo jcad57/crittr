@@ -3,7 +3,7 @@ import {
   noteAppBackgrounded,
   STALE_RESUME_AFTER_MS,
 } from "@/lib/appLifecycle";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { supabase } from "@/lib/supabase";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 

@@ -10,13 +10,13 @@ import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getErrorMessage } from "@/utils/errorMessage";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
 import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
 import {

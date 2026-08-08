@@ -1,6 +1,6 @@
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import type { HealthTrafficKind } from "@/utils/healthTraffic";
+import type { HealthTrafficKind } from "@/types/ui";
 import { StyleSheet, Text, View } from "react-native";
 
 const PALETTE: Record<

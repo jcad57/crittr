@@ -3,11 +3,16 @@
  * Architecture guard: enforces dependency direction and forbids import cycles.
  *
  * Run: node scripts/check-architecture.js
- *      node scripts/check-architecture.js --update-baseline
+ *      node scripts/check-architecture.js --update-baseline [--force]
  *
  * Known pre-existing violations live in `scripts/architecture-baseline.json` so
  * this can gate CI immediately while the migration retires them. The baseline
  * may shrink but never grow: `--update-baseline` refuses to add new entries.
+ *
+ * `--force` overrides that, and exists for one case: a planned move renames a
+ * file that already had a known violation, so the same offending edge reappears
+ * under a new path. It prints every added entry so the growth is visible in
+ * review. Never use it to silence a genuinely new violation.
  */
 
 const fs = require("fs");
@@ -221,6 +226,7 @@ function loadBaseline() {
 
 function main() {
   const updating = process.argv.includes("--update-baseline");
+  const forced = process.argv.includes("--force");
   const files = collectFiles();
   const graph = buildGraph(files, buildResolver(files));
 
@@ -244,12 +250,18 @@ function main() {
   const fixedCycles = [...knownCycles].filter((c) => !cycles.includes(c));
 
   if (updating) {
-    if (!seeding && (newLayer.length || newCycles.length)) {
+    const growing = newLayer.length || newCycles.length;
+    if (!seeding && growing && !forced) {
       console.error(
         "Refusing to update baseline: it may only shrink.\n" +
-          [...newLayer, ...newCycles].map((v) => `  NEW  ${v}`).join("\n"),
+          [...newLayer, ...newCycles].map((v) => `  NEW  ${v}`).join("\n") +
+          "\nIf a planned move renamed a known violation, re-run with --force.",
       );
       process.exit(1);
+    }
+    if (!seeding && growing && forced) {
+      console.log("Forced baseline growth — verify each entry is a rename:");
+      for (const v of [...newLayer, ...newCycles]) console.log(`  ADDED  ${v}`);
     }
     fs.writeFileSync(
       BASELINE_PATH,

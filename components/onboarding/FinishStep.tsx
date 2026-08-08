@@ -3,7 +3,7 @@ import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   PetCreatedCoCareInviteFailedError,
   createPet,

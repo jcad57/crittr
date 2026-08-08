@@ -3,8 +3,8 @@ import {
   healthSnapshotKey,
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import { deleteVetVisit } from "@/services/health";
 import { Alert } from "react-native";
 

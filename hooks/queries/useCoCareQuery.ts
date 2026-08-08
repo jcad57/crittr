@@ -13,7 +13,7 @@ import {
   pendingInvitesKey,
   sentInvitesForPetKey,
   userPetPermissionsKey,
-} from "./queryKeys";
+} from "@/lib/query/keys";
 
 export function useCoCarersForPetQuery(
   petId: string | null | undefined,

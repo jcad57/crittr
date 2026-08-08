@@ -1,5 +1,5 @@
 import type { PetMedication } from "@/types/database";
-import type { HealthTrafficKind } from "@/utils/healthTraffic";
+import type { HealthTrafficKind } from "@/types/ui";
 import { medicationTraffic } from "@/utils/healthTraffic";
 import type { MedicationDosageProgress } from "@/utils/medicationDosageProgress";
 import type { UserDateDisplay } from "@/utils/userDateTimeFormat";

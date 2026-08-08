@@ -1,10 +1,10 @@
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { fetchOwnerHealthSnapshot } from "@/services/health";
 import type { OwnerHealthSnapshot } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetWithRole } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { healthSnapshotKey, petsQueryKey } from "./queryKeys";
+import { healthSnapshotKey, petsQueryKey } from "@/lib/query/keys";
 
 /**
  * Reuse the pets list the app has already loaded rather than making the health

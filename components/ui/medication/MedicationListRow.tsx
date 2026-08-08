@@ -1,7 +1,7 @@
 import HealthTrafficBadge from "@/components/ui/health/HealthTrafficBadge";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import type { HealthTrafficKind } from "@/utils/healthTraffic";
+import type { HealthTrafficKind } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 

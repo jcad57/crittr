@@ -1,5 +1,5 @@
-import { petsQueryKey } from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+import { petsQueryKey } from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import { setActivePet as setActivePetService } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";

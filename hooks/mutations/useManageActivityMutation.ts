@@ -1,4 +1,4 @@
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   deletePetActivity,
   updateExerciseActivity,
@@ -22,7 +22,7 @@ import {
   activitiesSincePrefixKey,
   scheduleDayKey,
   schedulePetPrefixKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   ExerciseFormData,

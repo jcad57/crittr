@@ -1,7 +1,7 @@
 import { fetchPetWeightEntries } from "@/services/petWeightEntries";
 import type { PetWeightEntry } from "@/types/database";
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
-import { petWeightEntriesQueryKey } from "./queryKeys";
+import { petWeightEntriesQueryKey } from "@/lib/query/keys";
 
 export function usePetWeightEntriesQuery(
   petId: string | null | undefined,

@@ -1,4 +1,4 @@
-import { crittrAiThreadKey } from "@/hooks/queries/queryKeys";
+import { crittrAiThreadKey } from "@/lib/query/keys";
 import { fetchCrittrAiThread } from "@/services/crittrAi";
 import { useAuthStore } from "@/stores/authStore";
 import { useQuery } from "@tanstack/react-query";

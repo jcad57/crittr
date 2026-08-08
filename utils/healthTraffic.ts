@@ -8,7 +8,7 @@ import type { PetMedication, PetVaccination } from "@/types/database";
 import type { UserDateDisplay } from "@/utils/userDateTimeFormat";
 import { formatUserShortMonthDay } from "@/utils/userDateTimeFormat";
 
-export type HealthTrafficKind = "due_today" | "due_soon" | "current";
+import type { HealthTrafficKind } from "@/types/ui";
 
 function parseYmd(s: string): Date {
   const [y, m, d] = s.split("T")[0].split("-").map((x) => parseInt(x, 10));

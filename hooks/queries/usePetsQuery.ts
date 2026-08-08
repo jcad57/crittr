@@ -1,4 +1,4 @@
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { fetchAccessiblePets, fetchPetProfile } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetWithDetails, PetWithRole } from "@/types/database";
@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { warmPetDetailsCache } from "./prefetchPetsAndDetails";
-import { petDetailsQueryKey, petsQueryKey } from "./queryKeys";
+import { petDetailsQueryKey, petsQueryKey } from "@/lib/query/keys";
 
 /**
  * All pets the logged-in user has access to (owned + co-cared).

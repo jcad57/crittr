@@ -5,7 +5,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { notificationsKey, unreadNotificationCountKey } from "./queryKeys";
+import { notificationsKey, unreadNotificationCountKey } from "@/lib/query/keys";
 
 /**
  * Both of these are kept current by the realtime `notifications` subscription in

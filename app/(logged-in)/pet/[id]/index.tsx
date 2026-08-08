@@ -30,7 +30,7 @@ import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetVaccination } from "@/types/database";

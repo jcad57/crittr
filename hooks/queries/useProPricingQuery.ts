@@ -1,7 +1,7 @@
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { fetchProPricing } from "@/services/proPricing";
 import { useQuery } from "@tanstack/react-query";
-import { proPricingQueryKey } from "./queryKeys";
+import { proPricingQueryKey } from "@/lib/query/keys";
 
 const STALE_MS = 1000 * 60 * 15;
 

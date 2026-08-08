@@ -19,7 +19,7 @@ import {
   petActivityQueryKey,
   todayActivitiesForPetIdsKey,
   todayActivitiesKey,
-} from "./queryKeys";
+} from "@/lib/query/keys";
 
 export function useTodayActivitiesQuery(
   petId: string | null | undefined,

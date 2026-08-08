@@ -1,6 +1,7 @@
-import type { HealthTrafficKind } from "@/utils/healthTraffic";
-
 // ─── Presentation types for UI components ────────────────────────────────────
+
+/** Urgency band shared by medication and vaccination status badges. */
+export type HealthTrafficKind = "due_today" | "due_soon" | "current";
 
 export type PetSummary = {
   id: string;

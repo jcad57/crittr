@@ -8,7 +8,7 @@ import {
   usePetDetailsQuery,
   useUnreadNotificationCountQuery,
 } from "@/hooks/queries";
-import { scheduleDayKey } from "@/hooks/queries/queryKeys";
+import { scheduleDayKey } from "@/lib/query/keys";
 import {
   refetchScheduleDayForced,
   useCompleteScheduleItemMutation,
@@ -23,7 +23,7 @@ import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useSignupYmd } from "@/hooks/useSignupYmd";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import type { PetScheduleItem } from "@/types/database";
 import { getLocalYmd } from "@/utils/localCalendarDate";
 import {

@@ -1,4 +1,4 @@
-import { expandGradientThirds } from "@/utils/smoothGradient";
+import { expandGradientThirds } from "@/theme/smoothGradient";
 
 /** Shared diagonal for inner fill + small crown badge. */
 export const PRO_GRADIENT_START = { x: 0.1, y: 0 } as const;

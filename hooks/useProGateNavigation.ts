@@ -1,4 +1,4 @@
-import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import { profileQueryKey } from "@/lib/query/keys";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";

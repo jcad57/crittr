@@ -1,6 +1,6 @@
 import { fetchPetVetVisits } from "@/services/health";
 import { useQuery } from "@tanstack/react-query";
-import { petVetVisitsQueryKey } from "./queryKeys";
+import { petVetVisitsQueryKey } from "@/lib/query/keys";
 
 export function usePetVetVisitsQuery(petId: string | undefined) {
   return useQuery({
