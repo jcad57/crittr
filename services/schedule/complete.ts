@@ -7,6 +7,13 @@
 
 import { supabase } from "@/lib/supabase";
 import {
+  activitiesSincePrefixKey,
+  allActivitiesKey,
+  scheduleDayKey,
+  todayActivitiesPrefixKey,
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
+import {
   deletePetActivity,
   logExercise,
   logFood,
@@ -117,7 +124,87 @@ async function createActivityForScheduleItem(
 }
 
 /**
- * Mark a schedule item complete: stamp completion, then link a pet_activity.
+ * Mirror a completed schedule slot into pet_activities, then link it.
+ * Runs after the completion stamp so undo can proceed without waiting on
+ * activity inserts. If the user already un-completed, the new activity is
+ * discarded instead of being linked.
+ */
+function linkActivityInBackground(
+  stampedItem: PetScheduleItem,
+  userId: string,
+  loggedAt: string,
+): void {
+  void (async () => {
+    try {
+      const activityId = await createActivityForScheduleItem(
+        stampedItem,
+        userId,
+        loggedAt,
+      );
+      if (!activityId) return;
+
+      const { data: linked, error: linkErr } = await supabase
+        .from("pet_schedule_items")
+        .update({
+          activity_id: activityId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", stampedItem.id)
+        .not("completed_at", "is", null)
+        .select("*")
+        .maybeSingle();
+
+      if (linkErr) throw linkErr;
+
+      if (!linked) {
+        // Item was un-completed (or removed) before we could link — drop orphan.
+        try {
+          await deletePetActivity(activityId);
+        } catch (e) {
+          if (__DEV__) {
+            console.warn("[schedule] discard activity after undo", e);
+          }
+        }
+        return;
+      }
+
+      const key = scheduleDayKey(linked.pet_id, linked.local_date);
+      queryClient.setQueryData<PetScheduleItem[]>(key, (old) => {
+        if (!old) return [linked as PetScheduleItem];
+        return old.map((row) => {
+          if (row.id !== linked.id) return row;
+          // Respect a newer optimistic undo still showing incomplete.
+          if (!row.completed_at) return row;
+          return {
+            ...row,
+            activity_id: (linked as PetScheduleItem).activity_id,
+            completed_at: row.completed_at,
+          };
+        });
+      });
+
+      const petId = linked.pet_id;
+      void queryClient.invalidateQueries({
+        queryKey: todayActivitiesPrefixKey(petId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: allActivitiesKey(petId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: activitiesSincePrefixKey(petId),
+      });
+    } catch (e) {
+      if (__DEV__) {
+        console.warn("[schedule] activity log after complete failed", e);
+      }
+    }
+  })();
+}
+
+/**
+ * Mark a schedule item complete. Persists `completed_at` immediately so the
+ * toggle sync loop can settle (and accept an undo) without waiting on the
+ * mirrored pet_activity row.
  */
 export async function completeScheduleItem(
   itemId: string,
@@ -162,38 +249,8 @@ export async function completeScheduleItem(
   }
 
   const stampedItem = stamped as PetScheduleItem;
-
-  try {
-    const activityId = await createActivityForScheduleItem(
-      stampedItem,
-      userId,
-      loggedAt,
-    );
-
-    if (activityId === stampedItem.activity_id) {
-      return stampedItem;
-    }
-
-    const { data: linked, error: linkErr } = await supabase
-      .from("pet_schedule_items")
-      .update({
-        activity_id: activityId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", itemId)
-      .select("*")
-      .single();
-
-    if (linkErr) throw linkErr;
-    return linked as PetScheduleItem;
-  } catch (e) {
-    // Keep the schedule item completed even if activity logging fails —
-    // rolling back would make the toggle flicker. Activity can be linked later.
-    if (__DEV__) {
-      console.warn("[schedule] activity log after complete failed", e);
-    }
-    return stampedItem;
-  }
+  linkActivityInBackground(stampedItem, userId, loggedAt);
+  return stampedItem;
 }
 
 /**

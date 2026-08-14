@@ -19,6 +19,7 @@ export {
   beginScheduleItemToggle,
   endScheduleItemToggle,
   ensureScheduleForDay,
+  isLatestScheduleItemToggle,
 } from "./reconcile";
 
 export {
@@ -30,6 +31,8 @@ export {
 export { resyncScheduleForward } from "./resyncForward";
 
 export { completeScheduleItem, uncompleteScheduleItem } from "./complete";
+
+export { syncScheduleItemCompletion } from "./toggleCoordinator";
 
 export {
   syncScheduleItemFromActivity,

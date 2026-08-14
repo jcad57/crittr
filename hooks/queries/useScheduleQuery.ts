@@ -1,20 +1,15 @@
-import {
-  activitiesSincePrefixKey,
-  allActivitiesKey,
-  scheduleDayKey,
-  todayActivitiesPrefixKey,
-} from "@/lib/query/keys";
+import { scheduleDayKey } from "@/lib/query/keys";
 import { queryClient } from "@/lib/query/client";
 import {
   beginScheduleItemToggle,
-  completeScheduleItem,
   endScheduleItemToggle,
   ensureScheduleForDay,
+  isLatestScheduleItemToggle,
   resyncScheduleForward,
   SCHEDULE_STALE_MS,
-  uncompleteScheduleItem,
   warmScheduleForPets,
 } from "@/services/schedule";
+import { syncScheduleItemCompletion } from "@/services/schedule/toggleCoordinator";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetScheduleItem } from "@/types/database";
 import {
@@ -91,112 +86,80 @@ export async function refetchScheduleDayForced(
   });
 }
 
-/** Activity history caches only — never invalidate schedule on toggle. */
-function invalidateActivityCaches(petId: string) {
-  void queryClient.invalidateQueries({
-    queryKey: todayActivitiesPrefixKey(petId),
-  });
-  void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
-  void queryClient.invalidateQueries({
-    queryKey: activitiesSincePrefixKey(petId),
-  });
-}
-
-function patchScheduleItemInCache(item: PetScheduleItem) {
-  const key = scheduleDayKey(item.pet_id, item.local_date);
-  queryClient.setQueryData<PetScheduleItem[]>(key, (old) => {
-    if (!old) return [item];
-    let found = false;
-    const next = old.map((row) => {
-      if (row.id !== item.id) return row;
-      found = true;
-      return item;
-    });
-    return found ? next : [...next, item];
-  });
-}
-
-type ToggleVars = { item: PetScheduleItem };
+type ToggleVars = {
+  item: PetScheduleItem;
+  /** Desired completion after this tap. */
+  completed: boolean;
+  /** Set in `onMutate` so `mutationFn` registers the same generation. */
+  generation?: number;
+};
 
 type ToggleContext = {
   previous: PetScheduleItem[] | undefined;
   key: ReturnType<typeof scheduleDayKey>;
   itemId: string;
+  generation: number;
 };
 
-export function useCompleteScheduleItemMutation() {
+/**
+ * Optimistic schedule complete/uncomplete. Each tap flips the cache immediately;
+ * network work is coalesced per item so the server converges to the latest
+ * intent without blocking re-taps on in-flight mutations.
+ */
+export function useToggleScheduleItemMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: ({ item }: ToggleVars) => {
+    mutationFn: ({ item, completed, generation }: ToggleVars) => {
       if (!userId) throw new Error("Not signed in");
-      return completeScheduleItem(item.id, userId);
-    },
-    scope: { id: "schedule-item-toggle" },
-    onMutate: async ({ item }): Promise<ToggleContext> => {
-      const key = scheduleDayKey(item.pet_id, item.local_date);
-      beginScheduleItemToggle(item.id);
-      await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<PetScheduleItem[]>(key);
-      const completedAt = new Date().toISOString();
-      queryClient.setQueryData<PetScheduleItem[]>(key, (old) =>
-        (old ?? []).map((row) =>
-          row.id === item.id
-            ? {
-                ...row,
-                completed_at: completedAt,
-              }
-            : row,
-        ),
-      );
-      return { previous, key, itemId: item.id };
-    },
-    onError: (err, _vars, ctx) => {
-      if (__DEV__) console.warn("[schedule] complete failed", err);
-      if (ctx?.previous !== undefined) {
-        queryClient.setQueryData(ctx.key, ctx.previous);
+      if (generation == null) {
+        throw new Error("Missing toggle generation");
       }
+      return syncScheduleItemCompletion({
+        itemId: item.id,
+        userId,
+        petId: item.pet_id,
+        completed,
+        generation,
+      });
     },
-    onSuccess: (data) => {
-      patchScheduleItemInCache(data);
-      invalidateActivityCaches(data.pet_id);
-    },
-    onSettled: (_data, _err, { item }) => {
-      endScheduleItemToggle(item.id);
-    },
-  });
-}
+    onMutate: async (vars): Promise<ToggleContext> => {
+      const { item, completed } = vars;
+      const key = scheduleDayKey(item.pet_id, item.local_date);
+      const generation = beginScheduleItemToggle(item.id);
+      vars.generation = generation;
 
-export function useUncompleteScheduleItemMutation() {
-  return useMutation({
-    mutationFn: ({ item }: ToggleVars) => uncompleteScheduleItem(item.id),
-    scope: { id: "schedule-item-toggle" },
-    onMutate: async ({ item }): Promise<ToggleContext> => {
-      const key = scheduleDayKey(item.pet_id, item.local_date);
-      beginScheduleItemToggle(item.id);
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<PetScheduleItem[]>(key);
+
       queryClient.setQueryData<PetScheduleItem[]>(key, (old) =>
-        (old ?? []).map((row) =>
-          row.id === item.id
-            ? { ...row, completed_at: null, activity_id: null }
-            : row,
-        ),
+        (old ?? []).map((row) => {
+          if (row.id !== item.id) return row;
+          if (completed) {
+            return {
+              ...row,
+              completed_at: row.completed_at ?? new Date().toISOString(),
+            };
+          }
+          return { ...row, completed_at: null, activity_id: null };
+        }),
       );
-      return { previous, key, itemId: item.id };
+
+      return { previous, key, itemId: item.id, generation };
     },
     onError: (err, _vars, ctx) => {
-      if (__DEV__) console.warn("[schedule] uncomplete failed", err);
-      if (ctx?.previous !== undefined) {
+      if (__DEV__) console.warn("[schedule] toggle failed", err);
+      /**
+       * A newer tap already owns the row — restoring this snapshot would yank
+       * the check back to a state the user has since left.
+       */
+      if (!ctx || !isLatestScheduleItemToggle(ctx.itemId, ctx.generation)) {
+        return;
+      }
+      if (ctx.previous !== undefined) {
         queryClient.setQueryData(ctx.key, ctx.previous);
       }
-    },
-    onSuccess: (data) => {
-      patchScheduleItemInCache(data);
-      invalidateActivityCaches(data.pet_id);
-    },
-    onSettled: (_data, _err, { item }) => {
-      endScheduleItemToggle(item.id);
+      endScheduleItemToggle(ctx.itemId, ctx.generation);
     },
   });
 }

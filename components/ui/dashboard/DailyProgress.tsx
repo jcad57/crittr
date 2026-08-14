@@ -13,6 +13,8 @@ type DailyProgressProps = {
   petType?: string | null;
   /** All categories with goals satisfied — unified green rings + celebratory styling. */
   allComplete?: boolean;
+  /** Changes with active pet so rings replay from 0 on each switch. */
+  animationKey?: string;
 };
 
 const RING_SIZE = 68;
@@ -23,6 +25,7 @@ export default function DailyProgress({
   categories,
   petType = null,
   allComplete = false,
+  animationKey,
 }: DailyProgressProps) {
   const ringIcons = useMemo(
     () => getDailyProgressRingIcons(petType),
@@ -49,6 +52,7 @@ export default function DailyProgress({
               progress={progress}
               color={ringColor}
               trackColor={trackColor}
+              animationKey={animationKey}
             >
               {iconSource ? (
                 <Image source={iconSource} style={styles.icon} />

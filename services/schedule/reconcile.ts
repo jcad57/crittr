@@ -99,14 +99,43 @@ export function abortBackgroundReconciles(petId: string): void {
  * Item ids with an optimistic toggle that hasn't been confirmed by the server.
  * A background reconcile reads rows that predate the toggle, so replaying its
  * result verbatim would visibly un-tick the item the user just tapped.
+ *
+ * Generations let rapid complete ↔ uncomplete taps supersede each other: every
+ * tap bumps the gen immediately (UI stays snappy), and only the latest gen may
+ * patch the cache or clear pending protection when its network work settles.
  */
 const pendingToggleItemIds = new Set<string>();
+const toggleGenerationByItemId = new Map<string, number>();
 
-export function beginScheduleItemToggle(itemId: string): void {
+/** Begin (or continue) an optimistic toggle; returns this tap's generation. */
+export function beginScheduleItemToggle(itemId: string): number {
+  const generation = (toggleGenerationByItemId.get(itemId) ?? 0) + 1;
+  toggleGenerationByItemId.set(itemId, generation);
   pendingToggleItemIds.add(itemId);
+  return generation;
 }
 
-export function endScheduleItemToggle(itemId: string): void {
+export function isLatestScheduleItemToggle(
+  itemId: string,
+  generation: number,
+): boolean {
+  return toggleGenerationByItemId.get(itemId) === generation;
+}
+
+/**
+ * Clear reconcile protection once the latest tap's network work settles.
+ * Older generations no-op so an in-flight complete cannot unlock mid-undo.
+ */
+export function endScheduleItemToggle(
+  itemId: string,
+  generation?: number,
+): void {
+  if (
+    generation != null &&
+    toggleGenerationByItemId.get(itemId) !== generation
+  ) {
+    return;
+  }
   pendingToggleItemIds.delete(itemId);
 }
 

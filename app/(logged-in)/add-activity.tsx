@@ -2,6 +2,7 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
+import MatchScheduleTaskModal from "@/components/activity/MatchScheduleTaskModal";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -16,12 +17,19 @@ import {
   useLogTrainingMutation,
   useLogWeighInMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
-import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
+import {
+  usePetsQuery,
+  useProfileQuery,
+  useScheduleDayQuery,
+  useToggleScheduleItemMutation,
+} from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
+import type { ActivityType, PetScheduleItem } from "@/types/database";
 import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
 import {
   discardPreloadedInterstitial,
@@ -46,6 +54,14 @@ import { styles } from "@/screen-styles/add-activity.styles";
 const SAVE_LABEL = "Save";
 const CONTINUE_LABEL = "Continue";
 
+/** Categories that may have matching schedule slots for the day. */
+const SCHEDULE_MATCH_TYPES = new Set<ActivityType>([
+  "exercise",
+  "food",
+  "medication",
+  "potty",
+]);
+
 export default function AddActivityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -55,6 +71,13 @@ export default function AddActivityScreen() {
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
   /** Covers network save + interstitial so Save stays locked after mutations settle. */
   const [isCompleting, setIsCompleting] = useState(false);
+  const [matchModalVisible, setMatchModalVisible] = useState(false);
+  const [matchModalItems, setMatchModalItems] = useState<PetScheduleItem[]>(
+    [],
+  );
+  const [completingMatchId, setCompletingMatchId] = useState<string | null>(
+    null,
+  );
 
   const step = useActivityFormStore((s) => s.step);
   const activityType = useActivityFormStore((s) => s.activityType);
@@ -85,6 +108,7 @@ export default function AddActivityScreen() {
   const { data: profile, isPending: profilePending, isPlaceholderData: profilePlaceholder } =
     useProfileQuery();
   const isPro = useIsCrittrPro(profile);
+  const todayYmd = useLocalCalendarYmd();
 
   const resolvedPetId = useMemo(() => {
     if (activePetId && (allPets ?? []).some((p) => p.id === activePetId)) {
@@ -102,6 +126,9 @@ export default function AddActivityScreen() {
     resolvedPetId,
     "can_log_activities",
   );
+
+  const { data: scheduleItems } = useScheduleDayQuery(resolvedPetId, todayYmd);
+  const toggleScheduleItem = useToggleScheduleItemMutation();
 
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
@@ -189,6 +216,77 @@ export default function AddActivityScreen() {
     reset();
     router.back();
   }, [reset, router, isCompleting]);
+
+  const proceedToDetails = useCallback(() => {
+    setActivityOccurredAt(null);
+    setStep("details");
+  }, [setActivityOccurredAt, setStep]);
+
+  const uncompletedScheduleForType = useCallback(
+    (type: ActivityType): PetScheduleItem[] => {
+      return (scheduleItems ?? []).filter(
+        (item) => !item.completed_at && item.activity_type === type,
+      );
+    },
+    [scheduleItems],
+  );
+
+  const handleContinueFromType = useCallback(() => {
+    if (!activityType || isCompleting) return;
+
+    if (SCHEDULE_MATCH_TYPES.has(activityType)) {
+      const matches = uncompletedScheduleForType(activityType);
+      if (matches.length > 0) {
+        setMatchModalItems(matches);
+        setCompletingMatchId(null);
+        setMatchModalVisible(true);
+        return;
+      }
+    }
+
+    proceedToDetails();
+  }, [
+    activityType,
+    isCompleting,
+    uncompletedScheduleForType,
+    proceedToDetails,
+  ]);
+
+  const closeMatchModal = useCallback(() => {
+    if (completingMatchId || isCompleting) return;
+    setMatchModalVisible(false);
+    setMatchModalItems([]);
+  }, [completingMatchId, isCompleting]);
+
+  const handleLogNewTaskFromModal = useCallback(() => {
+    if (completingMatchId || isCompleting) return;
+    setMatchModalVisible(false);
+    setMatchModalItems([]);
+    proceedToDetails();
+  }, [completingMatchId, isCompleting, proceedToDetails]);
+
+  const handleSelectMatchedScheduleTask = useCallback(
+    (item: PetScheduleItem) => {
+      if (completingMatchId || isCompleting) return;
+      setCompletingMatchId(item.id);
+      toggleScheduleItem.mutate(
+        { item, completed: true },
+        {
+          onError: () => {
+            setCompletingMatchId(null);
+          },
+        },
+      );
+      setMatchModalVisible(false);
+      setMatchModalItems([]);
+      setIsCompleting(true);
+      void finish().catch(() => {
+        setIsCompleting(false);
+        setCompletingMatchId(null);
+      });
+    },
+    [completingMatchId, isCompleting, toggleScheduleItem, finish],
+  );
 
   const runSaveThenFinish = useCallback(
     async (persist: () => Promise<void>) => {
@@ -434,13 +532,8 @@ export default function AddActivityScreen() {
 
             <View style={[styles.actionsBlock, styles.actionsAfterTypeGrid]}>
               <OrangeButton
-                onPress={() => {
-                  if (activityType) {
-                    setActivityOccurredAt(null);
-                    setStep("details");
-                  }
-                }}
-                disabled={!activityType}
+                onPress={handleContinueFromType}
+                disabled={!activityType || isCompleting}
                 style={styles.saveBtn}
               >
                 {CONTINUE_LABEL}
@@ -503,6 +596,17 @@ export default function AddActivityScreen() {
           </View>
         )}
       </KeyboardAwareScrollView>
+
+      <MatchScheduleTaskModal
+        visible={matchModalVisible}
+        petName={primaryPetForLog?.name ?? "your pet"}
+        petType={primaryPetForLog?.pet_type}
+        items={matchModalItems}
+        completingItemId={completingMatchId}
+        onSelectItem={handleSelectMatchedScheduleTask}
+        onLogNewTask={handleLogNewTaskFromModal}
+        onClose={closeMatchModal}
+      />
     </View>
   );
 }

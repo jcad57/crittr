@@ -54,8 +54,7 @@ export {
 } from "./useActivitiesQuery";
 export {
   useScheduleDayQuery,
-  useCompleteScheduleItemMutation,
-  useUncompleteScheduleItemMutation,
+  useToggleScheduleItemMutation,
   requestScheduleResync,
 } from "./useScheduleQuery";
 export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";

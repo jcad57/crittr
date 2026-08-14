@@ -65,6 +65,8 @@ export const Colors = {
    */
   progressExercise: "#4A8B8F",
   progressExerciseTrack: "#E8F6F6",
+  progressTraining: "#8F4A6F",
+  progressTrainingTrack: "#F6E8F2",
   progressMeals: "#8B7A9E",
   progressMealsTrack: "#EEE8F4",
   progressTreats: "#22A55C",

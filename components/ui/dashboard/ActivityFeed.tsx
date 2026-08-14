@@ -10,9 +10,8 @@ import { useAuthStore } from "@/stores/authStore";
 import type { PetActivity } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  FlatList,
   LayoutAnimation,
   Pressable,
   StyleSheet,
@@ -20,12 +19,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, { Easing, FadeInDown } from "react-native-reanimated";
 import OrangeButton from "../buttons/OrangeButton";
 import ActivityItem from "./ActivityItem";
 import SectionLabel from "./SectionLabel";
 
 const PREVIEW_COUNT = 4;
 const GAP = 8;
+/** Match schedule tab card enter so pet switches feel consistent. */
+const ENTER_MS = 450;
+const STAGGER_MS = 100;
+const SLIDE_UP_FROM_Y = 32;
 
 type ActivityFeedProps = {
   activities: PetActivity[];
@@ -34,6 +38,8 @@ type ActivityFeedProps = {
   onSeeAllPress?: () => void;
   /** When false, hide log CTAs (e.g. co-carer without can_log_activities). */
   showLogActivity?: boolean;
+  /** Changes with active pet so entering animations replay on each switch. */
+  animationKey?: string;
 };
 
 export default function ActivityFeed({
@@ -42,10 +48,15 @@ export default function ActivityFeed({
   onLogActivityPress,
   onSeeAllPress,
   showLogActivity = true,
+  animationKey = "",
 }: ActivityFeedProps) {
   const { push } = useNavigationCooldown();
   const currentUserId = useAuthStore((s) => s.session?.user?.id);
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [animationKey]);
 
   const loggerIds = useMemo(() => {
     const ids = new Set<string>();
@@ -135,26 +146,33 @@ export default function ActivityFeed({
         </View>
       </View>
 
-      <FlatList
-        data={visible}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        contentContainerStyle={{ gap: GAP }}
-        renderItem={({ item }) => (
-          <ActivityItem
-            activity={item}
-            petType={petType}
-            loggerName={resolveActivityLoggerLabel(
-              item.logged_by,
-              nameByUserId,
-              currentUserId,
-            )}
-            onPress={() =>
-              push(`/(logged-in)/manage-activity-item/${item.id}` as Href)
-            }
-          />
-        )}
-      />
+      <View style={styles.list}>
+        {visible.map((item, index) => (
+          <Animated.View
+            key={`${animationKey}:${item.id}`}
+            entering={FadeInDown.duration(ENTER_MS)
+              .delay(index * STAGGER_MS)
+              .easing(Easing.out(Easing.cubic))
+              .withInitialValues({
+                opacity: 0,
+                transform: [{ translateY: SLIDE_UP_FROM_Y }],
+              })}
+          >
+            <ActivityItem
+              activity={item}
+              petType={petType}
+              loggerName={resolveActivityLoggerLabel(
+                item.logged_by,
+                nameByUserId,
+                currentUserId,
+              )}
+              onPress={() =>
+                push(`/(logged-in)/manage-activity-item/${item.id}` as Href)
+              }
+            />
+          </Animated.View>
+        ))}
+      </View>
 
       {hasMore && (
         <TouchableOpacity
@@ -180,6 +198,10 @@ export default function ActivityFeed({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
+  },
+  list: {
+    gap: GAP,
+    overflow: "visible",
   },
   listHeader: {
     flexDirection: "row",

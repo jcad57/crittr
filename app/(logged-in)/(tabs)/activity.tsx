@@ -11,9 +11,8 @@ import {
 import { scheduleDayKey } from "@/lib/query/keys";
 import {
   refetchScheduleDayForced,
-  useCompleteScheduleItemMutation,
   useScheduleDayQuery,
-  useUncompleteScheduleItemMutation,
+  useToggleScheduleItemMutation,
   useWarmScheduleCache,
 } from "@/hooks/queries/useScheduleQuery";
 import { useActivePet } from "@/hooks/useActivePet";
@@ -96,8 +95,7 @@ export default function ScheduleScreen() {
     refetch: refetchSchedule,
   } = useScheduleDayQuery(activePetId, selectedYmd);
 
-  const completeMutation = useCompleteScheduleItemMutation();
-  const uncompleteMutation = useUncompleteScheduleItemMutation();
+  const toggleMutation = useToggleScheduleItemMutation();
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
   const headerDate = useMemo(
@@ -141,26 +139,12 @@ export default function ScheduleScreen() {
       const cached = queryClient.getQueryData<PetScheduleItem[]>(key);
       const latest = cached?.find((row) => row.id === item.id) ?? item;
 
-      const pendingCompleteId = completeMutation.isPending
-        ? completeMutation.variables?.item.id
-        : null;
-      const pendingUncompleteId = uncompleteMutation.isPending
-        ? uncompleteMutation.variables?.item.id
-        : null;
-      if (
-        pendingCompleteId === latest.id ||
-        pendingUncompleteId === latest.id
-      ) {
-        return;
-      }
-
-      if (latest.completed_at) {
-        uncompleteMutation.mutate({ item: latest });
-      } else {
-        completeMutation.mutate({ item: latest });
-      }
+      toggleMutation.mutate({
+        item: latest,
+        completed: !latest.completed_at,
+      });
     },
-    [canLog, completeMutation, uncompleteMutation],
+    [canLog, toggleMutation],
   );
 
   const handleEdit = useCallback(

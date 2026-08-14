@@ -382,6 +382,7 @@ export default function Dashboard() {
                     categories={dailyProgress}
                     petType={activePetDetails?.pet_type ?? null}
                     allComplete={dailyProgressAllComplete}
+                    animationKey={activePetId ?? ""}
                   />
                 )}
               </View>
@@ -396,6 +397,7 @@ export default function Dashboard() {
                 onLogActivityPress={navigateToAddActivity}
                 onSeeAllPress={navigateToActivity}
                 showLogActivity={canLogActivities === true}
+                animationKey={activePetId ?? ""}
               />
             )}
 
