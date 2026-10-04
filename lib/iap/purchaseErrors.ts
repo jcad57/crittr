@@ -59,7 +59,7 @@ function messageForCode(code: string | undefined): string | null {
     case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
       return `${storePhrase()} couldn't complete the purchase. Please try again in a moment.`;
     case PURCHASES_ERROR_CODE.PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR:
-      return `Crittr Pro isn't available for your ${storeAccountLabel()} in this country yet.`;
+      return `${storePhrase()} couldn't sell this Crittr Pro plan on this device. On a debug Android build the Google account must be a Play license tester, and the Play products crittr_pro_monthly:monthly / crittr_pro_annual:annual must be active.`;
     case PURCHASES_ERROR_CODE.NETWORK_ERROR:
     case PURCHASES_ERROR_CODE.OFFLINE_CONNECTION_ERROR:
       return "We couldn't reach the network. Check your connection and try again.";

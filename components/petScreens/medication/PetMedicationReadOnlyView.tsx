@@ -4,10 +4,14 @@ import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetMedication, PetWithDetails } from "@/types/database";
-import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
+import { hydrateDosagesFromMed } from "@/utils/medicationDosageDraft";
 import {
-  formatReminderHHmmForDisplay,
+  frequencyDraftFromMed,
+  frequencyLabelForDraft,
+} from "@/utils/medicationFrequency";
+import {
   formatUserLongDateFromYmd,
+  formatUserTime,
 } from "@/utils/userDateTimeFormat";
 import { ScrollView, View } from "react-native";
 
@@ -27,13 +31,8 @@ export default function PetMedicationReadOnlyView({
   onAfterSwitchPet,
 }: Props) {
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
-  const reminderTimes = getMedicationReminderTimes(med);
-  const reminderLabel =
-    reminderTimes.length > 0
-      ? reminderTimes
-          .map((t) => formatReminderHHmmForDisplay(t, timeDisplay))
-          .join(", ")
-      : "—";
+  const dosages = hydrateDosagesFromMed(med);
+  const frequencyLabel = frequencyLabelForDraft(frequencyDraftFromMed(med));
   const lastGiven =
     formatUserLongDateFromYmd(med.last_given_on?.trim(), dateDisplay) ||
     med.last_given_on?.trim() ||
@@ -55,17 +54,27 @@ export default function PetMedicationReadOnlyView({
       >
         <CoCareReadOnlyNotice />
         <ReadOnlyFieldRow label="Name" value={med.name} />
-        <ReadOnlyFieldRow label="Dosage" value={med.dosage?.trim() || ""} />
-        <ReadOnlyFieldRow
-          label="Frequency"
-          value={med.frequency?.trim() || ""}
-        />
+        {dosages.length > 0 ? (
+          dosages.map((d) => (
+            <ReadOnlyFieldRow
+              key={d.key}
+              label={formatUserTime(d.reminderTime, timeDisplay)}
+              value={
+                [d.dosageAmount.trim(), d.dosageType.trim()]
+                  .filter(Boolean)
+                  .join(" ") || "—"
+              }
+            />
+          ))
+        ) : (
+          <ReadOnlyFieldRow label="Dosage" value={med.dosage?.trim() || ""} />
+        )}
+        <ReadOnlyFieldRow label="How often" value={frequencyLabel} />
         <ReadOnlyFieldRow
           label="Condition"
           value={med.condition?.trim() || ""}
         />
         <ReadOnlyFieldRow label="Notes" value={med.notes?.trim() || ""} />
-        <ReadOnlyFieldRow label="Reminder time" value={reminderLabel} />
         <ReadOnlyFieldRow label="Last given" value={lastGiven} />
       </ScrollView>
     </View>

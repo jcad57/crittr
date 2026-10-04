@@ -7,11 +7,10 @@ import type {
 import { getLocalYmd } from "@/utils/localCalendarDate";
 import {
   dueSoonScheduleKind,
-  enumerateUpcomingMedicationDueDates,
-  medicationScheduleAnchor,
-  advanceMedicationDueDate,
-  startOfDay,
+  isLastGivenOccurrence,
+  isMedicationDueOnLocalDate,
 } from "@/utils/medicationDueSchedule";
+import { dosagePartsForReminderTime } from "@/utils/medicationDosageDraft";
 import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
 import {
   dailyProgressFoodTarget,
@@ -28,31 +27,26 @@ import {
 const LEGACY_FEED_HOURS = [8, 12, 18, 7, 13, 19, 9, 17];
 const DEFAULT_WALK_HOURS = [8, 12, 17, 19, 9, 15, 18, 20];
 
-function parseYmdToLocalDate(ymd: string): Date {
-  const [y, m, d] = ymd.split("-").map((n) => parseInt(n, 10));
-  return new Date(y, m - 1, d);
+function completedAtIsoForSlot(localYmd: string, hhmm: string): string {
+  const [y, mo, d] = localYmd.split("-").map((n) => parseInt(n, 10));
+  const [h, mi] = hhmm.split(":").map((n) => parseInt(n, 10));
+  return new Date(y, mo - 1, d, h || 0, mi || 0, 0, 0).toISOString();
 }
 
-function ymdEqualsDate(ymd: string, d: Date): boolean {
-  return getLocalYmd(d) === ymd;
-}
-
-/** Expected doses on a specific local day (daily heuristics + interval due check). */
+/** Expected doses on a specific local day (due-day check first, then slot count). */
 export function getExpectedDosesForLocalDate(
   m: PetMedication,
   localYmd: string,
 ): number {
-  const period = m.dose_period ?? null;
-  const n = m.doses_per_period ?? null;
+  if (!isMedicationDueOnLocalDate(m, localYmd)) return 0;
 
-  if (period === "day" && n != null && n > 0) {
+  const n = m.doses_per_period;
+  if (n != null && n > 0) {
     return Math.min(8, Math.max(1, Math.floor(n)));
   }
 
   const kind = dueSoonScheduleKind(m);
-  if (kind !== "daily") {
-    return isMedicationDueOnLocalDate(m, localYmd) ? 1 : 0;
-  }
+  if (kind !== "daily") return 1;
 
   const f = (m.frequency ?? "").toLowerCase();
   if (
@@ -85,52 +79,7 @@ export function getExpectedDosesForLocalDate(
   return 1;
 }
 
-/**
- * Whether a medication should appear on `localYmd` (daily always; interval on due days).
- */
-export function isMedicationDueOnLocalDate(
-  m: PetMedication,
-  localYmd: string,
-): boolean {
-  if (dueSoonScheduleKind(m) === "daily") {
-    return true;
-  }
-
-  const target = startOfDay(parseYmdToLocalDate(localYmd));
-  const today = startOfDay(new Date());
-
-  if (target.getTime() >= today.getTime()) {
-    const upcoming = enumerateUpcomingMedicationDueDates(m, 120);
-    return upcoming.some((d) => ymdEqualsDate(localYmd, d));
-  }
-
-  // Past: walk forward from first due after anchor until we pass the target day.
-  const kind = dueSoonScheduleKind(m);
-  if (kind === "daily") return true;
-
-  let cur = startOfDay(medicationScheduleAnchor(m));
-  const stepFrom = (from: Date) => {
-    const next = advanceMedicationDueDate(m, from);
-    return next ? startOfDay(next) : null;
-  };
-
-  // Interval schedules treat the first due as one step after anchor.
-  let due = stepFrom(cur);
-  if (!due) {
-    const raw = m.next_due_date?.trim();
-    if (!raw) return false;
-    due = startOfDay(parseYmdToLocalDate(raw.slice(0, 10)));
-  }
-
-  let guard = 0;
-  while (due && due.getTime() < target.getTime() && guard < 500) {
-    const next = stepFrom(due);
-    if (!next || next.getTime() <= due.getTime()) break;
-    due = next;
-    guard += 1;
-  }
-  return due != null && due.getTime() === target.getTime();
-}
+export { isMedicationDueOnLocalDate };
 
 function mealLabelForIndex(index: number, total: number): string {
   if (total === 1) return "Meal";
@@ -169,16 +118,6 @@ function defaultReminderTimesForDoseCount(count: number): string[] {
     out.push(`${String(hour).padStart(2, "0")}:00`);
   }
   return out;
-}
-
-function parseDosageParts(
-  dosage: string | null,
-): { amount: string; unit: string } | null {
-  const raw = dosage?.trim() ?? "";
-  if (!raw) return null;
-  const m = /^([\d.]+)\s*(.*)$/.exec(raw);
-  if (!m) return { amount: "", unit: raw };
-  return { amount: m[1] ?? "", unit: (m[2] ?? "").trim() };
 }
 
 /**
@@ -367,14 +306,14 @@ export function buildPlannedScheduleForDay(
       times = times.slice(0, expected);
     }
 
-    const dosageParts = parseDosageParts(med.dosage);
-    const dosageLine =
-      quantityFromPortion(
-        dosageParts?.amount || null,
-        dosageParts?.unit || null,
-      ) || med.dosage?.trim() || null;
     for (const hhmm of times) {
       const { hour, minute } = parseScheduleTime(hhmm);
+      const dosageParts = dosagePartsForReminderTime(med, hhmm);
+      const dosageLine =
+        quantityFromPortion(
+          dosageParts.amount || null,
+          dosageParts.unit || null,
+        ) || med.dosage?.trim() || null;
       items.push({
         pet_id: petId,
         local_date: localYmd,
@@ -387,11 +326,14 @@ export function buildPlannedScheduleForDay(
         detail_line: dosageLine,
         quantity_line: med.notes?.trim() || null,
         notes: null,
+        completed_at: isLastGivenOccurrence(med, localYmd)
+          ? completedAtIsoForSlot(localYmd, hhmm)
+          : undefined,
         meta: {
           medication_id: med.id,
           dosage: med.dosage,
-          amount: dosageParts?.amount ?? "",
-          unit: dosageParts?.unit ?? "",
+          amount: dosageParts.amount ?? "",
+          unit: dosageParts.unit ?? "",
         },
       });
     }

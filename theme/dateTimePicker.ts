@@ -5,6 +5,10 @@ import { StyleSheet } from "react-native";
  * Shared native picker appearance for light Crittr sheets.
  * Explicit `textColor` keeps unselected spinner rows readable on recent iOS;
  * `themeVariant: "light"` matches our cream/white chrome regardless of system dark mode.
+ *
+ * Appearance only — date bounds belong in `utils/dateTimePickerBounds.ts`, and
+ * are applied by the wrappers in `components/ui/pickers/`, which are the only
+ * places allowed to render either picker library.
  */
 export const IOS_LIGHT_PICKER_PROPS = {
   themeVariant: "light" as const,
@@ -14,6 +18,8 @@ export const IOS_LIGHT_PICKER_PROPS = {
 /** Props spread into `react-native-modal-datetime-picker` (forwarded to the community picker). */
 export const MODAL_DATETIME_PICKER_PROPS = {
   ...IOS_LIGHT_PICKER_PROPS,
+  modalPropsIOS: { presentationStyle: "overFullScreen" as const },
+  pickerContainerStyleIOS: { backgroundColor: Colors.white },
 };
 
 /** Fixed spinner frame for time-only sheets (not datetime — those need more vertical room). */

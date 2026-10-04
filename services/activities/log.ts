@@ -6,6 +6,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { trackActivityLogged } from "@/lib/analytics";
 import { requestRemoteCoCarerActivityPush } from "@/services/coCarerActivityPush";
 import {
   FOOD_ACTIVITY_OTHER_ID,
@@ -59,6 +60,7 @@ export async function logExercise(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
@@ -91,6 +93,7 @@ export async function logFood(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
@@ -118,6 +121,7 @@ export async function logMedication(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
@@ -149,6 +153,7 @@ export async function logPotty(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
@@ -175,6 +180,7 @@ export async function logMaintenance(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }
@@ -213,6 +219,7 @@ export async function logTraining(
     .single();
 
   if (error) throw error;
+  trackActivityLogged(data.activity_type);
   requestRemoteCoCarerActivityPush(data.id);
   return data as PetActivity;
 }

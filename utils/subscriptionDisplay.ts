@@ -14,6 +14,8 @@ export function formatStatus(status: string): string {
       return "Canceled";
     case "expired":
       return "Expired";
+    case "lifetime":
+      return "Lifetime";
     default:
       return status.replace(/_/g, " ");
   }

@@ -18,6 +18,8 @@ export {
   todayActivitiesPrefixKey,
   activitiesSinceKey,
   activitiesSincePrefixKey,
+  activityMonthCountKey,
+  activityMonthCountPrefixKey,
   scheduleDayKey,
   schedulePetPrefixKey,
   coCarersForPetKey,
@@ -58,6 +60,7 @@ export {
   requestScheduleResync,
 } from "./useScheduleQuery";
 export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";
+export { useActivityMonthCountQuery } from "./useActivityMonthCountQuery";
 export { useActivitiesSinceForPetIdsQuery } from "./useActivitiesSinceForPetIdsQuery";
 export {
   useCoCarersForPetQuery,

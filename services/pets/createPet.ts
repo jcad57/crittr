@@ -8,6 +8,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { trackPetCreated } from "@/lib/analytics";
 import { sendCoCareInvite } from "@/services/coCare";
 import {
   extensionForContentType,
@@ -20,8 +21,9 @@ import {
 } from "@/services/petExercisePlans";
 import { foodFormEntryToUpsertInput, insertPetFood } from "@/services/petFoods";
 import type { Pet, PetFormData } from "@/types/database";
+import { dosagesFromFormEntry } from "@/utils/medicationDosageDraft";
 import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
-import { parseReminderTimeHHmm } from "@/utils/medicationSchedule";
+import { frequencyDraftFromFormEntry } from "@/utils/medicationFrequency";
 
 export type CreatePetOptions = {
   /**
@@ -153,6 +155,11 @@ export async function createPet(
     throw petError;
   }
 
+  trackPetCreated({
+    petType: typeof pet.pet_type === "string" ? pet.pet_type : null,
+    isFirstPet: isFirst,
+  });
+
   // Insert foods (treats + legacy fields, or meals with `pet_food_portions`)
   for (const f of petData.foods) {
     await insertPetFood(pet.id, foodFormEntryToUpsertInput(f));
@@ -186,16 +193,11 @@ export async function createPet(
     const medRows = petData.medications.map((m) => {
       const payload = buildMedicationSavePayload({
         name: m.name,
-        dosageAmount: m.dosageAmount,
-        dosageType: m.dosageType,
-        dosesPerPeriod: m.dosesPerPeriod,
-        schedulePeriod: m.schedulePeriod,
-        customIntervalCount: m.customIntervalCount,
-        customIntervalUnit: m.customIntervalUnit,
+        dosages: dosagesFromFormEntry(m),
         condition: m.condition,
         notes: m.notes,
-        reminderDates: m.reminderTimes.map((t) => parseReminderTimeHHmm(t)),
         lastGivenOn: m.lastGivenOn,
+        frequency: frequencyDraftFromFormEntry(m),
       });
       if (!payload) {
         throw new Error("Invalid medication data while creating pet.");
@@ -214,6 +216,7 @@ export async function createPet(
         reminder_time: payload.reminder_time,
         reminder_times: payload.reminder_times,
         last_given_on: payload.last_given_on,
+        next_due_date: payload.next_due_date,
       };
     });
 

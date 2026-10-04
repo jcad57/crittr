@@ -1,5 +1,6 @@
 /**
- * When Crittr Pro ends (RevenueCat subscription expired), free-tier rules apply:
+ * When Crittr Pro ends (RevenueCat confirms `crittr_pro` is inactive),
+ * free-tier rules apply:
  *
  *   - Free tier keeps **one** living owned pet. Anything beyond the oldest
  *     living pet is **soft-archived** (`is_archived = true`,

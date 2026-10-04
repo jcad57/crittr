@@ -17,9 +17,10 @@
  *  - Verifies the `Authorization` header matches `REVENUECAT_WEBHOOK_AUTH`.
  *  - Extracts the `app_user_id` from the event payload.
  *  - Re-fetches the authoritative subscriber state from the RevenueCat REST
- *    API and writes the resulting `crittr_pro_until` (and a few denormalized
- *    fields) onto `profiles`. We do not trust the event payload alone — if RC
- *    issues a refund or grace period, the subscriber GET is always correct.
+ *    API and mirrors `crittr_pro` onto `profiles` (`crittr_pro_active` plus
+ *    expiration / store metadata). We do not trust the event payload alone —
+ *    if RC issues a refund, grant, or grace period, the subscriber GET is
+ *    always correct. A null expiration is lifetime access, not inactive.
  *  - On Pro→free transition, runs the downgrade cleanup (single living pet,
  *    co-care unwound, invites cleared).
  */
@@ -135,23 +136,22 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { before, after } = await reconcileCrittrProForUser(
-      supabaseAdmin,
-      supabaseUserId,
-      event.app_user_id,
-      { alternateAppUserIds },
+    const { before, after, activeBefore, activeAfter } =
+      await reconcileCrittrProForUser(
+        supabaseAdmin,
+        supabaseUserId,
+        event.app_user_id,
+        { alternateAppUserIds },
+      );
+    console.log("[crittr-pro] webhook", {
+      type: event.type,
+      active: `${activeBefore} → ${activeAfter}`,
+      expiresAt: `${before} → ${after}`,
+    });
+    return json(
+      { ok: true, before, after, activeBefore, activeAfter },
+      200,
     );
-    console.log(
-      "[revenuecat-webhook]",
-      event.type,
-      "user",
-      supabaseUserId,
-      "pro:",
-      before,
-      "→",
-      after,
-    );
-    return json({ ok: true, before, after }, 200);
   } catch (e) {
     console.error(
       "[revenuecat-webhook] reconcile failed",

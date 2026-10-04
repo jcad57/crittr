@@ -6,6 +6,8 @@ import MedicalRecordFilePreviewModal from "@/components/medical/MedicalRecordFil
 import MedicalRecordEditFilesList from "@/components/petScreens/medicalRecords/MedicalRecordEditFilesList";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
 import { Colors } from "@/theme/colors";
 import {
   useDeleteMedicalRecordFileMutation,
@@ -67,6 +69,9 @@ export default function EditMedicalRecordScreen() {
 
   const canManage = useCanPerformAction(petId, "can_manage_pet_records");
   const { runWithProOrUpgrade } = useProGateNavigation();
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
 
   const updateTitleMut = useUpdatePetMedicalRecordTitleMutation(petId ?? "");
   const deleteRecordMut = useDeletePetMedicalRecordMutation(petId ?? "");
@@ -298,7 +303,12 @@ export default function EditMedicalRecordScreen() {
               <Text style={styles.sectionTitle}>Files</Text>
               {canEdit ? (
                 <Pressable
-                  onPress={() => runWithProOrUpgrade(() => setAddOpen(true))}
+                  onPress={() =>
+                    void runWithProOrUpgrade(
+                      () => setAddOpen(true),
+                      () => setSoftPaywall("records"),
+                    )
+                  }
                   hitSlop={8}
                 >
                   <Text style={styles.addLink}>Add files</Text>
@@ -367,6 +377,12 @@ export default function EditMedicalRecordScreen() {
             );
           }
         }}
+      />
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={details?.name}
+        onClose={() => setSoftPaywall(null)}
       />
     </View>
   );

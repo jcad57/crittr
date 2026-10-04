@@ -6,6 +6,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { requestRemoteCoCarerActivityPush } from "@/services/coCarerActivityPush";
+import { trackActivityLogged } from "@/lib/analytics";
 import type {
   PetActivity,
   WeighInActivityFormData,
@@ -93,6 +94,7 @@ export async function logWeighIn(
     .eq("id", petId);
 
   requestRemoteCoCarerActivityPush(data.id);
+  trackActivityLogged("weigh_in");
   return data as PetActivity;
 }
 

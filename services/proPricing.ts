@@ -1,4 +1,11 @@
 import { fetchCurrentProPackages } from "@/lib/iap/checkout";
+import { loginRevenueCatUser } from "@/lib/iap/revenueCat";
+import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@/lib/iap/withTimeout";
+import {
+  iosEligibilityKindFromStatus,
+  resolveStoreTrialOffer,
+} from "@/lib/iap/trialEligibility";
 import {
   trialOfferFromProduct,
   type StoreTrialOffer,
@@ -61,42 +68,58 @@ function formatMonthlyEquivalent(annual: PurchasesPackage): string | null {
 /**
  * Which of these products still offer this user a free trial.
  *
- * The two stores answer this in completely different places. Google Play only
- * ever returns offers the signed-in account is eligible for, so the presence
- * of a free pricing phase on the product *is* the answer. StoreKit attaches
- * intro offers to every product regardless of history, so iOS has to ask
- * separately — and `checkTrialOrIntroductoryPriceEligibility` is iOS-only
- * (it always answers UNKNOWN on Android, which is what previously made every
- * Android user see a free-trial promise).
+ * Trials are once per store account (Apple ID / Google account), not once
+ * per Crittr login. A returning customer on a new Crittr account is still
+ * ineligible. We only advertise a trial when the store has confirmed it.
+ *
+ * Google Play only returns offers the signed-in account can use, so a
+ * `freePhase` on the default option *is* the answer. StoreKit attaches intro
+ * offers to every product regardless of history — `UNKNOWN` must not be
+ * treated as eligible (that is what used to promise a trial to returning
+ * TestFlight / production Apple IDs).
  */
 async function resolveTrials(
   packages: PurchasesPackage[],
 ): Promise<Map<string, StoreTrialOffer | null>> {
   const trials = new Map<string, StoreTrialOffer | null>();
-  for (const pkg of packages) {
-    trials.set(pkg.identifier, trialOfferFromProduct(pkg.product));
+
+  if (Platform.OS !== "ios") {
+    for (const pkg of packages) {
+      trials.set(pkg.identifier, trialOfferFromProduct(pkg.product));
+    }
+    return trials;
   }
 
-  if (Platform.OS !== "ios") return trials;
-
+  let eligibilityByProduct: Record<string, { status?: number }> = {};
   try {
-    const eligibility =
-      await Purchases.checkTrialOrIntroductoryPriceEligibility(
+    const eligibility = await withTimeout(
+      Purchases.checkTrialOrIntroductoryPriceEligibility(
         packages.map((pkg) => pkg.product.identifier),
-      );
-    for (const pkg of packages) {
-      const status = eligibility[pkg.product.identifier]?.status;
-      const ineligible =
-        status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_INELIGIBLE ||
-        status ===
-          INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_NO_INTRO_OFFER_EXISTS;
-      if (ineligible) trials.set(pkg.identifier, null);
-    }
+      ),
+      8_000,
+    );
+    if (eligibility) eligibilityByProduct = eligibility;
   } catch {
-    /**
-     * Leave the product-derived answer in place. An unknown eligibility
-     * result is not evidence that the trial is gone.
-     */
+    /* unknown — do not advertise a trial we cannot honour */
+  }
+
+  for (const pkg of packages) {
+    const status = eligibilityByProduct[pkg.product.identifier]?.status;
+    const kind = iosEligibilityKindFromStatus(
+      status,
+      INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE,
+      INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_INELIGIBLE,
+      INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_NO_INTRO_OFFER_EXISTS,
+    );
+    trials.set(
+      pkg.identifier,
+      resolveStoreTrialOffer({
+        platform: "ios",
+        androidFreePhase: null,
+        iosIntroTrial: trialOfferFromProduct(pkg.product),
+        iosEligibility: kind,
+      }),
+    );
   }
 
   return trials;
@@ -128,6 +151,20 @@ function packageToTier(
  * `PRO_PRICING_FALLBACK` until the user's connection / IAP setup catches up).
  */
 export async function fetchProPricing(): Promise<ProPricing | null> {
+  /**
+   * Identify the Supabase user before the iOS eligibility probe so StoreKit
+   * is not answering against an anonymous RC identity. Eligibility itself is
+   * Apple-ID-scoped; login just keeps offerings / receipts aligned.
+   */
+  try {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      await withTimeout(loginRevenueCatUser(data.user.id), 8_000);
+    }
+  } catch {
+    /* offerings still load; trial copy stays conservative */
+  }
+
   const { monthly, annual } = await fetchCurrentProPackages();
   if (!monthly || !annual) return null;
 

@@ -4,6 +4,7 @@ import { withTimeout } from "@/utils/async";
 export type SigninMethodHint =
   | "email"
   | "google"
+  | "apple"
   | "not_found"
   | "invalid";
 
@@ -157,7 +158,7 @@ export async function verifyPasswordResetOtp(email: string, token: string) {
 
 /**
  * Unauthenticated: how this email was registered, for post-login UX on wrong password
- * (e.g. Google-only account should use "Continue with Google"). Does not run when signed in.
+ * (e.g. Google/Apple-only accounts should use the matching native button). Does not run when signed in.
  */
 export async function getSigninMethodHint(
   email: string,
@@ -171,7 +172,12 @@ export async function getSigninMethodHint(
     }
     return "not_found";
   }
-  if (data === "email" || data === "google" || data === "not_found") {
+  if (
+    data === "email" ||
+    data === "google" ||
+    data === "apple" ||
+    data === "not_found"
+  ) {
     return data;
   }
   if (data === "invalid") return "invalid";

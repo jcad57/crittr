@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 export function useAuth() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const isHydrating = useAuthStore((s) => s.isHydrating);
   const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
@@ -16,6 +17,7 @@ export function useAuth() {
   return {
     isLoggedIn,
     isLoading,
+    isHydrating,
     needsOnboarding,
     session,
     profile,

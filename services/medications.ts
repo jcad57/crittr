@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { trackMedicationAdded } from "@/lib/analytics";
 import type { MedicationDosePeriod, PetMedication } from "@/types/database";
 
 export type UpdatePetMedicationInput = {
@@ -53,6 +54,7 @@ export async function insertPetMedication(
         : "Could not add medication",
     );
   }
+  trackMedicationAdded();
   return data as PetMedication;
 }
 

@@ -1,3 +1,7 @@
+import {
+  ingestCustomerInfoUnavailable,
+  ingestRevenueCatCustomerInfo,
+} from "@/lib/iap/crittrProClientState";
 import { Platform } from "react-native";
 import Purchases, { type CustomerInfo, LOG_LEVEL } from "react-native-purchases";
 
@@ -75,9 +79,11 @@ export async function loginRevenueCatUser(
   if (!configured) return null;
   try {
     const result = await Purchases.logIn(userId);
+    ingestRevenueCatCustomerInfo(result.customerInfo);
     return result.customerInfo;
   } catch (e) {
     if (__DEV__) console.warn("[RevenueCat] logIn failed", e);
+    ingestCustomerInfoUnavailable();
     return null;
   }
 }
@@ -119,9 +125,42 @@ export async function getRevenueCatCustomerInfo(): Promise<CustomerInfo | null> 
   await configureRevenueCat();
   if (!configured) return null;
   try {
-    return await Purchases.getCustomerInfo();
+    const info = await Purchases.getCustomerInfo();
+    ingestRevenueCatCustomerInfo(info);
+    return info;
   } catch (e) {
     if (__DEV__) console.warn("[RevenueCat] getCustomerInfo failed", e);
+    ingestCustomerInfoUnavailable();
     return null;
+  }
+}
+
+/**
+ * CustomerInfo for the signed-in Supabase user, not an anonymous SDK identity.
+ *
+ * Session boot configures RevenueCat without an app user id, so a raw
+ * `getCustomerInfo()` can still be attached to `$RCAnonymousID:…` (and any
+ * device receipts transferred onto it). Feature gates and paywall preflight
+ * must identify first, then drop the local cache so we don't treat a stale
+ * sandbox / previous-account entitlement as this user's Pro status.
+ */
+export async function getIdentifiedRevenueCatCustomerInfo(
+  userId: string,
+): Promise<CustomerInfo | null> {
+  const fromLogin = await loginRevenueCatUser(userId);
+  if (!configured) return fromLogin;
+  try {
+    await Purchases.invalidateCustomerInfoCache();
+  } catch {
+    /* best-effort: still use whatever logIn / getCustomerInfo returns */
+  }
+  try {
+    const info = await Purchases.getCustomerInfo();
+    ingestRevenueCatCustomerInfo(info);
+    return info;
+  } catch (e) {
+    if (__DEV__) console.warn("[RevenueCat] getCustomerInfo failed", e);
+    ingestCustomerInfoUnavailable();
+    return fromLogin;
   }
 }

@@ -107,6 +107,31 @@ export function formatUserLongDateFromYmd(
   return formatUserLongDate(new Date(`${raw.slice(0, 10)}T12:00:00`), dateDisplay);
 }
 
+/** Compact date for medication cards (“Sep 21, 2026”). */
+export function formatUserMediumDate(
+  d: Date,
+  dateDisplay: UserDateDisplay,
+): string {
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(dateLocaleFor(dateDisplay), {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function formatUserMediumDateFromYmd(
+  ymd: string | null | undefined,
+  dateDisplay: UserDateDisplay,
+): string {
+  const raw = String(ymd ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return "";
+  return formatUserMediumDate(
+    new Date(`${raw.slice(0, 10)}T12:00:00`),
+    dateDisplay,
+  );
+}
+
 /** Activity screen header: “May 2026” vs localized month/year. */
 export function formatUserMonthYear(d: Date, dateDisplay: UserDateDisplay): string {
   if (Number.isNaN(d.getTime())) return "—";

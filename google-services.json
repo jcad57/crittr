@@ -1,26 +1,52 @@
 {
   "project_info": {
-    "project_number": "807902378237",
-    "project_id": "crittr-ae81f",
-    "storage_bucket": "crittr-ae81f.firebasestorage.app"
+    "project_number": "99305086331",
+    "project_id": "crittr-d7f66",
+    "storage_bucket": "crittr-d7f66.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:807902378237:android:af14a92ab22ff53e4fa694",
+        "mobilesdk_app_id": "1:99305086331:android:9a22b941a94bb96a0571de",
         "android_client_info": {
           "package_name": "com.jcadeichmann.crittr"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "99305086331-2k675uti6mdi2lfev44gimg4ot458drd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jcadeichmann.crittr",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "99305086331-5reio8c21hm1qmr44a8i5a65leo7ooe2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyA2x9TUMqnp9QcV1WwiKMFYsr1lIMvWjqE"
+          "current_key": "AIzaSyCMFWvzOW9BJwl08CRQtgVt_rO-_XDHIQ8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "99305086331-5reio8c21hm1qmr44a8i5a65leo7ooe2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "99305086331-nrckp166ef3h0258fiacpptff09o1jc9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jcadeichmann.crittr",
+                "app_store_id": "6762497049"
+              }
+            }
+          ]
         }
       }
     }

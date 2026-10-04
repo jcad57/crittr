@@ -2,8 +2,9 @@ import {
   syncCrittrProFromCustomerInfo,
   syncCrittrProOnAppLaunch,
 } from "@/lib/iap/entitlementSync";
+import { ingestRevenueCatCustomerInfo } from "@/lib/iap/crittrProClientState";
 import { useAuthStore } from "@/stores/authStore";
-import Purchases from "react-native-purchases";
+import Purchases, { type CustomerInfo } from "react-native-purchases";
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
@@ -11,16 +12,17 @@ import { AppState, type AppStateStatus } from "react-native";
 const MIN_SYNC_INTERVAL_MS = 4_000;
 
 /**
- * Keeps `profiles.crittr_pro_until` aligned when RevenueCat receives new
- * CustomerInfo from Apple (renewal, cancellation, restore, family sharing,
- * promo-code redemption, etc.). Without this, the app can show Free while
- * Apple + RC already show active Pro.
+ * Keeps client Pro state aligned with RevenueCat CustomerInfo, and asks the
+ * backend to mirror that entitlement onto `profiles` (CrittrAI / co-care).
+ *
+ * CustomerInfo is the client source of truth. The profile column is a
+ * server-side mirror, not the definition of Pro.
  *
  * Sync path overview:
- *   - `addCustomerInfoUpdateListener` → short-poll sync (RC just told us
- *     CustomerInfo changed; no need for a 90s patience window).
+ *   - `addCustomerInfoUpdateListener` → ingest CustomerInfo immediately, then
+ *     short-poll backend sync (RC just told us entitlements changed).
  *   - `AppState background → active` → long-poll sync (we may have missed a
- *     promo redemption / renewal while backgrounded). Always re-pull receipts.
+ *     promo redemption / renewal / grant while backgrounded).
  */
 export default function RevenueCatProSync() {
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -50,7 +52,8 @@ export default function RevenueCatProSync() {
       }
     })();
 
-    const onCustomerInfoUpdated = () => {
+    const onCustomerInfoUpdated = (info: CustomerInfo) => {
+      ingestRevenueCatCustomerInfo(info);
       const now = Date.now();
       if (now - lastSyncAt.current < MIN_SYNC_INTERVAL_MS) return;
       lastSyncAt.current = now;

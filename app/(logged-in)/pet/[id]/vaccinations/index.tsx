@@ -1,5 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import VaccinationListRow from "@/components/ui/vaccination/VaccinationListRow";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
@@ -52,7 +53,7 @@ export default function PetVaccinationsListScreen() {
     "can_manage_vaccinations",
   );
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade } = useProGateNavigation();
+  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details?.vaccinations?.length) return [];
@@ -126,7 +127,8 @@ export default function PetVaccinationsListScreen() {
               : "Tap a vaccination to view its details."}
           </Text>
 
-          {canManageVaccinations ? (
+          {canManageVaccinations &&
+          (!isProfileReady || isPro || rows.length === 0) ? (
             <Pressable
               style={({ pressed }) => [
                 styles.addBtn,
@@ -177,6 +179,18 @@ export default function PetVaccinationsListScreen() {
               ))}
             </View>
           )}
+
+          {canManageVaccinations &&
+          isProfileReady &&
+          !isPro &&
+          rows.length >= 1 ? (
+            <View style={styles.softPaywallWrap}>
+              <ProSoftPaywallCard
+                kind="vaccinations"
+                petName={details.name}
+              />
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -244,5 +258,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  softPaywallWrap: {
+    marginTop: 16,
   },
 });

@@ -15,8 +15,8 @@ import Purchases, {
  */
 export type SubscriptionDetails = {
   productIdentifier: string;
-  status: "active" | "trialing" | "canceled" | "expired" | "billing_issue";
-  planLabel: "annual" | "monthly";
+  status: "active" | "trialing" | "canceled" | "expired" | "billing_issue" | "lifetime";
+  planLabel: "annual" | "monthly" | "lifetime";
   interval: "month" | "year" | null;
   /** Localized price string, e.g. "$4.99 / month". `—` when unknown. */
   priceFormatted: string;
@@ -34,6 +34,8 @@ export type SubscriptionDetails = {
   managementUrl: string | null;
   /** True when this subscription was granted by Apple Family Sharing. */
   isFamilyShared: boolean;
+  /** True when RevenueCat reports an active entitlement with no expiration. */
+  isLifetime: boolean;
 };
 
 const PERIOD_TYPE_TO_STATUS: Record<
@@ -77,7 +79,9 @@ function storeLabel(store: Store): string {
 function planLabelFromProductId(
   productId: string,
   productPlanIdentifier: string | null,
+  isLifetime: boolean,
 ): SubscriptionDetails["planLabel"] {
+  if (isLifetime) return "lifetime";
   const lower = `${productId} ${productPlanIdentifier ?? ""}`.toLowerCase();
   if (lower.includes("annual") || lower.includes("year") || lower.includes("p1y")) {
     return "annual";
@@ -87,13 +91,16 @@ function planLabelFromProductId(
 
 function intervalFromPlanLabel(
   plan: SubscriptionDetails["planLabel"],
-): "month" | "year" {
+): "month" | "year" | null {
+  if (plan === "lifetime") return null;
   return plan === "annual" ? "year" : "month";
 }
 
 function statusFromEntitlement(
   ent: PurchasesEntitlementInfo,
+  isLifetime: boolean,
 ): SubscriptionDetails["status"] {
+  if (isLifetime && ent.isActive) return "lifetime";
   if (ent.billingIssueDetectedAt) return "billing_issue";
   if (ent.isActive) {
     return PERIOD_TYPE_TO_STATUS[ent.periodType] ?? "active";
@@ -161,22 +168,27 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     info.subscriptionsByProductIdentifier[storeProductId] ??
     info.subscriptionsByProductIdentifier[productId];
 
-  const planLabel = planLabelFromProductId(productId, ent.productPlanIdentifier);
+  const isLifetime = ent.isActive && ent.expirationDate == null;
+  const planLabel = planLabelFromProductId(
+    productId,
+    ent.productPlanIdentifier,
+    isLifetime,
+  );
   const interval = intervalFromPlanLabel(planLabel);
   const { priceFormatted, currency } = await priceLabelForProduct(
     storeProductId,
-    interval,
+    interval ?? "month",
   );
 
-  const cancelAtPeriodEnd = ent.isActive && !ent.willRenew;
-  const status = statusFromEntitlement(ent);
+  const cancelAtPeriodEnd = ent.isActive && !ent.willRenew && !isLifetime;
+  const status = statusFromEntitlement(ent, isLifetime);
 
   return {
     productIdentifier: productId,
     status,
     planLabel,
     interval,
-    priceFormatted,
+    priceFormatted: isLifetime ? "Lifetime access" : priceFormatted,
     currency,
     startedAt: ent.originalPurchaseDate ?? null,
     currentPeriodStart: subRecord?.purchaseDate ?? ent.latestPurchaseDate ?? null,
@@ -188,6 +200,7 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     storeLabel: storeLabel(ent.store),
     managementUrl: info.managementURL,
     isFamilyShared: ent.ownershipType === "FAMILY_SHARED",
+    isLifetime,
   };
 }
 

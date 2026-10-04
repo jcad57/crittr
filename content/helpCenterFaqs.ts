@@ -12,7 +12,7 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     category: "About",
     question: "What is Crittr?",
     answer:
-      "Crittr helps you track your pets’ day-to-day care in one place — health records, activities, reminders, and (with Crittr Pro) AI answers grounded in the profiles you save.",
+      "Crittr helps you take better care of the pets you love — day-to-day care, health records, activities, reminders, and (with Crittr Pro) sharing care and AI answers grounded in the profiles you save.",
   },
   {
     id: "co-care",
@@ -26,7 +26,7 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     question: "What is Crittr Pro?",
     category: "About",
     answer:
-      "Crittr Pro unlocks premium features such as CrittrAI chat that uses your pet's profile to give you personalized answers. You can invite other Crittr users to co-care your pets and see their activity in your notifications. You can manage membership from the upgrade flow in the app.",
+      "Crittr Pro is extra help for the pets you love. Share care with someone you trust, keep every pet and their records in one place, ask CrittrAI about the profile you’ve built, and enjoy Crittr without ads. Manage membership from Settings → Subscriptions.",
   },
   {
     id: "data-visible",
@@ -76,6 +76,6 @@ export const helpCenterFaqs: HelpCenterFaq[] = [
     question: "How do I reset my password?",
     category: "Support",
     answer:
-      "From your profile, tap Edit account. Scroll to the bottom and tap Reset password. You'll receive an email with a code to reset your password.",
+      "On the sign-in screen, tap Forgot Password and enter your email. If you're already signed in, open Edit account from your profile and tap Forgot password. We'll email a code you can use to set a new password.",
   },
 ];

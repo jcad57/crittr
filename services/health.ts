@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { trackVaccinationAdded, trackVetVisitAdded } from "@/lib/analytics";
 import { fetchAccessiblePets } from "@/services/pets";
 import type {
   Pet,
@@ -122,6 +123,7 @@ export async function createVetVisit(
     .single();
 
   if (error) throw error;
+  trackVetVisitAdded();
   return data as PetVetVisit;
 }
 
@@ -210,6 +212,7 @@ export async function createPetVaccination(
     .single();
 
   if (error) throw error;
+  trackVaccinationAdded();
   return data as PetVaccination;
 }
 

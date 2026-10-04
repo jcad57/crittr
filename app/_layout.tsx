@@ -1,4 +1,5 @@
 import AdMobBootstrap from "@/components/ads/AdMobBootstrap";
+import FirebaseAnalyticsBootstrap from "@/components/analytics/FirebaseAnalyticsBootstrap";
 import SessionGate from "@/components/auth/SessionGate";
 import { Colors } from "@/theme/colors";
 import { SplashScreen } from "expo-router";
@@ -16,6 +17,7 @@ export default function RootLayout() {
         <View style={styles.root}>
           <StatusBar style="dark" />
           <AdMobBootstrap />
+          <FirebaseAnalyticsBootstrap />
           <SessionGate />
         </View>
       </KeyboardProvider>

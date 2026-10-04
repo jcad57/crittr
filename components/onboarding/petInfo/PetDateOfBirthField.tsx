@@ -1,16 +1,10 @@
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
 import { Colors } from "@/theme/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
 import { Font } from "@/theme/typography";
+import { PICKER_MIN_DATE } from "@/utils/dateTimePickerBounds";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useRef, useState } from "react";
-import {
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type PetDateOfBirthFieldProps = {
   dateOfBirth: string;
@@ -84,18 +78,14 @@ export default function PetDateOfBirthField({
         </Text>
       </TouchableOpacity>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={pickerVisible}
         mode="date"
         date={pickerDate}
+        minimumDate={PICKER_MIN_DATE}
         maximumDate={maximumDateRef.current}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
-        confirmTextIOS="Save"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
-        {...MODAL_DATETIME_PICKER_PROPS}
       />
 
       {dateOfBirth ? (

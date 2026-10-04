@@ -1,7 +1,5 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
-import { Font } from "@/theme/typography";
 import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/query/client";
 import {
@@ -13,9 +11,10 @@ import {
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useShallow } from "zustand/react/shallow";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { UPGRADE_FROM_ONBOARDING_HREF } from "@/utils/proUpgradePaths";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -29,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useShallow } from "zustand/react/shallow";
 
 const HIGH_FIVE = require("@/assets/images/high-five.png");
 
@@ -37,14 +37,14 @@ export default function FinishStep() {
   const insets = useSafeAreaInsets();
   const { pets, editPetAtIndex, reset, petFlowMode, profileData } =
     useOnboardingStore(
-    useShallow((s) => ({
-      pets: s.pets,
-      editPetAtIndex: s.editPetAtIndex,
-      reset: s.reset,
-      petFlowMode: s.petFlowMode,
-      profileData: s.profileData,
-    })),
-  );
+      useShallow((s) => ({
+        pets: s.pets,
+        editPetAtIndex: s.editPetAtIndex,
+        reset: s.reset,
+        petFlowMode: s.petFlowMode,
+        profileData: s.profileData,
+      })),
+    );
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
@@ -81,16 +81,12 @@ export default function FinishStep() {
           form.clientRequestId &&
           existingByRequestId.has(form.clientRequestId)
         ) {
-          createdIds.push(
-            existingByRequestId.get(form.clientRequestId)!.id,
-          );
+          createdIds.push(existingByRequestId.get(form.clientRequestId)!.id);
           continue;
         }
 
         const isFirstInAccount =
-          existingPets.length === 0 &&
-          createdIds.length === 0 &&
-          i === 0;
+          existingPets.length === 0 && createdIds.length === 0 && i === 0;
 
         try {
           const pet = await createPet(session.user.id, form, isFirstInAccount, {
@@ -246,7 +242,7 @@ export default function FinishStep() {
           style={[authOnboardingStyles.screenSubtitle, { marginBottom: 24 }]}
         >
           {pets.length === 1
-            ? "Here's the pet you've added:"
+            ? "You just added your first pet! You can now start tracking their health and care with Crittr!"
             : `Here are the ${pets.length} pets you've added:`}
         </Text>
 
@@ -281,15 +277,15 @@ export default function FinishStep() {
             </View>
           ))}
         </View>
-
+        {/* 
         <Pressable
           style={styles.addButton}
           onPress={() => router.push(UPGRADE_FROM_ONBOARDING_HREF as Href)}
         >
           <MaterialCommunityIcons name="plus" size={20} color={Colors.orange} />
           <Text style={styles.addButtonText}>Add Another Pet</Text>
-        </Pressable>
-
+        </Pressable> */}
+        <View style={{ flex: 1 }} />
         <OrangeButton
           onPress={handleFinish}
           loading={isSubmitting}

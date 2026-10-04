@@ -1,16 +1,14 @@
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
 import { Colors } from "@/theme/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
 import { Font } from "@/theme/typography";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo, useRef, useState } from "react";
 import {
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
+  clampDateToRange,
+  PICKER_MAX_DATE,
+  PICKER_MIN_DATE,
+} from "@/utils/dateTimePickerBounds";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useMemo, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 function toLocalIsoDateString(d: Date): string {
   const y = d.getFullYear();
@@ -19,21 +17,11 @@ function toLocalIsoDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function clampDate(d: Date, min: Date, max: Date): Date {
-  const t = d.getTime();
-  const tMin = min.getTime();
-  const tMax = max.getTime();
-  if (t < tMin) return new Date(min);
-  if (t > tMax) return new Date(max);
-  return d;
-}
-
 type ExpiryDateFieldProps = {
   value: string;
   onChangeDate: (isoDate: string) => void;
   onClearDate: () => void;
   placeholder?: string;
-  /** When set (or when using fallbacks), paired with `maximumDate` avoids iOS/Android spinner bugs near the Unix epoch. */
   minimumDate?: Date;
   maximumDate?: Date;
 };
@@ -49,13 +37,8 @@ export default function ExpiryDateField({
 }: ExpiryDateFieldProps) {
   const [pickerVisible, setPickerVisible] = useState(false);
 
-  const fallbackMinRef = useRef(new Date(1900, 0, 1));
-  const fallbackMaxRef = useRef(new Date(2100, 11, 31));
-
-  const resolvedMinimumDate =
-    minimumDateProp ?? fallbackMinRef.current;
-  const resolvedMaximumDate =
-    maximumDateProp ?? fallbackMaxRef.current;
+  const resolvedMinimumDate = minimumDateProp ?? PICKER_MIN_DATE;
+  const resolvedMaximumDate = maximumDateProp ?? PICKER_MAX_DATE;
 
   const pickerDate = useMemo(() => {
     let d: Date;
@@ -66,13 +49,15 @@ export default function ExpiryDateField({
       if (!y || !m || !day) d = new Date();
       else d = new Date(y, m - 1, day);
     }
-    return clampDate(d, resolvedMinimumDate, resolvedMaximumDate);
+    return clampDateToRange(d, resolvedMinimumDate, resolvedMaximumDate);
   }, [value, resolvedMinimumDate, resolvedMaximumDate]);
 
   const handleConfirm = (picked: Date) => {
     setPickerVisible(false);
     onChangeDate(
-      toLocalIsoDateString(clampDate(picked, resolvedMinimumDate, resolvedMaximumDate)),
+      toLocalIsoDateString(
+        clampDateToRange(picked, resolvedMinimumDate, resolvedMaximumDate),
+      ),
     );
   };
 
@@ -105,19 +90,14 @@ export default function ExpiryDateField({
         </Text>
       </TouchableOpacity>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={pickerVisible}
         mode="date"
         date={pickerDate}
         minimumDate={resolvedMinimumDate}
         maximumDate={resolvedMaximumDate}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={handleConfirm}
         onCancel={() => setPickerVisible(false)}
-        confirmTextIOS="Save"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
-        {...MODAL_DATETIME_PICKER_PROPS}
       />
 
       {value ? (

@@ -1,4 +1,7 @@
-import { prefetchPetsAndDetails } from "@/hooks/queries/prefetchPetsAndDetails";
+import {
+  prefetchPetsAndDetails,
+  prefetchPetsList,
+} from "@/hooks/queries/prefetchPetsAndDetails";
 import {
   crittrAiThreadKey,
   healthSnapshotKey,
@@ -14,8 +17,34 @@ import { fetchProfile } from "@/services/profiles";
 import { prefetchScheduleDay, warmScheduleForPets } from "@/services/schedule";
 import { usePetStore } from "@/stores/petStore";
 import type { PetWithRole } from "@/types/database";
+import { sleep } from "@/utils/async";
 import { getLocalYmd } from "@/utils/localCalendarDate";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
+
+/**
+ * How long sign-in will wait for the pets list before routing to the dashboard
+ * anyway. Kept short so a hung PostgREST call cannot trap the user on the
+ * sign-in spinner; the dashboard still has its own loader + focus recovery.
+ */
+export const DASHBOARD_PETS_WAIT_MS = 5_000;
+
+/**
+ * Block routing to the dashboard until the pets query the home screen gates on
+ * is in the cache (or this budget runs out).
+ *
+ * Must run *after* GoTrue's auth lock is released — `onAuthStateChange`
+ * subscribers that `await` PostgREST can deadlock `getSession()`, which is why
+ * this is not started from inside that callback.
+ */
+export async function waitForDashboardPets(userId: string): Promise<void> {
+  const key = petsQueryKey(userId);
+  if (queryClient.getQueryData(key) != null) return;
+
+  await Promise.race([
+    prefetchPetsList(queryClient, userId),
+    sleep(DASHBOARD_PETS_WAIT_MS),
+  ]);
+}
 
 /**
  * Everything the logged-in shell needs, requested the moment we know who the

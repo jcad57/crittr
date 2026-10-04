@@ -78,8 +78,21 @@ export default function UserProfileScreen() {
   const isPro = useIsCrittrPro(profile);
   const userId = session?.user?.id;
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    Alert.alert(
+      "Sign out?",
+      "You'll need to sign in again to access your pets and care history.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign out",
+          style: "destructive",
+          onPress: () => {
+            void signOut();
+          },
+        },
+      ],
+    );
   };
 
   const handleProfileAvatarPress = useCallback(async () => {

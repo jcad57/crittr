@@ -16,6 +16,7 @@ import {
   planNeedsSync,
   resolvePetDetailsForSchedule,
   resolveVetVisitsForSchedule,
+  seedLastGivenMedicationItemsForDay,
   upsertPlannedItems,
 } from "./plan";
 import { fetchScheduleItemsForDay } from "./queries";
@@ -228,7 +229,16 @@ export async function ensureScheduleForDay(
 
   const today = getLocalYmd();
   if (compareYmd(localYmd, today) < 0) {
-    return existing;
+    const details = await resolvePetDetailsForSchedule(petId, { fresh: false });
+    const visits = await resolveVetVisitsForSchedule(petId, { fresh: false });
+    if (!details) return existing;
+    await seedLastGivenMedicationItemsForDay(
+      details,
+      visits,
+      localYmd,
+      existing,
+    );
+    return fetchScheduleItemsForDay(petId, localYmd);
   }
 
   if (force) {

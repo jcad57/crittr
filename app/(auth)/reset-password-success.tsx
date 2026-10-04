@@ -1,8 +1,11 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
+import { useAuthStore } from "@/stores/authStore";
+import { isFromGuestParam } from "@/utils/passwordResetParams";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,8 +14,31 @@ const HIGH_FIVE = require("@/assets/images/high-five.png");
 export default function ResetPasswordSuccessScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { fromGuest: fromGuestParam } = useLocalSearchParams<{
+    fromGuest?: string | string[];
+  }>();
+  const fromGuest = isFromGuestParam(fromGuestParam);
+  const signOut = useAuthStore((s) => s.signOut);
 
-  const handleDone = () => {
+  useEffect(() => {
+    if (!fromGuest) return;
+    if (useAuthStore.getState().isLoggedIn) {
+      void signOut();
+    }
+  }, [fromGuest, signOut]);
+
+  const handleDone = async () => {
+    if (fromGuest) {
+      if (useAuthStore.getState().isLoggedIn) {
+        try {
+          await signOut();
+        } catch {
+          /* continue to sign-in */
+        }
+      }
+      router.replace("/(auth)/sign-in" as Href);
+      return;
+    }
     if (router.canDismiss()) {
       router.dismissTo("/(logged-in)/profile" as Href);
     } else {
@@ -39,13 +65,16 @@ export default function ResetPasswordSuccessScreen() {
 
         <Text style={styles.title}>Password updated!</Text>
         <Text style={styles.subtitle}>
-          Your password has been reset successfully. Next time you sign in,
-          use your new password.
+          {fromGuest
+            ? "Your password has been reset successfully. Sign in with your new password to continue."
+            : "Your password has been reset successfully. Next time you sign in, use your new password."}
         </Text>
       </View>
 
       <View style={styles.footer}>
-        <OrangeButton onPress={handleDone}>Back to profile</OrangeButton>
+        <OrangeButton onPress={handleDone}>
+          {fromGuest ? "Sign in" : "Back to profile"}
+        </OrangeButton>
       </View>
     </View>
   );

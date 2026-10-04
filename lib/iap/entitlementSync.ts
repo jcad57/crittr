@@ -3,8 +3,13 @@ import {
   isRevenueCatConfigured,
   loginRevenueCatUser,
 } from "@/lib/iap/revenueCat";
+import { ingestRevenueCatCustomerInfo } from "@/lib/iap/crittrProClientState";
+import { withTimeout } from "@/lib/iap/withTimeout";
 import { supabase } from "@/lib/supabase";
 import Purchases, { type CustomerInfo } from "react-native-purchases";
+
+/** StoreKit / Play receipt pull can hang on some devices; fail open. */
+const STORE_SYNC_TIMEOUT_MS = 8_000;
 
 export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
 
@@ -20,6 +25,7 @@ export type CrittrProEntitlementSyncResult = "synced" | "skipped" | "failed";
  *  - `app_launch`— cold start / foreground reconciliation pass.
  *  - `focus`     — routine refresh (subscriptions screen pull-to-refresh, etc.).
  *  - `cust_info` — fired by `addCustomerInfoUpdateListener` (live RC updates).
+ *  - `paywall`   — upgrade-screen preflight when the SDK already reports Pro.
  */
 export type CrittrProSyncSource =
   | "checkout"
@@ -27,7 +33,8 @@ export type CrittrProSyncSource =
   | "session"
   | "app_launch"
   | "focus"
-  | "cust_info";
+  | "cust_info"
+  | "paywall";
 
 const LONG_POLL_SOURCES: ReadonlySet<CrittrProSyncSource> = new Set([
   "checkout",
@@ -38,34 +45,60 @@ const LONG_POLL_SOURCES: ReadonlySet<CrittrProSyncSource> = new Set([
 
 /**
  * Asks the Supabase `sync-crittr-pro-entitlement` Edge Function to reconcile
- * `profiles.crittr_pro_until` with whatever RevenueCat currently reports for
- * this user. The webhook is the primary push path; this function is the
+ * the `profiles` entitlement mirror with whatever RevenueCat currently reports
+ * for this user. The webhook is the primary push path; this function is the
  * client-pull fallback used after purchases, restores, or fresh logins.
+ */
+function isAbortLike(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { name?: string; message?: string };
+  if (e.name === "AbortError") return true;
+  return typeof e.message === "string" && /abort|timed out|timeout/i.test(e.message);
+}
+
+/**
+ * supabase-js v2 ignores a `timeout` option on `functions.invoke`. Abort the
+ * fetch ourselves so a hung Edge Function cannot pin the UI on a spinner.
+ * Background checkout sync still gets a generous budget; the activating
+ * screen must not await this on the happy path.
  */
 async function requestEntitlementSync(
   body: Record<string, unknown>,
 ): Promise<CrittrProEntitlementSyncResult> {
   const source = body.source as CrittrProSyncSource | undefined;
   const longPoll = source != null && LONG_POLL_SOURCES.has(source);
-  const { error } = await supabase.functions.invoke(
-    "sync-crittr-pro-entitlement",
-    { body, timeout: longPoll ? 90_000 : 25_000 },
-  );
+  const invokeTimeoutMs = longPoll ? 45_000 : 15_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), invokeTimeoutMs);
+  try {
+    const { error } = await supabase.functions.invoke(
+      "sync-crittr-pro-entitlement",
+      { body, signal: controller.signal },
+    );
 
-  if (!error) return "synced";
+    if (!error) return "synced";
+    if (isAbortLike(error)) return "failed";
 
-  const parsed = await parseFunctionsErrorPayload(error);
-  if (parsed?.error === "no_subscription") {
-    return "skipped";
+    const parsed = await parseFunctionsErrorPayload(error);
+    if (parsed?.error === "no_subscription") {
+      return "skipped";
+    }
+
+    const msg = await extractInvokeErrorMessage(error, parsed);
+    if (msg.includes("no_subscription")) return "skipped";
+
+    if (__DEV__) {
+      console.warn("[sync-crittr-pro-entitlement]", msg);
+    }
+    return "failed";
+  } catch (e) {
+    if (!isAbortLike(e) && __DEV__) {
+      console.warn("[sync-crittr-pro-entitlement]", e);
+    }
+    return "failed";
+  } finally {
+    clearTimeout(timer);
   }
-
-  const msg = await extractInvokeErrorMessage(error, parsed);
-  if (msg.includes("no_subscription")) return "skipped";
-
-  if (__DEV__) {
-    console.warn("[sync-crittr-pro-entitlement]", msg);
-  }
-  return "failed";
 }
 
 type RcSyncContext = {
@@ -83,7 +116,7 @@ type RcSyncContext = {
 async function prepareRcSyncContext(
   userId: string,
 ): Promise<RcSyncContext> {
-  await loginRevenueCatUser(userId);
+  await withTimeout(loginRevenueCatUser(userId), STORE_SYNC_TIMEOUT_MS);
 
   let customerInfoAfterStoreSync: CustomerInfo | null = null;
   /**
@@ -91,12 +124,20 @@ async function prepareRcSyncContext(
    * emulators without Play services, no Google account, restricted profiles).
    * It can only fail there, and every failure is a noisy RevenueCat error log.
    */
-  if (isRevenueCatConfigured() && (await canMakeStorePayments())) {
+  const canPay =
+    (await withTimeout(canMakeStorePayments(), 3_000)) !== false;
+  if (isRevenueCatConfigured() && canPay) {
     try {
-      const synced = await Purchases.syncPurchasesForResult();
-      customerInfoAfterStoreSync = synced.customerInfo;
+        const synced = await withTimeout(
+          Purchases.syncPurchasesForResult(),
+          STORE_SYNC_TIMEOUT_MS,
+        );
+        if (synced) {
+          customerInfoAfterStoreSync = synced.customerInfo;
+          ingestRevenueCatCustomerInfo(synced.customerInfo);
+        }
     } catch {
-      /* offline / billing unavailable — continue with REST + cached CustomerInfo. */
+      /* offline / billing unavailable / hung store — continue with REST. */
     }
   }
 
@@ -106,12 +147,16 @@ async function prepareRcSyncContext(
   if (isRevenueCatConfigured()) {
     try {
       const info =
-        customerInfoAfterStoreSync ?? (await Purchases.getCustomerInfo());
-      if (
-        info?.originalAppUserId &&
-        info.originalAppUserId !== rcAppUserId
-      ) {
-        alternateAppUserIds.push(info.originalAppUserId);
+        customerInfoAfterStoreSync ??
+        (await withTimeout(Purchases.getCustomerInfo(), STORE_SYNC_TIMEOUT_MS));
+      if (info) {
+        ingestRevenueCatCustomerInfo(info);
+        if (
+          info.originalAppUserId &&
+          info.originalAppUserId !== rcAppUserId
+        ) {
+          alternateAppUserIds.push(info.originalAppUserId);
+        }
       }
     } catch {
       /* ignore */
@@ -167,7 +212,8 @@ export async function syncCrittrProOnAppLaunch(
 export async function getRevenueCatAppUserIdForSync(): Promise<string | null> {
   if (!isRevenueCatConfigured()) return null;
   try {
-    return await Purchases.getAppUserID();
+    const id = await withTimeout(Purchases.getAppUserID(), 3_000);
+    return typeof id === "string" && id.length > 0 ? id : null;
   } catch {
     return null;
   }
@@ -206,6 +252,24 @@ export async function syncCrittrProAfterRestore(
 }
 
 /**
+ * Paywall-open preflight. The SDK already reported an active entitlement for
+ * this identified user, so we only need the backend to copy that onto the
+ * `profiles` entitlement mirror. No storefront pull (that path can hang) and no
+ * long REST poll (if REST doesn't already know, the paywall stays up).
+ */
+export function syncCrittrProForPaywall(
+  revenueCatAppUserId?: string | null,
+  alternateAppUserIds?: string[],
+): Promise<CrittrProEntitlementSyncResult> {
+  return requestEntitlementSync(
+    buildSyncBody("paywall", {
+      rcAppUserId: revenueCatAppUserId ?? null,
+      alternateAppUserIds: alternateAppUserIds ?? [],
+    }),
+  );
+}
+
+/**
  * Short-poll path used by `RevenueCatProSync` when RevenueCat tells us
  * CustomerInfo just changed (live update). We just want the backend to mirror
  * the latest state; if RC was busy, the next event re-fires anyway.
@@ -219,12 +283,15 @@ export async function syncCrittrProFromCustomerInfo(
   const alternateAppUserIds: string[] = [];
   if (isRevenueCatConfigured()) {
     try {
-      const info = await Purchases.getCustomerInfo();
-      if (
-        info?.originalAppUserId &&
-        info.originalAppUserId !== rcAppUserId
-      ) {
-        alternateAppUserIds.push(info.originalAppUserId);
+      const info = await withTimeout(Purchases.getCustomerInfo(), 4_000);
+      if (info) {
+        ingestRevenueCatCustomerInfo(info);
+        if (
+          info.originalAppUserId &&
+          info.originalAppUserId !== rcAppUserId
+        ) {
+          alternateAppUserIds.push(info.originalAppUserId);
+        }
       }
     } catch {
       /* ignore */

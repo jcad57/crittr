@@ -16,6 +16,7 @@ export {
   fetchActivitiesSince,
   fetchActivitiesSinceForPetIds,
   fetchActivityById,
+  fetchActivityCountSince,
   fetchTodayActivities,
   fetchTodayActivitiesForPetIds,
 } from "./queries";

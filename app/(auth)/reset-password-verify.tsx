@@ -8,6 +8,10 @@ import {
   verifyPasswordResetOtp,
 } from "@/services/auth";
 import { maskEmailForPrivacy } from "@/utils/maskEmailForPrivacy";
+import {
+  firstSearchParam,
+  isFromGuestParam,
+} from "@/utils/passwordResetParams";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,11 +49,12 @@ function mapOtpError(message: string): string {
 export default function ResetPasswordVerifyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { email: emailParam } = useLocalSearchParams<{
+  const { email: emailParam, fromGuest: fromGuestParam } = useLocalSearchParams<{
     email?: string | string[];
+    fromGuest?: string | string[];
   }>();
-  const email = (Array.isArray(emailParam) ? emailParam[0] : emailParam ?? "")
-    .trim();
+  const email = firstSearchParam(emailParam);
+  const fromGuest = isFromGuestParam(fromGuestParam);
 
   const [otp, setOtp] = useState("");
   const [otpFieldKey, setOtpFieldKey] = useState(0);
@@ -95,8 +100,11 @@ export default function ResetPasswordVerifyScreen() {
     try {
       await verifyPasswordResetOtp(email, otp);
       router.replace({
-        pathname: "/(logged-in)/reset-password-new",
-        params: { email },
+        pathname: "/(auth)/reset-password-new",
+        params: {
+          email,
+          fromGuest: fromGuest ? "1" : "0",
+        },
       } as Href);
     } catch (e: unknown) {
       const msg =

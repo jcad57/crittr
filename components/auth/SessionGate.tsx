@@ -1,4 +1,5 @@
 import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
+import ScreenViewTracker from "@/components/analytics/ScreenViewTracker";
 import { Colors } from "@/theme/colors";
 import { FONT_FACES } from "@/theme/fonts";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
@@ -7,6 +8,7 @@ import { configureRevenueCat } from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/query/client";
 import { startQueryCachePersistence } from "@/lib/query/persistence";
 import { fetchProPricing } from "@/services/proPricing";
+import { ensureAppRatingFirstOpenRecorded } from "@/lib/appRatingPersistence";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
 import { setupReactQueryFocusManager } from "@/lib/query/focusManager";
 import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
@@ -78,6 +80,10 @@ export default function SessionGate() {
   }, []);
 
   useEffect(() => {
+    void ensureAppRatingFirstOpenRecorded();
+  }, []);
+
+  useEffect(() => {
     void configureRevenueCat();
   }, []);
 
@@ -103,6 +109,7 @@ export default function SessionGate() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppOpenAdManager />
+      <ScreenViewTracker />
       <Slot />
     </QueryClientProvider>
   );

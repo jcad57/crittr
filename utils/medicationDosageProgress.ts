@@ -1,6 +1,7 @@
 import type { PetActivity, PetMedication } from "@/types/database";
-import { isMedicationDueToday } from "@/utils/healthTraffic";
-import { dueSoonScheduleKind } from "@/utils/medicationDueSchedule";
+import { getExpectedDosesForLocalDate } from "@/utils/buildSchedulePlan";
+import { getLocalYmd } from "@/utils/localCalendarDate";
+import { isLastGivenOccurrence } from "@/utils/medicationDueSchedule";
 import type { UserTimeDisplay } from "@/utils/userDateTimeFormat";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
 
@@ -23,53 +24,13 @@ function formatLastTaken(
 
 /**
  * Expected doses for *today* from structured schedule or legacy frequency string.
- * Weekly/monthly schedules: 1 dose on days the med is due, else 0.
+ * Interval schedules: slot count on due days, else 0.
  */
 export function getExpectedDosesToday(m: PetMedication): number {
-  const period = m.dose_period ?? null;
-  const n = m.doses_per_period ?? null;
-
-  /** Structured daily schedule overrides frequency-string heuristics. */
-  if (period === "day" && n != null && n > 0) {
-    return Math.min(8, Math.max(1, Math.floor(n)));
-  }
-
-  const kind = dueSoonScheduleKind(m);
-  if (kind !== "daily") {
-    return isMedicationDueToday(m) ? 1 : 0;
-  }
-
-  const f = (m.frequency ?? "").toLowerCase();
-
-  if (
-    f.includes("twice") ||
-    f.includes("2x") ||
-    f.includes(" bid") ||
-    f.includes("bid ") ||
-    f === "bid" ||
-    f.includes("12 hour") ||
-    f.includes("every 12")
-  ) {
-    return 2;
-  }
-  if (
-    f.includes("three") ||
-    f.includes("3x") ||
-    f.includes("tid") ||
-    f.includes("3 times")
-  ) {
-    return 3;
-  }
-  if (
-    f.includes("four") ||
-    f.includes("4x") ||
-    f.includes("qid") ||
-    f.includes("4 times")
-  ) {
-    return 4;
-  }
-
-  return 1;
+  const todayYmd = getLocalYmd();
+  // Last given on this day satisfies today's interval dose (schedule still shows it complete).
+  if (isLastGivenOccurrence(m, todayYmd)) return 0;
+  return getExpectedDosesForLocalDate(m, todayYmd);
 }
 
 export function countMedicationLogsTodayForMed(

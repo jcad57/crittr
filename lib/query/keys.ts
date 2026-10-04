@@ -42,6 +42,13 @@ export const activitiesSincePrefixKey = (petId: string) =>
 export const activitiesSinceKey = (petId: string, sinceIso: string) =>
   ["activitiesSince", petId, sinceIso] as const;
 
+/** Prefix: invalidate monthly activity *counts* for a pet (milestone celebration). */
+export const activityMonthCountPrefixKey = (petId: string) =>
+  ["activityMonthCount", petId] as const;
+
+export const activityMonthCountKey = (petId: string, monthKey: string) =>
+  ["activityMonthCount", petId, monthKey] as const;
+
 /** Activities since `sinceIso` across multiple pets (sorted ids). */
 export const activitiesSinceForPetIdsKey = (
   petIds: string[],

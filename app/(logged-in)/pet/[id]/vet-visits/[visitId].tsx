@@ -3,8 +3,8 @@ import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitRead
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
 import { Colors } from "@/theme/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
@@ -34,7 +34,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   Text,
   TextInput,
@@ -42,7 +41,6 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 
@@ -342,21 +340,16 @@ export default function EditVetVisitScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={pickerOpen}
         mode="datetime"
         date={visitAt}
         is24Hour={timeDisplay === "24h"}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
           setPickerOpen(false);
           setVisitAt(d);
         }}
         onCancel={() => setPickerOpen(false)}
-        confirmTextIOS="Save"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
-        {...MODAL_DATETIME_PICKER_PROPS}
       />
     </View>
   );

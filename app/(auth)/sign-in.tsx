@@ -1,21 +1,23 @@
 import AuthBackToWelcome from "@/components/onboarding/AuthBackToWelcome";
-import FormInput from "@/components/ui/form/FormInput";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import FormInput from "@/components/ui/form/FormInput";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS } from "@/config/featureFlags";
 import {
   getAuthFlowColumnOuterWidth,
   welcomeAuthLayoutScale,
 } from "@/hooks/useResponsiveUi";
 import { getSigninMethodHint } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
+import { Colors } from "@/theme/colors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Keyboard,
+  Platform,
   Pressable,
   Image as RNImage,
   StyleSheet,
@@ -54,40 +56,14 @@ const ANIMALS_PEAKING_ASPECT =
     ? ANIMALS_PEAKING_RESOLVED.height / ANIMALS_PEAKING_RESOLVED.width
     : 1;
 
-function SignInGoogleBlock({
-  signingIn,
-  setAuthError,
-}: {
-  signingIn: boolean;
-  setAuthError: (value: string | null) => void;
-}) {
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
-
-  const handleGoogleSignIn = async () => {
-    Keyboard.dismiss();
-    setAuthError(null);
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Something went wrong.";
-      setAuthError(msg);
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  return (
-    <>
-      <Text style={authOnboardingStyles.socialLabel}>Sign in with</Text>
-      <SocialAuthContainer
-        onGooglePress={handleGoogleSignIn}
-        googleLoading={googleLoading}
-        googleDisabled={signingIn}
-      />
-    </>
-  );
+function oauthPasswordHint(hint: "google" | "apple"): string {
+  if (hint === "google") {
+    return "This account was set up with Google. Use Continue with Google below to sign in.";
+  }
+  if (Platform.OS === "ios") {
+    return "This account was set up with Apple. Use Continue with Apple below to sign in.";
+  }
+  return "This account was set up with Apple. Sign in on an iPhone or iPad, or add a password from your account settings.";
 }
 
 export default function SignIn() {
@@ -106,6 +82,7 @@ export default function SignIn() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -138,12 +115,8 @@ export default function SignIn() {
       const msg = e instanceof Error ? e.message : String(e);
       if (trimmedEmail && looksLikeInvalidPasswordAttempt(msg)) {
         const hint = await getSigninMethodHint(trimmedEmail);
-        if (hint === "google") {
-          setAuthError(
-            SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS
-              ? "This account was set up with Google. Use the Google button above to sign in."
-              : "This account was set up with Google. Google sign-in is temporarily unavailable—please try again soon or contact support.",
-          );
+        if (hint === "google" || hint === "apple") {
+          setAuthError(oauthPasswordHint(hint));
         } else {
           setAuthError(mapSignInError(msg));
         }
@@ -166,20 +139,15 @@ export default function SignIn() {
       welcomeBackground
     >
       <Text style={authOnboardingStyles.screenTitle}>Welcome Back!</Text>
-
-      {SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS ? (
-        <SignInGoogleBlock signingIn={signingIn} setAuthError={setAuthError} />
-      ) : (
-        <Text style={authOnboardingStyles.screenSubtitle}>
-          Sign in with your email and password
-        </Text>
-      )}
+      <Text style={authOnboardingStyles.screenSubtitle}>
+        Sign in with your email and password
+      </Text>
 
       <View
         style={[
           styles.peekSection,
           {
-            marginTop: SHOW_GOOGLE_AUTH_ON_EMAIL_SCREENS ? vs(32) : vs(20),
+            marginTop: vs(20),
             marginBottom: vs(-5),
           },
         ]}
@@ -209,20 +177,56 @@ export default function SignIn() {
         errorMessage={emailError ?? undefined}
       />
 
-      <FormInput
-        icon="lock-outline"
-        placeholder="Password"
-        value={password}
-        onChangeText={(v) => {
-          setPassword(v);
-          setPasswordError(null);
-          setAuthError(null);
+      <View style={styles.inputWithToggle}>
+        <FormInput
+          icon="lock-outline"
+          placeholder="Password"
+          value={password}
+          onChangeText={(v) => {
+            setPassword(v);
+            setPasswordError(null);
+            setAuthError(null);
+          }}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          containerStyle={[styles.inputSpacing, styles.flexFill]}
+          style={styles.inputPaddedRight}
+          error={passwordHasErr || authFailed}
+          errorMessage={passwordError || authError || undefined}
+        />
+        <Pressable
+          onPress={() => setShowPassword((s) => !s)}
+          hitSlop={8}
+          style={styles.eyeBtn}
+          accessibilityLabel={
+            showPassword ? "Hide password" : "Show password"
+          }
+        >
+          <MaterialCommunityIcons
+            name={showPassword ? "eye-off-outline" : "eye-outline"}
+            size={20}
+            color={Colors.gray500}
+          />
+        </Pressable>
+      </View>
+      <Pressable
+        onPress={() => {
+          const trimmed = email.trim();
+          if (trimmed) {
+            router.push({
+              pathname: "/(auth)/forgot-password",
+              params: { email: trimmed },
+            });
+          } else {
+            router.push("/(auth)/forgot-password");
+          }
         }}
-        secureTextEntry
-        containerStyle={styles.inputSpacing}
-        error={passwordHasErr || authFailed}
-        errorMessage={passwordError || authError || undefined}
-      />
+        hitSlop={8}
+        accessibilityRole="link"
+        accessibilityLabel="Forgot password"
+      >
+        <Text style={styles.forgotPassword}>Forgot Password?</Text>
+      </Pressable>
 
       <OrangeButton
         onPress={handleSignIn}
@@ -231,11 +235,17 @@ export default function SignIn() {
       >
         Sign In
       </OrangeButton>
+      <SocialAuthContainer
+        disabled={signingIn}
+        onError={setAuthError}
+        onBeforeSignIn={() => {
+          Keyboard.dismiss();
+          setAuthError(null);
+        }}
+      />
       <Pressable
         style={authOnboardingStyles.linkRow}
-        onPress={() =>
-          router.replace("/(auth)/(onboarding)?intent=signup")
-        }
+        onPress={() => router.replace("/(auth)/(onboarding)?intent=signup")}
       >
         <Text style={authOnboardingStyles.linkMuted}>
           Don&apos;t have an account?{" "}
@@ -252,8 +262,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "visible",
   },
+  forgotPassword: {
+    textAlign: "right",
+    color: Colors.orange,
+    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   inputSpacing: {
     marginBottom: 12,
+  },
+  inputWithToggle: {
+    position: "relative",
+    width: "100%",
+  },
+  flexFill: {
+    width: "100%",
+  },
+  inputPaddedRight: {
+    paddingRight: 32,
+  },
+  eyeBtn: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    height: 50,
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   cta: {
     marginTop: 12,

@@ -43,6 +43,17 @@ export async function warmPetDetailsCache(
   }
 }
 
+/** Prefetch the accessible-pets list (the query the dashboard gates on). */
+export function prefetchPetsList(
+  queryClient: QueryClient,
+  userId: string,
+): Promise<void> {
+  return queryClient.prefetchQuery({
+    queryKey: petsQueryKey(userId),
+    queryFn: () => fetchAccessiblePets(userId),
+  });
+}
+
 /** Prefetch the accessible-pets list, then warm each pet's details from it. */
 export async function prefetchPetsAndDetails(
   queryClient: QueryClient,
@@ -50,10 +61,7 @@ export async function prefetchPetsAndDetails(
 ): Promise<void> {
   const key = petsQueryKey(userId);
 
-  await queryClient.prefetchQuery({
-    queryKey: key,
-    queryFn: () => fetchAccessiblePets(userId),
-  });
+  await prefetchPetsList(queryClient, userId);
 
   const pets = queryClient.getQueryData<PetWithRole[]>(key);
   if (pets?.length) await warmPetDetailsCache(queryClient, pets);

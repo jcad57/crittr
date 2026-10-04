@@ -1,17 +1,28 @@
 import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
-import { Colors } from "@/theme/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { trackPaywallViewed } from "@/lib/analytics";
+import { resolveClientIsCrittrPro } from "@/lib/crittrPro";
 import {
   detectExistingCrittrProEntitlement,
   ProPurchaseException,
   restoreProPurchases,
   waitForProActivation,
 } from "@/lib/iap/checkout";
+import {
+  clientHasUnlockedPro,
+  getCrittrProClientState,
+} from "@/lib/iap/crittrProClientState";
+import { PRO_ACTIVATION_UI_WATCHDOG_MS } from "@/lib/iap/proActivation";
 import { PLAY_REDEEM_URL, storeAccountLabel } from "@/lib/iap/storeTerms";
+import { suppressProCelebrationsUntil } from "@/lib/proEngagementPersistence";
+import { queryClient } from "@/lib/query/client";
+import { proPricingQueryKey } from "@/lib/query/keys";
+import { styles } from "@/screen-styles/upgrade.styles";
 import { useAuthStore } from "@/stores/authStore";
-import { isCrittrProFromProfile } from "@/lib/crittrPro";
+import { Colors } from "@/theme/colors";
+import { postPurchaseHref } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
@@ -31,7 +42,6 @@ import {
 } from "react-native";
 import Purchases from "react-native-purchases";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/upgrade.styles";
 
 type BillingPeriod = "annual" | "monthly";
 
@@ -39,7 +49,6 @@ export default function UpgradeScreen() {
   const router = useRouter();
   const { push, replace } = useNavigationCooldown();
   const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
-  const profile = useAuthStore((s) => s.profile);
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
   const [billing, setBilling] = useState<BillingPeriod>("annual");
@@ -55,40 +64,77 @@ export default function UpgradeScreen() {
   const { data: pricingData } = useProPricingQuery();
   const pricing = pricingData ?? PRO_PRICING_FALLBACK;
 
+  useEffect(() => {
+    trackPaywallViewed({
+      billing,
+      source: fromOnboarding ? "onboarding" : params.returnTo || "upgrade",
+    });
+    // Paywall impression is once per visit, not per billing toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /**
-   * Promo / restore short-circuit: if RC already reports active Crittr Pro
-   * on this device (offer code redeemed outside the app, prior subscription
-   * still active on this Apple ID, etc.), skip the paywall and reconcile
-   * with Supabase before sending the user to the welcome screen.
+   * Paywall preflight: if RevenueCat already reports Crittr Pro for this
+   * signed-in user (promo redeemed outside the app, profile column lagging
+   * the SDK, etc.), sync that onto the `profiles` entitlement mirror and skip
+   * the paywall. Apple/Google remain the purchase authority; RevenueCat
+   * `crittr_pro` is the entitlement aggregator; CustomerInfo is what the rest
+   * of the client UI gates on.
+   *
+   * This effect is mount-only. Putting `activatingExisting` (or `profile`)
+   * in the dependency list re-ran cleanup as soon as the overlay appeared,
+   * set `cancelled`, skipped `setActivatingExisting(false)` in `finally`,
+   * and left the spinner up forever.
    */
   useEffect(() => {
-    if (activatingExisting) return;
-    if (isCrittrProFromProfile(profile)) return;
+    const client = getCrittrProClientState();
+    if (
+      resolveClientIsCrittrPro(
+        client.customerInfoObserved,
+        client.entitlement,
+        useAuthStore.getState().profile,
+      )
+    ) {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
         const detect = await detectExistingCrittrProEntitlement();
         if (cancelled || !detect.hasCrittrPro) return;
         setActivatingExisting(true);
+        let didNavigate = false;
+        const watchdog = setTimeout(() => {
+          if (cancelled || didNavigate) return;
+          if (clientHasUnlockedPro()) {
+            didNavigate = true;
+            replace(postPurchaseHref(params.returnTo));
+            return;
+          }
+          setActivatingExisting(false);
+        }, PRO_ACTIVATION_UI_WATCHDOG_MS);
         try {
-          await waitForProActivation(60_000, {
+          await waitForProActivation({
             purchaseCustomerInfo: detect.customerInfo,
-            source: "restore",
+            source: "paywall",
           });
           if (cancelled) return;
-          await refreshProfileOnly();
-          if (cancelled) return;
-          const nextHref =
-            params.returnTo === "subscriptions"
-              ? "/(logged-in)/subscriptions"
-              : params.returnTo === "settings"
-                ? "/(logged-in)/settings"
-                : "/(logged-in)/welcome-to-pro";
-          replace(nextHref as Href);
+          void useAuthStore.getState().refreshProfileOnly();
+          const returnTo = params.returnTo;
+          replace(postPurchaseHref(returnTo));
+          didNavigate = true;
         } catch {
+          if (cancelled) return;
+          if (clientHasUnlockedPro()) {
+            void useAuthStore.getState().refreshProfileOnly();
+            replace(postPurchaseHref(params.returnTo));
+            didNavigate = true;
+            return;
+          }
           /* fall through — the user can still tap "Restore purchases" manually. */
         } finally {
-          if (!cancelled) setActivatingExisting(false);
+          clearTimeout(watchdog);
+          if (!didNavigate) setActivatingExisting(false);
         }
       } catch {
         /* SDK errors are non-fatal; the paywall just stays visible. */
@@ -97,12 +143,18 @@ export default function UpgradeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [profile, params.returnTo, activatingExisting, refreshProfileOnly, replace]);
+    // Mount-only: see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scrollCompact = windowH < 720;
 
   const goToDashboard = async () => {
     await refreshProfileOnly();
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (fromOnboarding && uid) {
+      void suppressProCelebrationsUntil(uid, Date.now() + 24 * 60 * 60 * 1000);
+    }
     replace("/(logged-in)/dashboard" as Href);
   };
 
@@ -128,18 +180,13 @@ export default function UpgradeScreen() {
       }
       setActivatingExisting(true);
       try {
-        await waitForProActivation(60_000, {
+        await waitForProActivation({
           purchaseCustomerInfo: result.customerInfo,
           source: "restore",
         });
-        await refreshProfileOnly();
-        const nextHref =
-          params.returnTo === "subscriptions"
-            ? "/(logged-in)/subscriptions"
-            : params.returnTo === "settings"
-              ? "/(logged-in)/settings"
-              : "/(logged-in)/welcome-to-pro";
-        replace(nextHref as Href);
+        void refreshProfileOnly();
+        void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
+        replace(postPurchaseHref(params.returnTo));
       } finally {
         setActivatingExisting(false);
       }
@@ -314,7 +361,6 @@ const upgradeFooter = StyleSheet.create({
     justifyContent: "center",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 18,
   },
   linkBtn: {
     paddingVertical: 6,

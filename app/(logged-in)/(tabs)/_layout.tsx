@@ -21,6 +21,13 @@ export default function LoggedInTabsLayout() {
         freezeOnBlur: true,
         sceneStyle: { backgroundColor: Colors.cream },
       }}
-    />
+    >
+      {/*
+        Home must keep receiving React Query updates after sign-in. Freezing
+        it during the auth → tabs transition left "Loading your dashboard…"
+        on screen until the user switched tabs and back.
+      */}
+      <Tabs.Screen name="dashboard" options={{ freezeOnBlur: false }} />
+    </Tabs>
   );
 }

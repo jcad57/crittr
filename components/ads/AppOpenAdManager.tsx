@@ -1,15 +1,12 @@
 import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/config/ads";
 import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
-import { useProfileQuery } from "@/hooks/queries";
-import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useCanShowAds } from "@/hooks/useCanShowAds";
 import { useTrackingConsent } from "@/hooks/useTrackingConsent";
 import {
   APP_OPEN_LAST_SHOWN_STORAGE_KEY,
   markAppOpenLastShownNow,
 } from "@/lib/appOpenAdLastShown";
-import { useAuthStore } from "@/stores/authStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { usePathname } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
 import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
@@ -17,48 +14,21 @@ import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
 /** Minimum time between app open ad impressions (relaxed in __DEV__ so you can test repeatedly). */
 const MIN_APP_OPEN_INTERVAL_MS = __DEV__ ? 0 : 4 * 60 * 60 * 1000;
 
-/**
- * Paywall and purchase routes. Checkout matters beyond the "don't cover the paywall" reason:
- * the store's payment sheet backgrounds the app, so a resume there reads as an ad served for
- * tapping "Get Crittr Pro".
- */
-const AD_FREE_ROUTE_SEGMENTS = [
-  "upgrade",
-  "pro-checkout",
-  "welcome-to-pro",
-] as const;
-
 /** Why an auto-show is allowed. Any other load (route change, post-dismiss reload) stays silent. */
 type PendingShowReason = "cold_start" | "foreground";
 
 /**
  * AdMob app open: full-screen when the app starts (first eligible load) and when returning
- * from the background, for signed-in, non–Crittr Pro users who have finished onboarding.
- * While `needsOnboarding` is true (sign-up → first-time setup), ads are suppressed so the
- * flow is not interrupted. The paywall and purchase routes are suppressed too.
+ * from the background, for signed-in, non–Crittr Pro users who have finished onboarding
+ * and are in the logged-in shell. Auth, password reset, onboarding, and paywall routes
+ * never request or show ads — including when a recovery OTP has created a session.
  * Preloads the next ad after one is dismissed.
  */
 export default function AppOpenAdManager() {
-  const session = useAuthStore((s) => s.session);
-  const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
-  const isLoggedIn = Boolean(session);
-  const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
-  const isPro = useIsCrittrPro(profile);
-  const pathname = usePathname() ?? "";
-  const onAdFreeRoute = AD_FREE_ROUTE_SEGMENTS.some((segment) =>
-    pathname.includes(segment),
-  );
-  const { canRequestAds, personalizedAds } = useTrackingConsent();
+  const adsEligible = useCanShowAds();
+  const { personalizedAds } = useTrackingConsent();
 
-  const canRequest =
-    APP_OPEN_ADS_ENABLED &&
-    canRequestAds &&
-    isLoggedIn &&
-    !needsOnboarding &&
-    !isPro &&
-    !isPending &&
-    !isPlaceholderData &&
-    !onAdFreeRoute;
+  const canRequest = APP_OPEN_ADS_ENABLED && adsEligible;
 
   const adUnitId = canRequest ? AdUnitIds.appOpen : null;
 
@@ -139,7 +109,9 @@ export default function AppOpenAdManager() {
     canRequestRef.current = canRequest;
   }, [canRequest]);
 
-  // When eligibility is lost (e.g. Pro), reset foreground reload intent.
+  // When eligibility is lost (e.g. Pro or auth routes), drop a foreground
+  // show intent. Keep `cold_start` across hydration so the first eligible
+  // paint can still show the launch ad.
   useEffect(() => {
     if (!canRequest && pendingShowReason.current === "foreground") {
       pendingShowReason.current = null;

@@ -1,13 +1,13 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
-import { Font } from "@/theme/typography";
 import {
   getAuthFlowColumnOuterWidth,
   getResponsiveWindow,
 } from "@/lib/responsiveUi";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Sharing from "expo-sharing";
 import { Image } from "expo-image";
+import * as Sharing from "expo-sharing";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -59,8 +59,7 @@ function PreviewFallbackPanel({ children }: { children: ReactNode }) {
   const { width, height } = useWindowDimensions();
   const rw = getResponsiveWindow(width, height);
   const columnMax = getAuthFlowColumnOuterWidth(width);
-  const gutter =
-    rw.shortestSide < 360 ? 14 : rw.shortestSide < 400 ? 18 : 24;
+  const gutter = rw.shortestSide < 360 ? 14 : rw.shortestSide < 400 ? 18 : 24;
 
   return (
     <ScrollView
@@ -150,12 +149,11 @@ export default function MedicalRecordFilePreviewModal({
     }
   }, [localUri, mimeType]);
 
-  const shareHint =
-    docPreviewFailed
-      ? "This file couldn’t be shown in the app. Open it with another app instead."
-      : Platform.OS === "ios"
-        ? "This file type can be opened from the share sheet (Preview, Files, etc.)."
-        : "This file type can be opened from the share menu.";
+  const shareHint = docPreviewFailed
+    ? "This file couldn’t be shown in the app. Open it with another app instead."
+    : Platform.OS === "ios"
+      ? "This file type can be opened from the share sheet (Preview, Files, etc.)."
+      : "This file type can be opened from the share menu.";
 
   return (
     <Modal
@@ -164,20 +162,21 @@ export default function MedicalRecordFilePreviewModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.safe} edges={["top", "bottom", "left", "right"]}>
+      <SafeAreaView
+        style={styles.safe}
+        edges={["top", "bottom", "left", "right"]}
+      >
         <View style={styles.toolbar}>
           <Pressable
             onPress={onClose}
             hitSlop={12}
-            style={({ pressed }) => [styles.doneBtn, pressed && styles.donePressed]}
+            style={({ pressed }) => [
+              styles.doneBtn,
+              pressed && styles.donePressed,
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Close preview"
           >
-            <MaterialCommunityIcons
-              name="close"
-              size={26}
-              color={Colors.textPrimary}
-            />
             <Text style={styles.doneLabel}>Done</Text>
           </Pressable>
         </View>

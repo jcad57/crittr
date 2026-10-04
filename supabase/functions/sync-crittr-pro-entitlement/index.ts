@@ -3,8 +3,9 @@
  *
  * The primary entitlement-update path is `revenuecat-webhook`. When that
  * webhook is delayed (network blip, RC retry queue, sandbox flake), the
- * client may also call this function to immediately reconcile
- * `profiles.crittr_pro_until` with RevenueCat's current state.
+ * client may also call this function to immediately reconcile the
+ * `profiles` entitlement mirror (`crittr_pro_active` + expiration metadata)
+ * with RevenueCat's current `crittr_pro` state.
  *
  * Deploy:
  *   supabase functions deploy sync-crittr-pro-entitlement
@@ -99,19 +100,29 @@ Deno.serve(async (req: Request) => {
       body.source === "restore" ||
       body.source === "app_launch";
 
-    const { before, after } = await reconcileCrittrProForUser(
-      supabaseAdmin,
-      user.id,
-      appUserId,
-      {
-        alternateAppUserIds,
-        subscriberSync: longPoll
-          ? { maxAttempts: 12, delayMs: 2_000 }
-          : { maxAttempts: 3, delayMs: 2_000 },
-      },
-    );
+    const { before, after, activeBefore, activeAfter } =
+      await reconcileCrittrProForUser(
+        supabaseAdmin,
+        user.id,
+        appUserId,
+        {
+          alternateAppUserIds,
+          subscriberSync: longPoll
+            ? { maxAttempts: 12, delayMs: 2_000 }
+            : { maxAttempts: 3, delayMs: 2_000 },
+        },
+      );
 
-    return json({ ok: true, crittr_pro_until: after, previous: before }, 200);
+    return json(
+      {
+        ok: true,
+        crittr_pro_active: activeAfter,
+        crittr_pro_until: after,
+        previous: before,
+        previous_active: activeBefore,
+      },
+      200,
+    );
   } catch (e) {
     console.error("[sync-crittr-pro-entitlement]", e);
     return json({ error: "internal_error", message: String(e) }, 500);

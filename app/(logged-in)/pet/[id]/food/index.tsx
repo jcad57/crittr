@@ -1,5 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
@@ -28,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetFoodManagerScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const { push, router } = useNavigationCooldown();
+  const { router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
@@ -37,7 +38,7 @@ export default function PetFoodManagerScreen() {
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const deleteMut = useDeletePetFoodMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade } = useProGateNavigation();
+  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const sortedFoods = useMemo(() => {
     if (!details?.foods) return [];
@@ -125,7 +126,7 @@ export default function PetFoodManagerScreen() {
             : "Tap a food to view its details."}
         </Text>
 
-        {canEditFood ? (
+        {canEditFood && (!isProfileReady || isPro || sortedFoods.length === 0) ? (
           <Pressable
             style={({ pressed }) => [
               styles.addBtn,
@@ -191,6 +192,12 @@ export default function PetFoodManagerScreen() {
             ))}
           </View>
         )}
+
+        {canEditFood && isProfileReady && !isPro && sortedFoods.length >= 1 ? (
+          <View style={styles.softPaywallWrap}>
+            <ProSoftPaywallCard kind="food" petName={details.name} />
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -273,5 +280,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  softPaywallWrap: {
+    marginTop: 16,
   },
 });

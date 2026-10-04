@@ -4,9 +4,11 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { updateAuthPassword } from "@/services/auth";
+import { useAuthStore } from "@/stores/authStore";
+import { isFromGuestParam } from "@/utils/passwordResetParams";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -34,6 +36,11 @@ function mapUpdatePasswordError(message: string): string {
 export default function ResetPasswordNewScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { fromGuest: fromGuestParam } = useLocalSearchParams<{
+    fromGuest?: string | string[];
+  }>();
+  const fromGuest = isFromGuestParam(fromGuestParam);
+  const signOut = useAuthStore((s) => s.signOut);
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -72,8 +79,16 @@ export default function ResetPasswordNewScreen() {
     setSubmitting(true);
     try {
       await updateAuthPassword(password);
+      if (fromGuest) {
+        try {
+          await signOut();
+        } catch {
+          /* Password is already updated; still send them to sign in. */
+        }
+      }
       router.replace({
-        pathname: "/(logged-in)/reset-password-success",
+        pathname: "/(auth)/reset-password-success",
+        params: { fromGuest: fromGuest ? "1" : "0" },
       } as Href);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

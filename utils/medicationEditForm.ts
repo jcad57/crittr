@@ -1,27 +1,34 @@
-import type { SchedulePeriod } from "@/constants/medicationEditForm";
 import type { MedicationDosePeriod } from "@/types/database";
+import {
+  encodeMedicationDosageDisplay,
+  isMedicationDosagesValid,
+  uniqueDosagesByTime,
+  type MedicationDosageDraft,
+} from "@/utils/medicationDosageDraft";
+import {
+  computeNextDueDate,
+  toLocalYmd,
+} from "@/utils/medicationDueSchedule";
+import {
+  frequencyDraftToDbFields,
+  frequencyLabelForDraft,
+  type MedicationFrequencyDraft,
+} from "@/utils/medicationFrequency";
 import {
   reminderFieldsForDb,
   sortTimesAscUnique,
 } from "@/utils/medicationReminderTimes";
-import {
-  buildMedicationFrequencyLabelForDb,
-  formatReminderTimeHHmm,
-} from "@/utils/medicationSchedule";
+import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
 
 export type MedicationFormState = {
   name: string;
-  dosageAmount: string;
-  dosageType: string;
-  dosesPerPeriod: string;
-  schedulePeriod: SchedulePeriod;
-  customIntervalCount: string;
-  customIntervalUnit: MedicationDosePeriod;
+  dosages: MedicationDosageDraft[];
   condition: string;
   notes: string;
-  /** One or more daily reminder times (e.g. twice-daily meds). */
-  reminderDates: Date[];
   lastGivenOn: string;
+  frequency: MedicationFrequencyDraft;
+  /** Existing row `created_at`; used when last given is empty so next due starts from the add date. */
+  createdAt?: string;
 };
 
 export type MedicationSavePayload = {
@@ -37,102 +44,67 @@ export type MedicationSavePayload = {
   reminder_time: string | null;
   reminder_times: string[] | null;
   last_given_on: string | null;
+  next_due_date: string | null;
 };
 
 /**
- * Builds the save payload for a pet medication. Returns `null` when validation
- * of the numeric fields fails (matches the original inline guards in the
- * screen). Name trimming is the caller's responsibility for error UI; this
- * function assumes `name.trim()` already passed a non-empty check.
+ * Builds the save payload for a pet medication. Returns `null` when the
+ * dosage list is empty or a dose is missing amount/type. Name trimming is
+ * the caller's responsibility for error UI; this function assumes
+ * `name.trim()` already passed a non-empty check.
  */
 export function buildMedicationSavePayload(
   state: MedicationFormState,
 ): MedicationSavePayload | null {
-  const {
-    name,
-    dosageAmount,
-    dosageType,
-    dosesPerPeriod,
-    schedulePeriod,
-    customIntervalCount,
-    customIntervalUnit,
-    condition,
-    notes,
-    reminderDates,
-    lastGivenOn,
-  } = state;
+  const { name, dosages, condition, notes, lastGivenOn, frequency, createdAt } =
+    state;
 
+  if (!isMedicationDosagesValid(dosages)) return null;
+
+  const unique = uniqueDosagesByTime(dosages);
   const hhmmList = sortTimesAscUnique(
-    reminderDates.map((d) => formatReminderTimeHHmm(d)),
+    unique.map((d) => formatReminderTimeHHmm(d.reminderTime)),
   );
   const { reminder_time, reminder_times } = reminderFieldsForDb(hhmmList);
-
-  const dosageStr =
-    [dosageAmount.trim(), dosageType.trim()].filter(Boolean).join(" ") || null;
-
-  if (schedulePeriod === "custom") {
-    const n = customIntervalCount.trim();
-    const parsedInterval = parseInt(n, 10);
-    if (!Number.isFinite(parsedInterval) || parsedInterval < 1) {
-      return null;
-    }
-
-    const freq = buildMedicationFrequencyLabelForDb(null, null, null, {
-      count: parsedInterval,
-      unit: customIntervalUnit,
-    });
-
-    return {
+  const doses = unique.length;
+  const db = frequencyDraftToDbFields(frequency);
+  const freqLabel = frequencyLabelForDraft(frequency);
+  const lastGiven = lastGivenOn.trim() || null;
+  const now = new Date();
+  const nextDue = computeNextDueDate(
+    {
+      id: "",
+      pet_id: "",
       name: name.trim(),
-      dosage: dosageStr,
-      frequency: freq,
-      condition: condition.trim() || null,
-      notes: notes.trim() || null,
-      doses_per_period: null,
-      dose_period: null,
-      interval_count: parsedInterval,
-      interval_unit: customIntervalUnit,
+      dosage: encodeMedicationDosageDisplay(unique),
+      frequency: freqLabel,
+      condition: null,
+      notes: null,
+      doses_per_period: doses,
+      dose_period: db.dose_period,
+      interval_count: db.interval_count,
+      interval_unit: db.interval_unit,
       reminder_time,
       reminder_times,
-      last_given_on: lastGivenOn.trim() || null,
-    };
-  }
-
-  const dosePeriod = schedulePeriod as MedicationDosePeriod;
-  const n = dosesPerPeriod.trim();
-  const parsed = parseInt(n, 10);
-  if (dosePeriod === "day" && (!Number.isFinite(parsed) || parsed < 1)) {
-    return null;
-  }
-  if (
-    (dosePeriod === "week" || dosePeriod === "month") &&
-    n !== "" &&
-    (!Number.isFinite(parsed) || parsed < 1)
-  ) {
-    return null;
-  }
-
-  const doses =
-    dosePeriod === "day"
-      ? Math.min(8, Math.max(1, parsed))
-      : dosePeriod === "week" || dosePeriod === "month"
-        ? Math.max(1, Number.isFinite(parsed) ? parsed : 1)
-        : null;
-
-  const freq = buildMedicationFrequencyLabelForDb(dosePeriod, doses, null);
+      last_given_on: lastGiven,
+      created_at: createdAt?.trim() || now.toISOString(),
+    },
+    now,
+  );
 
   return {
     name: name.trim(),
-    dosage: dosageStr,
-    frequency: freq,
+    dosage: encodeMedicationDosageDisplay(unique),
+    frequency: freqLabel,
     condition: condition.trim() || null,
     notes: notes.trim() || null,
     doses_per_period: doses,
-    dose_period: dosePeriod,
-    interval_count: null,
-    interval_unit: null,
+    dose_period: db.dose_period,
+    interval_count: db.interval_count,
+    interval_unit: db.interval_unit,
     reminder_time,
     reminder_times,
-    last_given_on: lastGivenOn.trim() || null,
+    last_given_on: lastGiven,
+    next_due_date: nextDue ? toLocalYmd(nextDue) : null,
   };
 }

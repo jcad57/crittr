@@ -4,6 +4,7 @@ import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingSt
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import VerifyEmailBackHeader from "@/components/onboarding/VerifyEmailBackHeader";
 import { useAuthStore } from "@/stores/authStore";
+import { trackTutorialBegin } from "@/lib/analytics";
 import {
   FINISH_STEP_INDEX,
   ONBOARDING_INDICATED_STEP_COUNT,
@@ -28,6 +29,11 @@ export default function Onboarding() {
   const requiresCoCareRemovedScreen = useAuthStore(
     (s) => s.requiresCoCareRemovedScreen,
   );
+
+  useEffect(() => {
+    if (!session || !needsOnboarding || requiresCoCareRemovedScreen) return;
+    trackTutorialBegin();
+  }, [session, needsOnboarding, requiresCoCareRemovedScreen]);
 
   /**
    * Self-heal "limbo zero-pet" state. A logged-in user can land here after

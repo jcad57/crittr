@@ -16,6 +16,7 @@ import type {
   PetWithDetails,
   PlannedScheduleItem,
 } from "@/types/database";
+import { buildPlannedScheduleForDay } from "@/utils/buildSchedulePlan";
 import { parseScheduleTime } from "@/utils/schedulePeriods";
 
 function sourceKey(item: {
@@ -59,7 +60,7 @@ export async function upsertPlannedItems(
         quantity_line: p.quantity_line,
         notes: p.notes,
         meta: p.meta,
-        completed_at: null,
+        completed_at: p.completed_at ?? null,
         activity_id: null,
         updated_at: now,
       });
@@ -67,18 +68,23 @@ export async function upsertPlannedItems(
     }
 
     // Preserve completed_at / activity_id — only refresh profile-derived fields.
+    // Last-given occurrences may arrive already completed; never un-complete.
+    const patch: Record<string, unknown> = {
+      scheduled_time: p.scheduled_time,
+      activity_type: p.activity_type,
+      label: p.label,
+      detail_line: p.detail_line,
+      quantity_line: p.quantity_line,
+      notes: p.notes,
+      meta: p.meta,
+      updated_at: now,
+    };
+    if (p.completed_at && !prev.completed_at) {
+      patch.completed_at = p.completed_at;
+    }
     fieldUpdates.push({
       id: prev.id,
-      patch: {
-        scheduled_time: p.scheduled_time,
-        activity_type: p.activity_type,
-        label: p.label,
-        detail_line: p.detail_line,
-        quantity_line: p.quantity_line,
-        notes: p.notes,
-        meta: p.meta,
-        updated_at: now,
-      },
+      patch,
     });
   }
 
@@ -127,6 +133,92 @@ export async function upsertPlannedItems(
   if (writeTasks.length > 0) {
     await Promise.all(writeTasks);
   }
+}
+
+/**
+ * Insert planned rows that are not already stored. Never deletes.
+ * Completes existing rows when the plan says they are already given.
+ */
+export async function insertMissingPlannedItems(
+  planned: PlannedScheduleItem[],
+  existing: PetScheduleItem[],
+): Promise<void> {
+  const existingByKey = new Map(existing.map((e) => [sourceKey(e), e]));
+  const now = new Date().toISOString();
+
+  const toInsert: Record<string, unknown>[] = [];
+  const completionUpdates: { id: string; completed_at: string }[] = [];
+
+  for (const p of planned) {
+    const prev = existingByKey.get(sourceKey(p));
+    if (!prev) {
+      toInsert.push({
+        pet_id: p.pet_id,
+        local_date: p.local_date,
+        scheduled_time: p.scheduled_time,
+        activity_type: p.activity_type,
+        source_kind: p.source_kind,
+        source_id: p.source_id,
+        source_slot: p.source_slot,
+        label: p.label,
+        detail_line: p.detail_line,
+        quantity_line: p.quantity_line,
+        notes: p.notes,
+        meta: p.meta,
+        completed_at: p.completed_at ?? null,
+        activity_id: null,
+        updated_at: now,
+      });
+      continue;
+    }
+    if (p.completed_at && !prev.completed_at) {
+      completionUpdates.push({ id: prev.id, completed_at: p.completed_at });
+    }
+  }
+
+  const writeTasks: Promise<void>[] = [];
+
+  if (toInsert.length > 0) {
+    writeTasks.push(
+      (async () => {
+        const { error } = await supabase
+          .from("pet_schedule_items")
+          .insert(toInsert);
+        if (error) throw error;
+      })(),
+    );
+  }
+
+  if (completionUpdates.length > 0) {
+    writeTasks.push(
+      ...completionUpdates.map(async (row) => {
+        const { error } = await supabase
+          .from("pet_schedule_items")
+          .update({ completed_at: row.completed_at, updated_at: now })
+          .eq("id", row.id);
+        if (error) throw error;
+      }),
+    );
+  }
+
+  if (writeTasks.length > 0) {
+    await Promise.all(writeTasks);
+  }
+}
+
+/** Plant last-given medication slots on a past day without adding meals or walks. */
+export async function seedLastGivenMedicationItemsForDay(
+  details: PetWithDetails,
+  visits: PetVetVisit[],
+  localYmd: string,
+  existing: PetScheduleItem[],
+): Promise<void> {
+  const planned = buildPlannedScheduleForDay(details, localYmd, visits);
+  const lastGivenItems = planned.filter(
+    (p) => p.activity_type === "medication" && p.completed_at,
+  );
+  if (lastGivenItems.length === 0) return;
+  await insertMissingPlannedItems(lastGivenItems, existing);
 }
 
 export async function resolvePetDetailsForSchedule(

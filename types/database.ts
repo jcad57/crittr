@@ -34,12 +34,29 @@ export type Profile = {
   phone_number: string | null;
   avatar_url: string | null;
   onboarding_complete: boolean;
-  /** Primary sign-up: email+password or Google OAuth (after auth_signup_method migration). */
-  auth_signup_method?: "email" | "google";
+  /** Primary sign-up: email+password, native Google, or native Apple. */
+  auth_signup_method?: "email" | "google" | "apple";
   /** Whether the account has a Supabase email/password (can sign in with password). */
   has_password?: boolean;
-  /** Pro access valid until this ISO time; null = no Pro. Set server-side (RevenueCat webhook / admin). */
+  /**
+   * Server-side mirror of RevenueCat `crittr_pro`. True when the entitlement is
+   * currently active (including lifetime grants with no expiration). Written
+   * only by the webhook / sync edge function. This is the access flag — not
+   * `crittr_pro_until`.
+   */
+  crittr_pro_active?: boolean | null;
+  /**
+   * Expiration metadata for the mirrored entitlement. `null` with
+   * `crittr_pro_active=true` means lifetime / no expiration. Must not be used
+   * on its own to grant or revoke Pro.
+   */
   crittr_pro_until: string | null;
+  /** Store product that currently unlocks Pro (best-effort). */
+  crittr_pro_product_id?: string | null;
+  /** RevenueCat ownership: `PURCHASED` | `FAMILY_SHARED` | `UNKNOWN`. */
+  crittr_pro_ownership_type?: string | null;
+  /** When the webhook / sync last wrote the entitlement mirror. */
+  crittr_pro_last_synced_at?: string | null;
   /** Pro profile hero + dashboard crown palette: `slate` | `gold` | `purple`. */
   crittr_pro_banner_theme?: string | null;
   /** RevenueCat appUserID — should match `auth.users.id`; managed by edge function. */
@@ -480,6 +497,11 @@ export type PlannedScheduleItem = {
   quantity_line: string | null;
   notes: string | null;
   meta: Record<string, unknown>;
+  /**
+   * When set, upsert writes this on insert (e.g. last-given already taken).
+   * Never used to un-complete an existing row.
+   */
+  completed_at?: string | null;
 };
 
 // ─── Activity form data (for the add-activity flow) ─────────────────────────
@@ -616,23 +638,45 @@ export type FoodFormEntry = {
   mealPortions?: FoodMealPortionFormEntry[];
 };
 
+export type MedicationDosageFormEntry = {
+  key: string;
+  dosageAmount: string;
+  dosageType: string;
+  /** HH:mm (24h) when this dose is due. */
+  reminderTimeHHmm: string;
+};
+
 export type MedicationFormEntry = {
   localId: string;
   name: string;
+  /** Legacy flat fields; prefer `dosages` when present. */
   dosageAmount: string;
   dosageType: string;
   condition: string;
-  /** Doses per period, e.g. "2" (ignored when `schedulePeriod === "custom"`). */
+  /** Mirrors `dosages.length` when dosages are used. */
   dosesPerPeriod: string;
   schedulePeriod: MedicationSchedulePeriod;
-  /** Custom interval count when `schedulePeriod === "custom"`. */
+  /** Custom interval count when `schedulePeriod === "custom"` (legacy). */
   customIntervalCount: string;
   customIntervalUnit: MedicationDosePeriod;
-  /** Sorted HH:mm (24h) reminder slots. */
+  /** Sorted HH:mm (24h) reminder slots (mirrors `dosages` times). */
   reminderTimes: string[];
   /** YYYY-MM-DD when known */
   lastGivenOn: string;
   notes: string;
+  /** Scheduled doses with amounts and times (replaces frequency + single dosage). */
+  dosages?: MedicationDosageFormEntry[];
+  /** How often this medication is given (add/edit + onboarding). */
+  frequencyKind?:
+    | "daily"
+    | "every_other_day"
+    | "weekly"
+    | "every_other_week"
+    | "monthly"
+    | "every_n_months"
+    | "annually";
+  /** Month interval when `frequencyKind === "every_n_months"`. */
+  customMonthCount?: string;
 };
 
 export type VaccinationFormEntry = {

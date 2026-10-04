@@ -17,13 +17,13 @@ import {
   useLogTrainingMutation,
   useLogWeighInMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import {
   usePetsQuery,
-  useProfileQuery,
   useScheduleDayQuery,
   useToggleScheduleItemMutation,
 } from "@/hooks/queries";
-import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useCanShowAds } from "@/hooks/useCanShowAds";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
@@ -36,8 +36,15 @@ import {
   preloadNonProInterstitial,
   showNonProInterstitialThen,
 } from "@/lib/showNonProInterstitial";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -62,8 +69,24 @@ const SCHEDULE_MATCH_TYPES = new Set<ActivityType>([
   "potty",
 ]);
 
+/** Deep-link from screens like weight history that skip the type picker. */
+function lockedActivityTypeFromParam(
+  raw: string | string[] | undefined,
+): ActivityType | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === "weigh_in" ? "weigh_in" : null;
+}
+
 export default function AddActivityScreen() {
   const router = useRouter();
+  const { type: typeParam, petId: rawPetIdParam } = useLocalSearchParams<{
+    type?: string;
+    petId?: string;
+  }>();
+  const lockedType = lockedActivityTypeFromParam(typeParam);
+  const petIdParam = Array.isArray(rawPetIdParam)
+    ? rawPetIdParam[0]
+    : rawPetIdParam;
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -104,18 +127,20 @@ export default function AddActivityScreen() {
   const weighInForm = useActivityFormStore((s) => s.weighInForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: allPets } = usePetsQuery();
-  const { data: profile, isPending: profilePending, isPlaceholderData: profilePlaceholder } =
-    useProfileQuery();
-  const isPro = useIsCrittrPro(profile);
+  const canShowAds = useCanShowAds();
   const todayYmd = useLocalCalendarYmd();
 
   const resolvedPetId = useMemo(() => {
+    if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
+      return petIdParam;
+    }
     if (activePetId && (allPets ?? []).some((p) => p.id === activePetId)) {
       return activePetId;
     }
     return (allPets ?? [])[0]?.id ?? null;
-  }, [activePetId, allPets]);
+  }, [activePetId, allPets, petIdParam]);
 
   const primaryPetForLog = useMemo(() => {
     if (!resolvedPetId || !(allPets ?? []).length) return null;
@@ -133,17 +158,37 @@ export default function AddActivityScreen() {
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
   const medMut = useLogMedicationMutation();
-  const trainingMut = useLogTrainingMutation(activePetId);
-  const pottyMut = useLogPottyMutation(activePetId);
-  const maintenanceMut = useLogMaintenanceMutation(activePetId);
-  const weighInMut = useLogWeighInMutation(activePetId);
+  const trainingMut = useLogTrainingMutation(resolvedPetId);
+  const pottyMut = useLogPottyMutation(resolvedPetId);
+  const maintenanceMut = useLogMaintenanceMutation(resolvedPetId);
+  const weighInMut = useLogWeighInMutation(resolvedPetId);
 
-  const scrollKey = `${step}-${activityType ?? "none"}`;
+  const effectiveType = activityType ?? lockedType;
+  const showTypeStep = step === "type" && !lockedType;
+  const scrollKey = `${step}-${effectiveType ?? "none"}`;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     reset();
+    if (lockedType) {
+      selectType(lockedType);
+      setActivityOccurredAt(null);
+      setStep("details");
+    }
     return () => reset();
-  }, [reset]);
+  }, [reset, lockedType, selectType, setActivityOccurredAt, setStep]);
+
+  /** Apply ?petId= once when opening from a pet-specific screen. */
+  const appliedPetParamRef = useRef(false);
+  useEffect(() => {
+    if (appliedPetParamRef.current) return;
+    if (!(allPets ?? []).length) return;
+    appliedPetParamRef.current = true;
+    if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
+      if (usePetStore.getState().activePetId !== petIdParam) {
+        setActivePetMutation.mutate(petIdParam);
+      }
+    }
+  }, [allPets, petIdParam, setActivePetMutation]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -152,7 +197,7 @@ export default function AddActivityScreen() {
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (isCompleting) return true;
-      if (step === "details") {
+      if (step === "details" && !lockedType) {
         setStep("type");
         return true;
       }
@@ -161,7 +206,7 @@ export default function AddActivityScreen() {
       return true;
     });
     return () => sub.remove();
-  }, [step, setStep, reset, router, isCompleting]);
+  }, [step, setStep, reset, router, isCompleting, lockedType]);
 
   /** Preload interstitial on the details step so it can show right after save. */
   useEffect(() => {
@@ -169,7 +214,7 @@ export default function AddActivityScreen() {
       discardPreloadedInterstitial();
       return;
     }
-    if (profilePending || profilePlaceholder || isPro) {
+    if (!canShowAds) {
       discardPreloadedInterstitial();
       return;
     }
@@ -177,17 +222,17 @@ export default function AddActivityScreen() {
     return () => {
       discardPreloadedInterstitial();
     };
-  }, [step, isPro, profilePending, profilePlaceholder]);
+  }, [step, canShowAds]);
 
   const goBack = useCallback(() => {
     if (isCompleting) return;
-    if (step === "details") {
+    if (step === "details" && !lockedType) {
       setStep("type");
     } else {
       reset();
       router.back();
     }
-  }, [step, setStep, reset, router, isCompleting]);
+  }, [step, setStep, reset, router, isCompleting, lockedType]);
 
   /**
    * Activity rows are already persisted when this runs. Ad presentation / dismiss /
@@ -198,18 +243,12 @@ export default function AddActivityScreen() {
       reset();
       router.back();
     };
-    if (profilePending || profilePlaceholder || isPro) {
+    if (!canShowAds) {
       go();
       return;
     }
     await showNonProInterstitialThen(go);
-  }, [
-    isPro,
-    profilePending,
-    profilePlaceholder,
-    reset,
-    router,
-  ]);
+  }, [canShowAds, reset, router]);
 
   const cancelDetails = useCallback(() => {
     if (isCompleting) return;
@@ -408,7 +447,7 @@ export default function AddActivityScreen() {
   }, [maintenanceMut, maintenanceForm, activePetId, runSaveThenFinish]);
 
   const saveWeighIn = useCallback(async () => {
-    if (!activePetId) return;
+    if (!resolvedPetId) return;
     await runSaveThenFinish(async () => {
       const loggedAtIso =
         useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
@@ -418,7 +457,7 @@ export default function AddActivityScreen() {
         loggedAtIso,
       });
     });
-  }, [weighInMut, weighInForm, activePetId, runSaveThenFinish]);
+  }, [weighInMut, weighInForm, resolvedPetId, runSaveThenFinish]);
 
   const saving =
     isCompleting ||
@@ -430,7 +469,10 @@ export default function AddActivityScreen() {
     maintenanceMut.isPending ||
     weighInMut.isPending;
 
-  const navTitle = addActivityNavTitle(step, activityType);
+  const navTitle = addActivityNavTitle(
+    lockedType ? "details" : step,
+    effectiveType,
+  );
 
   const scrollContentMinHeight = useMemo(() => {
     const topChrome = insets.top + 8 + 56 + 8 + 4;
@@ -518,7 +560,7 @@ export default function AddActivityScreen() {
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
-        {step === "type" ? (
+        {showTypeStep ? (
           <View
             style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
           >
@@ -557,7 +599,7 @@ export default function AddActivityScreen() {
           >
             <View>
               <ActivityDetailStepSwitch
-                activityType={activityType}
+                activityType={effectiveType}
                 stepRef={stepRef}
                 saveLabel={SAVE_LABEL}
                 petType={primaryPetForLog?.pet_type ?? null}

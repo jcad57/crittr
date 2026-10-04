@@ -1,11 +1,10 @@
-import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
-import ExpiryDateField from "@/components/ui/form/ExpiryDateField";
-import FormInput from "@/components/ui/form/FormInput";
 import VaccinationReadOnlyView from "@/components/petScreens/vaccinations/VaccinationReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import ExpiryDateField from "@/components/ui/form/ExpiryDateField";
+import FormInput from "@/components/ui/form/FormInput";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import {
   useDeletePetVaccinationMutation,
   useInsertPetVaccinationMutation,
@@ -16,6 +15,8 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
+import { Colors } from "@/theme/colors";
 import { getErrorMessage } from "@/utils/errorMessage";
 import {
   defaultVaccinationExpiryYmd,
@@ -41,11 +42,7 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetVaccinationScreen() {
   const insets = useSafeAreaInsets();
@@ -284,7 +281,7 @@ export default function EditPetVaccinationScreen() {
         }
       />
 
-      <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
+      <View style={styles.scrollSafe}>
         <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
@@ -380,7 +377,7 @@ export default function EditPetVaccinationScreen() {
             ) : null}
           </View>
         </KeyboardAwareScrollView>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }

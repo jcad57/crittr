@@ -1,12 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
-import { Font } from "@/theme/typography";
 import { useProPricingQuery } from "@/hooks/queries";
-import {
-  profileQueryKey,
-  subscriptionDetailsQueryKey,
-} from "@/lib/query/keys";
 import {
   ProPurchaseException,
   detectExistingCrittrProEntitlement,
@@ -19,19 +13,29 @@ import {
   type ProPurchaseResult,
 } from "@/lib/iap/checkout";
 import {
+  PRO_ACTIVATION_UI_WATCHDOG_MS,
+  PURCHASE_SUCCEEDED_SYNC_ERROR,
+} from "@/lib/iap/proActivation";
+import { clientHasUnlockedPro } from "@/lib/iap/crittrProClientState";
+import {
   PLAY_REDEEM_URL,
   storeAccountLabel,
   storePhrase,
 } from "@/lib/iap/storeTerms";
+import { profileQueryKey, subscriptionDetailsQueryKey, proPricingQueryKey } from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
+import { postPurchaseHref } from "@/utils/proUpgradePaths";
+import { proCheckoutPriceSubline } from "@/utils/proUpgradeCta";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   Platform,
   Pressable,
   StyleSheet,
@@ -159,6 +163,14 @@ export default function ProCheckoutScreen() {
           return;
         }
         if (e.kind === "already_owned") {
+          const existing = await detectExistingCrittrProEntitlement();
+          if (existing.hasCrittrPro) {
+            purchaseResultRef.current = {
+              customerInfo: existing.customerInfo,
+              productIdentifier: "",
+              hasCrittrPro: true,
+            };
+          }
           purchasedRef.current = true;
           setPhase("confirming");
           return;
@@ -175,60 +187,99 @@ export default function ProCheckoutScreen() {
     void startPurchase();
   }, [phase, startPurchase]);
 
+  const goAfterActivation = useCallback(() => {
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (uid) {
+      // Never await these — a hung profile refetch used to leave the
+      // activating spinner up after the store had already unlocked Pro.
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey(uid) });
+      void queryClient.invalidateQueries({
+        queryKey: subscriptionDetailsQueryKey(uid),
+      });
+      void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
+      void useAuthStore.getState().refreshProfileOnly();
+    }
+    router.replace(postPurchaseHref(returnTo));
+  }, [queryClient, returnTo, router]);
+
   useEffect(() => {
     if (phase !== "confirming") return;
     let cancelled = false;
+    let didFinish = false;
+
+    const finish = () => {
+      if (cancelled || didFinish) return;
+      didFinish = true;
+      goAfterActivation();
+    };
+
+    const fail = (message: string) => {
+      if (cancelled || didFinish) return;
+      didFinish = true;
+      setErrorMessage(message);
+      setPhase("error");
+    };
+
+    const watchdog = setTimeout(() => {
+      if (clientHasUnlockedPro()) {
+        finish();
+        return;
+      }
+      fail(PURCHASE_SUCCEEDED_SYNC_ERROR);
+    }, PRO_ACTIVATION_UI_WATCHDOG_MS);
 
     void (async () => {
       try {
-        /**
-         * The fast post-purchase path only applies when the store just handed
-         * us a receipt. Everything else that lands here — the
-         * existing-entitlement short-circuit, `restorePurchases`, or Play
-         * rejecting a repeat buy for a product the account already owns —
-         * needs the backend's long-poll patience budget instead.
-         */
+        await new Promise<void>((resolve) => {
+          let settled = false;
+          const done = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          };
+          InteractionManager.runAfterInteractions(done);
+          setTimeout(done, 400);
+        });
+        if (cancelled) return;
+
         const cachedResult = purchaseResultRef.current;
-        const source =
-          cachedResult && cachedResult.productIdentifier !== ""
-            ? ("purchase" as const)
+        const hasFreshPurchase =
+          cachedResult != null && cachedResult.productIdentifier !== "";
+        const source = hasFreshPurchase
+          ? ("purchase" as const)
+          : cachedResult?.hasCrittrPro
+            ? ("paywall" as const)
             : ("restore" as const);
-        await waitForProActivation(75_000, {
+        await waitForProActivation({
           purchaseCustomerInfo: cachedResult?.customerInfo,
           source,
         });
         if (cancelled) return;
-        const uid = useAuthStore.getState().session?.user?.id;
-        if (uid) {
-          await queryClient.invalidateQueries({
-            queryKey: profileQueryKey(uid),
-          });
-          await queryClient.invalidateQueries({
-            queryKey: subscriptionDetailsQueryKey(uid),
-          });
-        }
-        const nextHref =
-          returnTo === "subscriptions"
-            ? "/(logged-in)/subscriptions"
-            : returnTo === "settings"
-              ? "/(logged-in)/settings"
-              : "/(logged-in)/welcome-to-pro";
-        router.replace(nextHref as Href);
+        finish();
       } catch (e) {
         if (cancelled) return;
-        setErrorMessage(
-          e instanceof Error
-            ? e.message
-            : "Could not confirm your subscription.",
+        if (clientHasUnlockedPro()) {
+          finish();
+          return;
+        }
+        fail(
+          purchasedRef.current
+            ? PURCHASE_SUCCEEDED_SYNC_ERROR
+            : e instanceof Error
+              ? e.message
+              : "Could not confirm your subscription.",
         );
-        setPhase("error");
       }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
     };
-  }, [phase, queryClient, router, returnTo]);
+    // Intentionally `[phase]` only. Including router/queryClient/returnTo
+    // cancelled in-flight activation and left the confirming spinner up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const retry = useCallback(() => {
     if (purchasedRef.current) {
@@ -250,6 +301,8 @@ export default function ProCheckoutScreen() {
         );
         return;
       }
+      purchaseResultRef.current = result;
+      purchasedRef.current = true;
       setPhase("confirming");
     } catch (e) {
       if (e instanceof ProPurchaseException && e.userCancelled) return;
@@ -272,16 +325,14 @@ export default function ProCheckoutScreen() {
     }
   }, []);
 
-  const goBack = useCallback(() => {
-    router.back();
-  }, [router]);
-
   const trialSubline = useMemo(() => {
     const tier = billing === "annual" ? pricing.annual : pricing.monthly;
     const cadence = billing === "annual" ? "yr" : "mo";
-    return tier.trial
-      ? `${tier.formatted}/${cadence} after your ${tier.trial.durationLabel} free trial`
-      : `${tier.formatted}/${cadence} · Cancel anytime`;
+    return proCheckoutPriceSubline({
+      formatted: tier.formatted,
+      cadence,
+      trial: tier.trial,
+    });
   }, [billing, pricing]);
 
   return (
@@ -310,7 +361,11 @@ export default function ProCheckoutScreen() {
           <Text style={styles.title}>Payment in progress</Text>
           <Text style={styles.sub}>{errorMessage}</Text>
           <View style={styles.actions}>
-            <OrangeButton onPress={goBack}>Back to dashboard</OrangeButton>
+            <OrangeButton
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
+            >
+              Back to dashboard
+            </OrangeButton>
           </View>
         </View>
       ) : null}
@@ -344,7 +399,7 @@ export default function ProCheckoutScreen() {
             </Pressable>
             <Pressable
               style={styles.secondaryBtn}
-              onPress={goBack}
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
               accessibilityRole="button"
             >
               <Text style={styles.secondaryLabel}>Go back to dashboard</Text>
@@ -355,7 +410,11 @@ export default function ProCheckoutScreen() {
 
       {phase === "error" && errorMessage ? (
         <View style={styles.centered}>
-          <Text style={styles.err}>{errorMessage}</Text>
+          <Text style={styles.err}>
+            {purchasedRef.current
+              ? PURCHASE_SUCCEEDED_SYNC_ERROR
+              : errorMessage}
+          </Text>
           <View style={styles.actions}>
             <OrangeButton onPress={retry}>
               {purchasedRef.current ? "Retry activation" : "Try again"}
@@ -372,7 +431,7 @@ export default function ProCheckoutScreen() {
             </Pressable>
             <Pressable
               style={styles.secondaryBtn}
-              onPress={goBack}
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
               accessibilityRole="button"
             >
               <Text style={styles.secondaryLabel}>Go back to dashboard</Text>

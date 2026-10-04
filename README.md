@@ -131,14 +131,14 @@ Edge Function secrets (set via `supabase secrets set ...`):
 **Supabase**
 
 - Deploy **`sync-crittr-pro-entitlement`** and **`revenuecat-webhook`** after changing shared entitlement code.
-- Pro state in the app comes from **`profiles.crittr_pro_until`** (updated by the webhook + client-triggered sync).
+- Pro access in the app comes from **RevenueCat `crittr_pro`** (`CustomerInfo.entitlements.active`). Supabase `profiles.crittr_pro_active` is a server-side mirror for Edge Functions and RLS. `crittr_pro_until` is expiration metadata only (`null` = lifetime).
 
 **On-device TestFlight test**
 
 1. Install the build from TestFlight.
 2. Sign in to the app with a real Crittr account.
 3. Subscribe with a **Sandbox** Apple account (Settings → App Store → Sandbox Account on iOS, or sign in when prompted).
-4. Confirm **RevenueCat dashboard** shows the subscriber with entitlement **`crittr_pro`**, then **Supabase** `profiles.crittr_pro_until` is non-null and in the future.
+4. Confirm **RevenueCat dashboard** shows the subscriber with entitlement **`crittr_pro`**, then **Supabase** `profiles.crittr_pro_active` is true (`crittr_pro_until` may be a future date or `null` for lifetime grants).
 
 Edge Functions under `supabase/functions/` extend the backend (entitlement webhook + sync, AI, email, etc.) and are deployed separately with the Supabase CLI.
 

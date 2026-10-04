@@ -17,6 +17,13 @@ import type {
   PurchasesIntroPrice,
   PurchasesStoreProduct,
 } from "react-native-purchases";
+import {
+  formatTrialDuration,
+  type StoreTrialOffer,
+} from "@/lib/iap/trialEligibility";
+
+export type { StoreTrialOffer };
+export { formatTrialDuration };
 
 const IS_IOS = Platform.OS === "ios";
 
@@ -54,26 +61,6 @@ export function baseProductId(productIdentifier: string): string {
  * A free trial the store has confirmed this user can actually start.
  * `durationLabel` is ready to drop into copy: "7-day", "1-month", …
  */
-export type StoreTrialOffer = {
-  durationLabel: string;
-  iso8601: string | null;
-};
-
-/** Renders a billing period the way a paywall should read it. */
-export function formatTrialDuration(unit: string, value: number): string {
-  const normalized = unit.toUpperCase();
-  const count = Number.isFinite(value) && value > 0 ? Math.round(value) : 1;
-
-  // Play stores a week-long trial as P1W; everyone writes that as "7-day".
-  if (normalized === "WEEK") {
-    return count === 1 ? "7-day" : `${count}-week`;
-  }
-  if (normalized === "DAY") return `${count}-day`;
-  if (normalized === "MONTH") return `${count}-month`;
-  if (normalized === "YEAR") return `${count}-year`;
-  return `${count}-day`;
-}
-
 function trialFromIntroPrice(
   intro: PurchasesIntroPrice | null,
 ): StoreTrialOffer | null {
@@ -88,19 +75,22 @@ function trialFromIntroPrice(
 }
 
 /**
- * Reads the free trial attached to a product, if any.
+ * Reads a free-trial *candidate* from the product payload.
  *
- * On Android this doubles as the eligibility check: Play only returns offers
- * the signed-in account can still use, so a missing `freePhase` means "this
- * user would be charged today". iOS carries intro offers on every product
- * regardless of eligibility, so callers must pair this with
- * `Purchases.checkTrialOrIntroductoryPriceEligibility`.
+ * On Android this is the eligibility check: Play only returns a `freePhase`
+ * on `defaultOption` when the signed-in Google account can still start one.
+ * A leftover catalog `introPrice` is ignored — using it would advertise a
+ * trial to returning Play users.
+ *
+ * On iOS, intro offers are attached to every product regardless of history.
+ * Callers must pair this with StoreKit eligibility (`eligible` only).
  */
 export function trialOfferFromProduct(
   product: PurchasesStoreProduct,
 ): StoreTrialOffer | null {
-  const freePhase = product.defaultOption?.freePhase;
-  if (freePhase) {
+  if (Platform.OS !== "ios") {
+    const freePhase = product.defaultOption?.freePhase;
+    if (!freePhase) return null;
     const period = freePhase.billingPeriod;
     return {
       durationLabel: formatTrialDuration(period.unit, period.value),

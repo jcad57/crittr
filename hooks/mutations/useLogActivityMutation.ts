@@ -16,6 +16,7 @@ import {
   petWeightEntriesQueryKey,
   todayActivitiesPrefixKey,
   activitiesSincePrefixKey,
+  activityMonthCountPrefixKey,
 } from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
 import type {
@@ -36,6 +37,9 @@ function invalidateLoggedActivityCaches(petId: string) {
   void queryClient.invalidateQueries({ queryKey: allActivitiesKey(petId) });
   void queryClient.invalidateQueries({
     queryKey: activitiesSincePrefixKey(petId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: activityMonthCountPrefixKey(petId),
   });
 }
 

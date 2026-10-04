@@ -50,6 +50,24 @@ export async function fetchActivitiesSinceForPetIds(
   return (data ?? []) as PetActivity[];
 }
 
+/**
+ * Count only — used by the activity milestone celebration so we never download
+ * a pet's full monthly activity history on launch.
+ */
+export async function fetchActivityCountSince(
+  petId: string,
+  sinceIso: string,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("pet_activities")
+    .select("id", { count: "exact", head: true })
+    .eq("pet_id", petId)
+    .gte("logged_at", sinceIso);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function fetchActivitiesSince(
   petId: string,
   sinceIso: string,

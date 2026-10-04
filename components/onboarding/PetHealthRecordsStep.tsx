@@ -1,14 +1,14 @@
-import FormInput from "@/components/ui/form/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
 import { petCareStyles } from "@/components/onboarding/petCareStyles";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import FormInput from "@/components/ui/form/FormInput";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
-import { Font } from "@/theme/typography";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { PetFormData } from "@/types/database";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.orange,
-    backgroundColor: Colors.orangeLight,
+    backgroundColor: Colors.gray800,
   },
   proCalloutLabel: {
     fontFamily: Font.uiBold,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiRegular,
     fontSize: 14,
     lineHeight: 21,
-    color: Colors.textPrimary,
+    color: Colors.white,
   },
   inputSpacing: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,

@@ -1,9 +1,11 @@
 import { styles } from "@/screen-styles/upgrade.styles";
-import { CellIcon } from "@/components/screens/upgrade/CellIcon";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { UPGRADE_COMPARISON_ROWS } from "@/constants/upgradeComparison";
-import { storeAccountLabel } from "@/lib/iap/storeTerms";
+import { Colors } from "@/theme/colors";
+import { PRO_PAYWALL_BENEFITS, PRO_PAYWALL_HEADLINE } from "@/constants/proCopy";
+import { useProUpgradeCta } from "@/hooks/useProUpgradeCta";
 import type { ProPricing } from "@/services/proPricing";
+import { proPaywallDisclaimer } from "@/utils/proUpgradeCta";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 
 type BillingPeriod = "annual" | "monthly";
@@ -24,138 +26,88 @@ export function ProTierCard({
   onNoThanks?: () => void;
 }) {
   const isAnnual = billing === "annual";
-  const curUpper = pricing.monthly.currency.toUpperCase();
+  const { label: ctaLabel } = useProUpgradeCta(billing);
   const showSaveBadge =
     pricing.annual.savingsVsMonthlyPercent != null &&
     pricing.annual.savingsVsMonthlyPercent > 0;
 
-  /**
-   * Only advertise a trial once the store has confirmed one for the selected
-   * plan and this account. Until then the copy stays factual.
-   */
   const trial = isAnnual ? pricing.annual.trial : pricing.monthly.trial;
-  const knownNoTrial = pricing.resolved && trial == null;
-
-  /**
-   * A missing trial can mean the account already used one or that the plan
-   * never had one, and the store doesn't say which — so the copy states the
-   * consequence rather than guessing the cause.
-   */
-  const disclaimer = trial
-    ? `No charge until your ${trial.durationLabel} trial ends · Cancel anytime`
-    : knownNoTrial
-      ? `No free trial is available for your ${storeAccountLabel()} — you are charged when you finish checkout. Cancel anytime.`
-      : "Cancel anytime";
-
-  const ctaLabel = trial
-    ? `Start ${trial.durationLabel} free trial →`
-    : knownNoTrial
-      ? "Continue to Crittr Pro →"
-      : "Get Crittr Pro →";
+  const disclaimer = proPaywallDisclaimer(trial);
 
   return (
     <View style={styles.cardShell}>
-      <View style={styles.billingToggleInCard}>
-        <Pressable
-          style={[
-            styles.toggleSegInCard,
-            billing === "annual" && styles.toggleSegInCardActive,
-          ]}
-          onPress={() => onBillingChange("annual")}
-        >
+      <Text style={styles.headline}>{PRO_PAYWALL_HEADLINE}</Text>
+
+      <Pressable
+        onPress={() => onBillingChange("annual")}
+        style={[styles.planCard, isAnnual && styles.planCardSelected]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isAnnual }}
+        accessibilityLabel="Annual plan, best value"
+      >
+        <View style={styles.planCardTop}>
           <Text
-            style={[
-              styles.toggleSegTextInCard,
-              billing === "annual" && styles.toggleSegTextInCardActive,
-            ]}
+            style={[styles.planName, isAnnual && styles.planNameSelected]}
           >
             Annual
           </Text>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.toggleSegInCard,
-            billing === "monthly" && styles.toggleSegInCardActive,
-          ]}
-          onPress={() => onBillingChange("monthly")}
-        >
-          <Text
-            style={[
-              styles.toggleSegTextInCard,
-              billing === "monthly" && styles.toggleSegTextInCardActive,
-            ]}
-          >
-            Monthly
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.priceBlock}>
-        {isAnnual ? (
-          <View style={styles.priceRowWithSave}>
-            <View style={styles.priceColumn}>
-              <View style={styles.priceRow}>
-                <Text style={[styles.priceHuge, styles.priceOnDark]}>
-                  {pricing.annual.formatted}
-                </Text>
-                <View style={styles.priceSide}>
-                  <Text style={styles.billingCadenceOnDark}>
-                    / year ({curUpper})
-                  </Text>
-                  <Text style={styles.billedYearlyOnDark}>billed yearly</Text>
-                </View>
-              </View>
-              <Text style={styles.equivalentLine}>
-                {pricing.annual.equivalentMonthlyFormatted} / mo
-              </Text>
-            </View>
-            {showSaveBadge ? (
-              <View style={styles.saveBadgePrice}>
-                <Text style={styles.saveBadgePriceText}>
-                  Save {pricing.annual.savingsVsMonthlyPercent}%
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceHuge, styles.priceOnDark]}>
-              {pricing.monthly.formatted}
-            </Text>
-            <Text style={styles.billingCadenceDark}>
-              / month ({curUpper})
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.cardDescriptionOnDark}>
-        Unlock the full Crittr experience — unlimited pets, co-care, uploads,
-        CrittrAI, and more.
-      </Text>
-
-      <View style={styles.dottedRuleLight} />
-
-      <Text style={styles.featureListLabelOnDark}>Everything in Pro</Text>
-      {UPGRADE_COMPARISON_ROWS.map((row) => (
-        <View key={row.title} style={styles.featureRow}>
-          <View style={styles.featureRowIcon}>
-            <CellIcon {...row.pro} />
-          </View>
-          <View style={styles.featureRowText}>
-            <Text style={styles.featureRowTitleOnDark}>{row.title}</Text>
-            {row.subtitle ? (
-              <Text style={styles.featureRowSubOnDark}>{row.subtitle}</Text>
-            ) : null}
+          <View style={styles.bestValueBadge}>
+            <Text style={styles.bestValueText}>Best value</Text>
           </View>
         </View>
-      ))}
+        <View style={styles.planPriceRow}>
+          <Text style={styles.planPrice}>{pricing.annual.formatted}</Text>
+          <Text style={styles.planCadence}> / year</Text>
+        </View>
+        <Text style={styles.planMeta}>
+          {pricing.annual.equivalentMonthlyFormatted} / mo
+          {showSaveBadge
+            ? ` · Save ${pricing.annual.savingsVsMonthlyPercent}%`
+            : ""}
+        </Text>
+      </Pressable>
 
-      <View style={styles.featuresEndSpacer} />
+      <Pressable
+        onPress={() => onBillingChange("monthly")}
+        style={[styles.planCard, !isAnnual && styles.planCardSelected]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: !isAnnual }}
+        accessibilityLabel="Monthly plan"
+      >
+        <Text
+          style={[styles.planName, !isAnnual && styles.planNameSelected]}
+        >
+          Monthly
+        </Text>
+        <View style={styles.planPriceRow}>
+          <Text style={styles.planPrice}>{pricing.monthly.formatted}</Text>
+          <Text style={styles.planCadence}> / month</Text>
+        </View>
+      </Pressable>
+
+      <View style={styles.benefitList}>
+        {PRO_PAYWALL_BENEFITS.map((row) => (
+          <View key={row.title} style={styles.featureRow}>
+            <View style={styles.featureRowIcon}>
+              <View style={styles.benefitIconBubble}>
+                <MaterialCommunityIcons
+                  name={row.icon}
+                  size={18}
+                  color={Colors.orange}
+                />
+              </View>
+            </View>
+            <View style={styles.featureRowText}>
+              <Text style={styles.featureRowTitleOnDark}>{row.title}</Text>
+              <Text style={styles.featureRowSubOnDark}>{row.subtitle}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.disclaimerOnDark}>{disclaimer}</Text>
 
-      <OrangeButton style={styles.cta} onPress={onCta}>
+      <OrangeButton style={styles.cta} onPress={onCta} accessibilityLabel={ctaLabel}>
         {ctaLabel}
       </OrangeButton>
 

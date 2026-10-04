@@ -2,6 +2,9 @@ import PushNotificationBootstrap from "@/components/push/PushNotificationBootstr
 import PushNotificationNavigationListener from "@/components/push/PushNotificationNavigationListener";
 import ReminderNotificationSync from "@/components/push/ReminderNotificationSync";
 import RevenueCatProSync from "@/components/iap/RevenueCatProSync";
+import { ActivityMilestoneCelebrationHost } from "@/components/pro/ActivityMilestoneCelebrationHost";
+import AppRatingPromptHost from "@/components/rating/AppRatingPromptHost";
+import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
 import { Colors } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
@@ -15,7 +18,7 @@ function LoggedInQueryBootstrap() {
 }
 
 export default function LoggedInLayout() {
-  const { isLoggedIn, needsOnboarding } = useAuth();
+  const { isLoggedIn, needsOnboarding, isHydrating } = useAuth();
   const pathname = usePathname() ?? "";
   const isAddPetRoute = pathname.includes("add-pet");
   /** Allow upgrade screen while onboarding (e.g. “Add another pet” → Pro) without leaving auth flow. */
@@ -26,6 +29,10 @@ export default function LoggedInLayout() {
 
   if (!isLoggedIn) {
     return <Redirect href="/(auth)/welcome" />;
+  }
+
+  if (isHydrating) {
+    return <DashboardLoading />;
   }
 
   if (needsOnboarding && !isAddPetRoute && !isUpgradeRoute) {
@@ -39,6 +46,8 @@ export default function LoggedInLayout() {
       <ReminderNotificationSync />
       <RevenueCatProSync />
       <LoggedInQueryBootstrap />
+      <ActivityMilestoneCelebrationHost />
+      <AppRatingPromptHost />
       <Stack
         screenOptions={{
           headerShown: false,

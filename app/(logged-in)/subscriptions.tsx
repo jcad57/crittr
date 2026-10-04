@@ -5,6 +5,7 @@ import { Colors } from "@/theme/colors";
 import {
   profileQueryKey,
   subscriptionDetailsQueryKey,
+  proPricingQueryKey,
   useProfileQuery,
   useSubscriptionDetailsQuery,
 } from "@/hooks/queries";
@@ -124,6 +125,7 @@ export default function SubscriptionsScreen() {
         await queryClient.invalidateQueries({
           queryKey: subscriptionDetailsQueryKey(userId),
         });
+        void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
       }
       Alert.alert("Restored", "Your Crittr Pro subscription is active again.");
     } catch (e) {
@@ -305,7 +307,8 @@ export default function SubscriptionsScreen() {
               </>
             ) : !sub.cancelAtPeriodEnd &&
               (sub.status === "active" || sub.status === "trialing") &&
-              !sub.isFamilyShared ? (
+              !sub.isFamilyShared &&
+              !sub.isLifetime ? (
               <>
                 <View style={styles.cancelPushSpacer} />
                 <Pressable
@@ -338,7 +341,6 @@ export default function SubscriptionsScreen() {
 
             {sub.isFamilyShared ? (
               <Text style={styles.footnote}>
-                This subscription was shared with you via Apple Family Sharing.
                 The owner manages billing.
               </Text>
             ) : null}

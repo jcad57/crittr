@@ -1,5 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
@@ -43,7 +44,7 @@ export default function PetMedicationsListScreen() {
   const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade } = useProGateNavigation();
+  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details || !petId) return [];
@@ -113,7 +114,7 @@ export default function PetMedicationsListScreen() {
               : "Tap a medication to view its details."}
           </Text>
 
-          {canManageMeds ? (
+          {canManageMeds && (!isProfileReady || isPro || rows.length === 0) ? (
             <Pressable
               style={({ pressed }) => [
                 styles.addBtn,
@@ -162,6 +163,15 @@ export default function PetMedicationsListScreen() {
               ))}
             </View>
           )}
+
+          {canManageMeds && isProfileReady && !isPro && rows.length >= 1 ? (
+            <View style={{ marginTop: 16 }}>
+              <ProSoftPaywallCard
+                kind="medications"
+                petName={details?.name}
+              />
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>

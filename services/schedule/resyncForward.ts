@@ -12,6 +12,7 @@ import { getLocalYmd } from "@/utils/localCalendarDate";
 import {
   resolvePetDetailsForSchedule,
   resolveVetVisitsForSchedule,
+  seedLastGivenMedicationItemsForDay,
   upsertPlannedItems,
 } from "./plan";
 import { fetchScheduleItemsForDay } from "./queries";
@@ -30,7 +31,8 @@ function addDaysYmd(ymd: string, days: number): string {
  * Rebuild today through today+N for a pet after profile changes.
  * Always loads a fresh profile, always writes each day (including today), and
  * seeds the React Query cache so the open Schedule tab updates immediately.
- * Never touches past dates.
+ * Also plants last-given medication occurrences on past days so they show as
+ * completed without rebuilding meals or walks for those dates.
  */
 export async function resyncScheduleForward(petId: string): Promise<void> {
   /**
@@ -58,6 +60,18 @@ export async function resyncScheduleForward(petId: string): Promise<void> {
     const existing = await fetchScheduleItemsForDay(petId, localYmd);
     const planned = buildPlannedScheduleForDay(details, localYmd, visits);
     await upsertPlannedItems(planned, existing);
+    const next = await fetchScheduleItemsForDay(petId, localYmd);
+    queryClient.setQueryData(scheduleDayKey(petId, localYmd), next);
+  }
+
+  const lastGivenDays = new Set<string>();
+  for (const med of details.medications ?? []) {
+    const ymd = med.last_given_on?.trim().slice(0, 10);
+    if (ymd && ymd < today) lastGivenDays.add(ymd);
+  }
+  for (const localYmd of lastGivenDays) {
+    const existing = await fetchScheduleItemsForDay(petId, localYmd);
+    await seedLastGivenMedicationItemsForDay(details, visits, localYmd, existing);
     const next = await fetchScheduleItemsForDay(petId, localYmd);
     queryClient.setQueryData(scheduleDayKey(petId, localYmd), next);
   }

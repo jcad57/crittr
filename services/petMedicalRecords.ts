@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { inferImageContentType } from "@/services/localImageUpload";
+import { trackMedicalRecordAdded } from "@/lib/analytics";
 import type {
   PetMedicalRecord,
   PetMedicalRecordFile,
@@ -389,6 +390,7 @@ export async function createPetMedicalRecordWithFiles(
       throw new Error(`${base}${which}`);
     }
   }
+  trackMedicalRecordAdded(files.length);
   return record;
 }
 

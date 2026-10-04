@@ -1,5 +1,5 @@
-import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
+import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import ExercisePlanEditorModal from "@/components/pet/ExercisePlanEditorModal";
 import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
@@ -49,21 +49,16 @@ function draftsToFormEntries(
 }
 
 export default function PetExerciseStep() {
-  const {
-    pets,
-    currentPetIndex,
-    updateCurrentPet,
-    goToStep,
-    petFlowMode,
-  } = useOnboardingStore(
-    useShallow((s) => ({
-      pets: s.pets,
-      currentPetIndex: s.currentPetIndex,
-      updateCurrentPet: s.updateCurrentPet,
-      goToStep: s.goToStep,
-      petFlowMode: s.petFlowMode,
-    })),
-  );
+  const { pets, currentPetIndex, updateCurrentPet, goToStep, petFlowMode } =
+    useOnboardingStore(
+      useShallow((s) => ({
+        pets: s.pets,
+        currentPetIndex: s.currentPetIndex,
+        updateCurrentPet: s.updateCurrentPet,
+        goToStep: s.goToStep,
+        petFlowMode: s.petFlowMode,
+      })),
+    );
   const pet = pets[currentPetIndex];
   const showActivities = shouldShowExerciseField(pet.petType);
   const [attempted, setAttempted] = useState(false);
@@ -84,9 +79,7 @@ export default function PetExerciseStep() {
   }, [pet.clientRequestId, currentPetIndex]);
 
   const energyOk =
-    energyLevel === "low" ||
-    energyLevel === "medium" ||
-    energyLevel === "high";
+    energyLevel === "low" || energyLevel === "medium" || energyLevel === "high";
   const activitiesOk = !showActivities || plans.length >= 1;
   const isValid = energyOk && activitiesOk;
 
@@ -127,9 +120,7 @@ export default function PetExerciseStep() {
 
   const saveFromModal = (draft: ExercisePlanDraft) => {
     if (editingIndex !== null) {
-      setPlans((rows) =>
-        rows.map((r, i) => (i === editingIndex ? draft : r)),
-      );
+      setPlans((rows) => rows.map((r, i) => (i === editingIndex ? draft : r)));
     } else {
       setPlans((rows) => [...rows, draft]);
     }
@@ -208,7 +199,7 @@ export default function PetExerciseStep() {
         <Text style={styles.helperText}>
           Set {pet.name || "your pet"}&apos;s energy level
           {showActivities
-            ? " and the activities you do together — we&apos;ll add them to the schedule on the days you choose."
+            ? " and the activities you do together — we'll add them to the schedule on the days you choose."
             : "."}
         </Text>
 

@@ -1,5 +1,5 @@
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
 import { Colors } from "@/theme/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
 import { Font } from "@/theme/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -21,7 +21,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 /** YYYY-MM-DD in local calendar. */
 function toLocalIsoDateString(d: Date): string {
@@ -235,17 +234,13 @@ export default function ActivityHistoryFilterBar({
         </View>
       </View>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={datePickerOpen}
         mode="date"
         date={datePickerValue}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={handleDateConfirm}
         onCancel={handleDateCancel}
         confirmTextIOS="Set filter"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
-        {...MODAL_DATETIME_PICKER_PROPS}
       />
 
       <Modal

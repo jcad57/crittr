@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Architecture guard: enforces dependency direction and forbids import cycles.
+ * Architecture guard: enforces dependency direction, forbids import cycles, and
+ * keeps wrapper-only packages behind their wrapper.
  *
  * Run: node scripts/check-architecture.js
  *      node scripts/check-architecture.js --update-baseline [--force]
@@ -81,6 +82,21 @@ const ALLOWED = {
   "screen-styles": ["constants", "theme", "types"],
 };
 
+/**
+ * Packages that may only be imported by the wrapper that fixes up their props.
+ *
+ * Both native pickers need `minimumDate`/`maximumDate` on every single instance:
+ * an omitted bound is sent to iOS as `0` and pins the wheel to the Unix epoch,
+ * so hours grey out and scrolling snaps back. That invariant is only holdable
+ * with one import site per package — see `utils/dateTimePickerBounds.ts`.
+ */
+const WRAPPER_ONLY_PACKAGES = {
+  "@react-native-community/datetimepicker":
+    "components/ui/pickers/CrittrDateTimePicker.tsx",
+  "react-native-modal-datetime-picker":
+    "components/ui/pickers/CrittrDateTimePickerModal.tsx",
+};
+
 function layerOf(file) {
   return file.split("/")[0];
 }
@@ -101,7 +117,8 @@ function walk(dir, out) {
   for (const entry of entries) {
     const rel = `${dir}/${entry.name}`;
     if (entry.isDirectory()) walk(rel, out);
-    else if (/\.(ts|tsx)$/.test(entry.name)) out.push(rel);
+    else if (/\.(ts|tsx)$/.test(entry.name) && !entry.name.includes(".test."))
+      out.push(rel);
   }
   return out;
 }
@@ -154,6 +171,25 @@ function buildGraph(files, resolve) {
     graph.set(file, [...deps]);
   }
   return graph;
+}
+
+/** Imports of a wrapper-only package from anywhere but its wrapper. */
+function findWrapperOnlyImports(files) {
+  const violations = [];
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(ROOT, file), "utf8");
+    const re = new RegExp(IMPORT_RE.source, "g");
+    let match;
+    while ((match = re.exec(source))) {
+      const spec = match[1];
+      for (const [pkg, wrapper] of Object.entries(WRAPPER_ONLY_PACKAGES)) {
+        if (spec !== pkg && !spec.startsWith(`${pkg}/`)) continue;
+        if (file === wrapper) continue;
+        violations.push({ file, pkg, wrapper });
+      }
+    }
+  }
+  return violations;
 }
 
 function isAllowed(from, to) {
@@ -238,6 +274,7 @@ function main() {
   }
   layerViolations.sort();
   const cycles = findCycles(graph).map((c) => c.join(" | ")).sort();
+  const wrapperViolations = findWrapperOnlyImports(files);
 
   const baseline = loadBaseline();
   const seeding = baseline === null;
@@ -284,11 +321,20 @@ function main() {
     for (const v of [...fixedLayer, ...fixedCycles]) console.log(`  FIXED  ${v}`);
   }
 
-  if (!newLayer.length && !newCycles.length) {
+  if (!newLayer.length && !newCycles.length && !wrapperViolations.length) {
     console.log(
       `\nOK — no new violations. (${knownLayer.size} layer + ${knownCycles.size} cycle known, pending migration.)`,
     );
     return;
+  }
+
+  if (wrapperViolations.length) {
+    console.error(
+      `\n${wrapperViolations.length} import(s) bypassing a required wrapper:`,
+    );
+    for (const { file, pkg, wrapper } of wrapperViolations) {
+      console.error(`  ${file}\n      "${pkg}" may only be imported by ${wrapper}`);
+    }
   }
 
   if (newLayer.length) {
