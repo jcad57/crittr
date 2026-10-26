@@ -1,6 +1,7 @@
 import FinishStep from "@/components/onboarding/FinishStep";
 import PendingInvitesStep from "@/components/onboarding/PendingInvitesStep";
 import PetDetailsStep from "@/components/onboarding/PetDetailsStep";
+import PetExerciseStep from "@/components/onboarding/PetExerciseStep";
 import PetFoodStep from "@/components/onboarding/PetFoodStep";
 import PetHealthRecordsStep from "@/components/onboarding/PetHealthRecordsStep";
 import PetLitterMaintenanceStep from "@/components/onboarding/PetLitterMaintenanceStep";
@@ -25,6 +26,7 @@ export const ONBOARDING_STEP_COMPONENTS = [
   PetTypeStep,
   PetDetailsStep,
   PetLitterMaintenanceStep,
+  PetExerciseStep,
   PetFoodStep,
   PetVetClinicStep,
   PetHealthRecordsStep,

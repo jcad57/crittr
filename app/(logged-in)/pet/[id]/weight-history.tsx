@@ -2,15 +2,21 @@ import PetProfileNavBar from "@/components/petScreens/petProfile/PetProfileNavBa
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetWeightLineChart from "@/components/ui/health/PetWeightLineChart";
 import WeightRangeSelector from "@/components/ui/health/WeightRangeSelector";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
-import {
-  usePetDetailsQuery,
-  usePetWeightEntriesQuery,
-} from "@/hooks/queries";
 import { useDeletePetWeightEntryMutation } from "@/hooks/mutations/useManageActivityMutation";
+import { usePetDetailsQuery, usePetWeightEntriesQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
+import {
+  entriesToChartPoints,
+  formatChartDateLabel,
+  formatWeightDelta,
+  pointsForRange,
+  preferredUnit,
+  type WeightChartPoint,
+  type WeightHistoryRange,
+} from "@/utils/petWeightHistory";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
@@ -25,15 +31,6 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  entriesToChartPoints,
-  formatChartDateLabel,
-  formatWeightDelta,
-  pointsForRange,
-  preferredUnit,
-  type WeightChartPoint,
-  type WeightHistoryRange,
-} from "@/utils/petWeightHistory";
 
 const SCALE_ICON = require("@/assets/icons/weight-scale-icon.png");
 
@@ -63,7 +60,10 @@ export default function WeightHistoryScreen() {
     [entries, unit],
   );
 
-  const points = useMemo(() => pointsForRange(allPoints, range), [allPoints, range]);
+  const points = useMemo(
+    () => pointsForRange(allPoints, range),
+    [allPoints, range],
+  );
 
   const stats = useMemo(() => {
     if (points.length === 0) return null;
@@ -88,8 +88,11 @@ export default function WeightHistoryScreen() {
   }, [points, unit]);
 
   const handleAddWeighIn = useCallback(() => {
-    push("/(logged-in)/add-activity" as Href);
-  }, [push]);
+    if (!petId) return;
+    push(
+      `/(logged-in)/add-activity?type=weigh_in&petId=${encodeURIComponent(petId)}` as Href,
+    );
+  }, [push, petId]);
 
   const deleteEntryMut = useDeletePetWeightEntryMutation(petId ?? null);
 
@@ -188,7 +191,9 @@ export default function WeightHistoryScreen() {
           </View>
         ) : isError ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Couldn't load weight history</Text>
+            <Text style={styles.emptyTitle}>
+              Couldn&apos;t load weight history
+            </Text>
             <Text style={styles.emptyHint}>
               {error?.message ?? "Please try again."}
             </Text>

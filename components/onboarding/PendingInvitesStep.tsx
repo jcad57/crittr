@@ -1,7 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import {
   pendingInvitesKey,
   petsQueryKey,
@@ -10,7 +10,7 @@ import {
   usePendingInvitesQuery,
   type PendingInviteRow,
 } from "@/hooks/queries";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -126,7 +126,7 @@ export default function PendingInvitesStep() {
         await queryClient.invalidateQueries({
           queryKey: petsQueryKey(session.user.id),
         });
-        router.replace("/(logged-in)/dashboard");
+        router.replace("/(logged-in)/(tabs)/dashboard");
       } catch (err: any) {
         Alert.alert("Error", err.message ?? "Failed to complete setup.");
       } finally {

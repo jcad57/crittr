@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crittr",
     "slug": "crittr",
-    "version": "1.1.1",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-temp.png",
     "scheme": "crittr",
@@ -12,6 +12,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jcadeichmann.crittr",
+      "usesAppleSignIn": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -32,7 +34,8 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": ["android.permission.RECORD_AUDIO"],
-      "package": "com.jcadeichmann.crittr"
+      "package": "com.jcadeichmann.crittr",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.jcadeichmann.crittr"
     },
     "web": {
       "output": "static",
@@ -73,13 +76,32 @@
       ],
       "react-native-enriched-markdown",
       [
-        "expo-build-properties",
+        "@react-native-firebase/app",
         {
           "ios": {
-            "buildReactNativeFromSource": true
+            "disableSPM": true
           }
         }
       ],
+      [
+        "@react-native-firebase/analytics",
+        {
+          "ios": {
+            "googleAppMeasurementOnDeviceConversion": true
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true,
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBAnalytics"]
+          }
+        }
+      ],
+      "./plugins/withFmtXcode26Fix",
       [
         "react-native-google-mobile-ads",
         {
@@ -92,6 +114,15 @@
         "expo-tracking-transparency",
         {
           "userTrackingPermission": "Crittr uses this identifier to show you more relevant ads."
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/analytics",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.99305086331-nrckp166ef3h0258fiacpptff09o1jc9"
         }
       ]
     ],

@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { petTypeMaterialIcon } from "@/constants/petTypeIcons";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import type { Pet, PetRole } from "@/types/database";
 import {
   getPetAgeCompactYrs,

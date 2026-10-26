@@ -1,12 +1,13 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
-import ActivityWizardChrome from "@/components/activity/ActivityWizardChrome";
+import MatchScheduleTaskModal from "@/components/activity/MatchScheduleTaskModal";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { addActivityNavTitle } from "@/constants/activityWizardTitles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,
@@ -16,16 +17,34 @@ import {
   useLogTrainingMutation,
   useLogWeighInMutation,
 } from "@/hooks/mutations/useLogActivityMutation";
-import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
-import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
+import {
+  usePetsQuery,
+  useScheduleDayQuery,
+  useToggleScheduleItemMutation,
+} from "@/hooks/queries";
+import { useCanShowAds } from "@/hooks/useCanShowAds";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
+import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
+import type { ActivityType, PetScheduleItem } from "@/types/database";
 import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
-import { showNonProInterstitialThen } from "@/lib/showNonProInterstitial";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  discardPreloadedInterstitial,
+  preloadNonProInterstitial,
+  showNonProInterstitialThen,
+} from "@/lib/showNonProInterstitial";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -42,13 +61,46 @@ import { styles } from "@/screen-styles/add-activity.styles";
 const SAVE_LABEL = "Save";
 const CONTINUE_LABEL = "Continue";
 
+/** Categories that may have matching schedule slots for the day. */
+const SCHEDULE_MATCH_TYPES = new Set<ActivityType>([
+  "exercise",
+  "food",
+  "medication",
+  "potty",
+]);
+
+/** Deep-link from screens like weight history that skip the type picker. */
+function lockedActivityTypeFromParam(
+  raw: string | string[] | undefined,
+): ActivityType | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === "weigh_in" ? "weigh_in" : null;
+}
+
 export default function AddActivityScreen() {
   const router = useRouter();
+  const { type: typeParam, petId: rawPetIdParam } = useLocalSearchParams<{
+    type?: string;
+    petId?: string;
+  }>();
+  const lockedType = lockedActivityTypeFromParam(typeParam);
+  const petIdParam = Array.isArray(rawPetIdParam)
+    ? rawPetIdParam[0]
+    : rawPetIdParam;
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const scrollRef = useRef<ScrollView | null>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
+  /** Covers network save + interstitial so Save stays locked after mutations settle. */
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [matchModalVisible, setMatchModalVisible] = useState(false);
+  const [matchModalItems, setMatchModalItems] = useState<PetScheduleItem[]>(
+    [],
+  );
+  const [completingMatchId, setCompletingMatchId] = useState<string | null>(
+    null,
+  );
 
   const step = useActivityFormStore((s) => s.step);
   const activityType = useActivityFormStore((s) => s.activityType);
@@ -75,17 +127,20 @@ export default function AddActivityScreen() {
   const weighInForm = useActivityFormStore((s) => s.weighInForm);
 
   const activePetId = usePetStore((s) => s.activePetId);
+  const setActivePetMutation = useSetActivePetMutation();
   const { data: allPets } = usePetsQuery();
-  const { data: profile, isPending: profilePending, isPlaceholderData: profilePlaceholder } =
-    useProfileQuery();
-  const isPro = useIsCrittrPro(profile);
+  const canShowAds = useCanShowAds();
+  const todayYmd = useLocalCalendarYmd();
 
   const resolvedPetId = useMemo(() => {
+    if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
+      return petIdParam;
+    }
     if (activePetId && (allPets ?? []).some((p) => p.id === activePetId)) {
       return activePetId;
     }
     return (allPets ?? [])[0]?.id ?? null;
-  }, [activePetId, allPets]);
+  }, [activePetId, allPets, petIdParam]);
 
   const primaryPetForLog = useMemo(() => {
     if (!resolvedPetId || !(allPets ?? []).length) return null;
@@ -97,20 +152,43 @@ export default function AddActivityScreen() {
     "can_log_activities",
   );
 
+  const { data: scheduleItems } = useScheduleDayQuery(resolvedPetId, todayYmd);
+  const toggleScheduleItem = useToggleScheduleItemMutation();
+
   const exerciseMut = useLogExerciseMutation();
   const foodMut = useLogFoodMutation();
   const medMut = useLogMedicationMutation();
-  const trainingMut = useLogTrainingMutation(activePetId);
-  const pottyMut = useLogPottyMutation(activePetId);
-  const maintenanceMut = useLogMaintenanceMutation(activePetId);
-  const weighInMut = useLogWeighInMutation(activePetId);
+  const trainingMut = useLogTrainingMutation(resolvedPetId);
+  const pottyMut = useLogPottyMutation(resolvedPetId);
+  const maintenanceMut = useLogMaintenanceMutation(resolvedPetId);
+  const weighInMut = useLogWeighInMutation(resolvedPetId);
 
-  const scrollKey = `${step}-${activityType ?? "none"}`;
+  const effectiveType = activityType ?? lockedType;
+  const showTypeStep = step === "type" && !lockedType;
+  const scrollKey = `${step}-${effectiveType ?? "none"}`;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     reset();
+    if (lockedType) {
+      selectType(lockedType);
+      setActivityOccurredAt(null);
+      setStep("details");
+    }
     return () => reset();
-  }, [reset]);
+  }, [reset, lockedType, selectType, setActivityOccurredAt, setStep]);
+
+  /** Apply ?petId= once when opening from a pet-specific screen. */
+  const appliedPetParamRef = useRef(false);
+  useEffect(() => {
+    if (appliedPetParamRef.current) return;
+    if (!(allPets ?? []).length) return;
+    appliedPetParamRef.current = true;
+    if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
+      if (usePetStore.getState().activePetId !== petIdParam) {
+        setActivePetMutation.mutate(petIdParam);
+      }
+    }
+  }, [allPets, petIdParam, setActivePetMutation]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -118,7 +196,8 @@ export default function AddActivityScreen() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (step === "details") {
+      if (isCompleting) return true;
+      if (step === "details" && !lockedType) {
         setStep("type");
         return true;
       }
@@ -127,142 +206,261 @@ export default function AddActivityScreen() {
       return true;
     });
     return () => sub.remove();
-  }, [step, setStep, reset, router]);
+  }, [step, setStep, reset, router, isCompleting, lockedType]);
+
+  /** Preload interstitial on the details step so it can show right after save. */
+  useEffect(() => {
+    if (step !== "details") {
+      discardPreloadedInterstitial();
+      return;
+    }
+    if (!canShowAds) {
+      discardPreloadedInterstitial();
+      return;
+    }
+    preloadNonProInterstitial();
+    return () => {
+      discardPreloadedInterstitial();
+    };
+  }, [step, canShowAds]);
 
   const goBack = useCallback(() => {
-    if (step === "details") {
+    if (isCompleting) return;
+    if (step === "details" && !lockedType) {
       setStep("type");
     } else {
       reset();
       router.back();
     }
-  }, [step, setStep, reset, router]);
+  }, [step, setStep, reset, router, isCompleting, lockedType]);
 
+  /**
+   * Activity rows are already persisted when this runs. Ad presentation / dismiss /
+   * app kill must not affect that — we only navigate after the interstitial attempt.
+   */
   const finish = useCallback(async () => {
     const go = () => {
       reset();
       router.back();
     };
-    if (profilePending || profilePlaceholder) {
-      go();
-      return;
-    }
-    if (isPro) {
+    if (!canShowAds) {
       go();
       return;
     }
     await showNonProInterstitialThen(go);
-  }, [
-    isPro,
-    profilePending,
-    profilePlaceholder,
-    reset,
-    router,
-  ]);
+  }, [canShowAds, reset, router]);
 
   const cancelDetails = useCallback(() => {
+    if (isCompleting) return;
     reset();
     router.back();
-  }, [reset, router]);
+  }, [reset, router, isCompleting]);
+
+  const proceedToDetails = useCallback(() => {
+    setActivityOccurredAt(null);
+    setStep("details");
+  }, [setActivityOccurredAt, setStep]);
+
+  const uncompletedScheduleForType = useCallback(
+    (type: ActivityType): PetScheduleItem[] => {
+      return (scheduleItems ?? []).filter(
+        (item) => !item.completed_at && item.activity_type === type,
+      );
+    },
+    [scheduleItems],
+  );
+
+  const handleContinueFromType = useCallback(() => {
+    if (!activityType || isCompleting) return;
+
+    if (SCHEDULE_MATCH_TYPES.has(activityType)) {
+      const matches = uncompletedScheduleForType(activityType);
+      if (matches.length > 0) {
+        setMatchModalItems(matches);
+        setCompletingMatchId(null);
+        setMatchModalVisible(true);
+        return;
+      }
+    }
+
+    proceedToDetails();
+  }, [
+    activityType,
+    isCompleting,
+    uncompletedScheduleForType,
+    proceedToDetails,
+  ]);
+
+  const closeMatchModal = useCallback(() => {
+    if (completingMatchId || isCompleting) return;
+    setMatchModalVisible(false);
+    setMatchModalItems([]);
+  }, [completingMatchId, isCompleting]);
+
+  const handleLogNewTaskFromModal = useCallback(() => {
+    if (completingMatchId || isCompleting) return;
+    setMatchModalVisible(false);
+    setMatchModalItems([]);
+    proceedToDetails();
+  }, [completingMatchId, isCompleting, proceedToDetails]);
+
+  const handleSelectMatchedScheduleTask = useCallback(
+    (item: PetScheduleItem) => {
+      if (completingMatchId || isCompleting) return;
+      setCompletingMatchId(item.id);
+      toggleScheduleItem.mutate(
+        { item, completed: true },
+        {
+          onError: () => {
+            setCompletingMatchId(null);
+          },
+        },
+      );
+      setMatchModalVisible(false);
+      setMatchModalItems([]);
+      setIsCompleting(true);
+      void finish().catch(() => {
+        setIsCompleting(false);
+        setCompletingMatchId(null);
+      });
+    },
+    [completingMatchId, isCompleting, toggleScheduleItem, finish],
+  );
+
+  const runSaveThenFinish = useCallback(
+    async (persist: () => Promise<void>) => {
+      if (isCompleting) return;
+      setIsCompleting(true);
+      try {
+        // Persist first so closing the app during the ad cannot lose the log.
+        await persist();
+        await finish();
+      } catch (error) {
+        setIsCompleting(false);
+        throw error;
+      }
+    },
+    [finish, isCompleting],
+  );
 
   const saveExercise = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
-    for (const petId of ids) {
-      await exerciseMut.mutateAsync({
-        petId,
-        form: exerciseForm,
-        loggedAtIso,
-      });
-    }
-    await finish();
-  }, [exerciseMut, exerciseForm, exerciseExtraPetIds, activePetId, finish]);
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      const ids = [...new Set([activePetId, ...exerciseExtraPetIds])];
+      for (const petId of ids) {
+        await exerciseMut.mutateAsync({
+          petId,
+          form: exerciseForm,
+          loggedAtIso,
+        });
+      }
+    });
+  }, [
+    exerciseMut,
+    exerciseForm,
+    exerciseExtraPetIds,
+    activePetId,
+    runSaveThenFinish,
+  ]);
 
   const saveFood = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await foodMut.mutateAsync({
-      petId: activePetId,
-      form: foodForm,
-      loggedAtIso,
-    });
-    for (const row of foodExtraRows) {
-      const { petId, ...petFields } = row;
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
       await foodMut.mutateAsync({
-        petId,
-        form: foodActivityFormForPet(foodForm, petFields),
+        petId: activePetId,
+        form: foodForm,
         loggedAtIso,
       });
-    }
-    await finish();
-  }, [foodMut, foodForm, foodExtraRows, activePetId, finish]);
+      for (const row of foodExtraRows) {
+        const { petId, ...petFields } = row;
+        await foodMut.mutateAsync({
+          petId,
+          form: foodActivityFormForPet(foodForm, petFields),
+          loggedAtIso,
+        });
+      }
+    });
+  }, [foodMut, foodForm, foodExtraRows, activePetId, runSaveThenFinish]);
 
   const saveMed = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
-    for (const petId of ids) {
-      await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
-    }
-    await finish();
-  }, [medMut, medForm, medicationExtraPetIds, activePetId, finish]);
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      const ids = [...new Set([activePetId, ...medicationExtraPetIds])];
+      for (const petId of ids) {
+        await medMut.mutateAsync({ petId, form: medForm, loggedAtIso });
+      }
+    });
+  }, [
+    medMut,
+    medForm,
+    medicationExtraPetIds,
+    activePetId,
+    runSaveThenFinish,
+  ]);
 
   const saveTraining = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await trainingMut.mutateAsync({
-      form: trainingForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await trainingMut.mutateAsync({
+        form: trainingForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [trainingMut, trainingForm, activePetId, finish]);
+  }, [trainingMut, trainingForm, activePetId, runSaveThenFinish]);
 
   const savePotty = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await pottyMut.mutateAsync({
-      form: pottyForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await pottyMut.mutateAsync({
+        form: pottyForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [pottyMut, pottyForm, activePetId, finish]);
+  }, [pottyMut, pottyForm, activePetId, runSaveThenFinish]);
 
   const saveMaintenance = useCallback(async () => {
     if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await maintenanceMut.mutateAsync({
-      form: maintenanceForm,
-      loggedAtIso,
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await maintenanceMut.mutateAsync({
+        form: maintenanceForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [maintenanceMut, maintenanceForm, activePetId, finish]);
+  }, [maintenanceMut, maintenanceForm, activePetId, runSaveThenFinish]);
 
   const saveWeighIn = useCallback(async () => {
-    if (!activePetId) return;
-    const loggedAtIso =
-      useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
-      new Date().toISOString();
-    await weighInMut.mutateAsync({
-      form: weighInForm,
-      loggedAtIso,
+    if (!resolvedPetId) return;
+    await runSaveThenFinish(async () => {
+      const loggedAtIso =
+        useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
+        new Date().toISOString();
+      await weighInMut.mutateAsync({
+        form: weighInForm,
+        loggedAtIso,
+      });
     });
-    await finish();
-  }, [weighInMut, weighInForm, activePetId, finish]);
+  }, [weighInMut, weighInForm, resolvedPetId, runSaveThenFinish]);
 
   const saving =
+    isCompleting ||
     exerciseMut.isPending ||
     foodMut.isPending ||
     medMut.isPending ||
@@ -271,7 +469,10 @@ export default function AddActivityScreen() {
     maintenanceMut.isPending ||
     weighInMut.isPending;
 
-  const navTitle = addActivityNavTitle(step, activityType);
+  const navTitle = addActivityNavTitle(
+    lockedType ? "details" : step,
+    effectiveType,
+  );
 
   const scrollContentMinHeight = useMemo(() => {
     const topChrome = insets.top + 8 + 56 + 8 + 4;
@@ -304,7 +505,7 @@ export default function AddActivityScreen() {
   if (resolvedPetId && canLogActivities === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <ActivityWizardChrome
+        <ScreenHeader
           title="Log activity"
           onBack={() => router.back()}
           right={
@@ -335,7 +536,7 @@ export default function AddActivityScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <ActivityWizardChrome
+      <ScreenHeader
         title={navTitle}
         onBack={goBack}
         right={
@@ -359,7 +560,7 @@ export default function AddActivityScreen() {
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
-        {step === "type" ? (
+        {showTypeStep ? (
           <View
             style={[styles.scrollInner, { minHeight: scrollContentMinHeight }]}
           >
@@ -373,13 +574,8 @@ export default function AddActivityScreen() {
 
             <View style={[styles.actionsBlock, styles.actionsAfterTypeGrid]}>
               <OrangeButton
-                onPress={() => {
-                  if (activityType) {
-                    setActivityOccurredAt(null);
-                    setStep("details");
-                  }
-                }}
-                disabled={!activityType}
+                onPress={handleContinueFromType}
+                disabled={!activityType || isCompleting}
                 style={styles.saveBtn}
               >
                 {CONTINUE_LABEL}
@@ -403,7 +599,7 @@ export default function AddActivityScreen() {
           >
             <View>
               <ActivityDetailStepSwitch
-                activityType={activityType}
+                activityType={effectiveType}
                 stepRef={stepRef}
                 saveLabel={SAVE_LABEL}
                 petType={primaryPetForLog?.pet_type ?? null}
@@ -442,6 +638,17 @@ export default function AddActivityScreen() {
           </View>
         )}
       </KeyboardAwareScrollView>
+
+      <MatchScheduleTaskModal
+        visible={matchModalVisible}
+        petName={primaryPetForLog?.name ?? "your pet"}
+        petType={primaryPetForLog?.pet_type}
+        items={matchModalItems}
+        completingItemId={completingMatchId}
+        onSelectItem={handleSelectMatchedScheduleTask}
+        onLogNewTask={handleLogNewTaskFromModal}
+        onClose={closeMatchModal}
+      />
     </View>
   );
 }

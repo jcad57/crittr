@@ -1,17 +1,16 @@
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import InlineTimePickerSheet from "@/components/ui/InlineTimePickerSheet";
+import { Colors } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import { type DateTimePickerEvent } from "@/components/ui/pickers/CrittrDateTimePicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Keyboard,
   Modal,
@@ -21,11 +20,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-/** Match light modal sheets; avoid `textColor` — native code sets it via KVC and can break wheel UX. */
-const IOS_PICKER_PROPS = {
-  themeVariant: "light" as const,
-};
 
 type MealPortionEditorModalProps = {
   visible: boolean;
@@ -52,6 +46,11 @@ export default function MealPortionEditorModal({
     return d;
   });
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [timeDraft, setTimeDraft] = useState(() => {
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    return d;
+  });
   const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
@@ -59,8 +58,24 @@ export default function MealPortionEditorModal({
     setPortionSize(initial.portionSize);
     setPortionUnit(initial.portionUnit);
     setFeedTime(new Date(initial.feedTime.getTime()));
+    setTimePickerOpen(false);
     setAttempted(false);
   }, [visible, initial]);
+
+  const openTimePicker = useCallback(() => {
+    Keyboard.dismiss();
+    setTimeDraft(mergeWallClockOntoToday(feedTime));
+    setTimePickerOpen(true);
+  }, [feedTime]);
+
+  const closeTimePicker = useCallback(() => {
+    setTimePickerOpen(false);
+  }, []);
+
+  const confirmTimePicker = useCallback(() => {
+    setFeedTime(mergeWallClockOntoToday(timeDraft));
+    setTimePickerOpen(false);
+  }, [timeDraft]);
 
   const handleSave = useCallback(() => {
     setAttempted(true);
@@ -77,11 +92,8 @@ export default function MealPortionEditorModal({
   }, [portionSize, portionUnit, feedTime, initial, onSave, onClose]);
 
   const timeLabel = formatUserTime(feedTime, timeDisplay);
-
-  const feedTimeForPicker = useMemo(
-    () => mergeWallClockOntoToday(feedTime),
-    [feedTime],
-  );
+  const iosTimePickerOpen = timePickerOpen && Platform.OS !== "android";
+  const showForm = visible && !iosTimePickerOpen;
 
   const onTimePickerChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
@@ -92,22 +104,31 @@ export default function MealPortionEditorModal({
         setTimePickerOpen(false);
         return;
       }
-      if (date) setFeedTime(mergeWallClockOntoToday(date));
+      if (event.type === "dismissed") return;
+      if (date) setTimeDraft(mergeWallClockOntoToday(date));
     },
     [],
   );
+
+  const handleRequestClose = useCallback(() => {
+    Keyboard.dismiss();
+    if (timePickerOpen) {
+      setTimePickerOpen(false);
+      return;
+    }
+    onClose();
+  }, [timePickerOpen, onClose]);
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={() => {
-        Keyboard.dismiss();
-        onClose();
-      }}
+      presentationStyle="overFullScreen"
+      onRequestClose={handleRequestClose}
     >
       <View style={styles.modalRoot}>
+        {showForm ? (
         <View style={styles.overlay}>
           <Pressable
             style={styles.backdrop}
@@ -178,10 +199,7 @@ export default function MealPortionEditorModal({
             <Text style={styles.fieldLabel}>Feeding time</Text>
             <Pressable
               style={styles.timeRow}
-              onPress={() => {
-                Keyboard.dismiss();
-                setTimePickerOpen(true);
-              }}
+              onPress={openTimePicker}
             >
               <MaterialCommunityIcons
                 name="clock-outline"
@@ -201,64 +219,17 @@ export default function MealPortionEditorModal({
             </OrangeButton>
           </Pressable>
         </View>
-
-        {/*
-          Time UI must live inside this same Modal. A second Modal (e.g. ReminderTimePickerSheet)
-          does not show reliably on iOS when the parent is already a Modal.
-        */}
-        {timePickerOpen && Platform.OS === "android" ? (
-          <DateTimePicker
-            value={feedTimeForPicker}
-            mode="time"
-            display="default"
-            is24Hour={is24Hour}
-            onChange={onTimePickerChange}
-            positiveButton={{ label: "OK", textColor: Colors.black }}
-            negativeButton={{ label: "Cancel", textColor: Colors.black }}
-          />
         ) : null}
 
-        {timePickerOpen && Platform.OS !== "android" ? (
-          <View style={styles.timeOverlay} pointerEvents="box-none">
-            <Pressable
-              style={styles.timeBackdrop}
-              onPress={() => setTimePickerOpen(false)}
-            />
-            <View style={styles.timeSheet}>
-              <View style={styles.timeToolbar}>
-                <View style={styles.timeToolbarSide}>
-                  <Pressable
-                    onPress={() => setTimePickerOpen(false)}
-                    hitSlop={12}
-                  >
-                    <Text style={styles.timeToolbarBtn}>Cancel</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.timeToolbarTitle} numberOfLines={1}>
-                  Feeding time
-                </Text>
-                <View style={[styles.timeToolbarSide, styles.timeToolbarSideEnd]}>
-                  <Pressable
-                    onPress={() => setTimePickerOpen(false)}
-                    hitSlop={12}
-                  >
-                    <Text style={[styles.timeToolbarBtn, styles.timeToolbarDone]}>
-                      Done
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-              <DateTimePicker
-                value={feedTimeForPicker}
-                mode="time"
-                display="spinner"
-                onChange={onTimePickerChange}
-                {...IOS_PICKER_PROPS}
-                style={styles.iosPicker}
-              />
-            </View>
-          </View>
-        ) : null}
+        <InlineTimePickerSheet
+          visible={timePickerOpen}
+          value={timeDraft}
+          is24Hour={is24Hour}
+          title="Feeding time"
+          onNativeChange={onTimePickerChange}
+          onCancel={closeTimePicker}
+          onConfirm={confirmTimePicker}
+        />
       </View>
     </Modal>
   );
@@ -369,60 +340,5 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: 4,
-  },
-  timeOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    zIndex: 100,
-  },
-  timeBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  timeSheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 24,
-    overflow: "hidden",
-    zIndex: 101,
-  },
-  timeToolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray200,
-    backgroundColor: Colors.white,
-  },
-  timeToolbarSide: {
-    width: 80,
-    justifyContent: "center",
-  },
-  timeToolbarSideEnd: {
-    alignItems: "flex-end",
-  },
-  timeToolbarBtn: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 17,
-    color: Colors.textSecondary,
-    paddingHorizontal: 12,
-  },
-  timeToolbarDone: {
-    color: Colors.orange,
-    textAlign: "right",
-  },
-  timeToolbarTitle: {
-    flex: 1,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.black,
-    textAlign: "center",
-  },
-  iosPicker: {
-    backgroundColor: Colors.white,
-    alignSelf: "center",
   },
 });

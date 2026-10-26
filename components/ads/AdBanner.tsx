@@ -1,7 +1,6 @@
-import { AdUnitIds, ENABLED_AD_PLACEMENTS, type AdPlacement } from "@/constants/ads";
-import { Colors } from "@/constants/colors";
-import { useProfileQuery } from "@/hooks/queries";
-import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
+import { AdUnitIds, ENABLED_AD_PLACEMENTS, type AdPlacement } from "@/config/ads";
+import { Colors } from "@/theme/colors";
+import { useCanShowAds } from "@/hooks/useCanShowAds";
 import { useTrackingConsent } from "@/hooks/useTrackingConsent";
 import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -21,10 +20,12 @@ type AdBannerProps = {
 };
 
 /**
- * Google AdMob banner gated by Crittr Pro status.
+ * Google AdMob banner gated by the same eligibility as app-open ads:
+ * signed-in, non–Crittr Pro, finished onboarding, logged-in shell.
  *
  * Renders nothing for:
- * - Pro members (canonical check via `useIsCrittrPro` + profile query)
+ * - Signed-out users and anyone still on auth / password reset
+ * - Pro members
  * - Users whose profile hasn't been fetched yet (avoids a flash of an ad before we know)
  * - Placements toggled off in `ENABLED_AD_PLACEMENTS`
  * - Failed ad loads (collapses the slot instead of leaving empty chrome)
@@ -33,9 +34,8 @@ type AdBannerProps = {
  * current AdMob best practice for in-feed banners.
  */
 export default function AdBanner({ placement, style, size }: AdBannerProps) {
-  const { data: profile, isPlaceholderData, isPending } = useProfileQuery();
-  const isPro = useIsCrittrPro(profile);
-  const { canRequestAds, personalizedAds } = useTrackingConsent();
+  const canShowAds = useCanShowAds();
+  const { personalizedAds } = useTrackingConsent();
   const [failed, setFailed] = useState(false);
 
   const handleError = useCallback((error: unknown) => {
@@ -55,10 +55,7 @@ export default function AdBanner({ placement, style, size }: AdBannerProps) {
   );
 
   if (!ENABLED_AD_PLACEMENTS[placement]) return null;
-  if (isPro) return null;
-  /** Wait for the first real profile fetch so Pro users never briefly see an ad. */
-  if (isPending || isPlaceholderData) return null;
-  if (!canRequestAds) return null;
+  if (!canShowAds) return null;
   if (failed) return null;
 
   return (

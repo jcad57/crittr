@@ -3,7 +3,7 @@ import {
   noteAppBackgrounded,
   STALE_RESUME_AFTER_MS,
 } from "@/lib/appLifecycle";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { supabase } from "@/lib/supabase";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 
@@ -41,7 +41,14 @@ export function setupAppResumeHandler(): () => void {
     if (awayMs < STALE_RESUME_AFTER_MS) return;
 
     void queryClient.cancelQueries();
-    void queryClient.invalidateQueries({ refetchType: "active" });
+    void queryClient.invalidateQueries({
+      refetchType: "active",
+      /**
+       * Breeds and allergies are static lists cached for a day. Refetching them
+       * on every resume competes with the requests that actually changed.
+       */
+      predicate: (query) => query.queryKey[0] !== "reference",
+    });
 
     try {
       supabase.realtime.disconnect();

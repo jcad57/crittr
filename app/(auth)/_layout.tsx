@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
@@ -10,7 +10,7 @@ import {
 } from "expo-router";
 
 export default function AuthLayout() {
-  const { isLoggedIn, needsOnboarding } = useAuth();
+  const { isLoggedIn, needsOnboarding, isHydrating } = useAuth();
   const emailVerificationPending = useOnboardingStore(
     (s) => s.emailVerificationPending,
   );
@@ -29,6 +29,47 @@ export default function AuthLayout() {
 
   const isTermsOfServiceRoute =
     pathname?.includes("terms-of-service") ?? false;
+
+  /**
+   * Password reset lives in this group so signed-out users can start it.
+   * Verifying the recovery OTP creates a session, so these routes must also
+   * stay mounted for signed-in users (and for guests mid-reset).
+   */
+  const isPasswordResetRoute =
+    pathname?.includes("forgot-password") ||
+    pathname?.includes("reset-password");
+
+  const authStack = (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Colors.splashBackground },
+      }}
+    >
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="sign-in" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password-verify" />
+      <Stack.Screen name="reset-password-new" />
+      <Stack.Screen name="reset-password-success" />
+      <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="terms-of-service" />
+    </Stack>
+  );
+
+  /**
+   * Stay on the current auth screen while the session and pets list warm.
+   * Redirecting the instant `isLoggedIn` flips mounts the dashboard on an
+   * empty query cache; with `freezeOnBlur` that spinner can freeze until
+   * the user switches tabs.
+   */
+  if (isHydrating) {
+    return authStack;
+  }
+
+  if (isPasswordResetRoute) {
+    return authStack;
+  }
 
   if (isLoggedIn && !needsOnboarding) {
     return <Redirect href="/(logged-in)/(tabs)/dashboard" />;
@@ -59,17 +100,5 @@ export default function AuthLayout() {
     return <Redirect href="/(auth)/welcome" />;
   }
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: Colors.splashBackground },
-      }}
-    >
-      <Stack.Screen name="welcome" />
-      <Stack.Screen name="sign-in" />
-      <Stack.Screen name="(onboarding)" />
-      <Stack.Screen name="terms-of-service" />
-    </Stack>
-  );
+  return authStack;
 }

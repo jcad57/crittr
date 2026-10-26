@@ -7,9 +7,10 @@ import MedicalRecordsUploadsList from "@/components/petScreens/medicalRecords/Me
 import MedicalRecordsVetList, {
   type VetRow,
 } from "@/components/petScreens/medicalRecords/MedicalRecordsVetList";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import HealthSectionHeader from "@/components/ui/health/HealthSectionHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import {
   useApplyMedicalRecordScanMutation,
   useParseMedicalRecordMutation,
@@ -20,13 +21,15 @@ import {
   usePetMedicalRecordsQuery,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
-import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
-import { useAuthStore } from "@/stores/authStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
+import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
+import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
+import { useAuthStore } from "@/stores/authStore";
+import { Colors } from "@/theme/colors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -38,7 +41,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
 
 /**
  * Temporarily disable “Scan with Crittr AI” after creating a record. When `false`, a
@@ -84,7 +86,7 @@ export default function PetMedicalRecordsScreen() {
   const createMut = useCreatePetMedicalRecordWithFilesMutation(petId ?? "");
   const parseMut = useParseMedicalRecordMutation();
   const applyScanMut = useApplyMedicalRecordScanMutation(petId ?? "");
-  const { runWithProOrUpgrade } = useProGateNavigation();
+  const { isPro, isProfileReady, runWithProOrUpgrade } = useProGateNavigation();
 
   const [addOpen, setAddOpen] = useState(false);
   /** Set on successful create; applied in `onFullyDismissed` so the scan sheet opens after the add modal unmounts (iOS modal stacking). */
@@ -143,14 +145,8 @@ export default function PetMedicalRecordsScreen() {
         scanPromptRecordIdRef.current = null;
       }
       setAddOpen(false);
-      if (
-        !ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN &&
-        created?.id &&
-        petId
-      ) {
-        push(
-          `/(logged-in)/pet/${petId}/medical-records/${created.id}` as Href,
-        );
+      if (!ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN && created?.id && petId) {
+        push(`/(logged-in)/pet/${petId}/medical-records/${created.id}` as Href);
       }
     },
     [createMut, petId, userId, canApplyScanResults, push],
@@ -195,7 +191,10 @@ export default function PetMedicalRecordsScreen() {
             `${vacsApplied} vaccination${vacsApplied === 1 ? "" : "s"}`,
           );
         if (parts.length > 0) {
-          Alert.alert("Saved", `Added ${parts.join(" and ")} to ${details?.name ?? "your pet"}’s profile.`);
+          Alert.alert(
+            "Saved",
+            `Added ${parts.join(" and ")} to ${details?.name ?? "your pet"}’s profile.`,
+          );
         }
       } catch (e) {
         Alert.alert(
@@ -230,23 +229,17 @@ export default function PetMedicalRecordsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <View style={styles.navSideLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text style={styles.navBack}>&lt; Back</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medical Records
-        </Text>
-        <View style={styles.navSideRight}>
+      <ScreenHeader
+        title="Medical Records"
+        onBack={() => router.back()}
+        right={
           <PetNavAvatar
             displayPet={details}
             accessibilityLabelPrefix="Medical records for"
             onAfterSwitchPet={onPetSwitch}
           />
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -257,9 +250,8 @@ export default function PetMedicalRecordsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Files you upload appear under Your uploads. Medications and vaccinations you add
-          (including from scanned documents) are saved under Health. Vet visits you log in
-          the app stay under Health → Vet visits only.
+          Upload and store all your pet&apos;s important medical documents here. You
+          can also share these documents with your vet.
         </Text>
 
         {permLoading ? (
@@ -271,7 +263,7 @@ export default function PetMedicalRecordsScreen() {
           </Text>
         ) : null}
 
-        {showUploadTools ? (
+        {showUploadTools && (!isProfileReady || isPro) ? (
           <Pressable
             style={({ pressed }) => [
               styles.addBtn,
@@ -279,7 +271,7 @@ export default function PetMedicalRecordsScreen() {
             ]}
             onPress={() => {
               scanPromptRecordIdRef.current = null;
-              runWithProOrUpgrade(() => setAddOpen(true));
+              void runWithProOrUpgrade(() => setAddOpen(true));
             }}
           >
             <MaterialCommunityIcons
@@ -289,6 +281,10 @@ export default function PetMedicalRecordsScreen() {
             />
             <Text style={styles.addBtnText}>Add medical record</Text>
           </Pressable>
+        ) : null}
+
+        {showUploadTools && isProfileReady && !isPro ? (
+          <ProSoftPaywallCard kind="records" petName={details?.name} />
         ) : null}
 
         <HealthSectionHeader title="YOUR UPLOADS" />
@@ -331,8 +327,7 @@ export default function PetMedicalRecordsScreen() {
 
       <ScanRecordPromptSheet
         visible={
-          ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN &&
-          Boolean(pendingScanRecordId)
+          ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN && Boolean(pendingScanRecordId)
         }
         onDecline={() => setPendingScanRecordId(null)}
         onAccept={handleAcceptScan}

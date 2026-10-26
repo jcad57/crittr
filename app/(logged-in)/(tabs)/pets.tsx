@@ -1,16 +1,18 @@
 import PetFeatureCard from "@/components/ui/pets/PetFeatureCard";
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
+import { Colors } from "@/theme/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { sortPetsByCreatedAt } from "@/utils/petSort";
-import type { Pet, PetWithRole } from "@/types/database";
+import type { PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -26,13 +28,29 @@ export default function PetsScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
   const { runWithProOrUpgrade } = useProGateNavigation();
-  const goToAddPet = useCallback(() => {
-    runWithProOrUpgrade(() => {
-      push("/(logged-in)/add-pet" as Href);
-    });
-  }, [runWithProOrUpgrade, push]);
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
   const { data, isLoading } = usePetsQuery();
-  const dbPets: Pet[] | undefined = data;
+  const dbPets: PetWithRole[] | undefined = data;
+  const livingOwnedPetCount = useMemo(() => {
+    if (!dbPets) return 0;
+    return dbPets.filter(
+      (p) => p.role === "owner" && isPetActiveForDashboard(p),
+    ).length;
+  }, [dbPets]);
+  const goToAddPet = useCallback(() => {
+    if (livingOwnedPetCount === 0) {
+      push("/(logged-in)/add-pet" as Href);
+      return;
+    }
+    void runWithProOrUpgrade(
+      () => {
+        push("/(logged-in)/add-pet" as Href);
+      },
+      () => setSoftPaywall("pets"),
+    );
+  }, [livingOwnedPetCount, runWithProOrUpgrade, push]);
   const ordered = useMemo(() => {
     if (!dbPets?.length) return [];
     const sorted = sortPetsByCreatedAt(dbPets);
@@ -96,6 +114,12 @@ export default function PetsScreen() {
           })}
         </ScrollView>
       )}
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={ordered.find((p) => isPetActiveForDashboard(p))?.name}
+        onClose={() => setSoftPaywall(null)}
+      />
     </View>
   );
 }

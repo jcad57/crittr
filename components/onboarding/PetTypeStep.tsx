@@ -1,7 +1,7 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
 import {
   getPetTypeOptionsForPicker,
@@ -10,11 +10,11 @@ import {
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import { fetchAllergiesForPetType, fetchBreedsForPetType } from "@/services/reference";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   allergiesQueryKey,
   breedsQueryKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
 import type { PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";

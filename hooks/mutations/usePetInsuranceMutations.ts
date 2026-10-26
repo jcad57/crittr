@@ -3,8 +3,8 @@ import {
   petDetailsQueryKey,
   petInsuranceFilesQueryKey,
   petsQueryKey,
-} from "@/hooks/queries/queryKeys";
-import { queryClient } from "@/lib/queryClient";
+} from "@/lib/query/keys";
+import { queryClient } from "@/lib/query/client";
 import {
   deletePetInsuranceFile,
   type UploadPetInsuranceFileInput,
@@ -75,6 +75,7 @@ export function useUpdatePetInsuranceMutation(petId: string) {
             medications: old.medications,
             vaccinations: old.vaccinations,
             exercise: old.exercise,
+            exercise_plans: old.exercise_plans,
           };
         },
       );

@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";

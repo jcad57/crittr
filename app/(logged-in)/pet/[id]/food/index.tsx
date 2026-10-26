@@ -1,6 +1,8 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -27,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function PetFoodManagerScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const { push, router } = useNavigationCooldown();
+  const { router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
 
@@ -36,7 +38,7 @@ export default function PetFoodManagerScreen() {
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const deleteMut = useDeletePetFoodMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade } = useProGateNavigation();
+  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const sortedFoods = useMemo(() => {
     if (!details?.foods) return [];
@@ -104,19 +106,10 @@ export default function PetFoodManagerScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Food & treats
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Food & treats"
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -133,7 +126,7 @@ export default function PetFoodManagerScreen() {
             : "Tap a food to view its details."}
         </Text>
 
-        {canEditFood ? (
+        {canEditFood && (!isProfileReady || isPro || sortedFoods.length === 0) ? (
           <Pressable
             style={({ pressed }) => [
               styles.addBtn,
@@ -199,6 +192,12 @@ export default function PetFoodManagerScreen() {
             ))}
           </View>
         )}
+
+        {canEditFood && isProfileReady && !isPro && sortedFoods.length >= 1 ? (
+          <View style={styles.softPaywallWrap}>
+            <ProSoftPaywallCard kind="food" petName={details.name} />
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -213,21 +212,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,
@@ -296,5 +280,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  softPaywallWrap: {
+    marginTop: 16,
   },
 });

@@ -7,7 +7,9 @@ export const EXERCISE_ACTIVITY_ICON_CAT = require("@/assets/icons/cat-toy-icon.p
 export function getExerciseActivityIcon(
   petType: string | null | undefined,
 ): ImageSource {
-  return petType === "cat" ? EXERCISE_ACTIVITY_ICON_CAT : EXERCISE_ACTIVITY_ICON_DOG;
+  return petType === "cat"
+    ? EXERCISE_ACTIVITY_ICON_CAT
+    : EXERCISE_ACTIVITY_ICON_DOG;
 }
 
 export const MEALS_ACTIVITY_ICON_DOG = require("@/assets/icons/food-icon.png");
@@ -37,7 +39,7 @@ export const ACTIVITY_TYPE_LOG_ICONS: Record<
   exercise: EXERCISE_ACTIVITY_ICON_DOG,
   food: MEALS_ACTIVITY_ICON_DOG,
   medication: require("@/assets/icons/medicine-icon.png"),
-  training: EXERCISE_ACTIVITY_ICON_DOG,
+  training: require("@/assets/icons/dumbbell-icon.png"),
   potty: require("@/assets/icons/dog-bone-icon.png"),
   maintenance: require("@/assets/icons/litter-box-icon.png"),
   weigh_in: require("@/assets/icons/weight-scale-icon.png"),

@@ -8,8 +8,8 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useLogMedicationMutation } from "@/hooks/mutations/useLogActivityMutation";
 import {
   useHealthSnapshotQuery,

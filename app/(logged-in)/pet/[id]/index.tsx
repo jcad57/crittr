@@ -14,7 +14,9 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { Colors } from "@/constants/colors";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
+import { Colors } from "@/theme/colors";
 import {
   petDetailsQueryKey,
   petsQueryKey,
@@ -30,7 +32,7 @@ import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import { pickAvatarImage } from "@/lib/pickImage";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updatePetAvatar } from "@/services/pets";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetVaccination } from "@/types/database";
@@ -45,7 +47,6 @@ import {
   buildRecordsItems,
 } from "@/utils/petProfileNavItems";
 import { formatBirthdayChip } from "@/utils/petDisplay";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -79,6 +80,9 @@ export default function PetProfilePage() {
   const canManageFood = useCanPerformAction(id, "can_manage_food");
   const canManageMeds = useCanPerformAction(id, "can_manage_medications");
   const { runWithProOrUpgrade } = useProGateNavigation();
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
 
   const sortedFoodsForProfile = useMemo(() => {
     if (!details?.foods) return [];
@@ -189,7 +193,12 @@ export default function PetProfilePage() {
       isOwner,
       isCoCarer,
       push,
-      runWithProOrUpgrade,
+      onCoCarePress: () => {
+        void runWithProOrUpgrade(
+          () => push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
+          () => setSoftPaywall("coCare"),
+        );
+      },
       handleLeaveCoCare,
     });
   }, [
@@ -387,6 +396,12 @@ export default function PetProfilePage() {
           </>
         ) : null}
       </ScrollView>
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={profile.name}
+        onClose={() => setSoftPaywall(null)}
+      />
     </View>
   );
 }

@@ -15,7 +15,7 @@ export function usePetAccessGuard(petId: string | undefined) {
     if (!petId || !petsListReady) return;
     const stillAllowed = accessiblePets?.some((p) => p.id === petId) ?? false;
     if (!stillAllowed) {
-      router.replace("/(logged-in)/dashboard");
+      router.replace("/(logged-in)/(tabs)/dashboard");
     }
   }, [petId, petsListReady, accessiblePets, router]);
 }

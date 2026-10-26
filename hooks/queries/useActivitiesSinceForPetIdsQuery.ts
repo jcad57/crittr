@@ -1,4 +1,4 @@
-import { activitiesSinceForPetIdsKey } from "@/hooks/queries/queryKeys";
+import { activitiesSinceForPetIdsKey } from "@/lib/query/keys";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { fetchActivitiesSinceForPetIds } from "@/services/activities";
 import type { PetActivity } from "@/types/database";

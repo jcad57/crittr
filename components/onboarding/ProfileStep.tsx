@@ -1,10 +1,10 @@
-import FormInput from "@/components/onboarding/FormInput";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { profileQueryKey } from "@/hooks/queries";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";

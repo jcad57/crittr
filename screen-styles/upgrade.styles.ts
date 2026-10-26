@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -77,6 +77,88 @@ export const styles = StyleSheet.create({
   /** Full-bleed content on gradient — no inset “card” panel. */
   cardShell: {
     paddingBottom: 0,
+  },
+  headline: {
+    fontFamily: Font.displayBold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    color: Colors.white,
+    marginBottom: 20,
+  },
+  planCard: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  planCardSelected: {
+    borderColor: Colors.orange,
+    backgroundColor: "rgba(252, 141, 44, 0.16)",
+  },
+  planCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 6,
+  },
+  planName: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: "rgba(255,255,255,0.72)",
+  },
+  planNameSelected: {
+    color: Colors.white,
+  },
+  bestValueBadge: {
+    backgroundColor: Colors.orange,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  bestValueText: {
+    fontFamily: Font.uiBold,
+    fontSize: 11,
+    color: Colors.white,
+    letterSpacing: 0.2,
+  },
+  planPriceRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  planPrice: {
+    fontFamily: Font.displayBold,
+    fontSize: 28,
+    letterSpacing: -0.6,
+    color: Colors.white,
+  },
+  planCadence: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    color: "rgba(255,255,255,0.65)",
+    marginBottom: 4,
+  },
+  planMeta: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.orange,
+    marginTop: 4,
+  },
+  benefitList: {
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  benefitIconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(252, 141, 44, 0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   billingToggleInCard: {
     flexDirection: "row",

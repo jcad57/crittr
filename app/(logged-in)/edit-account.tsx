@@ -1,14 +1,14 @@
-import FormInput from "@/components/onboarding/FormInput";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updateAuthPassword } from "@/services/auth";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -79,7 +79,7 @@ export default function EditAccountScreen() {
       });
       Alert.alert(
         "Password saved",
-        "You can now sign in with this email and password as well as Google.",
+        "You can now sign in with this email and password as well as Google or Apple.",
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -145,24 +145,11 @@ export default function EditAccountScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.navBar, { paddingTop: insets.top + 4 }]}>
-        <Pressable
-          style={styles.navButton}
-          hitSlop={12}
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-        >
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Edit account
-        </Text>
-        <View style={styles.navButton} />
-      </View>
+      <ScreenHeader
+        title="Edit account"
+        onBack={() => router.back()}
+        topInset={insets.top + 4}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -225,8 +212,8 @@ export default function EditAccountScreen() {
               Add a sign-in password (optional)
             </Text>
             <Text style={styles.hintText}>
-              Lets you use email and password in addition to Google. We never
-              see your Google password.
+              Lets you use email and password in addition to Google or Apple.
+              We never see your Google or Apple password.
             </Text>
             <FormInput
               label="New password"
@@ -262,7 +249,7 @@ export default function EditAccountScreen() {
               <Text style={styles.fieldLabel}>Password</Text>
               <Pressable
                 onPress={() =>
-                  router.push("/(logged-in)/forgot-password" as Href)
+                  router.push("/(auth)/forgot-password" as Href)
                 }
                 hitSlop={8}
                 accessibilityRole="link"
@@ -316,28 +303,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.cream,
-  },
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.cream,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: 24,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
   },
   scroll: {
     flex: 1,

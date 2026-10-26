@@ -1,5 +1,5 @@
 import {
-  EMPTY_PET_FORM,
+  makeEmptyPetForm,
   type AccountFormData,
   type PetFormData,
   type ProfileFormData,
@@ -14,6 +14,7 @@ export const ONBOARDING_STEPS = [
   "pet-type",
   "pet-details",
   "pet-litter-maintenance",
+  "pet-exercise",
   "pet-food",
   "pet-vet-clinic",
   "pet-health-records",
@@ -122,7 +123,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   petFlowMode: "onboarding",
   accountData: { ...INITIAL_ACCOUNT },
   profileData: { ...INITIAL_PROFILE },
-  pets: [{ ...EMPTY_PET_FORM }],
+  pets: [makeEmptyPetForm()],
   currentPetIndex: 0,
   skippedPendingInvitesEmpty: false,
   addingAnotherPet: false,
@@ -144,7 +145,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     set({
       petFlowMode: "add-pet",
       currentStep: PET_TYPE_STEP_INDEX,
-      pets: [{ ...EMPTY_PET_FORM }],
+      pets: [makeEmptyPetForm()],
       currentPetIndex: 0,
       skippedPendingInvitesEmpty: false,
       addingAnotherPet: false,
@@ -170,7 +171,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
 
   addAnotherPet: () =>
     set((s) => {
-      const pets = [...s.pets, { ...EMPTY_PET_FORM }];
+      const pets = [...s.pets, makeEmptyPetForm()];
       return {
         pets,
         currentPetIndex: pets.length - 1,
@@ -218,7 +219,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       petFlowMode: "onboarding",
       accountData: { ...INITIAL_ACCOUNT },
       profileData: { ...INITIAL_PROFILE },
-      pets: [{ ...EMPTY_PET_FORM }],
+      pets: [makeEmptyPetForm()],
       currentPetIndex: 0,
       skippedPendingInvitesEmpty: false,
       addingAnotherPet: false,

@@ -1,6 +1,6 @@
 import { petCareStyles as pcStyles } from "@/components/onboarding/petCareStyles";
 import { stepStyles } from "@/components/onboarding/PetFoodStep.styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";

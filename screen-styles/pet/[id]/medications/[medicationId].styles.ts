@@ -1,8 +1,35 @@
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
+  nameBlock: {
+    marginBottom: 8,
+  },
+  medicationNameWrap: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  medicationName: {
+    flex: 1,
+    fontFamily: Font.displaySemiBold,
+    fontSize: 24,
+    color: Colors.textPrimary,
+  },
+  editNameBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  editNameText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 14,
+    color: Colors.orange,
+  },
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
@@ -11,22 +38,6 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   leadReadOnly: {
     fontFamily: Font.uiRegular,
     fontSize: 15,
@@ -156,6 +167,18 @@ export const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.error,
+  },
+  cancelBtn: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  cancelBtnPressed: {
+    opacity: 0.75,
+  },
+  cancelText: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 16,
+    color: Colors.textSecondary,
   },
   missing: {
     fontFamily: Font.uiRegular,

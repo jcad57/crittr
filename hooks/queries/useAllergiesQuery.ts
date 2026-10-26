@@ -1,7 +1,7 @@
 import { fetchAllergiesForPetType } from "@/services/reference";
 import type { CommonAllergy } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { allergiesQueryKey } from "./queryKeys";
+import { allergiesQueryKey } from "@/lib/query/keys";
 
 /** Common allergies for a pet type. Reference data rarely changes — cache for 24h. */
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -1,111 +1,112 @@
+import {
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID,
+} from "@/config/googleAuth";
 import { supabase } from "@/lib/supabase";
-import { makeRedirectUri } from "expo-auth-session";
-import * as Linking from "expo-linking";
-import type { Session } from "@supabase/supabase-js";
-import * as WebBrowser from "expo-web-browser";
-import { WebBrowserResultType } from "expo-web-browser";
+import {
+  isNativeSocialCancelled,
+  type NativeSocialSignInResult,
+} from "@/lib/auth/nativeSocial";
+import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import { Platform } from "react-native";
 
-/** Add this URL to Supabase → Authentication → URL configuration → Additional redirect URLs. */
-export const GOOGLE_OAUTH_REDIRECT = makeRedirectUri({ path: "auth/callback" });
+export type GoogleSignInResult = NativeSocialSignInResult;
+
+let configured = false;
 
 /**
- * Supabase + Expo: open the provider in an in-app browser, then complete PKCE
- * (or token) from the return URL. Session is updated via the auth state listener.
+ * Must run once before `GoogleSignin.signIn()`. Safe to call repeatedly.
+ * `webClientId` is required so the ID token audience matches the Web client
+ * configured in the Supabase Google provider.
  */
-function parseCallbackParams(url: string): Record<string, string> {
-  const parsed = Linking.parse(url);
-  const raw = (parsed.queryParams ?? {}) as Record<
-    string,
-    string | string[] | undefined
-  >;
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    if (v == null) continue;
-    out[k] = Array.isArray(v) ? (v[0] ?? "") : v;
+export function configureGoogleSignIn(): void {
+  if (configured) return;
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    throw new Error(
+      "Google sign-in is missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.",
+    );
   }
-  const hash = url.split("#")[1];
-  if (hash) {
-    for (const part of hash.split("&")) {
-      const [key, value] = part.split("=");
-      if (key && value) {
-        try {
-          out[key] = decodeURIComponent(value);
-        } catch {
-          out[key] = value;
-        }
-      }
-    }
-  }
-  return out;
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    ...(Platform.OS === "ios" ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
+    offlineAccess: false,
+  });
+  configured = true;
 }
 
-export type GoogleSignInResult =
-  | { status: "signed_in"; session: Session }
-  | { status: "cancelled" };
+function isGoogleCancel(error: unknown): boolean {
+  if (isNativeSocialCancelled(error)) return true;
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  const code = String((error as { code?: unknown }).code);
+  return (
+    code === statusCodes.SIGN_IN_CANCELLED ||
+    code === String(statusCodes.SIGN_IN_CANCELLED)
+  );
+}
 
 /**
- * @throws On configuration / network / OAuth error (user cancellation returns `cancelled`).
+ * Native Google Sign-In → Supabase `signInWithIdToken`.
+ * Creates the account on first use (same as email sign-up, without OTP).
+ *
+ * @throws On configuration / network / provider error. User cancel returns `cancelled`.
  */
-export async function signInWithGoogleWithBrowser(): Promise<GoogleSignInResult> {
-  const { data, error } = await supabase.auth.signInWithOAuth({
+export async function signInWithGoogleNative(): Promise<GoogleSignInResult> {
+  if (Platform.OS !== "ios" && Platform.OS !== "android") {
+    throw new Error("Google sign-in is only available on iOS and Android.");
+  }
+
+  configureGoogleSignIn();
+
+  if (Platform.OS === "android") {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  }
+
+  /**
+   * Clear the Google SDK session so the account picker appears (equivalent to
+   * OAuth `prompt=select_account`). Failures here just mean nobody was signed in.
+   */
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    /* no prior Google session */
+  }
+
+  let response: Awaited<ReturnType<typeof GoogleSignin.signIn>>;
+  try {
+    response = await GoogleSignin.signIn();
+  } catch (e) {
+    if (isGoogleCancel(e)) return { status: "cancelled" };
+    throw e;
+  }
+
+  if (response.type === "cancelled") {
+    return { status: "cancelled" };
+  }
+
+  const idToken = response.data.idToken;
+  if (!idToken) {
+    throw new Error("Google sign-in did not return an ID token.");
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "google",
-    options: {
-      redirectTo: GOOGLE_OAUTH_REDIRECT,
-      skipBrowserRedirect: true,
-      /** Always show Google’s account picker so “sign out / sign in again” can switch accounts. */
-      queryParams: { prompt: "select_account" },
-    },
+    token: idToken,
   });
   if (error) throw error;
-  if (!data?.url) throw new Error("Could not start Google sign-in.");
-
-  const res = await WebBrowser.openAuthSessionAsync(
-    data.url,
-    GOOGLE_OAUTH_REDIRECT,
-  );
-
-  if (res.type === "success" && "url" in res && res.url) {
-    // continue below
-  } else {
-    if (
-      res.type === WebBrowserResultType.CANCEL ||
-      res.type === WebBrowserResultType.DISMISS ||
-      res.type === WebBrowserResultType.LOCKED
-    ) {
-      return { status: "cancelled" };
-    }
-    throw new Error("Could not complete Google sign-in. Please try again.");
+  if (!data.session) {
+    throw new Error("Sign-in could not be completed. Please try again.");
   }
+  return { status: "signed_in", session: data.session };
+}
 
-  const returnUrl = (res as { type: "success"; url: string }).url;
-
-  const params = parseCallbackParams(returnUrl);
-  if (params.error) {
-    const desc = params.error_description;
-    const msg = desc
-      ? `${params.error}: ${desc}`
-      : params.error;
-    throw new Error(msg);
+/** Drop the Google SDK session so the next native sign-in can pick an account. */
+export async function signOutGoogleSdk(): Promise<void> {
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    /* already signed out of Google, or native module unavailable */
   }
-  if (params.code) {
-    const { data, error: exchangeErr } =
-      await supabase.auth.exchangeCodeForSession(params.code);
-    if (exchangeErr) throw exchangeErr;
-    if (!data.session) {
-      throw new Error("Sign-in could not be completed. Please try again.");
-    }
-    return { status: "signed_in", session: data.session };
-  }
-  if (params.access_token && params.refresh_token) {
-    const { data, error: sessionErr } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token,
-    });
-    if (sessionErr) throw sessionErr;
-    if (!data.session) {
-      throw new Error("Sign-in could not be completed. Please try again.");
-    }
-    return { status: "signed_in", session: data.session };
-  }
-  throw new Error("Sign-in could not be completed. Please try again.");
 }

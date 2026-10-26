@@ -5,7 +5,7 @@ import {
   MEALS_ACTIVITY_ICON_DOG,
   getMealsActivityIcon,
 } from "@/constants/activityTypeProgressIcons";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { ActivityDisplayCategory } from "@/data/activityHistory";
 import type { ImageSource } from "expo-image";
 

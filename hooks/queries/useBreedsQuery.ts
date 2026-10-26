@@ -1,7 +1,7 @@
 import { fetchBreedsForPetType } from "@/services/reference";
 import type { Breed } from "@/types/database";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { breedsQueryKey } from "./queryKeys";
+import { breedsQueryKey } from "@/lib/query/keys";
 
 /** Breeds for a pet type. Reference data rarely changes — cache for 24h. */
 const DAY_MS = 24 * 60 * 60 * 1000;

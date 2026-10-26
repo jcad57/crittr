@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { formatBytes, mimeKind } from "@/utils/fileAttachmentDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

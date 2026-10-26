@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -19,7 +19,7 @@ export default function CoCareReadOnlyNotice() {
         <Text style={styles.title}>View only</Text>
       </View>
       <Text style={styles.body}>
-        You don't have permission to update these details.
+        You don&apos;t have permission to update these details.
       </Text>
     </View>
   );

@@ -2,12 +2,12 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import FoodPetFieldsRow from "@/components/activity/FoodPetFieldsRow";
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
-import FormInput from "@/components/onboarding/FormInput";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import type { FoodActivityExtraPetRow } from "@/utils/foodActivityMerge";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";

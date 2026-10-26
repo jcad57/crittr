@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
-import { Font } from "@/constants/typography";
+import { Font } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type PetSterilizationToggleProps = {
@@ -69,12 +69,6 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  hint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 12,
-    color: Colors.gray400,
     marginBottom: 8,
   },
   row: {

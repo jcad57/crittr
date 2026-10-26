@@ -34,9 +34,9 @@ function formatFoods(foods: Record<string, unknown>[]): string[] {
     const brand = str(f.brand) || "(food)";
     const isTreat = f.is_treat === true;
     const notes = str(f.notes);
-    const meals = f.meals_per_day != null ? `; ${str(f.meals_per_day)} meals/day` : "";
+    const meals = f.meals_per_day != null ? `; ${str(f.meals_per_day)}×/day` : "";
     lines.push(
-      `  - ${isTreat ? "Treat" : "Food"}: ${brand}${meals}${notes ? ` — ${notes}` : ""}`,
+      `  - ${isTreat ? "Treat" : "Meal"}: ${brand}${meals}${notes ? ` — ${notes}` : ""}`,
     );
     const portions = (f.pet_food_portions ?? []) as Record<string, unknown>[];
     for (const p of portions) {
@@ -104,9 +104,26 @@ function formatVetVisits(visits: Record<string, unknown>[]): string[] {
   return lines;
 }
 
+function formatExercisePlans(plans: Record<string, unknown>[]): string[] {
+  if (plans.length === 0) return [];
+  const lines = ["- **Planned exercise activities:**"];
+  for (const p of plans) {
+    const label = str(p.label) || "Activity";
+    const days = Array.isArray(p.days_of_week)
+      ? (p.days_of_week as unknown[]).join(",")
+      : "";
+    const time = str(p.scheduled_time);
+    const notes = str(p.notes);
+    lines.push(
+      `  - ${label}${time ? ` @ ${time}` : ""}${days ? ` (days ${days})` : ""}${notes ? ` — ${notes}` : ""}`,
+    );
+  }
+  return lines;
+}
+
 function formatExercise(ex: Record<string, unknown> | null): string[] {
   if (!ex) return [];
-   const walks = ex.walks_per_day != null ? str(ex.walks_per_day) : "";
+  const walks = ex.walks_per_day != null ? str(ex.walks_per_day) : "";
   const dur =
     ex.walk_duration_minutes != null ? str(ex.walk_duration_minutes) : "";
   const acts = Array.isArray(ex.activities)
@@ -117,7 +134,7 @@ function formatExercise(ex: Record<string, unknown> | null): string[] {
     dur ? `${dur} min walk` : "",
     acts ? `activities: ${acts}` : "",
   ].filter(Boolean);
-  return bits.length ? [`  Exercise targets: ${bits.join("; ")}`] : [];
+  return bits.length ? [`  Legacy exercise targets: ${bits.join("; ")}`] : [];
 }
 
 function formatOnePet(
@@ -128,6 +145,7 @@ function formatOnePet(
   vacs: Record<string, unknown>[],
   vetVisits: Record<string, unknown>[],
   exercise: Record<string, unknown> | null,
+  exercisePlans: Record<string, unknown>[],
 ): string {
   const lines: string[] = [];
   const name = str(p.name) || "Unnamed pet";
@@ -168,11 +186,8 @@ function formatOnePet(
     lines.push(`- **Recorded allergies / sensitivities:** ${allergies.join(", ")}`);
   }
   const energy = str(p.energy_level);
-  const exPerDay = p.exercises_per_day != null ? str(p.exercises_per_day) : "";
-  if (energy || exPerDay) {
-    lines.push(
-      `- **Energy / exercise (from profile):** ${[energy, exPerDay ? `${exPerDay}/day` : ""].filter(Boolean).join("; ")}`,
-    );
+  if (energy) {
+    lines.push(`- **Energy level:** ${energy}`);
   }
   const vetClinic = str(p.primary_vet_clinic);
   const vetAddr = str(p.primary_vet_address);
@@ -213,6 +228,7 @@ function formatOnePet(
   if (vacs.length === 0) lines.push("  - (none recorded)");
   else lines.push(...formatVacs(vacs));
 
+  lines.push(...formatExercisePlans(exercisePlans));
   lines.push(...formatExercise(exercise));
 
   if (vetVisits.length > 0) lines.push(...formatVetVisits(vetVisits));
@@ -279,11 +295,13 @@ export async function buildCrittrPetContextForUser(
 
   const petIds = entries.map((e) => str(e.row.id));
 
-  const [foodsRes, medsRes, vacsRes, exRes, ...visitResults] = await Promise.all([
+  const [foodsRes, medsRes, vacsRes, exRes, planRes, ...visitResults] =
+    await Promise.all([
     admin.from("pet_foods").select("*, pet_food_portions(*)").in("pet_id", petIds),
     admin.from("pet_medications").select("*").in("pet_id", petIds),
     admin.from("pet_vaccinations").select("*").in("pet_id", petIds),
     admin.from("pet_exercises").select("*").in("pet_id", petIds),
+    admin.from("pet_exercise_plans").select("*").in("pet_id", petIds),
     ...petIds.map((pid) =>
       admin
         .from("pet_vet_visits")
@@ -298,6 +316,8 @@ export async function buildCrittrPetContextForUser(
   if (medsRes.error) console.error("[crittrAiPetContext] meds", medsRes.error);
   if (vacsRes.error) console.error("[crittrAiPetContext] vacs", vacsRes.error);
   if (exRes.error) console.error("[crittrAiPetContext] exercise", exRes.error);
+  if (planRes.error)
+    console.error("[crittrAiPetContext] exercise plans", planRes.error);
 
   const visitsBy = new Map<string, Record<string, unknown>[]>();
   visitResults.forEach((res, idx) => {
@@ -321,6 +341,10 @@ export async function buildCrittrPetContextForUser(
     if (pid) exerciseByPet.set(pid, row);
   }
 
+  const plansBy = groupByPetId(
+    (planRes.data ?? []) as { pet_id: string }[],
+  );
+
   const sections: string[] = [header];
   for (const { access, row } of entries) {
     const pid = str(row.id);
@@ -329,8 +353,9 @@ export async function buildCrittrPetContextForUser(
     const vacs = (vacsBy.get(pid) ?? []) as Record<string, unknown>[];
     const vlist = (visitsBy.get(pid) ?? []) as Record<string, unknown>[];
     const exercise = exerciseByPet.get(pid) ?? null;
+    const plans = (plansBy.get(pid) ?? []) as Record<string, unknown>[];
     sections.push(
-      formatOnePet(access, row, foods, meds, vacs, vlist, exercise),
+      formatOnePet(access, row, foods, meds, vacs, vlist, exercise, plans),
     );
     sections.push("");
   }

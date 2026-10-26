@@ -19,7 +19,9 @@ export function usePetScopedAfterSwitchPet(
     (newPetId: string) => {
       if (!currentPetId) return;
       const next = rewritePetSwitchPath(pathname, currentPetId, newPetId);
-      if (next) replace(next);
+      // Path is rebuilt from the live pathname, so it cannot be checked against
+      // the generated route union at compile time.
+      if (next) replace(next as Href);
     },
     [pathname, currentPetId, replace],
   );

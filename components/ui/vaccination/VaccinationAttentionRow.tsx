@@ -1,6 +1,6 @@
 import HealthTrafficBadge from "@/components/ui/health/HealthTrafficBadge";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { PetVaccination } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

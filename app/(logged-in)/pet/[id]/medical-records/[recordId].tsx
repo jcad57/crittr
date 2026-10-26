@@ -1,3 +1,4 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicalRecordAddFilesModal, {
   type PendingMedicalFile,
 } from "@/components/medical/MedicalRecordAddFilesModal";
@@ -5,7 +6,9 @@ import MedicalRecordFilePreviewModal from "@/components/medical/MedicalRecordFil
 import MedicalRecordEditFilesList from "@/components/petScreens/medicalRecords/MedicalRecordEditFilesList";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
+import { Colors } from "@/theme/colors";
 import {
   useDeleteMedicalRecordFileMutation,
   useDeletePetMedicalRecordMutation,
@@ -26,7 +29,6 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { getErrorMessage } from "@/utils/errorMessage";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -67,6 +69,9 @@ export default function EditMedicalRecordScreen() {
 
   const canManage = useCanPerformAction(petId, "can_manage_pet_records");
   const { runWithProOrUpgrade } = useProGateNavigation();
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
 
   const updateTitleMut = useUpdatePetMedicalRecordTitleMutation(petId ?? "");
   const deleteRecordMut = useDeletePetMedicalRecordMutation(petId ?? "");
@@ -252,19 +257,11 @@ export default function EditMedicalRecordScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medical record
-        </Text>
-        <View style={styles.navRight}>
-          {details ? (
+      <ScreenHeader
+        title="Medical record"
+        onBack={() => router.back()}
+        right={
+          details ? (
             <PetNavAvatar
               displayPet={details}
               accessibilityLabelPrefix="Medical record for"
@@ -272,9 +269,9 @@ export default function EditMedicalRecordScreen() {
             />
           ) : (
             <View style={{ width: 40 }} />
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -306,7 +303,12 @@ export default function EditMedicalRecordScreen() {
               <Text style={styles.sectionTitle}>Files</Text>
               {canEdit ? (
                 <Pressable
-                  onPress={() => runWithProOrUpgrade(() => setAddOpen(true))}
+                  onPress={() =>
+                    void runWithProOrUpgrade(
+                      () => setAddOpen(true),
+                      () => setSoftPaywall("records"),
+                    )
+                  }
                   hitSlop={8}
                 >
                   <Text style={styles.addLink}>Add files</Text>
@@ -375,6 +377,12 @@ export default function EditMedicalRecordScreen() {
             );
           }
         }}
+      />
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={details?.name}
+        onClose={() => setSoftPaywall(null)}
       />
     </View>
   );

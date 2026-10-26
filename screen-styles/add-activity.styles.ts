@@ -1,19 +1,11 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
-  },
-  petContextHint: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    marginBottom: 8,
   },
   scroll: { flex: 1 },
   scrollContentGrow: {

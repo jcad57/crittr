@@ -1,16 +1,14 @@
-import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
-import FormInput from "@/components/onboarding/FormInput";
-import PetMedicationDosageRow from "@/components/petScreens/medication/PetMedicationDosageRow";
+import MedicationDosageEditorModal from "@/components/pet/MedicationDosageEditorModal";
+import PetMedicationDosageScheduleSection from "@/components/petScreens/medication/PetMedicationDosageScheduleSection";
 import PetMedicationFormActions from "@/components/petScreens/medication/PetMedicationFormActions";
 import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";
+import PetMedicationLastGivenSection from "@/components/petScreens/medication/PetMedicationLastGivenSection";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
 import PetMedicationNoPermissionAddView from "@/components/petScreens/medication/PetMedicationNoPermissionAddView";
+import PetMedicationNotesSection from "@/components/petScreens/medication/PetMedicationNotesSection";
 import PetMedicationReadOnlyView from "@/components/petScreens/medication/PetMedicationReadOnlyView";
-import PetMedicationReminderField from "@/components/petScreens/medication/PetMedicationReminderField";
-import { Colors } from "@/constants/colors";
-import { type SchedulePeriod } from "@/constants/medicationEditForm";
+import FormInput from "@/components/ui/form/FormInput";
 import {
-  useDeleteMedicationMutation,
   useInsertMedicationMutation,
   usePetDetailsQuery,
   useUpdateMedicationMutation,
@@ -19,31 +17,35 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import type { MedicationDosePeriod } from "@/types/database";
+import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { Colors } from "@/theme/colors";
 import { getErrorMessage } from "@/utils/errorMessage";
+import {
+  isMedicationDosagesValid,
+  type MedicationDosageDraft,
+} from "@/utils/medicationDosageDraft";
+import { createMedicationDosageHandlers } from "@/utils/medicationDosageEditor";
 import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
 import { hydrateFromMed } from "@/utils/medicationEditHydration";
+import {
+  DEFAULT_FREQUENCY_DRAFT,
+  dosageScheduleHint,
+  lastGivenHelperText,
+  type MedicationFrequencyDraft,
+} from "@/utils/medicationFrequency";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetMedicationScreen() {
   const insets = useSafeAreaInsets();
@@ -73,42 +75,49 @@ export default function EditPetMedicationScreen() {
 
   const insertMut = useInsertMedicationMutation(petId ?? "");
   const updateMut = useUpdateMedicationMutation(petId ?? "");
-  const deleteMut = useDeleteMedicationMutation(petId ?? "");
   const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
-  const [dosageAmount, setDosageAmount] = useState("");
-  const [dosageType, setDosageType] = useState("");
-  const [dosesPerPeriod, setDosesPerPeriod] = useState("1");
-  const [schedulePeriod, setSchedulePeriod] = useState<SchedulePeriod>("day");
-  const [customIntervalCount, setCustomIntervalCount] = useState("1");
-  const [customIntervalUnit, setCustomIntervalUnit] =
-    useState<MedicationDosePeriod>("month");
+  const [dosages, setDosages] = useState<MedicationDosageDraft[]>([]);
   const [condition, setCondition] = useState("");
   const [notes, setNotes] = useState("");
-  const [reminderDates, setReminderDates] = useState<Date[]>(() => {
-    const d = new Date();
-    d.setHours(9, 0, 0, 0);
-    return [d];
-  });
   const [lastGivenOn, setLastGivenOn] = useState("");
+  const [frequency, setFrequency] = useState<MedicationFrequencyDraft>(
+    DEFAULT_FREQUENCY_DRAFT,
+  );
   const [validationAttempted, setValidationAttempted] = useState(false);
+  const [editingName, setEditingName] = useState(isNew);
+  const lastGivenMaxDateRef = useRef(new Date());
+
+  const [dosageModalVisible, setDosageModalVisible] = useState(false);
+  const [dosageModalTitle, setDosageModalTitle] = useState("Add dosage");
+  const [dosageEditorDraft, setDosageEditorDraft] =
+    useState<MedicationDosageDraft | null>(null);
+  const [editingDosageIndex, setEditingDosageIndex] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     if (isNew || !med) return;
     const h = hydrateFromMed(med);
     setName(h.name);
-    setDosageAmount(h.dosageAmount);
-    setDosageType(h.dosageType);
-    setDosesPerPeriod(h.dosesPerPeriod);
-    setSchedulePeriod(h.schedulePeriod);
-    setCustomIntervalCount(h.customIntervalCount);
-    setCustomIntervalUnit(h.customIntervalUnit);
+    setDosages(h.dosages);
     setCondition(h.condition);
     setNotes(h.notes);
-    setReminderDates(h.reminderDates);
     setLastGivenOn(h.lastGivenOn);
+    setFrequency(h.frequency);
   }, [isNew, med]);
+
+  const { openAddDosage, openEditDosage, removeDosage, saveDosageFromModal } =
+    createMedicationDosageHandlers({
+      dosages,
+      setDosages,
+      editingDosageIndex,
+      setEditingDosageIndex,
+      setDosageEditorDraft,
+      setDosageModalVisible,
+      setDosageModalTitle,
+    });
 
   const handleSave = useCallback(async () => {
     if (!petId || !medicationId) return;
@@ -117,22 +126,18 @@ export default function EditPetMedicationScreen() {
     if (!name.trim()) {
       return;
     }
-    if (!dosageAmount.trim() || !dosageType.trim()) {
+    if (!isMedicationDosagesValid(dosages)) {
       return;
     }
 
     const payload = buildMedicationSavePayload({
       name,
-      dosageAmount,
-      dosageType,
-      dosesPerPeriod,
-      schedulePeriod,
-      customIntervalCount,
-      customIntervalUnit,
+      dosages,
       condition,
       notes,
-      reminderDates,
       lastGivenOn,
+      frequency,
+      createdAt: med?.created_at,
     });
     if (!payload) return;
 
@@ -155,43 +160,15 @@ export default function EditPetMedicationScreen() {
     isNew,
     med,
     name,
-    dosageAmount,
-    dosageType,
-    dosesPerPeriod,
-    schedulePeriod,
-    customIntervalCount,
-    customIntervalUnit,
+    dosages,
     condition,
     notes,
-    reminderDates,
     lastGivenOn,
+    frequency,
     insertMut,
     updateMut,
     router,
   ]);
-
-  const handleDelete = useCallback(() => {
-    if (!petId || !medicationId || isNew) return;
-    Alert.alert(
-      "Delete medication",
-      "This removes it from your pet’s profile. Activity history for past doses may still reference it.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteMut.mutateAsync(medicationId);
-              router.back();
-            } catch (e) {
-              Alert.alert("Couldn't delete", getErrorMessage(e));
-            }
-          },
-        },
-      ],
-    );
-  }, [petId, medicationId, isNew, deleteMut, router]);
 
   useLayoutEffect(() => {
     if (!isNew || !details) return;
@@ -273,30 +250,14 @@ export default function EditPetMedicationScreen() {
   }
 
   const saving = isNew ? insertMut.isPending : updateMut.isPending;
-  const deleting = deleteMut.isPending;
 
-  const parsedDoses = parseInt(dosesPerPeriod.trim(), 10);
-  const parsedCustomInterval = parseInt(customIntervalCount.trim(), 10);
   const nameError = validationAttempted && !name.trim();
-  const dosageAmountError = validationAttempted && !dosageAmount.trim();
-  const dosageTypeError = validationAttempted && !dosageType.trim();
-  const dosePeriodStd =
-    schedulePeriod === "custom"
-      ? null
-      : (schedulePeriod as MedicationDosePeriod);
-  const doseCountError =
+  const needsFirstDosage = validationAttempted && dosages.length < 1;
+  const dosageAmountMissing =
     validationAttempted &&
-    dosePeriodStd === "day" &&
-    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
-  const doseCountErrorWeekMonth =
-    validationAttempted &&
-    (dosePeriodStd === "week" || dosePeriodStd === "month") &&
-    dosesPerPeriod.trim() !== "" &&
-    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
-  const customIntervalError =
-    validationAttempted &&
-    schedulePeriod === "custom" &&
-    (!Number.isFinite(parsedCustomInterval) || parsedCustomInterval < 1);
+    dosages.length > 0 &&
+    dosages.some((d) => !d.dosageAmount.trim() || !d.dosageType.trim());
+  const scheduleLabelError = dosageAmountMissing && !needsFirstDosage;
 
   const medNavTitle = isNew ? `Add medication` : `Edit medication`;
 
@@ -312,7 +273,7 @@ export default function EditPetMedicationScreen() {
         onAfterSwitchPet={onPetSwitch}
       />
 
-      <SafeAreaView style={styles.scrollSafe} edges={["bottom"]}>
+      <View style={styles.scrollSafe}>
         <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
@@ -322,88 +283,105 @@ export default function EditPetMedicationScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View>
-            <FormInput
-              label="Name"
-              required
-              value={name}
-              onChangeText={setName}
-              containerStyle={styles.field}
-              error={nameError}
-            />
-
-            <PetMedicationDosageRow
-              dosageAmount={dosageAmount}
-              setDosageAmount={setDosageAmount}
-              dosageType={dosageType}
-              setDosageType={setDosageType}
-              dosageAmountError={dosageAmountError}
-              dosageTypeError={dosageTypeError}
-            />
-
-            <PetMedicationFrequencySection
-              schedulePeriod={schedulePeriod}
-              setSchedulePeriod={setSchedulePeriod}
-              dosesPerPeriod={dosesPerPeriod}
-              setDosesPerPeriod={setDosesPerPeriod}
-              customIntervalCount={customIntervalCount}
-              setCustomIntervalCount={setCustomIntervalCount}
-              customIntervalUnit={customIntervalUnit}
-              setCustomIntervalUnit={setCustomIntervalUnit}
-              parsedCustomInterval={parsedCustomInterval}
-              doseCountError={doseCountError}
-              doseCountErrorWeekMonth={doseCountErrorWeekMonth}
-              customIntervalError={customIntervalError}
-            />
-
-            <PetMedicationReminderField
-              reminderDates={reminderDates}
-              setReminderDates={setReminderDates}
-            />
-
-            <Text style={styles.fieldLabel}>Last given</Text>
-            <View style={styles.lastGivenWrap}>
-              <ExpiryDateField
-                value={lastGivenOn}
-                onChangeDate={setLastGivenOn}
-                onClearDate={() => setLastGivenOn("")}
-                placeholder="Select date"
-              />
+            <View style={styles.nameBlock}>
+              {isNew || editingName ? (
+                <FormInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Medication name"
+                  error={nameError}
+                  errorMessage={
+                    nameError ? "Enter a medication name." : undefined
+                  }
+                  autoFocus={!isNew}
+                  onBlur={() => {
+                    if (!isNew && name.trim()) setEditingName(false);
+                  }}
+                  containerStyle={styles.field}
+                />
+              ) : (
+                <View style={styles.medicationNameWrap}>
+                  <Text style={styles.medicationName}>{name}</Text>
+                  <Pressable
+                    onPress={() => setEditingName(true)}
+                    style={styles.editNameBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit name"
+                  >
+                    <MaterialCommunityIcons
+                      name="pencil"
+                      size={18}
+                      color={Colors.orange}
+                    />
+                    <Text style={styles.editNameText}>Edit name</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
 
-            <FormInput
-              label="Condition"
-              value={condition}
-              onChangeText={setCondition}
-              containerStyle={styles.field}
+            <PetMedicationFrequencySection
+              draft={frequency}
+              onChange={setFrequency}
+              lastGivenOn={lastGivenOn}
             />
 
-            <FormInput
-              label="Notes"
+            <PetMedicationDosageScheduleSection
+              dosages={dosages}
+              onAddDosage={openAddDosage}
+              onEditDosage={openEditDosage}
+              onRemoveDosage={removeDosage}
+              scheduleLabelError={scheduleLabelError}
+              addDosageButtonError={needsFirstDosage}
+              hint={dosageScheduleHint(frequency.kind)}
+              dosageRowAmountMissing={(idx) =>
+                validationAttempted &&
+                (!dosages[idx]?.dosageAmount.trim() ||
+                  !dosages[idx]?.dosageType.trim())
+              }
+            />
+
+            <PetMedicationLastGivenSection
+              value={lastGivenOn}
+              onChangeDate={setLastGivenOn}
+              onClearDate={() => setLastGivenOn("")}
+              helperText={lastGivenHelperText(
+                frequency.kind,
+                lastGivenOn.trim().length > 0,
+              )}
+              maximumDate={lastGivenMaxDateRef.current}
+            />
+
+            <PetMedicationNotesSection
+              petName={details?.name ?? "your pet"}
               value={notes}
               onChangeText={setNotes}
-              multiline
-              containerStyle={styles.field}
             />
 
             <PetMedicationFormActions
               isNew={isNew}
               saving={saving}
-              deleting={deleting}
               showErrorHint={
                 validationAttempted &&
-                (nameError ||
-                  dosageAmountError ||
-                  dosageTypeError ||
-                  doseCountError ||
-                  doseCountErrorWeekMonth ||
-                  customIntervalError)
+                (nameError || needsFirstDosage || dosageAmountMissing)
               }
               onSave={handleSave}
-              onDelete={handleDelete}
+              onCancel={() => router.back()}
             />
           </View>
         </KeyboardAwareScrollView>
-      </SafeAreaView>
+      </View>
+
+      <MedicationDosageEditorModal
+        visible={dosageModalVisible}
+        title={dosageModalTitle}
+        initial={dosageEditorDraft}
+        onClose={() => {
+          setDosageModalVisible(false);
+          setEditingDosageIndex(null);
+          setDosageEditorDraft(null);
+        }}
+        onSave={saveDosageFromModal}
+      />
     </View>
   );
 }

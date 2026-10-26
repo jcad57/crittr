@@ -10,7 +10,7 @@ import {
   formatMemberSince,
   initialsFromProfile,
 } from "@/components/profile";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { normalizeProBannerThemeId } from "@/constants/proBannerThemes";
 import {
   profileQueryKey,
@@ -25,7 +25,7 @@ import {
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { pickAvatarImage } from "@/lib/pickImage";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import { updateProfile, uploadAvatar } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
@@ -78,8 +78,21 @@ export default function UserProfileScreen() {
   const isPro = useIsCrittrPro(profile);
   const userId = session?.user?.id;
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    Alert.alert(
+      "Sign out?",
+      "You'll need to sign in again to access your pets and care history.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign out",
+          style: "destructive",
+          onPress: () => {
+            void signOut();
+          },
+        },
+      ],
+    );
   };
 
   const handleProfileAvatarPress = useCallback(async () => {

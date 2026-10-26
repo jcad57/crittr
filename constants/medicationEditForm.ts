@@ -13,6 +13,13 @@ export const DOSAGE_TYPES: string[] = [
   "Other",
 ];
 
+export const DEFAULT_DOSAGE_TYPE = "Tablet";
+
+/** Matches meal portions and the previous reminder-time cap. */
+export const MAX_MEDICATION_DOSAGES = 8;
+
+export const MEDICATION_NOTES_MAX_LENGTH = 250;
+
 export type SchedulePeriod = MedicationDosePeriod | "custom";
 
 export const SCHEDULE_PERIOD_OPTIONS: {

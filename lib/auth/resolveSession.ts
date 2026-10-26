@@ -50,7 +50,8 @@ export async function resolveSession(
     supabase
       .from("pets")
       .select("*", { count: "exact", head: true })
-      .eq("owner_id", userId),
+      .eq("owner_id", userId)
+      .eq("is_archived", false),
     supabase
       .from("pet_co_carers")
       .select("*", { count: "exact", head: true })

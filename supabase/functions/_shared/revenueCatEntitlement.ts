@@ -1,90 +1,55 @@
 /**
  * Source-of-truth entitlement helper for Crittr Pro.
  *
- * Calls the RevenueCat REST API for a given `app_user_id` and computes
- * `profiles.crittr_pro_until` plus a few denormalized columns we keep in
- * `profiles` for fast display (`subscription_store`, `subscription_will_renew`,
- * `original_purchase_id`).
+ * Calls the RevenueCat REST API for a given `app_user_id` and mirrors the
+ * current `crittr_pro` entitlement onto `profiles` (`crittr_pro_active` plus
+ * expiration / store metadata).
  *
  * Used by `revenuecat-webhook` (server push) and `sync-crittr-pro-entitlement`
  * (client pull) so both paths produce identical state.
+ *
+ * Safety properties
+ * -----------------
+ *   1. **Confirmed downgrades only.** A reconcile only treats the user as
+ *      having lost Pro when RevenueCat *explicitly* reports an expired
+ *      entitlement / subscription (or a 404 on the subscriber id we have
+ *      cached on the profile). A transient REST error, or a 200 without a
+ *      subscriber payload (`null` body), leaves the mirror untouched.
+ *      This stops `applyCrittrProDowngradeCleanup` from firing on a flaky
+ *      webhook event and accidentally archiving pets the user actively owns.
+ *      Cancellation (`willRenew=false`) and lifetime grants (`expiresAt=null`)
+ *      are never treated as inactive.
+ *
+ *   2. **Promo + re-upgrade auto-restore.** Whenever the reconcile sees the
+ *      user is currently Pro, `restorePetsArchivedDuringDowngrade` runs so
+ *      pets that were soft-archived during a previous downgrade come back.
+ *
+ *   3. **Idempotent profile updates.** When nothing changed we skip the UPDATE
+ *      so we don't churn `updated_at` and trigger downstream listeners.
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-import { applyCrittrProDowngradeCleanup } from "./crittrProDowngradeCleanup.ts";
+import {
+  applyCrittrProDowngradeCleanup,
+  restorePetsArchivedDuringDowngrade,
+} from "./crittrProDowngradeCleanup.ts";
+import {
+  CRITTR_PRO_ENTITLEMENT,
+  evaluateEntitlement,
+  type EntitlementSummary,
+  type RcSubscriberPayload,
+  summarizeEntitlement,
+} from "./evaluateCrittrProEntitlement.ts";
 
-export const CRITTR_PRO_ENTITLEMENT = "crittr_pro";
-
-/** Legacy mis-label; keep until all RC projects use identifier `crittr_pro`. */
-const CRITTR_PRO_ENTITLEMENT_LEGACY = "Crittr Pro";
-
-/**
- * Products that unlock Crittr Pro (must match App Store Connect + RevenueCat).
- * Used when `subscriber.entitlements` is briefly stale after purchase but
- * `subscriber.subscriptions` already lists the active sub.
- */
-const KNOWN_CRITTR_PRO_PRODUCT_IDS = new Set([
-  "crittr_pro_monthly",
-  "crittr_pro_annual",
-]);
-
-/** Clock skew / RC propagation slack when comparing expiration to "now". */
-const EXPIRATION_SLACK_MS = 120_000;
+export {
+  CRITTR_PRO_ENTITLEMENT,
+  evaluateEntitlement,
+  summarizeEntitlement,
+};
+export type { EntitlementSummary, RcSubscriberPayload };
 
 const RC_BASE = "https://api.revenuecat.com/v1";
-
-function findSubscriptionForProduct(
-  subs: Record<string, RcSubscription>,
-  productId: string,
-): RcSubscription | null {
-  if (subs[productId]) return subs[productId];
-  const lower = productId.toLowerCase();
-  for (const [k, v] of Object.entries(subs)) {
-    if (k.toLowerCase() === lower) return v;
-  }
-  return null;
-}
-
-type RcEntitlement = {
-  expires_date: string | null;
-  product_identifier: string;
-  purchase_date: string;
-  /** Optional in some payloads; treat absence as no transaction yet. */
-  grace_period_expires_date?: string | null;
-};
-
-type RcSubscription = {
-  expires_date: string | null;
-  store: string;
-  is_sandbox?: boolean;
-  unsubscribe_detected_at?: string | null;
-  billing_issues_detected_at?: string | null;
-  original_purchase_date?: string | null;
-  /** RevenueCat exposes the receipt-level identifier on subscriber.subscriptions.<product>.original_purchase_date plus subscriber.original_app_user_id; we use the subscription key (product identifier) as a stable store reference. */
-  product_plan_identifier?: string | null;
-};
-
-type RcSubscriberPayload = {
-  subscriber: {
-    original_app_user_id: string;
-    subscriptions: Record<string, RcSubscription> | null;
-    entitlements: Record<string, RcEntitlement> | null;
-  };
-};
-
-export type EntitlementSummary = {
-  /** ISO string when Pro access ends; null = no Pro. */
-  crittrProUntil: string | null;
-  /** Active product identifier when entitlement is active. */
-  productIdentifier: string | null;
-  /** Renewal store (`app_store`, `play_store`, `promotional`, ...). */
-  store: string | null;
-  /** True when auto-renew is on. False when user cancelled (still in paid period). */
-  willRenew: boolean | null;
-  /** Receipt-level identifier (best effort). */
-  originalPurchaseId: string | null;
-};
 
 export class RevenueCatRestError extends Error {
   status: number;
@@ -120,119 +85,18 @@ export async function fetchRevenueCatSubscriber(
   return JSON.parse(text) as RcSubscriberPayload;
 }
 
-function pickActiveEntitlement(payload: RcSubscriberPayload):
-  | {
-      ent: RcEntitlement;
-      sub: RcSubscription | null;
-    }
-  | null {
-  const ents = payload.subscriber.entitlements ?? {};
-  const ent =
-    ents[CRITTR_PRO_ENTITLEMENT] ?? ents[CRITTR_PRO_ENTITLEMENT_LEGACY] ?? null;
-  if (!ent) return null;
-
-  const subs = payload.subscriber.subscriptions ?? {};
-  const sub = findSubscriptionForProduct(subs, ent.product_identifier);
-
-  const expiresIso = ent.expires_date ?? sub?.expires_date ?? null;
-  const grace = ent.grace_period_expires_date ?? null;
-  const candidate = grace ?? expiresIso;
-  if (!candidate) return null;
-
-  const candidateMs = Date.parse(candidate);
-  if (
-    !Number.isFinite(candidateMs) ||
-    candidateMs < Date.now() - EXPIRATION_SLACK_MS
-  ) {
-    return null;
-  }
-
-  return { ent, sub };
-}
-
-/**
- * When entitlements lag behind subscriptions right after a purchase, RC may list
- * the subscription with a future `expires_date` before `entitlements.crittr_pro` is populated.
- */
-function summarizeFromKnownSubscriptionProducts(
-  payload: RcSubscriberPayload,
-): EntitlementSummary | null {
-  const subs = payload.subscriber.subscriptions ?? {};
-  let best: {
-    expMs: number;
-    productId: string;
-    sub: RcSubscription;
-  } | null = null;
-
-  for (const [productId, sub] of Object.entries(subs)) {
-    if (!KNOWN_CRITTR_PRO_PRODUCT_IDS.has(productId)) continue;
-    const expStr = sub.expires_date;
-    if (!expStr) continue;
-    const expMs = Date.parse(expStr);
-    if (!Number.isFinite(expMs)) continue;
-    if (expMs < Date.now() - EXPIRATION_SLACK_MS) continue;
-    if (!best || expMs > best.expMs) {
-      best = { expMs, productId, sub };
-    }
-  }
-
-  if (!best) return null;
-
-  const sub = best.sub;
-  const willRenew =
-    sub.unsubscribe_detected_at == null && sub.billing_issues_detected_at == null;
-
-  return {
-    crittrProUntil: sub.expires_date!,
-    productIdentifier: best.productId,
-    store: sub.store ?? null,
-    willRenew,
-    originalPurchaseId: sub.product_plan_identifier ?? best.productId,
-  };
-}
-
-export function summarizeEntitlement(
-  payload: RcSubscriberPayload,
-): EntitlementSummary {
-  const active = pickActiveEntitlement(payload);
-  if (active) {
-    const { ent, sub } = active;
-    const expires =
-      ent.grace_period_expires_date ?? ent.expires_date ?? sub?.expires_date ??
-        null;
-    const willRenew =
-      sub?.unsubscribe_detected_at == null &&
-        sub?.billing_issues_detected_at == null
-        ? true
-        : false;
-
-    return {
-      crittrProUntil: expires,
-      productIdentifier: ent.product_identifier,
-      store: sub?.store ?? null,
-      willRenew,
-      originalPurchaseId:
-        sub?.product_plan_identifier ?? ent.product_identifier ?? null,
-    };
-  }
-
-  const fromProducts = summarizeFromKnownSubscriptionProducts(payload);
-  if (fromProducts) return fromProducts;
-
-  return {
-    crittrProUntil: null,
-    productIdentifier: null,
-    store: null,
-    willRenew: null,
-    originalPurchaseId: null,
-  };
-}
-
 export type ReconcileCrittrProOptions = {
   /** Poll RevenueCat REST; results often lag StoreKit / SDK after purchase. */
   subscriberSync?: { maxAttempts: number; delayMs: number };
   /** Try multiple subscriber ids (e.g. current vs `originalAppUserId` from merge). */
   alternateAppUserIds?: string[];
+};
+
+export type ReconcileCrittrProResult = {
+  before: string | null;
+  after: string | null;
+  activeBefore: boolean;
+  activeAfter: boolean;
 };
 
 function delay(ms: number): Promise<void> {
@@ -251,11 +115,38 @@ function uniqueStrings(ids: (string | undefined | null)[]): string[] {
   return out;
 }
 
+function profileIsProMirror(profile: {
+  crittr_pro_active?: boolean | null;
+  crittr_pro_until?: string | null;
+} | null): boolean {
+  if (!profile) return false;
+  if (profile.crittr_pro_active === true) return true;
+  if (profile.crittr_pro_active === false) return false;
+  const until = profile.crittr_pro_until;
+  if (until == null) return false;
+  return Date.parse(until) > Date.now();
+}
+
+function logReconcile(
+  phase: string,
+  details: Record<string, unknown>,
+): void {
+  console.log("[crittr-pro]", phase, details);
+}
+
 /**
  * Reconcile the user's Crittr Pro entitlement with RevenueCat.
- * - When the entitlement has dropped (was active, now expired), runs the
- *   downgrade cleanup so free-tier rules apply.
- * - Updates `profiles` so display state matches RC.
+ *
+ * Decision tree:
+ *   - At least one tried app_user_id returned "active" entitlement →
+ *     write the active summary (`crittr_pro_active=true`, preserve null
+ *     expiration for lifetime) and restore any soft-archived pets.
+ *   - All tried ids returned "confirmed_inactive" → write inactive. If the
+ *     profile was previously Pro, run downgrade cleanup. Otherwise no-op.
+ *   - At least one id returned "unknown" (including REST 404 — the
+ *     subscriber may not exist yet after a fresh purchase — or a transient
+ *     REST issue) → leave the profile alone. The next webhook event /
+ *     client-side sync will reconcile.
  *
  * `appUserId` defaults to the supabase user id, matching what the client
  * passes to `Purchases.logIn` on the device.
@@ -265,7 +156,7 @@ export async function reconcileCrittrProForUser(
   userId: string,
   appUserId?: string,
   options?: ReconcileCrittrProOptions,
-): Promise<{ before: string | null; after: string | null }> {
+): Promise<ReconcileCrittrProResult> {
   const primary = appUserId ?? userId;
   const rcIds = uniqueStrings([
     primary,
@@ -278,72 +169,180 @@ export async function reconcileCrittrProForUser(
   const { data: profile } = await admin
     .from("profiles")
     .select(
-      "id, crittr_pro_until, revenuecat_app_user_id, subscription_store, subscription_will_renew, original_purchase_id",
+      "id, crittr_pro_active, crittr_pro_until, crittr_pro_product_id, crittr_pro_ownership_type, crittr_pro_last_synced_at, revenuecat_app_user_id, subscription_store, subscription_will_renew, original_purchase_id",
     )
     .eq("id", userId)
     .maybeSingle();
 
   const before = profile?.crittr_pro_until ?? null;
-  const wasPro = before != null && Date.parse(before) > Date.now();
+  const wasPro = profileIsProMirror(profile);
 
-  let summary: EntitlementSummary | null = null;
-  /** Last successfully fetched RC subscriber id (for `revenuecat_app_user_id`). */
+  let activeSummary: EntitlementSummary | null = null;
+  let sawConfirmedInactive = false;
   let resolvedRcAppUserId: string | null = null;
 
-  outer:
-  for (const rcId of rcIds) {
+  outer: for (const rcId of rcIds) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const payload = await fetchRevenueCatSubscriber(rcId);
-        summary = summarizeEntitlement(payload);
-        resolvedRcAppUserId = rcId;
-        if (summary.crittrProUntil != null) break outer;
+        const rcPayload = await fetchRevenueCatSubscriber(rcId);
+        const verdict = evaluateEntitlement(rcPayload);
+        if (verdict.kind === "active") {
+          activeSummary = verdict.summary;
+          resolvedRcAppUserId = rcId;
+          break outer;
+        }
+        if (verdict.kind === "confirmed_inactive") {
+          sawConfirmedInactive = true;
+          resolvedRcAppUserId = rcId;
+          // Keep polling — the user may have just renewed and RC could
+          // surface the new sub in a later attempt.
+          if (attempt < maxAttempts - 1) await delay(pollDelayMs);
+          continue;
+        }
+        // verdict.kind === "unknown" → keep trying this id then the next.
         if (attempt < maxAttempts - 1) await delay(pollDelayMs);
       } catch (e) {
         if (e instanceof RevenueCatRestError && e.status === 404) {
-          break;
+          // 404 means this app user id is not in RevenueCat yet. After a
+          // fresh StoreKit / Play purchase the REST subscriber routinely lags
+          // the SDK — that is "unknown", not a confirmed lapse. Treating 404
+          // as inactive used to write crittr_pro_active=false right after a
+          // successful pay, which left the client polling a non-Pro profile.
+          if (attempt < maxAttempts - 1) await delay(pollDelayMs);
+          continue;
         }
-        throw e;
+        // Network blips, 5xx, etc. — bail this id, leave state alone if
+        // no other id resolves.
+        console.warn("[crittr-pro] RevenueCat REST failed; preserving mirror", {
+          status: e instanceof RevenueCatRestError ? e.status : undefined,
+        });
+        break;
       }
     }
   }
 
-  if (!summary) {
-    summary = {
-      crittrProUntil: null,
-      productIdentifier: null,
-      store: null,
-      willRenew: null,
-      originalPurchaseId: null,
+  if (activeSummary) {
+    const rcCol = resolvedRcAppUserId ?? primary;
+    const nowIso = new Date().toISOString();
+    const updates: Record<string, unknown> = {
+      crittr_pro_active: true,
+      crittr_pro_until: activeSummary.expiresAt,
+      crittr_pro_product_id: activeSummary.productIdentifier,
+      crittr_pro_ownership_type: activeSummary.ownershipType,
+      crittr_pro_last_synced_at: nowIso,
+      subscription_store: activeSummary.store,
+      subscription_will_renew: activeSummary.willRenew,
+      original_purchase_id: activeSummary.originalPurchaseId,
+      revenuecat_app_user_id: rcCol,
+    };
+
+    const isStateUnchanged =
+      profile?.crittr_pro_active === true &&
+      (profile?.crittr_pro_until ?? null) ===
+        (activeSummary.expiresAt ?? null) &&
+      (profile?.revenuecat_app_user_id ?? null) === rcCol &&
+      (profile?.subscription_store ?? null) === (activeSummary.store ?? null) &&
+      (profile?.subscription_will_renew ?? null) ===
+        (activeSummary.willRenew ?? null) &&
+      (profile?.original_purchase_id ?? null) ===
+        (activeSummary.originalPurchaseId ?? null) &&
+      (profile?.crittr_pro_product_id ?? null) ===
+        (activeSummary.productIdentifier ?? null) &&
+      (profile?.crittr_pro_ownership_type ?? null) ===
+        (activeSummary.ownershipType ?? null);
+
+    if (!isStateUnchanged) {
+      const { error: upErr } = await admin
+        .from("profiles")
+        .update(updates)
+        .eq("id", userId);
+      if (upErr) throw upErr;
+    }
+
+    logReconcile("rc → supabase mirror", {
+      decision: "active",
+      rcActive: true,
+      expiresAt: activeSummary.expiresAt,
+      willRenew: activeSummary.willRenew,
+      store: activeSummary.store,
+      ownershipType: activeSummary.ownershipType,
+      supabaseActive: true,
+    });
+
+    try {
+      await restorePetsArchivedDuringDowngrade(admin, userId);
+    } catch (e) {
+      console.warn(
+        "[reconcileCrittrProForUser] restorePetsArchivedDuringDowngrade failed:",
+        e,
+      );
+    }
+
+    return {
+      before,
+      after: activeSummary.expiresAt,
+      activeBefore: wasPro,
+      activeAfter: true,
     };
   }
 
-  const rcCol = resolvedRcAppUserId ?? primary;
+  if (sawConfirmedInactive) {
+    const rcCol = resolvedRcAppUserId ?? primary;
+    const nowIso = new Date().toISOString();
+    const updates: Record<string, unknown> = {
+      crittr_pro_active: false,
+      crittr_pro_until: null,
+      crittr_pro_product_id: null,
+      crittr_pro_ownership_type: null,
+      crittr_pro_last_synced_at: nowIso,
+      subscription_store: null,
+      subscription_will_renew: null,
+      original_purchase_id: null,
+      revenuecat_app_user_id: rcCol,
+    };
 
-  const updates: Record<string, unknown> = {
-    crittr_pro_until: summary.crittrProUntil,
-    subscription_store: summary.store,
-    subscription_will_renew: summary.willRenew,
-    original_purchase_id: summary.originalPurchaseId,
-    revenuecat_app_user_id: rcCol,
-  };
+    const { error: upErr } = await admin
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId);
+    if (upErr) throw upErr;
 
-  const { error: upErr } = await admin
-    .from("profiles")
-    .update(updates)
-    .eq("id", userId);
-  if (upErr) throw upErr;
+    logReconcile("rc → supabase mirror", {
+      decision: "confirmed_inactive",
+      rcActive: false,
+      supabaseActive: false,
+      downgradeCleanup: wasPro,
+    });
 
-  const after = summary.crittrProUntil;
-  const isPro = after != null && Date.parse(after) > Date.now();
-
-  if (wasPro && !isPro) {
-    try {
-      await applyCrittrProDowngradeCleanup(admin, userId);
-    } catch (e) {
-      console.warn("[reconcileCrittrProForUser] cleanup failed:", e);
+    if (wasPro) {
+      try {
+        await applyCrittrProDowngradeCleanup(admin, userId);
+      } catch (e) {
+        console.warn(
+          "[reconcileCrittrProForUser] downgrade cleanup failed:",
+          e,
+        );
+      }
     }
+
+    return {
+      before,
+      after: null,
+      activeBefore: wasPro,
+      activeAfter: false,
+    };
   }
 
-  return { before, after };
+  logReconcile("rc → supabase mirror", {
+    decision: "unknown_preserve",
+    supabaseActive: wasPro,
+    expiresAt: before,
+  });
+
+  return {
+    before,
+    after: before,
+    activeBefore: wasPro,
+    activeAfter: wasPro,
+  };
 }

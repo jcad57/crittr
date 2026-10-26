@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
-import { PET_NAV_AVATAR_PET_SWITCH_ENABLED } from "@/constants/petNavAvatar";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { PET_NAV_AVATAR_PET_SWITCH_ENABLED } from "@/config/featureFlags";
+import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";

@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import {
   WEIGHT_HISTORY_RANGE_OPTIONS,
   type WeightHistoryRange,

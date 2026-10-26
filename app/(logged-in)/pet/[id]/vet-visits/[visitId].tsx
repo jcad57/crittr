@@ -1,22 +1,25 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import VetVisitReadOnlyView from "@/components/petScreens/vetVisits/VetVisitReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
-import { Colors } from "@/constants/colors";
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
+import { Colors } from "@/theme/colors";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
   healthSnapshotKey,
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getErrorMessage } from "@/utils/errorMessage";
-import { queryClient } from "@/lib/queryClient";
-import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
-import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
+import { queryClient } from "@/lib/query/client";
+import { syncTodayVetVisitMirrorsToActivities } from "@/services/vetVisitActivityMirror";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import {
   hydrateVetVisitLocationState,
   resolveVetVisitLocation,
@@ -31,7 +34,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   Text,
   TextInput,
@@ -39,7 +41,6 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 
@@ -113,6 +114,7 @@ export default function EditVetVisitScreen() {
         queryKey: allActivitiesKey(petId),
       });
       await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      requestScheduleResync(petId);
     }
     const profile = useAuthStore.getState().profile;
     if (userId && profile) {
@@ -243,25 +245,16 @@ export default function EditVetVisitScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Edit visit
-        </Text>
-        <View
-          style={[
-            styles.navSpacer,
-            { alignItems: "flex-end", justifyContent: "center" },
-          ]}
-        >
+      <ScreenHeader
+        title="Edit visit"
+        onBack={() => router.back()}
+        right={
           <PetNavAvatar
             displayPet={petDetails ?? null}
             accessibilityLabelPrefix="Editing vet visit for"
           />
-        </View>
-      </View>
+        }
+      />
 
       <KeyboardAwareScrollView
         style={styles.scroll}
@@ -347,20 +340,16 @@ export default function EditVetVisitScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={pickerOpen}
         mode="datetime"
         date={visitAt}
         is24Hour={timeDisplay === "24h"}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
           setPickerOpen(false);
           setVisitAt(d);
         }}
         onCancel={() => setPickerOpen(false)}
-        confirmTextIOS="Save"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
       />
     </View>
   );

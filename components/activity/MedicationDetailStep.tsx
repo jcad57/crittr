@@ -1,11 +1,11 @@
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
-import FormInput from "@/components/onboarding/FormInput";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
+import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { useActivityFormStore } from "@/stores/activityFormStore";

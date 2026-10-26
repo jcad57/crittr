@@ -1,5 +1,5 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";

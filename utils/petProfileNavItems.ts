@@ -1,5 +1,5 @@
 import type { RecordsNavItem } from "@/components/ui/pet/RecordsNavCard";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { PetProfile } from "@/types/ui";
 import type { Href } from "expo-router";
 
@@ -87,7 +87,7 @@ export function buildManageItems(
     isOwner: boolean;
     isCoCarer: boolean;
     push: (href: Href) => void;
-    runWithProOrUpgrade: (fn: () => void) => Promise<boolean>;
+    onCoCarePress: () => void;
     handleLeaveCoCare: () => void;
   },
 ): RecordsNavItem[] {
@@ -96,7 +96,7 @@ export function buildManageItems(
     isOwner,
     isCoCarer,
     push,
-    runWithProOrUpgrade,
+    onCoCarePress,
     handleLeaveCoCare,
   } = opts;
   if (roleLoading) return [];
@@ -119,10 +119,7 @@ export function buildManageItems(
       subtitle: "Manage co-carers and permissions",
       iconImage: PET_PROFILE_RECORD_ICONS.coCare,
       iconBg: Colors.lavenderLight,
-      onPress: () =>
-        runWithProOrUpgrade(() =>
-          push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
-        ),
+      onPress: onCoCarePress,
     });
   } else if (isCoCarer) {
     items.push({

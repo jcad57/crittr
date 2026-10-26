@@ -1,12 +1,12 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   PRO_GRADIENT_END,
   PRO_GRADIENT_START,
   normalizeProBannerThemeId,
   resolveProBannerTheme,
 } from "@/constants/proBannerThemes";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -264,23 +264,6 @@ const styles = StyleSheet.create({
   },
   pillBlock: {
     marginTop: 8,
-  },
-  addPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: Colors.gray300,
-    backgroundColor: "transparent",
-  },
-  addPillText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.gray500,
   },
   badge: {
     position: "absolute",

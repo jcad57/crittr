@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -142,7 +142,7 @@ export default function ScanRecordPromptSheet({
           <Text style={styles.title}>Scan with Crittr AI?</Text>
           <Text style={styles.body}>
             Let Crittr read the document you just uploaded and pull out any
-            medications or vaccinations so we can add them to your pet's
+            medications or vaccinations so we can add them to your pet&apos;s
             profile.
           </Text>
 

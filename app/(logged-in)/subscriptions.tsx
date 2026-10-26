@@ -1,10 +1,11 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { SubscriptionDetailsView } from "@/components/screens/subscriptions/SubscriptionDetailsView";
-import { SubscriptionsNavHeader } from "@/components/screens/subscriptions/SubscriptionsNavHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   profileQueryKey,
   subscriptionDetailsQueryKey,
+  proPricingQueryKey,
   useProfileQuery,
   useSubscriptionDetailsQuery,
 } from "@/hooks/queries";
@@ -15,12 +16,11 @@ import {
   restoreProPurchases,
 } from "@/lib/iap/checkout";
 import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
+import { storeAccountLabel, storePhrase } from "@/lib/iap/storeTerms";
 import { openManageSubscriptions } from "@/services/iapSubscription";
-import { useCrittrProStore } from "@/stores/crittrProStore";
 import { useAuthStore } from "@/stores/authStore";
 import { formatSubscriptionDate as formatDate } from "@/utils/subscriptionDisplay";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Href } from "expo-router";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -42,12 +42,9 @@ export default function SubscriptionsScreen() {
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.session?.user?.id);
   const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
-  const isMockPro = useCrittrProStore((s) => s.isMockPro);
-
   const { data: profile, isLoading: profileLoading } = useProfileQuery();
   const isPro = useIsCrittrPro(profile);
 
-  const detailsEnabled = !isMockPro;
   const {
     data: sub,
     isLoading: detailsLoading,
@@ -55,7 +52,7 @@ export default function SubscriptionsScreen() {
     error,
     refetch,
     isFetching,
-  } = useSubscriptionDetailsQuery(detailsEnabled);
+  } = useSubscriptionDetailsQuery();
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -66,12 +63,6 @@ export default function SubscriptionsScreen() {
     const end = new Date(sub.currentPeriodEnd);
     return !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
   }, [sub]);
-
-  const goUpgrade = useCallback(() => {
-    const q = new URLSearchParams();
-    q.set("returnTo", "subscriptions");
-    router.push(`/(logged-in)/upgrade?${q.toString()}` as Href);
-  }, [router]);
 
   const onRefresh = useCallback(async () => {
     if (!userId) return;
@@ -107,6 +98,14 @@ export default function SubscriptionsScreen() {
     }
   }, []);
 
+  /**
+   * A cancelled-but-still-active subscription can't be re-bought: both stores
+   * reject a second purchase of a product the account already owns, and the
+   * paywall would bounce straight back here because RevenueCat still reports
+   * the entitlement. Resubscribing happens in the store's own UI.
+   */
+  const onResubscribe = onManageSubscription;
+
   const onRestore = useCallback(async () => {
     setRestoring(true);
     try {
@@ -114,16 +113,19 @@ export default function SubscriptionsScreen() {
       if (!result.hasCrittrPro) {
         Alert.alert(
           "Nothing to restore",
-          "We couldn't find an active Crittr Pro subscription on this account.",
+          `We couldn't find an active Crittr Pro subscription on the ${storeAccountLabel()} signed in on this device.`,
         );
         return;
       }
-      await syncCrittrProForSession(userId);
+      if (userId) {
+        await syncCrittrProForSession(userId);
+      }
       await refreshProfileOnly();
       if (userId) {
         await queryClient.invalidateQueries({
           queryKey: subscriptionDetailsQueryKey(userId),
         });
+        void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
       }
       Alert.alert("Restored", "Your Crittr Pro subscription is active again.");
     } catch (e) {
@@ -135,8 +137,7 @@ export default function SubscriptionsScreen() {
     }
   }, [queryClient, refreshProfileOnly, userId]);
 
-  const showNavRefetch =
-    detailsEnabled && isFetching && !detailsLoading && !pullRefreshing;
+  const showNavRefetch = isFetching && !detailsLoading && !pullRefreshing;
 
   if (profileLoading && !profile) {
     return (
@@ -146,7 +147,7 @@ export default function SubscriptionsScreen() {
     );
   }
 
-  if (!isPro && !isMockPro) {
+  if (!isPro) {
     const subLoadSettled = !detailsLoading;
     if (subLoadSettled && !isError && !pendingNonRenewalAccess) {
       return <Redirect href="/(logged-in)/upgrade?returnTo=subscriptions" />;
@@ -154,10 +155,15 @@ export default function SubscriptionsScreen() {
 
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <SubscriptionsNavHeader
-          onBack={() => router.back()}
-          showRefetchSpinner={showNavRefetch}
-        />
+        <ScreenHeader
+        title="Subscriptions"
+        onBack={() => router.back()}
+        right={
+          showNavRefetch ? (
+            <ActivityIndicator size="small" color={Colors.orange} />
+          ) : null
+        }
+      />
 
         <ScrollView
           style={styles.scroll}
@@ -181,7 +187,7 @@ export default function SubscriptionsScreen() {
               : detailsLoading
                 ? "Checking your subscription status…"
                 : pendingNonRenewalAccess
-                  ? "Your plan is set to end with this billing period. You can resubscribe in the App Store or Play Store to continue without a gap."
+                  ? `Your plan is set to end with this billing period. You can resubscribe in ${storePhrase()} to continue without a gap.`
                   : ""}
           </Text>
 
@@ -211,7 +217,7 @@ export default function SubscriptionsScreen() {
             <>
               <View style={styles.cancelPushSpacer} />
               <OrangeButton
-                onPress={goUpgrade}
+                onPress={onResubscribe}
                 accessibilityLabel="Re-subscribe to Crittr Pro"
               >
                 Re-subscribe to Crittr Pro
@@ -237,25 +243,16 @@ export default function SubscriptionsScreen() {
     );
   }
 
-  if (isMockPro) {
-    return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <SubscriptionsNavHeader onBack={() => router.back()} />
-        <View style={[styles.body, { paddingBottom: scrollInsetBottom }]}>
-          <Text style={styles.lead}>
-            Mock Pro is enabled for testing. Connect a real subscription in a
-            non-mock session to manage billing here.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <SubscriptionsNavHeader
+      <ScreenHeader
+        title="Subscriptions"
         onBack={() => router.back()}
-        showRefetchSpinner={showNavRefetch}
+        right={
+          showNavRefetch ? (
+            <ActivityIndicator size="small" color={Colors.orange} />
+          ) : null
+        }
       />
 
       <ScrollView
@@ -302,7 +299,7 @@ export default function SubscriptionsScreen() {
               <>
                 <View style={styles.cancelPushSpacer} />
                 <OrangeButton
-                  onPress={goUpgrade}
+                  onPress={onResubscribe}
                   accessibilityLabel="Re-subscribe to Crittr Pro"
                 >
                   Re-subscribe to Crittr Pro
@@ -310,7 +307,8 @@ export default function SubscriptionsScreen() {
               </>
             ) : !sub.cancelAtPeriodEnd &&
               (sub.status === "active" || sub.status === "trialing") &&
-              !sub.isFamilyShared ? (
+              !sub.isFamilyShared &&
+              !sub.isLifetime ? (
               <>
                 <View style={styles.cancelPushSpacer} />
                 <Pressable
@@ -343,7 +341,6 @@ export default function SubscriptionsScreen() {
 
             {sub.isFamilyShared ? (
               <Text style={styles.footnote}>
-                This subscription was shared with you via Apple Family Sharing.
                 The owner manages billing.
               </Text>
             ) : null}
@@ -353,8 +350,8 @@ export default function SubscriptionsScreen() {
         ) : !detailsLoading ? (
           <View style={styles.card}>
             <Text style={styles.errText}>
-              We couldn't find subscription details. Pull to refresh or try
-              again later.
+              We couldn&apos;t find subscription details. Pull to refresh or
+              try again later.
             </Text>
             <OrangeButton
               onPress={() => void refetch()}

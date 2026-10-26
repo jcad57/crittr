@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { Profile } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import ProfileAccountRow from "./ProfileAccountRow";

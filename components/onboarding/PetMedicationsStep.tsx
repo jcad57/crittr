@@ -1,56 +1,38 @@
-import ExpiryDateField from "@/components/onboarding/ExpiryDateField";
-import FormInput from "@/components/onboarding/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
 import { petCareStyles as onboardingStyles } from "@/components/onboarding/petCareStyles";
-import PetMedicationDosageRow from "@/components/petScreens/medication/PetMedicationDosageRow";
+import MedicationDosageEditorModal from "@/components/pet/MedicationDosageEditorModal";
+import PetMedicationDosageScheduleSection from "@/components/petScreens/medication/PetMedicationDosageScheduleSection";
 import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";
-import PetMedicationReminderField from "@/components/petScreens/medication/PetMedicationReminderField";
+import PetMedicationLastGivenSection from "@/components/petScreens/medication/PetMedicationLastGivenSection";
+import PetMedicationNotesSection from "@/components/petScreens/medication/PetMedicationNotesSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import FormInput from "@/components/ui/form/FormInput";
 import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import type { SchedulePeriod } from "@/constants/medicationEditForm";
-import { useOnboardingStore } from "@/stores/onboardingStore";
-import type {
-  MedicationDosePeriod,
-  MedicationFormEntry,
-  MedicationSchedulePeriod,
-} from "@/types/database";
-import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
-import { sortTimesAscUnique } from "@/utils/medicationReminderTimes";
-import {
-  formatReminderTimeHHmm,
-  parseReminderTimeHHmm,
-} from "@/utils/medicationSchedule";
-import { useShallow } from "zustand/react/shallow";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { DEFAULT_DOSAGE_TYPE } from "@/constants/medicationEditForm";
 import { styles as medStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
-
-type LegacyMedicationShape = MedicationFormEntry & {
-  frequency?: string;
-  reminderTime?: string;
-  dosePeriod?: MedicationDosePeriod | "";
-};
-
-function scheduleFromLegacy(m: LegacyMedicationShape): MedicationSchedulePeriod {
-  if (m.schedulePeriod) return m.schedulePeriod;
-  switch (m.frequency) {
-    case "Weekly":
-      return "week";
-    case "Monthly":
-      return "month";
-    case "Custom":
-      return "custom";
-    default:
-      return "day";
-  }
-}
-
-function reminderDatesFromEntry(m: LegacyMedicationShape): Date[] {
-  if (m.reminderTimes?.length) {
-    return m.reminderTimes.map((t) => parseReminderTimeHHmm(t));
-  }
-  return [parseReminderTimeHHmm(m.reminderTime)];
-}
+import { useOnboardingStore } from "@/stores/onboardingStore";
+import type { MedicationFormEntry } from "@/types/database";
+import {
+  dosagesFromFormEntry,
+  dosagesToFormEntries,
+  isMedicationDosagesValid,
+  type MedicationDosageDraft,
+} from "@/utils/medicationDosageDraft";
+import { createMedicationDosageHandlers } from "@/utils/medicationDosageEditor";
+import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
+import {
+  DEFAULT_FREQUENCY_DRAFT,
+  dosageScheduleHint,
+  frequencyDraftFromFormEntry,
+  lastGivenHelperText,
+  schedulePeriodFromFrequencyKind,
+  type MedicationFrequencyDraft,
+} from "@/utils/medicationFrequency";
+import { sortTimesAscUnique } from "@/utils/medicationReminderTimes";
+import { formatReminderTimeHHmm } from "@/utils/medicationSchedule";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 
 export default function PetMedicationsStep() {
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
@@ -71,136 +53,108 @@ export default function PetMedicationsStep() {
   );
 
   const [medName, setMedName] = useState("");
-  const [dosageAmount, setDosageAmount] = useState("");
-  const [dosageType, setDosageType] = useState("");
-  const [dosesPerPeriod, setDosesPerPeriod] = useState("1");
-  const [schedulePeriod, setSchedulePeriod] = useState<SchedulePeriod>("day");
-  const [customIntervalCount, setCustomIntervalCount] = useState("1");
-  const [customIntervalUnit, setCustomIntervalUnit] =
-    useState<MedicationDosePeriod>("month");
+  const [dosages, setDosages] = useState<MedicationDosageDraft[]>([]);
   const [condition, setCondition] = useState("");
   const [notes, setNotes] = useState("");
-  const [reminderDates, setReminderDates] = useState<Date[]>(() => {
-    const d = new Date();
-    d.setHours(9, 0, 0, 0);
-    return [d];
-  });
   const [lastGivenOn, setLastGivenOn] = useState("");
+  const [frequency, setFrequency] = useState<MedicationFrequencyDraft>(
+    DEFAULT_FREQUENCY_DRAFT,
+  );
   const [validationAttempted, setValidationAttempted] = useState(false);
+  const lastGivenMaxDateRef = useRef(new Date());
+
+  const [dosageModalVisible, setDosageModalVisible] = useState(false);
+  const [dosageModalTitle, setDosageModalTitle] = useState("Add dosage");
+  const [dosageEditorDraft, setDosageEditorDraft] =
+    useState<MedicationDosageDraft | null>(null);
+  const [editingDosageIndex, setEditingDosageIndex] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     const raw = pet.medications[0];
     if (!raw) {
       setMedName("");
-      setDosageAmount("");
-      setDosageType("");
-      setDosesPerPeriod("1");
-      setSchedulePeriod("day");
-      setCustomIntervalCount("1");
-      setCustomIntervalUnit("month");
+      setDosages([]);
       setCondition("");
       setNotes("");
-      const reset = new Date();
-      reset.setHours(9, 0, 0, 0);
-      setReminderDates([reset]);
       setLastGivenOn("");
+      setFrequency(DEFAULT_FREQUENCY_DRAFT);
       setValidationAttempted(false);
       return;
     }
-    const m = raw as LegacyMedicationShape;
-    setMedName(m.name);
-    setDosageAmount(m.dosageAmount);
-    setDosageType(m.dosageType);
-    setDosesPerPeriod(m.dosesPerPeriod?.trim() ? m.dosesPerPeriod : "1");
-    setSchedulePeriod(scheduleFromLegacy(m));
-    setCustomIntervalCount(m.customIntervalCount?.trim() ? m.customIntervalCount : "1");
-    setCustomIntervalUnit(
-      m.customIntervalUnit === "day" ||
-        m.customIntervalUnit === "week" ||
-        m.customIntervalUnit === "month"
-        ? m.customIntervalUnit
-        : "month",
-    );
-    setCondition(m.condition);
-    setNotes(m.notes);
-    setReminderDates(reminderDatesFromEntry(m));
-    setLastGivenOn(m.lastGivenOn?.trim() ?? "");
+    setMedName(raw.name);
+    setDosages(dosagesFromFormEntry(raw));
+    setCondition(raw.condition);
+    setNotes(raw.notes);
+    setLastGivenOn(raw.lastGivenOn?.trim() ?? "");
+    setFrequency(frequencyDraftFromFormEntry(raw));
     setValidationAttempted(false);
   }, [pet.medications[0]?.localId, currentPetIndex]);
 
-  const parsedDoses = parseInt(dosesPerPeriod.trim(), 10);
-  const parsedCustomInterval = parseInt(customIntervalCount.trim(), 10);
   const nameError = validationAttempted && !medName.trim();
-  const dosageAmountError = validationAttempted && !dosageAmount.trim();
-  const dosageTypeError = validationAttempted && !dosageType.trim();
-  const dosePeriodStd =
-    schedulePeriod === "custom"
-      ? null
-      : (schedulePeriod as MedicationDosePeriod);
-  const doseCountError =
+  const needsFirstDosage = validationAttempted && dosages.length < 1;
+  const dosageAmountMissing =
     validationAttempted &&
-    dosePeriodStd === "day" &&
-    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
-  const doseCountErrorWeekMonth =
-    validationAttempted &&
-    (dosePeriodStd === "week" || dosePeriodStd === "month") &&
-    dosesPerPeriod.trim() !== "" &&
-    (!Number.isFinite(parsedDoses) || parsedDoses < 1);
-  const customIntervalError =
-    validationAttempted &&
-    schedulePeriod === "custom" &&
-    (!Number.isFinite(parsedCustomInterval) || parsedCustomInterval < 1);
+    dosages.length > 0 &&
+    dosages.some((d) => !d.dosageAmount.trim() || !d.dosageType.trim());
+  const scheduleLabelError = dosageAmountMissing && !needsFirstDosage;
+
+  const { openAddDosage, openEditDosage, removeDosage, saveDosageFromModal } =
+    createMedicationDosageHandlers({
+      dosages,
+      setDosages,
+      editingDosageIndex,
+      setEditingDosageIndex,
+      setDosageEditorDraft,
+      setDosageModalVisible,
+      setDosageModalTitle,
+    });
 
   const buildMedicationEntry = useCallback((): MedicationFormEntry => {
     const reminderTimes = sortTimesAscUnique(
-      reminderDates.map((d) => formatReminderTimeHHmm(d)),
+      dosages.map((d) => formatReminderTimeHHmm(d.reminderTime)),
     );
+    const first = dosages[0];
     return {
       localId: pet.medications[0]?.localId ?? Date.now().toString(),
       name: medName.trim(),
-      dosageAmount,
-      dosageType,
-      dosesPerPeriod,
-      schedulePeriod,
-      customIntervalCount,
-      customIntervalUnit,
+      dosageAmount: first?.dosageAmount ?? "",
+      dosageType: first?.dosageType ?? DEFAULT_DOSAGE_TYPE,
+      dosesPerPeriod: String(dosages.length),
+      schedulePeriod: schedulePeriodFromFrequencyKind(frequency.kind),
+      customIntervalCount: String(frequency.monthInterval),
+      customIntervalUnit: "month",
       condition,
       notes,
       reminderTimes,
       lastGivenOn,
+      dosages: dosagesToFormEntries(dosages),
+      frequencyKind: frequency.kind,
+      customMonthCount: String(frequency.monthInterval),
     };
   }, [
     pet.medications[0]?.localId,
     medName,
-    dosageAmount,
-    dosageType,
-    dosesPerPeriod,
-    schedulePeriod,
-    customIntervalCount,
-    customIntervalUnit,
+    dosages,
     condition,
     notes,
-    reminderDates,
     lastGivenOn,
+    frequency,
   ]);
 
   const handleContinue = useCallback(() => {
     setValidationAttempted(true);
     if (!medName.trim()) return;
-    if (!dosageAmount.trim() || !dosageType.trim()) return;
+    if (!isMedicationDosagesValid(dosages)) return;
 
     const payload = buildMedicationSavePayload({
       name: medName,
-      dosageAmount,
-      dosageType,
-      dosesPerPeriod,
-      schedulePeriod,
-      customIntervalCount,
-      customIntervalUnit,
+      dosages,
       condition,
       notes,
-      reminderDates,
       lastGivenOn,
+      frequency,
     });
     if (!payload) return;
 
@@ -208,40 +162,25 @@ export default function PetMedicationsStep() {
     nextStep();
   }, [
     medName,
-    dosageAmount,
-    dosageType,
-    dosesPerPeriod,
-    schedulePeriod,
-    customIntervalCount,
-    customIntervalUnit,
+    dosages,
     condition,
     notes,
-    reminderDates,
     lastGivenOn,
+    frequency,
     buildMedicationEntry,
     updateCurrentPet,
     nextStep,
   ]);
 
-  const showErrorHint = useMemo(
-    () =>
-      validationAttempted &&
-      (nameError ||
-        dosageAmountError ||
-        dosageTypeError ||
-        doseCountError ||
-        doseCountErrorWeekMonth ||
-        customIntervalError),
-    [
-      validationAttempted,
-      nameError,
-      dosageAmountError,
-      dosageTypeError,
-      doseCountError,
-      doseCountErrorWeekMonth,
-      customIntervalError,
-    ],
-  );
+  const showErrorHint = useMemo(() => {
+    if (!validationAttempted) return null;
+    if (nameError) return "Enter a medication name.";
+    if (needsFirstDosage)
+      return "Add at least one dosage using Add dosage below.";
+    if (dosageAmountMissing)
+      return "Enter an amount and type for each dosage — tap a row to edit it.";
+    return null;
+  }, [validationAttempted, nameError, needsFirstDosage, dosageAmountMissing]);
 
   if (phase === "prompt") {
     return (
@@ -259,94 +198,96 @@ export default function PetMedicationsStep() {
 
   return (
     <View style={onboardingStyles.formContainer}>
-      <Text style={authOnboardingStyles.screenTitleForm}>
-        Medications for {name}
-      </Text>
-      <Text style={authOnboardingStyles.formHelperText}>
-        List medications your pet is currently on here
-      </Text>
+      {/*
+        Do not nest ScrollView here: OnboardingCard already scrolls. Nested
+        scroll views break Pressable taps (edit/delete dosage buttons).
+      */}
+      <View>
+        <Text style={authOnboardingStyles.screenTitleForm}>
+          Medications for {name}
+        </Text>
+        <Text style={authOnboardingStyles.formHelperText}>
+          Add each dosage time and amount below — we&apos;ll use those times on
+          the schedule.
+        </Text>
 
-      <FormInput
-        label="Name"
-        required
-        placeholder="Medication name"
-        value={medName}
-        onChangeText={setMedName}
-        containerStyle={medStyles.field}
-        error={nameError}
-      />
+        <FormInput
+          label="Name"
+          required
+          placeholder="Medication name"
+          value={medName}
+          onChangeText={setMedName}
+          containerStyle={medStyles.field}
+          error={nameError}
+        />
 
-      <PetMedicationDosageRow
-        dosageAmount={dosageAmount}
-        setDosageAmount={setDosageAmount}
-        dosageType={dosageType}
-        setDosageType={setDosageType}
-        dosageAmountError={dosageAmountError}
-        dosageTypeError={dosageTypeError}
-      />
+        <PetMedicationFrequencySection
+          draft={frequency}
+          onChange={setFrequency}
+          lastGivenOn={lastGivenOn}
+        />
 
-      <PetMedicationFrequencySection
-        schedulePeriod={schedulePeriod}
-        setSchedulePeriod={setSchedulePeriod}
-        dosesPerPeriod={dosesPerPeriod}
-        setDosesPerPeriod={setDosesPerPeriod}
-        customIntervalCount={customIntervalCount}
-        setCustomIntervalCount={setCustomIntervalCount}
-        customIntervalUnit={customIntervalUnit}
-        setCustomIntervalUnit={setCustomIntervalUnit}
-        parsedCustomInterval={parsedCustomInterval}
-        doseCountError={doseCountError}
-        doseCountErrorWeekMonth={doseCountErrorWeekMonth}
-        customIntervalError={customIntervalError}
-      />
+        <PetMedicationDosageScheduleSection
+          dosages={dosages}
+          onAddDosage={openAddDosage}
+          onEditDosage={openEditDosage}
+          onRemoveDosage={removeDosage}
+          scheduleLabelError={scheduleLabelError}
+          addDosageButtonError={needsFirstDosage}
+          hint={dosageScheduleHint(frequency.kind)}
+          dosageRowAmountMissing={(idx) =>
+            validationAttempted &&
+            (!dosages[idx]?.dosageAmount.trim() ||
+              !dosages[idx]?.dosageType.trim())
+          }
+        />
 
-      <PetMedicationReminderField
-        reminderDates={reminderDates}
-        setReminderDates={setReminderDates}
-      />
-
-      <Text style={medStyles.fieldLabel}>Last given</Text>
-      <View style={medStyles.lastGivenWrap}>
-        <ExpiryDateField
+        <PetMedicationLastGivenSection
           value={lastGivenOn}
           onChangeDate={setLastGivenOn}
           onClearDate={() => setLastGivenOn("")}
-          placeholder="Select date"
+          helperText={lastGivenHelperText(
+            frequency.kind,
+            lastGivenOn.trim().length > 0,
+          )}
+          maximumDate={lastGivenMaxDateRef.current}
         />
+
+        <PetMedicationNotesSection
+          petName={name}
+          value={notes}
+          onChangeText={setNotes}
+        />
+
+        {showErrorHint ? (
+          <Text style={medStyles.formErrorHint}>{showErrorHint}</Text>
+        ) : null}
+
+        <View style={onboardingStyles.spacer} />
+
+        <OrangeButton onPress={handleContinue} style={onboardingStyles.cta}>
+          Continue
+        </OrangeButton>
+
+        <TouchableOpacity
+          onPress={() => setPhase("prompt")}
+          style={onboardingStyles.backButton}
+        >
+          <Text style={authOnboardingStyles.backText}>Back</Text>
+        </TouchableOpacity>
       </View>
 
-      <FormInput
-        label="Condition"
-        placeholder="e.g. Allergies"
-        value={condition}
-        onChangeText={setCondition}
-        containerStyle={medStyles.field}
+      <MedicationDosageEditorModal
+        visible={dosageModalVisible}
+        title={dosageModalTitle}
+        initial={dosageEditorDraft}
+        onClose={() => {
+          setDosageModalVisible(false);
+          setEditingDosageIndex(null);
+          setDosageEditorDraft(null);
+        }}
+        onSave={saveDosageFromModal}
       />
-
-      <FormInput
-        label="Notes"
-        placeholder="Notes"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-        containerStyle={medStyles.field}
-      />
-
-      {showErrorHint ? (
-        <Text style={medStyles.formErrorHint}>
-          Please fill in the required fields above.
-        </Text>
-      ) : null}
-
-      <View style={onboardingStyles.spacer} />
-
-      <OrangeButton onPress={handleContinue} style={onboardingStyles.cta}>
-        Continue
-      </OrangeButton>
-
-      <TouchableOpacity onPress={() => setPhase("prompt")} style={onboardingStyles.backButton}>
-        <Text style={authOnboardingStyles.backText}>Back</Text>
-      </TouchableOpacity>
     </View>
   );
 }

@@ -3,7 +3,7 @@ import {
   getExerciseActivityIcon,
   getMealsActivityIcon,
 } from "@/constants/activityTypeProgressIcons";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { ActivityType } from "@/types/database";
 import { Image } from "expo-image";
 import { useMemo } from "react";

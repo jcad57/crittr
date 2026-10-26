@@ -4,6 +4,7 @@ import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingSt
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import VerifyEmailBackHeader from "@/components/onboarding/VerifyEmailBackHeader";
 import { useAuthStore } from "@/stores/authStore";
+import { trackTutorialBegin } from "@/lib/analytics";
 import {
   FINISH_STEP_INDEX,
   ONBOARDING_INDICATED_STEP_COUNT,
@@ -12,7 +13,7 @@ import {
   useOnboardingStore,
 } from "@/stores/onboardingStore";
 import { Redirect } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Resume onboarding at the correct step for returning sessions.
@@ -29,23 +30,57 @@ export default function Onboarding() {
     (s) => s.requiresCoCareRemovedScreen,
   );
 
-  if (requiresCoCareRemovedScreen) {
-    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
-  }
+  useEffect(() => {
+    if (!session || !needsOnboarding || requiresCoCareRemovedScreen) return;
+    trackTutorialBegin();
+  }, [session, needsOnboarding, requiresCoCareRemovedScreen]);
+
+  /**
+   * Self-heal "limbo zero-pet" state. A logged-in user can land here after
+   * a flaky `refreshAuthSession` (`hasPets` cached as false even though the
+   * pet exists in Supabase). We trigger a single fresh resolve so that if
+   * the user genuinely has pets, `(auth)/_layout` flips them to the
+   * dashboard. Run only once per session re-entry to avoid loops.
+   */
+  const selfHealedRef = useRef(false);
+  useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
+    if (!session || !needsOnboarding) {
+      selfHealedRef.current = false;
+      return;
+    }
+    if (selfHealedRef.current) return;
+    selfHealedRef.current = true;
+    void useAuthStore.getState().refreshAuthSession().catch(() => {
+      /* non-fatal */
+    });
+  }, [session, needsOnboarding, requiresCoCareRemovedScreen]);
 
   useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
     if (!session || !needsOnboarding || resumeStep == null) return;
     const step = useOnboardingStore.getState().currentStep;
     if (step !== 0) return;
     goToStep(resumeStep);
-  }, [session?.user.id, needsOnboarding, resumeStep, goToStep]);
+  }, [
+    session?.user.id,
+    needsOnboarding,
+    resumeStep,
+    goToStep,
+    requiresCoCareRemovedScreen,
+  ]);
 
   /** If session exists, do not show verify-email (OTP already completed or stale step). */
   useEffect(() => {
+    if (requiresCoCareRemovedScreen) return;
     if (!session) return;
     if (currentStep !== VERIFY_EMAIL_STEP_INDEX) return;
     goToStep(PROFILE_STEP_INDEX);
-  }, [session, currentStep, goToStep]);
+  }, [session, currentStep, goToStep, requiresCoCareRemovedScreen]);
+
+  if (requiresCoCareRemovedScreen) {
+    return <Redirect href="/(auth)/(onboarding)/co-care-removed" />;
+  }
 
   const StepComponent =
     ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[0];

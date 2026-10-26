@@ -1,13 +1,16 @@
 import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
-import { Colors } from "@/constants/colors";
-import { FONT_FACES } from "@/constants/fonts";
+import ScreenViewTracker from "@/components/analytics/ScreenViewTracker";
+import { Colors } from "@/theme/colors";
+import { FONT_FACES } from "@/theme/fonts";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
-import { proPricingQueryKey } from "@/hooks/queries/queryKeys";
+import { proPricingQueryKey } from "@/lib/query/keys";
 import { configureRevenueCat } from "@/lib/iap/revenueCat";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
+import { startQueryCachePersistence } from "@/lib/query/persistence";
 import { fetchProPricing } from "@/services/proPricing";
+import { ensureAppRatingFirstOpenRecorded } from "@/lib/appRatingPersistence";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
-import { setupReactQueryFocusManager } from "@/lib/reactQueryFocusManager";
+import { setupReactQueryFocusManager } from "@/lib/query/focusManager";
 import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
 import * as WebBrowser from "expo-web-browser";
@@ -24,7 +27,7 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 setupReactQueryFocusManager();
@@ -43,7 +46,23 @@ export default function SessionGate() {
     DMSans_600SemiBold,
     DMSans_700Bold,
   });
+  const [cacheRestored, setCacheRestored] = useState(false);
   const initialized = useRef(false);
+
+  /**
+   * Restore before auth resolves and before the router mounts: screens read the
+   * cache on their first render, so anything restored later would arrive after
+   * they have already committed to a loading state.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void startQueryCachePersistence().finally(() => {
+      if (!cancelled) setCacheRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -61,10 +80,15 @@ export default function SessionGate() {
   }, []);
 
   useEffect(() => {
+    void ensureAppRatingFirstOpenRecorded();
+  }, []);
+
+  useEffect(() => {
     void configureRevenueCat();
   }, []);
 
-  const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
+  const isReady =
+    (fontsLoaded || !!fontError) && cacheRestored && !isAuthLoading;
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
@@ -85,6 +109,7 @@ export default function SessionGate() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppOpenAdManager />
+      <ScreenViewTracker />
       <Slot />
     </QueryClientProvider>
   );

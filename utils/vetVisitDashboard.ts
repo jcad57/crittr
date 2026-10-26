@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { VetVisitSummary } from "@/types/ui";
 import type { PetVetVisit } from "@/types/database";
 import type { UserDateDisplay, UserTimeDisplay } from "@/utils/userDateTimeFormat";

@@ -1,0 +1,24 @@
+{
+  "layerViolations": [
+    "constants/activityRowIcons.ts -> data/activityHistory.ts",
+    "constants/proPricingFallback.ts -> services/proPricing.ts",
+    "lib/auth/resolveSession.ts -> stores/onboardingStore.ts",
+    "lib/prefetchSessionData.ts -> hooks/queries/prefetchPetsAndDetails.ts",
+    "lib/prefetchSessionData.ts -> services/crittrAi.ts",
+    "lib/prefetchSessionData.ts -> services/health.ts",
+    "lib/prefetchSessionData.ts -> services/notifications.ts",
+    "lib/prefetchSessionData.ts -> services/profiles.ts",
+    "lib/prefetchSessionData.ts -> services/schedule/index.ts",
+    "lib/prefetchSessionData.ts -> stores/petStore.ts",
+    "utils/activityHistoryFilters.ts -> data/activityHistory.ts",
+    "utils/manageActivityFormHelpers.ts -> lib/query/client.ts",
+    "utils/manageActivityFormHelpers.ts -> lib/query/keys.ts",
+    "utils/manageActivityFormHelpers.ts -> services/health.ts",
+    "utils/onboardingPetFlow.ts -> stores/onboardingStore.ts",
+    "utils/petFoodFormHelpers.ts -> services/petFoods.ts",
+    "utils/petProfileMapping.ts -> components/ui/pet/PetProfileHero.tsx",
+    "utils/petProfileNavItems.ts -> components/ui/pet/RecordsNavCard.tsx",
+    "utils/scheduleDisplayFromActivity.ts -> data/activityHistory.ts"
+  ],
+  "cycles": []
+}

@@ -20,7 +20,7 @@ export function portionsForPetFood(f: PetFood): PetFoodPortion[] {
 }
 
 /**
- * Raw `meals_per_day` from DB — treats and legacy meals without portion rows.
+ * Raw `meals_per_day` from DB — legacy foods without portion rows.
  */
 export function feedingTimesPerDayTarget(f: {
   meals_per_day: number | null;
@@ -32,13 +32,9 @@ export function feedingTimesPerDayTarget(f: {
 
 /**
  * Expected servings per day for daily progress rings.
- * - **Meals:** count of `pet_food_portions` when present (each portion = one ring slot); else `meals_per_day`.
- * - **Treats:** `meals_per_day` (times per day).
+ * Prefer `pet_food_portions` count when present; else `meals_per_day`.
  */
 export function dailyProgressFoodTarget(f: PetFood): number {
-  if (isTreatFood(f)) {
-    return feedingTimesPerDayTarget(f);
-  }
   const portions = portionsForPetFood(f);
   if (portions.length > 0) {
     return portions.length;
@@ -47,20 +43,12 @@ export function dailyProgressFoodTarget(f: PetFood): number {
 }
 
 /**
- * Subline for food cards — treats use legacy fields; meals use `pet_food_portions` when present.
+ * Subline for food cards — uses `pet_food_portions` when present (meals and treats).
  */
 export function formatPetFoodPortionSubline(
   f: PetFood,
   timeDisplay: UserTimeDisplay,
 ): string {
-  if (isTreatFood(f)) {
-    const size = f.portion_size?.trim() ?? "";
-    const unit = f.portion_unit?.trim() ?? "";
-    const line = [size, unit].filter(Boolean).join(" ") || "—";
-    const n = feedingTimesPerDayTarget(f);
-    return n > 1 ? `${line} · ${n}×/day` : line;
-  }
-
   const portions = portionsForPetFood(f);
   if (portions.length > 0) {
     return portions
@@ -91,11 +79,14 @@ export type MealPortionDraft = {
   feedTime: Date;
 };
 
-/** Expand legacy single-portion meals into editable rows (before first save with portions table). */
-export function deriveMealPortionsFromLegacy(f: PetFood): MealPortionDraft[] {
+/** Expand legacy single-portion foods into editable rows (before first save with portions table). */
+export function deriveMealPortionsFromLegacy(
+  f: PetFood,
+  defaultUnit = "Cups",
+): MealPortionDraft[] {
   const n = Math.min(8, Math.max(1, feedingTimesPerDayTarget(f)));
   const size = f.portion_size?.trim() ?? "";
-  const unit = f.portion_unit?.trim() || "Cups";
+  const unit = f.portion_unit?.trim() || defaultUnit;
   return Array.from({ length: n }, (_, i) => {
     const d = new Date();
     const h = LEGACY_MEAL_HOURS[i] ?? 8 + i * 2;
@@ -110,20 +101,22 @@ export function deriveMealPortionsFromLegacy(f: PetFood): MealPortionDraft[] {
 }
 
 /**
- * Onboarding / form hydration when a meal has no `mealPortions` but legacy
+ * Onboarding / form hydration when a food has no `mealPortions` but legacy
  * portion + times-per-day fields (older single-row flow).
  */
 export function deriveMealPortionsFromLegacyFields(fields: {
   mealsPerDayStr: string;
   portionSize: string;
   portionUnit: string;
+  defaultUnit?: string;
 }): MealPortionDraft[] {
   const n = Math.min(
     8,
     Math.max(1, parseInt(fields.mealsPerDayStr.trim(), 10) || 1),
   );
   const size = fields.portionSize?.trim() ?? "";
-  const unit = fields.portionUnit?.trim() || "Cups";
+  const unit =
+    fields.portionUnit?.trim() || fields.defaultUnit || "Cups";
   return Array.from({ length: n }, (_, i) => {
     const d = new Date();
     const h = LEGACY_MEAL_HOURS[i] ?? 8 + i * 2;

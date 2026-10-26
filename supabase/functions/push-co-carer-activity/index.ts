@@ -28,9 +28,7 @@ type ActivityRow = {
   id: string;
   pet_id: string;
   logged_by: string | null;
-  activity_type: string;
   label: string | null;
-  is_treat: boolean | null;
   vet_visit_id: string | null;
 };
 
@@ -39,25 +37,9 @@ function buildBody(
   petName: string,
   act: ActivityRow,
 ): string {
-  const kind =
-    act.activity_type === "food"
-      ? act.is_treat === true
-        ? "a treat"
-        : "a meal"
-      : act.activity_type === "exercise"
-        ? "exercise"
-        : act.activity_type === "medication"
-          ? "a medication"
-          : act.activity_type === "potty"
-            ? "potty"
-            : act.activity_type === "training"
-              ? "training"
-              : act.activity_type === "maintenance"
-                ? "litter box maintenance"
-                : act.activity_type === "vet_visit"
-                  ? "a vet visit"
-                  : "an activity";
-  return `${actorName} logged ${kind} for ${petName}: ${act.label ?? ""}`.trim();
+  const title = (act.label ?? "").trim();
+  const base = `${actorName} logged an activity for ${petName}`;
+  return title ? `${base}: ${title}` : base;
 }
 
 Deno.serve(async (req: Request) => {
@@ -128,9 +110,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: act, error: actErr } = await admin
     .from("pet_activities")
-    .select(
-      "id, pet_id, logged_by, activity_type, label, is_treat, vet_visit_id",
-    )
+    .select("id, pet_id, logged_by, label, vet_visit_id")
     .eq("id", activityId)
     .maybeSingle();
 
@@ -185,7 +165,7 @@ Deno.serve(async (req: Request) => {
       .join(" ")
       .trim() || "Someone";
 
-  const title = `${petName}: activity logged`;
+  const title = "Activity logged";
   const msgBody = buildBody(actorName, petName, row);
   const href = `/(logged-in)/manage-activity-item/${row.id}`;
 

@@ -1,8 +1,9 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 import type { PetVetVisit } from "@/types/database";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 type VetVisitReadOnlyViewProps = {
   visit: PetVetVisit;
@@ -27,15 +28,10 @@ export default function VetVisitReadOnlyView({
   });
   return (
     <View style={[styles.screen, { paddingTop: insetsTop + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={onBack} hitSlop={8}>
-          <Text style={styles.navBack}>&lt; Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Visit details
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Visit details"
+        onBack={onBack}
+      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[

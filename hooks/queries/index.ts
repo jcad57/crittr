@@ -18,6 +18,10 @@ export {
   todayActivitiesPrefixKey,
   activitiesSinceKey,
   activitiesSincePrefixKey,
+  activityMonthCountKey,
+  activityMonthCountPrefixKey,
+  scheduleDayKey,
+  schedulePetPrefixKey,
   coCarersForPetKey,
   sentInvitesForPetKey,
   pendingInvitesKey,
@@ -26,7 +30,7 @@ export {
   unreadNotificationCountKey,
   breedsQueryKey,
   allergiesQueryKey,
-} from "./queryKeys";
+} from "@/lib/query/keys";
 export { useBreedsQuery } from "./useBreedsQuery";
 export { useAllergiesQuery } from "./useAllergiesQuery";
 export {
@@ -47,9 +51,16 @@ export {
   useTodayActivitiesQuery,
   useTodayActivitiesForPetIdsQuery,
   useAllActivitiesQuery,
+  useActivitiesOnDayQuery,
   useActivityQuery,
 } from "./useActivitiesQuery";
+export {
+  useScheduleDayQuery,
+  useToggleScheduleItemMutation,
+  requestScheduleResync,
+} from "./useScheduleQuery";
 export { useActivitiesSinceQuery } from "./useActivitiesSinceQuery";
+export { useActivityMonthCountQuery } from "./useActivityMonthCountQuery";
 export { useActivitiesSinceForPetIdsQuery } from "./useActivitiesSinceForPetIdsQuery";
 export {
   useCoCarersForPetQuery,

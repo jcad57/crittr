@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { openBrowserAsync } from "expo-web-browser";
 import { useCallback } from "react";
 import { type StyleProp, View, type ViewStyle } from "react-native";

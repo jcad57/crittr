@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 /** Shared list / food / med / vac UI from the former single Pet Care step. */

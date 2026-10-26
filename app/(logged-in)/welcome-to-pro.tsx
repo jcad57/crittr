@@ -1,200 +1,225 @@
-import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import {
+  ProOnboardingView,
+  proOnboardingStyles,
+  type ProOnboardingExpandKind,
+  type ProOnboardingStep,
+} from "@/components/pro/ProOnboardingView";
+import {
+  useCoCarersForPetQuery,
+  usePetDetailsQuery,
+  usePetMedicalRecordsQuery,
+  usePetsQuery,
+  useSentInvitesForPetQuery,
+} from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { trackProEvent } from "@/lib/proEvents";
+import {
+  loadProEngagementState,
+  markProOnboardingCompleted,
+} from "@/lib/proEngagementPersistence";
+import { useAuthStore } from "@/stores/authStore";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import type { Href } from "expo-router";
-import type { ComponentProps } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Colors } from "@/theme/colors";
 
-/** Aligned with `Context Files/CrittrPro.md` — Pro tier features. */
-const PRO_FEATURES: {
-  icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
-  title: string;
-  subtitle: string;
-}[] = [
-  {
-    icon: "robot-outline",
-    title: "CrittrAI",
-    subtitle: "Smart help for pet care questions and tips.",
-  },
-  {
-    icon: "paw",
-    title: "Unlimited pets",
-    subtitle: "Add every companion without limits.",
-  },
-  {
-    icon: "account-group-outline",
-    title: "Co-care",
-    subtitle: "Invite family or sitters to share care.",
-  },
-  {
-    icon: "file-document-outline",
-    title: "Upload pet records",
-    subtitle: "Store documents and files per pet.",
-  },
-  {
-    icon: "food-outline",
-    title: "Unlimited meals, treats & meds",
-    subtitle: "Log as many foods and medications as you need.",
-  },
-  {
-    icon: "bell-ring-outline",
-    title: "Notifications & reminders",
-    subtitle: "Stay on schedule with alerts that matter.",
-  },
-];
+function nextAfterWelcome(opts: {
+  showCocare: boolean;
+  expandKind: ProOnboardingExpandKind | null;
+}): ProOnboardingStep {
+  if (opts.showCocare) return "cocare";
+  if (opts.expandKind) return "expand";
+  return "done";
+}
+
+function nextAfterCocare(
+  expandKind: ProOnboardingExpandKind | null,
+): ProOnboardingStep {
+  return expandKind ? "expand" : "done";
+}
 
 export default function WelcomeToProScreen() {
   const insets = useSafeAreaInsets();
   const { replace } = useNavigationCooldown();
+  const userId = useAuthStore((s) => s.session?.user?.id);
 
-  const goHome = () => {
-    replace("/(logged-in)/dashboard" as Href);
-  };
+  const [step, setStep] = useState<ProOnboardingStep>("welcome");
+  const [ready, setReady] = useState(false);
+  const startedRef = useRef(false);
+
+  const { data: pets, isPending: petsPending } = usePetsQuery();
+
+  const ownedLiving = useMemo(() => {
+    if (!pets) return [];
+    return pets.filter(
+      (p) => p.role === "owner" && isPetActiveForDashboard(p),
+    );
+  }, [pets]);
+
+  const firstPet = ownedLiving[0] ?? null;
+  const firstPetId = firstPet?.id ?? null;
+
+  const { data: details, isPending: detailsPending } =
+    usePetDetailsQuery(firstPetId);
+  const { data: medical, isPending: medicalPending } =
+    usePetMedicalRecordsQuery(firstPetId ?? undefined);
+  const { data: coCarers, isPending: carersPending } =
+    useCoCarersForPetQuery(firstPetId);
+  const { data: sentInvites, isPending: invitesPending } =
+    useSentInvitesForPetQuery(firstPetId);
+
+  const planPending =
+    !!firstPetId &&
+    (petsPending ||
+      detailsPending ||
+      medicalPending ||
+      carersPending ||
+      invitesPending);
+
+  const hasCocareAlready =
+    (coCarers?.length ?? 0) > 0 ||
+    (sentInvites?.some((i) => i.status === "pending") ?? false);
+
+  const showCocare = firstPetId != null && !hasCocareAlready;
+
+  const expandKind: ProOnboardingExpandKind | null = useMemo(() => {
+    if (ownedLiving.length === 1) return "addPet";
+    if (firstPetId && (medical?.records.length ?? 0) === 0) return "records";
+    if (firstPetId && (details?.medications.length ?? 0) >= 1) {
+      return "medications";
+    }
+    return "crittrAi";
+  }, [ownedLiving.length, firstPetId, medical?.records.length, details?.medications.length]);
+
+  useEffect(() => {
+    if (!userId) {
+      setReady(true);
+      return;
+    }
+    let cancelled = false;
+    void Promise.race([
+      loadProEngagementState(userId),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 2_500);
+      }),
+    ]).then((state) => {
+      if (cancelled) return;
+      if (state?.onboardingCompleted) {
+        replace("/(logged-in)/dashboard" as Href);
+        return;
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [replace, userId]);
+
+  useEffect(() => {
+    if (!ready || startedRef.current) return;
+    startedRef.current = true;
+    trackProEvent("pro_onboarding_started");
+  }, [ready]);
+
+  const finish = useCallback(
+    async (event: "pro_onboarding_completed" | "pro_onboarding_skipped") => {
+      if (userId) await markProOnboardingCompleted(userId);
+      trackProEvent(event, { step });
+      replace("/(logged-in)/dashboard" as Href);
+    },
+    [replace, step, userId],
+  );
+
+  const goHome = useCallback(() => {
+    void finish("pro_onboarding_completed");
+  }, [finish]);
+
+  const onWelcomeContinue = useCallback(() => {
+    if (planPending) return;
+    trackProEvent("pro_onboarding_step_completed", { step: "welcome" });
+    setStep(nextAfterWelcome({ showCocare, expandKind }));
+  }, [expandKind, planPending, showCocare]);
+
+  const onCocare = useCallback(() => {
+    trackProEvent("pro_onboarding_step_completed", { step: "cocare" });
+    if (userId) void markProOnboardingCompleted(userId);
+    if (firstPetId) {
+      replace(`/(logged-in)/pet/${firstPetId}/invite-care` as Href);
+      return;
+    }
+    setStep(nextAfterCocare(expandKind));
+  }, [expandKind, firstPetId, replace, userId]);
+
+  const onCocareSkip = useCallback(() => {
+    trackProEvent("pro_onboarding_skipped", { step: "cocare" });
+    setStep(nextAfterCocare(expandKind));
+  }, [expandKind]);
+
+  const onExpand = useCallback(() => {
+    trackProEvent("pro_onboarding_step_completed", { step: "expand" });
+    if (userId) void markProOnboardingCompleted(userId);
+    if (expandKind === "addPet") {
+      replace("/(logged-in)/add-pet" as Href);
+      return;
+    }
+    if (expandKind === "records" && firstPetId) {
+      replace(`/(logged-in)/pet/${firstPetId}/medical-records` as Href);
+      return;
+    }
+    if (expandKind === "medications" && firstPetId) {
+      replace(`/(logged-in)/pet/${firstPetId}/medications` as Href);
+      return;
+    }
+    if (expandKind === "crittrAi") {
+      replace("/(logged-in)/crittr-ai" as Href);
+      return;
+    }
+    setStep("done");
+  }, [expandKind, firstPetId, replace, userId]);
+
+  const onExpandSkip = useCallback(() => {
+    trackProEvent("pro_onboarding_skipped", { step: "expand" });
+    setStep("done");
+  }, []);
+
+  if (!ready) {
+    return (
+      <View
+        style={[
+          proOnboardingStyles.screen,
+          { alignItems: "center", justifyContent: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color={Colors.orange} />
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
+    <View style={[proOnboardingStyles.screen, { paddingTop: insets.top + 16 }]}>
       <ScrollView
-        style={styles.scroll}
+        style={proOnboardingStyles.scroll}
         contentContainerStyle={[
-          styles.scrollContent,
+          proOnboardingStyles.scrollContent,
           { paddingBottom: insets.bottom + 28 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Welcome to Crittr Pro!</Text>
-        <Text style={styles.lead}>
-          Your trial is active. Here is everything you can use right now.
-        </Text>
-
-        <View style={styles.card}>
-          {PRO_FEATURES.map((row, i) => (
-            <View
-              key={row.title}
-              style={[
-                styles.row,
-                i < PRO_FEATURES.length - 1 && styles.rowBorder,
-              ]}
-            >
-              <View style={styles.rowIcon}>
-                <MaterialCommunityIcons
-                  name={row.icon}
-                  size={22}
-                  color={Colors.orange}
-                />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{row.title}</Text>
-                <Text style={styles.rowSub}>{row.subtitle}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.footnote}>
-          Cancel anytime before your trial ends. Manage billing from your
-          account profile when billing is connected.
-        </Text>
-
-        <OrangeButton onPress={goHome} style={styles.cta}>
-          Go to home
-        </OrangeButton>
+        <ProOnboardingView
+          step={step}
+          expandKind={expandKind}
+          petName={firstPet?.name ?? null}
+          onWelcomeContinue={onWelcomeContinue}
+          welcomeBusy={planPending}
+          onCocare={onCocare}
+          onCocareSkip={onCocareSkip}
+          onExpand={onExpand}
+          onExpandSkip={onExpandSkip}
+          onDone={goHome}
+        />
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-  },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.orangeLight,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  title: {
-    fontFamily: Font.displayBold,
-    fontSize: MAIN_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    letterSpacing: -0.5,
-    marginBottom: 10,
-  },
-  lead: {
-    fontFamily: Font.uiRegular,
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.gray100,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  rowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray100,
-  },
-  rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.amberLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowTitle: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  rowSub: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.textSecondary,
-  },
-  footnote: {
-    fontFamily: Font.uiRegular,
-    fontSize: 13,
-    lineHeight: 19,
-    color: Colors.gray500,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  cta: {
-    alignSelf: "stretch",
-  },
-});

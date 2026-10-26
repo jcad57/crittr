@@ -1,23 +1,26 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
   healthSnapshotKey,
   petVetVisitsQueryKey,
   todayActivitiesPrefixKey,
-} from "@/hooks/queries/queryKeys";
+} from "@/lib/query/keys";
+import { requestScheduleResync } from "@/hooks/queries/useScheduleQuery";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { queryClient } from "@/lib/queryClient";
-import { syncTodayVetVisitMirrorsToActivities } from "@/lib/vetVisitActivityMirror";
+import { queryClient } from "@/lib/query/client";
+import { syncTodayVetVisitMirrorsToActivities } from "@/services/vetVisitActivityMirror";
 import { getErrorMessage } from "@/utils/errorMessage";
-import { syncCrittrReminderNotifications } from "@/lib/reminderNotificationSchedule";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import { resolveVetVisitLocation } from "@/utils/vetVisitLocationUi";
 import { createVetVisit } from "@/services/health";
 import { useAuthStore } from "@/stores/authStore";
@@ -32,7 +35,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -40,7 +42,6 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function defaultVisitDate(): Date {
@@ -69,6 +70,8 @@ export default function AddVetVisitScreen() {
   const setActivePetMutation = useSetActivePetMutation();
   const { data: petsData } = usePetsQuery();
   const pets: Pet[] = petsData ?? [];
+  /** Stable bound — new Date objects each render can lock/grey iOS spinner wheels. */
+  const minimumVisitDateRef = useRef(startOfToday());
 
   /** Apply ?petId= once when opening from a deep link; otherwise scheduling uses global active pet. */
   const appliedPetParamRef = useRef(false);
@@ -171,6 +174,7 @@ export default function AddVetVisitScreen() {
         queryKey: allActivitiesKey(petId),
       });
       await queryClient.invalidateQueries({ queryKey: ["todayActivities"] });
+      requestScheduleResync(petId);
       const profile = useAuthStore.getState().profile;
       if (userId && profile) {
         void syncCrittrReminderNotifications(
@@ -189,17 +193,10 @@ export default function AddVetVisitScreen() {
   if (pets.length === 0) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Vet visit
-          </Text>
-          <View style={styles.navSideRight} />
-        </View>
+        <ScreenHeader
+          title="Vet visit"
+          onBack={() => router.back()}
+        />
         <Text style={styles.hint}>Add a pet before scheduling a visit.</Text>
       </View>
     );
@@ -218,17 +215,10 @@ export default function AddVetVisitScreen() {
   if (petId && canManageVetVisits === false) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Schedule visit
-          </Text>
-          <View style={styles.navSideRight} />
-        </View>
+        <ScreenHeader
+          title="Schedule visit"
+          onBack={() => router.back()}
+        />
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           <CoCareReadOnlyNotice />
           <Text style={styles.hint}>
@@ -243,22 +233,16 @@ export default function AddVetVisitScreen() {
   return (
     <View style={styles.keyboardRoot}>
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.nav}>
-          <View style={styles.navSideLeft}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.navBack}>&lt; Back</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            Schedule visit
-          </Text>
-          <View style={styles.navSideRight}>
+        <ScreenHeader
+          title="Schedule visit"
+          onBack={() => router.back()}
+          right={
             <PetNavAvatar
               displayPet={schedulingPet ?? undefined}
               accessibilityLabelPrefix="Scheduling visit for"
             />
-          </View>
-        </View>
+          }
+        />
 
         <KeyboardAwareScrollView
           style={styles.scroll}
@@ -323,21 +307,17 @@ export default function AddVetVisitScreen() {
         </View>
       </View>
 
-      <DateTimePickerModal
+      <CrittrDateTimePickerModal
         isVisible={pickerOpen}
         mode="datetime"
         date={visitAt}
-        minimumDate={startOfToday()}
+        minimumDate={minimumVisitDateRef.current}
         is24Hour={timeDisplay === "24h"}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(d) => {
           setPickerOpen(false);
           setVisitAt(d);
         }}
         onCancel={() => setPickerOpen(false)}
-        confirmTextIOS="Save"
-        cancelTextIOS="Cancel"
-        buttonTextColorIOS={Colors.orange}
       />
     </View>
   );
@@ -356,36 +336,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
   /** Same width as navSideRight so the title centers on screen (matches pet edit screens). */
-  navSideLeft: {
-    width: 72,
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  navSideRight: {
-    width: 72,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navBack: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.orange,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
   scroll: {
     flex: 1,
   },

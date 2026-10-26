@@ -1,10 +1,15 @@
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
+import { Colors } from "@/theme/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { usePetStore } from "@/stores/petStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,11 +18,21 @@ export default function MoreScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
   const { runWithProOrUpgrade } = useProGateNavigation();
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
+  const { data: pets } = usePetsQuery();
+  const activePetId = usePetStore((s) => s.activePetId);
+  const activePetName =
+    pets?.find((p) => p.id === activePetId)?.name ?? pets?.[0]?.name ?? null;
 
   const openCrittrAi = () => {
-    runWithProOrUpgrade(() => {
-      push("/(logged-in)/crittr-ai" as Href);
-    });
+    void runWithProOrUpgrade(
+      () => {
+        push("/(logged-in)/crittr-ai" as Href);
+      },
+      () => setSoftPaywall("crittrAi"),
+    );
   };
 
   return (
@@ -31,7 +46,7 @@ export default function MoreScreen() {
     >
       <Text style={styles.title}>More</Text>
       <Text style={styles.subtitle}>
-        Pro features, your profile, and other tools.
+        Extra help for the pets you love, plus your profile.
       </Text>
 
       <ScrollView
@@ -57,7 +72,7 @@ export default function MoreScreen() {
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>CrittrAI</Text>
             <Text style={styles.rowSub}>
-              Ask questions about your pets&apos; care and routines
+              A little extra help with your pet&apos;s care and routines
             </Text>
           </View>
           <MaterialCommunityIcons
@@ -90,6 +105,12 @@ export default function MoreScreen() {
           />
         </Pressable>
       </ScrollView>
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={activePetName}
+        onClose={() => setSoftPaywall(null)}
+      />
     </View>
   );
 }

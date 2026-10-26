@@ -1,12 +1,12 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import {
   FLOATING_NAV_BAR_HEIGHT,
   FLOATING_NAV_HORIZONTAL_MARGIN_PERCENT,
   FLOATING_NAV_OUTER_BOTTOM_GAP,
   getFloatingNavSlideOutDistance,
   shouldShowFloatingNav,
-} from "@/constants/floatingNav";
-import { Font } from "@/constants/typography";
+} from "@/lib/navigation/floatingNav";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { usePathname, useRouter, useSegments } from "expo-router";
@@ -33,28 +33,28 @@ const TABS: TabItem[] = [
   {
     id: "home",
     label: "Home",
-    href: "/(logged-in)/dashboard",
+    href: "/(logged-in)/(tabs)/dashboard",
     icon: "home-outline",
     iconActive: "home",
   },
   {
     id: "activity",
-    label: "Activity",
-    href: "/(logged-in)/activity",
-    icon: "chart-timeline-variant",
-    iconActive: "chart-timeline-variant",
+    label: "Schedule",
+    href: "/(logged-in)/(tabs)/activity",
+    icon: "calendar-month-outline",
+    iconActive: "calendar-month",
   },
   {
     id: "pets",
     label: "Pets",
-    href: "/(logged-in)/pets",
+    href: "/(logged-in)/(tabs)/pets",
     icon: "paw-outline",
     iconActive: "paw",
   },
   {
     id: "health",
     label: "Health",
-    href: "/(logged-in)/health",
+    href: "/(logged-in)/(tabs)/health",
     icon: "heart-pulse",
     iconActive: "heart-pulse",
   },

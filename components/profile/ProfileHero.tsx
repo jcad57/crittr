@@ -2,8 +2,8 @@ import {
   type ProBannerThemeId,
   resolveProBannerTheme,
 } from "@/constants/proBannerThemes";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import {

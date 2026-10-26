@@ -5,19 +5,17 @@ import { Pressable, Text, View } from "react-native";
 type Props = {
   isNew: boolean;
   saving: boolean;
-  deleting: boolean;
   showErrorHint: boolean;
   onSave: () => void;
-  onDelete: () => void;
+  onCancel: () => void;
 };
 
 export default function PetMedicationFormActions({
   isNew,
   saving,
-  deleting,
   showErrorHint,
   onSave,
-  onDelete,
+  onCancel,
 }: Props) {
   return (
     <>
@@ -31,26 +29,24 @@ export default function PetMedicationFormActions({
         <OrangeButton
           onPress={onSave}
           loading={saving}
-          disabled={deleting}
+          disabled={saving}
           style={styles.saveBtn}
         >
           {isNew ? "Add medication" : "Save changes"}
         </OrangeButton>
 
-        {!isNew ? (
-          <Pressable
-            onPress={onDelete}
-            disabled={saving || deleting}
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              pressed && styles.deleteBtnPressed,
-            ]}
-          >
-            <Text style={styles.deleteText}>
-              {deleting ? "Deleting…" : "Delete medication"}
-            </Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={onCancel}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.cancelBtn,
+            pressed && styles.cancelBtnPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
       </View>
     </>
   );

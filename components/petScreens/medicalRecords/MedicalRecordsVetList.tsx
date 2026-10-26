@@ -1,5 +1,5 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { vetKindIcon } from "@/utils/medicalRecordsListFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";

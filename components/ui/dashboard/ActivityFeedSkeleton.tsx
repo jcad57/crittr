@@ -1,5 +1,5 @@
 import { ACTIVITY_ROW_ICON_BOX } from "@/constants/activityRowIcons";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { useSkeletonPulse } from "@/hooks/useSkeletonPulse";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";

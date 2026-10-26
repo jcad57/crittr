@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { CrittrAiMessage } from "@/types/database";
+import { trackCrittrAiMessageSent } from "@/lib/analytics";
 
 export type CrittrAiThread = {
   conversationId: string | null;
@@ -129,6 +130,7 @@ export async function invokeCrittrAiChat(params: {
     throw new Error("Invalid response from CrittrAI.");
   }
 
+  trackCrittrAiMessageSent(!params.conversationId);
   return {
     reply: payload.reply,
     conversation_id: payload.conversation_id,

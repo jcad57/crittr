@@ -1,5 +1,5 @@
-import { Colors } from "@/constants/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 /** iMessage-style composer: ~6 visible lines then scroll inside the field. */
@@ -37,22 +37,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     gap: 12,
-  },
-  betaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: Colors.orangeLight,
-    marginBottom: 8,
-  },
-  betaText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 12,
-    color: Colors.orangeDark,
   },
   errorBanner: {
     padding: 12,

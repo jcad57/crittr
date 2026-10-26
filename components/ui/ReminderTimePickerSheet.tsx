@@ -1,24 +1,9 @@
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import InlineTimePickerSheet from "@/components/ui/InlineTimePickerSheet";
+import { type DateTimePickerEvent } from "@/components/ui/pickers/CrittrDateTimePicker";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
-import { useCallback, useMemo } from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-
-/** Match light sheets; omit `textColor` — forcing it uses private KVC and can glitch wheel styling. */
-const IOS_PICKER_PROPS = {
-  themeVariant: "light" as const,
-};
+import { useCallback, useEffect, useState } from "react";
+import { Modal, Platform } from "react-native";
 
 type ReminderTimePickerSheetProps = {
   visible: boolean;
@@ -30,8 +15,9 @@ type ReminderTimePickerSheetProps = {
 };
 
 /**
- * Time picker for medication reminders: iOS uses a sheet with Cancel / Done so the
- * spinner can be dismissed (native spinner stays open otherwise).
+ * Time picker for screens that are not already inside a Modal (e.g. add-activity).
+ * Android uses the system dialog; iOS uses a Cancel/Done sheet so the spinner
+ * can be dismissed. Draft state keeps Cancel from committing a partial scroll.
  */
 export default function ReminderTimePickerSheet({
   visible,
@@ -42,7 +28,13 @@ export default function ReminderTimePickerSheet({
 }: ReminderTimePickerSheetProps) {
   const { timeDisplay } = useUserDateTimePrefs();
   const is24Hour = timeDisplay === "24h";
-  const pickerValue = useMemo(() => mergeWallClockOntoToday(value), [value]);
+  const [draft, setDraft] = useState(() => mergeWallClockOntoToday(value));
+
+  useEffect(() => {
+    if (!visible) return;
+    setDraft(mergeWallClockOntoToday(value));
+  }, [visible, value]);
+
   const handleNativeChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
       if (Platform.OS === "android") {
@@ -52,23 +44,29 @@ export default function ReminderTimePickerSheet({
         onClose();
         return;
       }
-      if (date) onChange(mergeWallClockOntoToday(date));
+      if (event.type === "dismissed") return;
+      if (date) setDraft(mergeWallClockOntoToday(date));
     },
     [onChange, onClose],
   );
 
+  const handleDone = useCallback(() => {
+    onChange(mergeWallClockOntoToday(draft));
+    onClose();
+  }, [draft, onChange, onClose]);
+
   if (Platform.OS === "android") {
-    return visible ? (
-      <DateTimePicker
-        value={pickerValue}
-        mode="time"
-        display="default"
+    return (
+      <InlineTimePickerSheet
+        visible={visible}
+        value={draft}
         is24Hour={is24Hour}
-        onChange={handleNativeChange}
-        positiveButton={{ label: "OK", textColor: Colors.black }}
-        negativeButton={{ label: "Cancel", textColor: Colors.black }}
+        title={title}
+        onNativeChange={handleNativeChange}
+        onCancel={onClose}
+        onConfirm={handleDone}
       />
-    ) : null;
+    );
   }
 
   return (
@@ -76,92 +74,18 @@ export default function ReminderTimePickerSheet({
       visible={visible}
       transparent
       animationType="fade"
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.iosRoot}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.toolbar}>
-            <View style={styles.toolbarSide}>
-              <Pressable onPress={onClose} hitSlop={12}>
-                <Text style={styles.toolbarBtn}>Cancel</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.toolbarTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            <View style={[styles.toolbarSide, styles.toolbarSideEnd]}>
-              <Pressable onPress={onClose} hitSlop={12}>
-                <Text style={[styles.toolbarBtn, styles.done]}>Done</Text>
-              </Pressable>
-            </View>
-          </View>
-          <DateTimePicker
-            value={pickerValue}
-            mode="time"
-            display="spinner"
-            onChange={handleNativeChange}
-            {...IOS_PICKER_PROPS}
-            style={styles.iosPicker}
-          />
-        </View>
-      </View>
+      <InlineTimePickerSheet
+        visible={visible}
+        value={draft}
+        is24Hour={is24Hour}
+        title={title}
+        onNativeChange={handleNativeChange}
+        onCancel={onClose}
+        onConfirm={handleDone}
+      />
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  iosRoot: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 24,
-    overflow: "hidden",
-  },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.gray200,
-    backgroundColor: Colors.white,
-  },
-  toolbarSide: {
-    width: 80,
-    justifyContent: "center",
-  },
-  toolbarSideEnd: {
-    alignItems: "flex-end",
-  },
-  toolbarBtn: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 17,
-    color: Colors.textSecondary,
-    paddingHorizontal: 12,
-  },
-  done: {
-    color: Colors.orange,
-    textAlign: "right",
-  },
-  toolbarTitle: {
-    flex: 1,
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.black,
-    textAlign: "center",
-  },
-  iosPicker: {
-    backgroundColor: Colors.white,
-    alignSelf: "center",
-  },
-});

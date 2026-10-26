@@ -1,8 +1,8 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import { HealthVisitSummaryRow } from "@/components/ui/health/HealthVisitRow";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import type { MedicationSummary, VetVisitSummary } from "@/types/ui";
 import type { PetVaccination } from "@/types/database";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";

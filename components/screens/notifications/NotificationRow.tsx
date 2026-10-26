@@ -1,5 +1,5 @@
 import { styles } from "@/screen-styles/notifications.styles";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import type { AppNotification } from "@/types/database";
 import { notificationIcon, timeAgo } from "@/utils/notificationDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

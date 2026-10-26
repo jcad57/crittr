@@ -1,29 +1,41 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/constants/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
-import { Font } from "@/constants/typography";
 import { useProPricingQuery } from "@/hooks/queries";
 import {
-  profileQueryKey,
-  subscriptionDetailsQueryKey,
-} from "@/hooks/queries/queryKeys";
-import {
   ProPurchaseException,
+  detectExistingCrittrProEntitlement,
   fetchProPackageForBillingDetailed,
   purchaseProPackage,
   restoreProPurchases,
   waitForProActivation,
+  type OfferingFetchFailure,
   type ProBillingParam,
   type ProPurchaseResult,
 } from "@/lib/iap/checkout";
+import {
+  PRO_ACTIVATION_UI_WATCHDOG_MS,
+  PURCHASE_SUCCEEDED_SYNC_ERROR,
+} from "@/lib/iap/proActivation";
+import { clientHasUnlockedPro } from "@/lib/iap/crittrProClientState";
+import {
+  PLAY_REDEEM_URL,
+  storeAccountLabel,
+  storePhrase,
+} from "@/lib/iap/storeTerms";
+import { profileQueryKey, subscriptionDetailsQueryKey, proPricingQueryKey } from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
+import { postPurchaseHref } from "@/utils/proUpgradePaths";
+import { proCheckoutPriceSubline } from "@/utils/proUpgradeCta";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   Platform,
   Pressable,
   StyleSheet,
@@ -39,16 +51,12 @@ type Phase =
   | "ready"
   | "dismissed"
   | "confirming"
+  /** Play accepted the order but it needs to clear (cash, carrier, approval). */
+  | "pending"
   | "error";
 
 /** User-facing copy for each `loadCurrentOffering` failure mode. Detail string is logged separately. */
-function userFacingOfferingMessage(
-  reason:
-    | "rc_not_configured"
-    | "no_current_offering"
-    | "package_missing"
-    | "get_offerings_failed",
-): string {
+function userFacingOfferingMessage(reason: OfferingFetchFailure): string {
   switch (reason) {
     case "rc_not_configured":
       return "Subscriptions aren't available in this build. Please update Crittr or contact support.";
@@ -56,8 +64,10 @@ function userFacingOfferingMessage(
       return "Crittr Pro isn't available right now. Please try again in a minute or contact support if this persists.";
     case "package_missing":
       return "This subscription option isn't available right now. Please try the other plan or try again later.";
+    case "billing_unavailable":
+      return `Purchases aren't available on this device. Make sure you're signed in to ${storePhrase()} and that purchases aren't restricted for your ${storeAccountLabel()}.`;
     case "get_offerings_failed":
-      return "We couldn't reach the App Store. Please check your connection and try again.";
+      return `We couldn't reach ${storePhrase()}. Please check your connection and try again.`;
   }
 }
 
@@ -89,6 +99,29 @@ export default function ProCheckoutScreen() {
     purchasedRef.current = false;
 
     try {
+      /**
+       * Short-circuit if RevenueCat already reports an active Crittr Pro
+       * entitlement for this Apple/Google account. This is how we avoid
+       * showing a paywall to a user who redeemed a promo code outside the
+       * app (e.g. via App Store offer code link), or who has an existing
+       * subscription tied to a different login on the same store account.
+       *
+       * Important: we treat this as a "restore"-style activation. We don't
+       * want to charge the user a second time just because their Supabase
+       * profile hadn't picked up the RC entitlement yet.
+       */
+      const existing = await detectExistingCrittrProEntitlement();
+      if (existing.hasCrittrPro) {
+        purchaseResultRef.current = {
+          customerInfo: existing.customerInfo,
+          productIdentifier: "",
+          hasCrittrPro: true,
+        };
+        purchasedRef.current = true;
+        setPhase("confirming");
+        return;
+      }
+
       const offering = await fetchProPackageForBillingDetailed(billing);
       if (!offering.ok) {
         const baseMsg = userFacingOfferingMessage(offering.reason);
@@ -113,9 +146,35 @@ export default function ProCheckoutScreen() {
         setPhase("confirming");
       }
     } catch (e) {
-      if (e instanceof ProPurchaseException && e.userCancelled) {
-        setPhase("dismissed");
-        return;
+      if (e instanceof ProPurchaseException) {
+        if (e.kind === "cancelled") {
+          setPhase("dismissed");
+          return;
+        }
+        /**
+         * Play can accept an order that settles later, and it can reject a
+         * repeat purchase for a product the account already owns. Neither is
+         * a failed checkout, and in both cases charging again is the wrong
+         * move — activate or wait instead.
+         */
+        if (e.kind === "pending") {
+          setErrorMessage(e.message);
+          setPhase("pending");
+          return;
+        }
+        if (e.kind === "already_owned") {
+          const existing = await detectExistingCrittrProEntitlement();
+          if (existing.hasCrittrPro) {
+            purchaseResultRef.current = {
+              customerInfo: existing.customerInfo,
+              productIdentifier: "",
+              hasCrittrPro: true,
+            };
+          }
+          purchasedRef.current = true;
+          setPhase("confirming");
+          return;
+        }
       }
       const msg = e instanceof Error ? e.message : "Something went wrong";
       setErrorMessage(msg);
@@ -128,47 +187,99 @@ export default function ProCheckoutScreen() {
     void startPurchase();
   }, [phase, startPurchase]);
 
+  const goAfterActivation = useCallback(() => {
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (uid) {
+      // Never await these — a hung profile refetch used to leave the
+      // activating spinner up after the store had already unlocked Pro.
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey(uid) });
+      void queryClient.invalidateQueries({
+        queryKey: subscriptionDetailsQueryKey(uid),
+      });
+      void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
+      void useAuthStore.getState().refreshProfileOnly();
+    }
+    router.replace(postPurchaseHref(returnTo));
+  }, [queryClient, returnTo, router]);
+
   useEffect(() => {
     if (phase !== "confirming") return;
     let cancelled = false;
+    let didFinish = false;
+
+    const finish = () => {
+      if (cancelled || didFinish) return;
+      didFinish = true;
+      goAfterActivation();
+    };
+
+    const fail = (message: string) => {
+      if (cancelled || didFinish) return;
+      didFinish = true;
+      setErrorMessage(message);
+      setPhase("error");
+    };
+
+    const watchdog = setTimeout(() => {
+      if (clientHasUnlockedPro()) {
+        finish();
+        return;
+      }
+      fail(PURCHASE_SUCCEEDED_SYNC_ERROR);
+    }, PRO_ACTIVATION_UI_WATCHDOG_MS);
 
     void (async () => {
       try {
-        await waitForProActivation(75_000, {
-          purchaseCustomerInfo: purchaseResultRef.current?.customerInfo,
+        await new Promise<void>((resolve) => {
+          let settled = false;
+          const done = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          };
+          InteractionManager.runAfterInteractions(done);
+          setTimeout(done, 400);
         });
         if (cancelled) return;
-        const uid = useAuthStore.getState().session?.user?.id;
-        if (uid) {
-          await queryClient.invalidateQueries({
-            queryKey: profileQueryKey(uid),
-          });
-          await queryClient.invalidateQueries({
-            queryKey: subscriptionDetailsQueryKey(uid),
-          });
-        }
-        const nextHref =
-          returnTo === "subscriptions"
-            ? "/(logged-in)/subscriptions"
-            : returnTo === "settings"
-              ? "/(logged-in)/settings"
-              : "/(logged-in)/welcome-to-pro";
-        router.replace(nextHref as Href);
+
+        const cachedResult = purchaseResultRef.current;
+        const hasFreshPurchase =
+          cachedResult != null && cachedResult.productIdentifier !== "";
+        const source = hasFreshPurchase
+          ? ("purchase" as const)
+          : cachedResult?.hasCrittrPro
+            ? ("paywall" as const)
+            : ("restore" as const);
+        await waitForProActivation({
+          purchaseCustomerInfo: cachedResult?.customerInfo,
+          source,
+        });
+        if (cancelled) return;
+        finish();
       } catch (e) {
         if (cancelled) return;
-        setErrorMessage(
-          e instanceof Error
-            ? e.message
-            : "Could not confirm your subscription.",
+        if (clientHasUnlockedPro()) {
+          finish();
+          return;
+        }
+        fail(
+          purchasedRef.current
+            ? PURCHASE_SUCCEEDED_SYNC_ERROR
+            : e instanceof Error
+              ? e.message
+              : "Could not confirm your subscription.",
         );
-        setPhase("error");
       }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
     };
-  }, [phase, queryClient, router, returnTo]);
+    // Intentionally `[phase]` only. Including router/queryClient/returnTo
+    // cancelled in-flight activation and left the confirming spinner up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const retry = useCallback(() => {
     if (purchasedRef.current) {
@@ -186,10 +297,12 @@ export default function ProCheckoutScreen() {
       if (!result.hasCrittrPro) {
         Alert.alert(
           "Nothing to restore",
-          "We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, try signing in to the same Apple ID or Google account used for the original purchase.",
+          `We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, make sure this device is signed in to the ${storeAccountLabel()} used for the original purchase.`,
         );
         return;
       }
+      purchaseResultRef.current = result;
+      purchasedRef.current = true;
       setPhase("confirming");
     } catch (e) {
       if (e instanceof ProPurchaseException && e.userCancelled) return;
@@ -201,22 +314,25 @@ export default function ProCheckoutScreen() {
   }, []);
 
   const onPromoCode = useCallback(async () => {
-    if (Platform.OS !== "ios") return;
     try {
-      await Purchases.presentCodeRedemptionSheet();
+      if (Platform.OS === "ios") {
+        await Purchases.presentCodeRedemptionSheet();
+        return;
+      }
+      await WebBrowser.openBrowserAsync(PLAY_REDEEM_URL);
     } catch (e) {
       if (__DEV__) console.warn("[pro-checkout] redeem code", e);
     }
   }, []);
 
-  const goBack = useCallback(() => {
-    router.back();
-  }, [router]);
-
   const trialSubline = useMemo(() => {
-    return billing === "annual"
-      ? `${pricing.annual.formatted}/yr after your 7-day free trial`
-      : `${pricing.monthly.formatted}/mo after your 7-day free trial`;
+    const tier = billing === "annual" ? pricing.annual : pricing.monthly;
+    const cadence = billing === "annual" ? "yr" : "mo";
+    return proCheckoutPriceSubline({
+      formatted: tier.formatted,
+      cadence,
+      trial: tier.trial,
+    });
   }, [billing, pricing]);
 
   return (
@@ -240,6 +356,20 @@ export default function ProCheckoutScreen() {
         </View>
       ) : null}
 
+      {phase === "pending" ? (
+        <View style={styles.centered}>
+          <Text style={styles.title}>Payment in progress</Text>
+          <Text style={styles.sub}>{errorMessage}</Text>
+          <View style={styles.actions}>
+            <OrangeButton
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
+            >
+              Back to dashboard
+            </OrangeButton>
+          </View>
+        </View>
+      ) : null}
+
       {phase === "dismissed" ? (
         <View style={styles.centered}>
           <Text style={styles.title}>Ready to checkout?</Text>
@@ -259,19 +389,17 @@ export default function ProCheckoutScreen() {
                 {restoring ? "Restoring…" : "Restore purchases"}
               </Text>
             </Pressable>
-            {Platform.OS === "ios" ? (
-              <Pressable
-                style={styles.secondaryBtn}
-                onPress={() => void onPromoCode()}
-                accessibilityRole="button"
-                accessibilityLabel="Redeem a promo code"
-              >
-                <Text style={styles.secondaryLabel}>Redeem promo code</Text>
-              </Pressable>
-            ) : null}
             <Pressable
               style={styles.secondaryBtn}
-              onPress={goBack}
+              onPress={() => void onPromoCode()}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem a promo code"
+            >
+              <Text style={styles.secondaryLabel}>Redeem promo code</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryBtn}
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
               accessibilityRole="button"
             >
               <Text style={styles.secondaryLabel}>Go back to dashboard</Text>
@@ -282,7 +410,11 @@ export default function ProCheckoutScreen() {
 
       {phase === "error" && errorMessage ? (
         <View style={styles.centered}>
-          <Text style={styles.err}>{errorMessage}</Text>
+          <Text style={styles.err}>
+            {purchasedRef.current
+              ? PURCHASE_SUCCEEDED_SYNC_ERROR
+              : errorMessage}
+          </Text>
           <View style={styles.actions}>
             <OrangeButton onPress={retry}>
               {purchasedRef.current ? "Retry activation" : "Try again"}
@@ -299,7 +431,7 @@ export default function ProCheckoutScreen() {
             </Pressable>
             <Pressable
               style={styles.secondaryBtn}
-              onPress={goBack}
+              onPress={() => router.replace("/(logged-in)/(tabs)/dashboard")}
               accessibilityRole="button"
             >
               <Text style={styles.secondaryLabel}>Go back to dashboard</Text>

@@ -1,6 +1,8 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import { Colors } from "@/constants/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/constants/typography";
+import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import {
   useDeleteMedicationMutation,
   usePetDetailsQuery,
@@ -42,7 +44,7 @@ export default function PetMedicationsListScreen() {
   const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade } = useProGateNavigation();
+  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details || !petId) return [];
@@ -83,19 +85,10 @@ export default function PetMedicationsListScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={Colors.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Medications
-        </Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <ScreenHeader
+        title="Medications"
+        onBack={() => router.back()}
+      />
 
       {isLoading && !details ? (
         <View style={styles.centered}>
@@ -121,7 +114,7 @@ export default function PetMedicationsListScreen() {
               : "Tap a medication to view its details."}
           </Text>
 
-          {canManageMeds ? (
+          {canManageMeds && (!isProfileReady || isPro || rows.length === 0) ? (
             <Pressable
               style={({ pressed }) => [
                 styles.addBtn,
@@ -170,6 +163,15 @@ export default function PetMedicationsListScreen() {
               ))}
             </View>
           )}
+
+          {canManageMeds && isProfileReady && !isPro && rows.length >= 1 ? (
+            <View style={{ marginTop: 16 }}>
+              <ProSoftPaywallCard
+                kind="medications"
+                petName={details?.name}
+              />
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -181,21 +183,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.cream,
   },
-  nav: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  navTitle: {
-    flex: 1,
-    fontFamily: Font.displayBold,
-    fontSize: MANAGE_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginHorizontal: 8,
-  },
-  navSpacer: { width: 28 },
   scroll: { flex: 1 },
   body: {
     paddingHorizontal: 20,

@@ -4,8 +4,8 @@ import {
   ACTIVITY_ROW_ICONS,
   resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
-import { Colors } from "@/constants/colors";
-import { Font } from "@/constants/typography";
+import { Colors } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { displayCategory, pottyBreakSummary } from "@/data/activityHistory";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { formatMedicationDosageDisplay } from "@/utils/medicationDosageDisplay";

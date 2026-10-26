@@ -1,6 +1,6 @@
 import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
-import DropdownSelect from "@/components/onboarding/DropdownSelect";
-import FormInput from "@/components/onboarding/FormInput";
+import DropdownSelect from "@/components/ui/form/DropdownSelect";
+import FormInput from "@/components/ui/form/FormInput";
 import { DOSAGE_TYPES } from "@/constants/medicationEditForm";
 import { Text, View } from "react-native";
 

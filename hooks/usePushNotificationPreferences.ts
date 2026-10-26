@@ -1,4 +1,4 @@
-import { profileQueryKey } from "@/hooks/queries/queryKeys";
+import { profileQueryKey } from "@/lib/query/keys";
 import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";

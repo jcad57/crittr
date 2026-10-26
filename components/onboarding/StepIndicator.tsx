@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 type StepIndicatorProps = {

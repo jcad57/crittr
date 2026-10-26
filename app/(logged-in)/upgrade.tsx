@@ -1,25 +1,47 @@
 import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
-import { Colors } from "@/constants/colors";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { fetchProPackageForBilling } from "@/lib/iap/checkout";
+import { trackPaywallViewed } from "@/lib/analytics";
+import { resolveClientIsCrittrPro } from "@/lib/crittrPro";
+import {
+  detectExistingCrittrProEntitlement,
+  ProPurchaseException,
+  restoreProPurchases,
+  waitForProActivation,
+} from "@/lib/iap/checkout";
+import {
+  clientHasUnlockedPro,
+  getCrittrProClientState,
+} from "@/lib/iap/crittrProClientState";
+import { PRO_ACTIVATION_UI_WATCHDOG_MS } from "@/lib/iap/proActivation";
+import { PLAY_REDEEM_URL, storeAccountLabel } from "@/lib/iap/storeTerms";
+import { suppressProCelebrationsUntil } from "@/lib/proEngagementPersistence";
+import { queryClient } from "@/lib/query/client";
+import { proPricingQueryKey } from "@/lib/query/keys";
+import { styles } from "@/screen-styles/upgrade.styles";
 import { useAuthStore } from "@/stores/authStore";
+import { Colors } from "@/theme/colors";
+import { postPurchaseHref } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
 import Purchases from "react-native-purchases";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/upgrade.styles";
 
 type BillingPeriod = "annual" | "monthly";
 
@@ -30,9 +52,8 @@ export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
   const [billing, setBilling] = useState<BillingPeriod>("annual");
-  const [introTrialEligible, setIntroTrialEligible] = useState<boolean | null>(
-    null,
-  );
+  const [activatingExisting, setActivatingExisting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const params = useLocalSearchParams<{
     fromOnboarding?: string;
     returnTo?: string;
@@ -44,40 +65,96 @@ export default function UpgradeScreen() {
   const pricing = pricingData ?? PRO_PRICING_FALLBACK;
 
   useEffect(() => {
+    trackPaywallViewed({
+      billing,
+      source: fromOnboarding ? "onboarding" : params.returnTo || "upgrade",
+    });
+    // Paywall impression is once per visit, not per billing toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Paywall preflight: if RevenueCat already reports Crittr Pro for this
+   * signed-in user (promo redeemed outside the app, profile column lagging
+   * the SDK, etc.), sync that onto the `profiles` entitlement mirror and skip
+   * the paywall. Apple/Google remain the purchase authority; RevenueCat
+   * `crittr_pro` is the entitlement aggregator; CustomerInfo is what the rest
+   * of the client UI gates on.
+   *
+   * This effect is mount-only. Putting `activatingExisting` (or `profile`)
+   * in the dependency list re-ran cleanup as soon as the overlay appeared,
+   * set `cancelled`, skipped `setActivatingExisting(false)` in `finally`,
+   * and left the spinner up forever.
+   */
+  useEffect(() => {
+    const client = getCrittrProClientState();
+    if (
+      resolveClientIsCrittrPro(
+        client.customerInfoObserved,
+        client.entitlement,
+        useAuthStore.getState().profile,
+      )
+    ) {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
-        const pkg = await fetchProPackageForBilling(billing);
-        if (cancelled) return;
-        if (!pkg) {
-          /** No offering loaded yet — assume eligible so we show the trial CTA. */
-          setIntroTrialEligible(true);
-          return;
+        const detect = await detectExistingCrittrProEntitlement();
+        if (cancelled || !detect.hasCrittrPro) return;
+        setActivatingExisting(true);
+        let didNavigate = false;
+        const watchdog = setTimeout(() => {
+          if (cancelled || didNavigate) return;
+          if (clientHasUnlockedPro()) {
+            didNavigate = true;
+            replace(postPurchaseHref(params.returnTo));
+            return;
+          }
+          setActivatingExisting(false);
+        }, PRO_ACTIVATION_UI_WATCHDOG_MS);
+        try {
+          await waitForProActivation({
+            purchaseCustomerInfo: detect.customerInfo,
+            source: "paywall",
+          });
+          if (cancelled) return;
+          void useAuthStore.getState().refreshProfileOnly();
+          const returnTo = params.returnTo;
+          replace(postPurchaseHref(returnTo));
+          didNavigate = true;
+        } catch {
+          if (cancelled) return;
+          if (clientHasUnlockedPro()) {
+            void useAuthStore.getState().refreshProfileOnly();
+            replace(postPurchaseHref(params.returnTo));
+            didNavigate = true;
+            return;
+          }
+          /* fall through — the user can still tap "Restore purchases" manually. */
+        } finally {
+          clearTimeout(watchdog);
+          if (!didNavigate) setActivatingExisting(false);
         }
-        const status = await Purchases.checkTrialOrIntroductoryPriceEligibility(
-          [pkg.product.identifier],
-        );
-        if (cancelled) return;
-        const code = status[pkg.product.identifier]?.status;
-        /**
-         * `INTRO_ELIGIBILITY_STATUS_ELIGIBLE` (2) and the unknown bucket (0/3)
-         * keep the trial CTA visible. Only an explicit ineligible answer (1)
-         * should hide it.
-         */
-        setIntroTrialEligible(code !== 1);
       } catch {
-        if (!cancelled) setIntroTrialEligible(true);
+        /* SDK errors are non-fatal; the paywall just stays visible. */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [billing]);
+    // Mount-only: see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scrollCompact = windowH < 720;
 
   const goToDashboard = async () => {
     await refreshProfileOnly();
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (fromOnboarding && uid) {
+      void suppressProCelebrationsUntil(uid, Date.now() + 24 * 60 * 60 * 1000);
+    }
     replace("/(logged-in)/dashboard" as Href);
   };
 
@@ -88,6 +165,62 @@ export default function UpgradeScreen() {
     }
     void goToDashboard();
   };
+
+  const onRestore = useCallback(async () => {
+    if (restoring || activatingExisting) return;
+    setRestoring(true);
+    try {
+      const result = await restoreProPurchases();
+      if (!result.hasCrittrPro) {
+        Alert.alert(
+          "Nothing to restore",
+          `We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, make sure this device is signed in to the ${storeAccountLabel()} used for the original purchase.`,
+        );
+        return;
+      }
+      setActivatingExisting(true);
+      try {
+        await waitForProActivation({
+          purchaseCustomerInfo: result.customerInfo,
+          source: "restore",
+        });
+        void refreshProfileOnly();
+        void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
+        replace(postPurchaseHref(params.returnTo));
+      } finally {
+        setActivatingExisting(false);
+      }
+    } catch (e) {
+      if (e instanceof ProPurchaseException && e.userCancelled) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Restore failed", msg);
+    } finally {
+      setRestoring(false);
+    }
+  }, [
+    restoring,
+    activatingExisting,
+    refreshProfileOnly,
+    params.returnTo,
+    replace,
+  ]);
+
+  /**
+   * `presentCodeRedemptionSheet` is iOS-only. Play has no in-app equivalent,
+   * so Android users go to the Play redeem page; the entitlement lands back in
+   * the app through the RevenueCat sync on resume.
+   */
+  const onPromoCode = useCallback(async () => {
+    try {
+      if (Platform.OS === "ios") {
+        await Purchases.presentCodeRedemptionSheet();
+        return;
+      }
+      await WebBrowser.openBrowserAsync(PLAY_REDEEM_URL);
+    } catch (e) {
+      if (__DEV__) console.warn("[upgrade] redeem code", e);
+    }
+  }, []);
 
   return (
     <LinearGradient
@@ -151,7 +284,6 @@ export default function UpgradeScreen() {
           pricing={pricing}
           billing={billing}
           onBillingChange={setBilling}
-          introTrialEligible={introTrialEligible}
           onCta={() => {
             const q = new URLSearchParams();
             q.set("billing", billing);
@@ -161,7 +293,48 @@ export default function UpgradeScreen() {
           showNoThanks={fromOnboarding}
           onNoThanks={goToDashboard}
         />
+
+        <View style={upgradeFooter.row}>
+          <Pressable
+            style={({ pressed }) => [
+              upgradeFooter.linkBtn,
+              pressed && upgradeFooter.linkBtnPressed,
+            ]}
+            onPress={onRestore}
+            disabled={restoring || activatingExisting}
+            accessibilityRole="button"
+            accessibilityLabel="Restore previous purchases"
+          >
+            <Text style={upgradeFooter.linkText}>
+              {restoring ? "Restoring…" : "Restore purchases"}
+            </Text>
+          </Pressable>
+          <Text style={upgradeFooter.dot}>·</Text>
+          <Pressable
+            style={({ pressed }) => [
+              upgradeFooter.linkBtn,
+              pressed && upgradeFooter.linkBtnPressed,
+            ]}
+            onPress={() => void onPromoCode()}
+            disabled={activatingExisting}
+            accessibilityRole="button"
+            accessibilityLabel="Redeem a promo code"
+          >
+            <Text style={upgradeFooter.linkText}>Redeem promo code</Text>
+          </Pressable>
+        </View>
       </ScrollView>
+
+      {activatingExisting ? (
+        <View style={upgradeFooter.activatingOverlay} pointerEvents="auto">
+          <View style={upgradeFooter.activatingCard}>
+            <ActivityIndicator color={Colors.orange} />
+            <Text style={upgradeFooter.activatingText}>
+              Activating Crittr Pro…
+            </Text>
+          </View>
+        </View>
+      ) : null}
     </LinearGradient>
   );
 }
@@ -180,3 +353,50 @@ const GRADIENT_COLORS = [
 ] as const;
 
 const GRADIENT_LOCATIONS = [0, 0.15, 0.35, 0.52, 0.68, 0.86, 1] as const;
+
+const upgradeFooter = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  linkBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+  },
+  linkBtnPressed: {
+    opacity: 0.6,
+  },
+  linkText: {
+    color: "#f5f5f7",
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
+  dot: {
+    color: "#9a9a9c",
+    fontSize: 14,
+  },
+  activatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  activatingCard: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 12,
+    minWidth: 220,
+  },
+  activatingText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#111",
+  },
+});

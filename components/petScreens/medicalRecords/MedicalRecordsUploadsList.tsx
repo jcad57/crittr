@@ -1,5 +1,5 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { Colors } from "@/constants/colors";
+import { Colors } from "@/theme/colors";
 import { recordSubtitle } from "@/utils/medicalRecordsListFormat";
 import type { PetMedicalRecord } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

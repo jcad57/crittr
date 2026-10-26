@@ -1,5 +1,6 @@
 import { getRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
 import { selectCrittrProEntitlementFromCustomerInfo } from "@/lib/iap/crittrProRevenueCat";
+import { baseProductId } from "@/lib/iap/storeTerms";
 import Purchases, {
   type CustomerInfo,
   type PurchasesEntitlementInfo,
@@ -14,8 +15,8 @@ import Purchases, {
  */
 export type SubscriptionDetails = {
   productIdentifier: string;
-  status: "active" | "trialing" | "canceled" | "expired" | "billing_issue";
-  planLabel: "annual" | "monthly";
+  status: "active" | "trialing" | "canceled" | "expired" | "billing_issue" | "lifetime";
+  planLabel: "annual" | "monthly" | "lifetime";
   interval: "month" | "year" | null;
   /** Localized price string, e.g. "$4.99 / month". `—` when unknown. */
   priceFormatted: string;
@@ -33,6 +34,8 @@ export type SubscriptionDetails = {
   managementUrl: string | null;
   /** True when this subscription was granted by Apple Family Sharing. */
   isFamilyShared: boolean;
+  /** True when RevenueCat reports an active entitlement with no expiration. */
+  isLifetime: boolean;
 };
 
 const PERIOD_TYPE_TO_STATUS: Record<
@@ -51,7 +54,7 @@ function storeLabel(store: Store): string {
     case "MAC_APP_STORE":
       return "App Store";
     case "PLAY_STORE":
-      return "Play Store";
+      return "Google Play";
     case "AMAZON":
       return "Amazon";
     case "PROMOTIONAL":
@@ -68,27 +71,36 @@ function storeLabel(store: Store): string {
   }
 }
 
+/**
+ * Google Play carries the cadence on the base plan rather than the
+ * subscription, so check both. `productPlanIdentifier` is Play-only and null
+ * on the App Store.
+ */
 function planLabelFromProductId(
   productId: string,
-  intro: { period?: string; periodUnit?: string } | null,
+  productPlanIdentifier: string | null,
+  isLifetime: boolean,
 ): SubscriptionDetails["planLabel"] {
-  const lower = productId.toLowerCase();
-  if (lower.includes("annual") || lower.includes("year")) return "annual";
-  if (lower.includes("month")) return "monthly";
-  /** Fall back to RC intro period (`P1Y` / `P1M`) when the product id naming is unclear. */
-  if (intro?.periodUnit?.toLowerCase().startsWith("year")) return "annual";
+  if (isLifetime) return "lifetime";
+  const lower = `${productId} ${productPlanIdentifier ?? ""}`.toLowerCase();
+  if (lower.includes("annual") || lower.includes("year") || lower.includes("p1y")) {
+    return "annual";
+  }
   return "monthly";
 }
 
 function intervalFromPlanLabel(
   plan: SubscriptionDetails["planLabel"],
-): "month" | "year" {
+): "month" | "year" | null {
+  if (plan === "lifetime") return null;
   return plan === "annual" ? "year" : "month";
 }
 
 function statusFromEntitlement(
   ent: PurchasesEntitlementInfo,
+  isLifetime: boolean,
 ): SubscriptionDetails["status"] {
+  if (isLifetime && ent.isActive) return "lifetime";
   if (ent.billingIssueDetectedAt) return "billing_issue";
   if (ent.isActive) {
     return PERIOD_TYPE_TO_STATUS[ent.periodType] ?? "active";
@@ -100,15 +112,24 @@ function statusFromEntitlement(
 }
 
 async function priceLabelForProduct(
-  productId: string,
+  storeProductId: string,
   fallbackInterval: "month" | "year",
 ): Promise<{ priceFormatted: string; currency: string }> {
-  if (!productId) {
+  if (!storeProductId) {
     return { priceFormatted: "—", currency: "" };
   }
   try {
-    const products = await Purchases.getProducts([productId]);
-    const product = products[0];
+    /**
+     * Play identifies an owned subscription as `subscriptionId:basePlanId` but
+     * only accepts the bare subscription id in a catalog lookup, and then
+     * returns one product per base plan — so we query wide and pick the plan
+     * the user actually holds.
+     */
+    const products = await Purchases.getProducts([
+      baseProductId(storeProductId),
+    ]);
+    const product =
+      products.find((p) => p.identifier === storeProductId) ?? products[0];
     if (product) {
       const period = fallbackInterval === "year" ? "year" : "month";
       const formatted = product.priceString
@@ -134,24 +155,40 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
   if (!ent) return null;
 
   const productId = ent.productIdentifier;
-  const subRecord = info.subscriptionsByProductIdentifier[productId];
+  /**
+   * `subscriptionsByProductIdentifier` is keyed the way the store names the
+   * thing that was bought: the bare product on the App Store, and
+   * `subscriptionId:basePlanId` on Play — which is not what the entitlement's
+   * `productIdentifier` holds there.
+   */
+  const storeProductId = ent.productPlanIdentifier
+    ? `${productId}:${ent.productPlanIdentifier}`
+    : productId;
+  const subRecord =
+    info.subscriptionsByProductIdentifier[storeProductId] ??
+    info.subscriptionsByProductIdentifier[productId];
 
-  const planLabel = planLabelFromProductId(productId, null);
+  const isLifetime = ent.isActive && ent.expirationDate == null;
+  const planLabel = planLabelFromProductId(
+    productId,
+    ent.productPlanIdentifier,
+    isLifetime,
+  );
   const interval = intervalFromPlanLabel(planLabel);
   const { priceFormatted, currency } = await priceLabelForProduct(
-    productId,
-    interval,
+    storeProductId,
+    interval ?? "month",
   );
 
-  const cancelAtPeriodEnd = ent.isActive && !ent.willRenew;
-  const status = statusFromEntitlement(ent);
+  const cancelAtPeriodEnd = ent.isActive && !ent.willRenew && !isLifetime;
+  const status = statusFromEntitlement(ent, isLifetime);
 
   return {
     productIdentifier: productId,
     status,
     planLabel,
     interval,
-    priceFormatted,
+    priceFormatted: isLifetime ? "Lifetime access" : priceFormatted,
     currency,
     startedAt: ent.originalPurchaseDate ?? null,
     currentPeriodStart: subRecord?.purchaseDate ?? ent.latestPurchaseDate ?? null,
@@ -163,6 +200,7 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     storeLabel: storeLabel(ent.store),
     managementUrl: info.managementURL,
     isFamilyShared: ent.ownershipType === "FAMILY_SHARED",
+    isLifetime,
   };
 }
 

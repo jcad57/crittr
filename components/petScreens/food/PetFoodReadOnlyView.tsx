@@ -1,11 +1,11 @@
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import PetFoodNavHeader from "@/components/petScreens/food/PetFoodNavHeader";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetFood } from "@/types/database";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 type Props = {
   existing: PetFood;
@@ -22,13 +22,9 @@ export default function PetFoodReadOnlyView({
 }: Props) {
   const { timeDisplay } = useUserDateTimePrefs();
   const treat = isTreatFood(existing);
-  const meals =
-    existing.meals_per_day != null && existing.meals_per_day >= 1
-      ? String(existing.meals_per_day)
-      : "—";
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
-      <PetFoodNavHeader title="Food details" onBack={onBack} />
+      <ScreenHeader title="Food details" onBack={onBack} titleLines={2} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.body, { paddingBottom: bottomPadding }]}
@@ -40,20 +36,10 @@ export default function PetFoodReadOnlyView({
           value={existing.brand?.trim() || ""}
         />
         <ReadOnlyFieldRow label="Type" value={treat ? "Treat" : "Meal"} />
-        {treat ? (
-          <>
-            <ReadOnlyFieldRow
-              label="Portion"
-              value={formatPetFoodPortionSubline(existing, timeDisplay)}
-            />
-            <ReadOnlyFieldRow label="Times per day" value={meals} />
-          </>
-        ) : (
-          <ReadOnlyFieldRow
-            label="Feeding schedule"
-            value={formatPetFoodPortionSubline(existing, timeDisplay)}
-          />
-        )}
+        <ReadOnlyFieldRow
+          label="Feeding schedule"
+          value={formatPetFoodPortionSubline(existing, timeDisplay)}
+        />
         <ReadOnlyFieldRow
           label="Notes"
           value={existing.notes?.trim() || ""}

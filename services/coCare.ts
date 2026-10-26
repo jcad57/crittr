@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import {
+  trackCoCareInviteAccepted,
+  trackCoCareInviteSent,
+} from "@/lib/analytics";
+import {
   DEFAULT_CO_CARE_PERMISSIONS,
   type CoCarePermissions,
   type CoCarerInvite,
@@ -167,6 +171,7 @@ export async function sendCoCareInvite(
     }
   }
 
+  trackCoCareInviteSent();
   return {
     invite: invite as CoCarerInvite,
     isRegistered: !!invitedUserId,
@@ -267,6 +272,8 @@ export async function acceptInvite(
     .eq("id", inviteId);
 
   if (updateErr) throw updateErr;
+
+  trackCoCareInviteAccepted();
 
   const { data: accepter } = await supabase
     .from("profiles")

@@ -1,4 +1,4 @@
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/query/client";
 import {
   createPetMedicalRecordWithFiles,
   deleteMedicalRecordFile,
@@ -12,7 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   petMedicalRecordDetailQueryKey,
   petMedicalRecordsQueryKey,
-} from "../queries/queryKeys";
+} from "@/lib/query/keys";
 
 export function useCreatePetMedicalRecordWithFilesMutation(petId: string) {
   return useMutation({

@@ -1,5 +1,7 @@
 import AdBanner from "@/components/ads/AdBanner";
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
 import PostOnboardingPushPrompt from "@/components/push/PostOnboardingPushPrompt";
+import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import ActivityFeedSkeleton from "@/components/ui/dashboard/ActivityFeedSkeleton";
 import DailyProgress from "@/components/ui/dashboard/DailyProgress";
@@ -9,52 +11,54 @@ import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import HealthSectionSkeleton from "@/components/ui/dashboard/HealthSectionSkeleton";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
-import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
-import { Colors } from "@/constants/colors";
-import type {
-  DailyProgressCategory,
-  MedicationSummary,
-  PetSummary,
-} from "@/types/ui";
+import type { ProSoftPaywallKind } from "@/constants/proCopy";
 import {
+  useActivitiesSinceForPetIdsQuery,
   usePetDetailsQuery,
   usePetVetVisitsQuery,
   usePetsQuery,
+  useTodayActivitiesForPetIdsQuery,
   useTodayActivitiesQuery,
   useUnreadNotificationCountQuery,
-  useTodayActivitiesForPetIdsQuery,
-  useActivitiesSinceForPetIdsQuery,
 } from "@/hooks/queries";
+import { useActivePet } from "@/hooks/useActivePet";
+import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import {
   AUTH_CONTENT_MAX_WIDTH,
   useResponsiveUi,
 } from "@/hooks/useResponsiveUi";
-import { useCanPerformAction } from "@/hooks/useCanPerformAction";
+import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
+import { queryClient } from "@/lib/query/client";
+import { petsQueryKey } from "@/lib/query/keys";
+import { useAuthStore } from "@/stores/authStore";
+import { Colors } from "@/theme/colors";
+import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
 import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
-import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
-import {
-  buildMedicationDosageProgress,
-  sumMedicationDoseProgress,
-} from "@/utils/medicationDosageProgress";
+import { buildDailyProgressRings } from "@/utils/dailyProgressRings";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
+import {
+  householdActiveCatIds,
+  userHasAnyActiveCat,
+} from "@/utils/householdCats";
+import {
+  formatHouseholdLitterGoalSubtitle,
+  maintenancePeriodStart,
+} from "@/utils/litterMaintenancePeriod";
+import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
+import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
+import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import {
   isUpcomingVetVisit,
   mapPetVetVisitToDashboard,
 } from "@/utils/vetVisitDashboard";
-import { isPetActiveForDashboard } from "@/utils/petParticipation";
-import { householdActiveCatIds, userHasAnyActiveCat } from "@/utils/householdCats";
-import { dailyProgressFoodTarget, isTreatFood } from "@/utils/petFood";
-import { maintenancePeriodStart, formatHouseholdLitterGoalSubtitle } from "@/utils/litterMaintenancePeriod";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { useSetActivePetMutation } from "@/hooks/mutations/useSetActivePetMutation";
-import { usePetStore } from "@/stores/petStore";
 import type { Href } from "expo-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -66,28 +70,74 @@ export default function Dashboard() {
   const { windowWidth } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
-  const { runWithProOrUpgrade } = useProGateNavigation();
+  const { runWithProOrUpgrade, isPro } = useProGateNavigation();
+  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
+    null,
+  );
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
-
-  const goToAddPet = useCallback(() => {
-    runWithProOrUpgrade(() => {
-      push("/(logged-in)/add-pet" as Href);
-    });
-  }, [runWithProOrUpgrade, push]);
 
   const {
     data: dbPets,
     isLoading: isPetsLoading,
     refetch: refetchPets,
   } = usePetsQuery();
-  const activePetId = usePetStore((s) => s.activePetId);
-  const setActivePetMutation = useSetActivePetMutation();
+
+  /**
+   * Recover a hung pets fetch without cancelling a healthy in-flight request.
+   * If this tab is focused and still has no list after a short beat, cancel
+   * the zombie query and retry — the same unstick as switching tabs and back.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (dbPets != null) return;
+      let cancelled = false;
+      const timer = setTimeout(() => {
+        if (cancelled) return;
+        const userId = useAuthStore.getState().session?.user?.id;
+        if (!userId) return;
+        const key = petsQueryKey(userId);
+        void (async () => {
+          await queryClient.cancelQueries({ queryKey: key });
+          await refetchPets();
+        })();
+      }, 2_000);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }, [dbPets, refetchPets]),
+  );
+
+  /**
+   * First pet is always free (free-tier limit is one pet). Pro is only
+   * required to add a *second* (or later) pet. This guards against the
+   * "limbo zero-pet" state where a Pro user with stale entitlement gets
+   * gated out of adding a replacement pet after a Pro -> Free transition
+   * cleared their old one.
+   */
+  const livingOwnedPetCount = useMemo(() => {
+    if (!dbPets) return 0;
+    return dbPets.filter(
+      (p) => p.role === "owner" && isPetActiveForDashboard(p),
+    ).length;
+  }, [dbPets]);
+
+  const goToAddPet = useCallback(() => {
+    if (livingOwnedPetCount === 0) {
+      push("/(logged-in)/add-pet" as Href);
+      return;
+    }
+    void runWithProOrUpgrade(
+      () => {
+        push("/(logged-in)/add-pet" as Href);
+      },
+      () => setSoftPaywall("pets"),
+    );
+  }, [livingOwnedPetCount, runWithProOrUpgrade, push]);
+
+  const { activePetId, pets, switchPet } = useActivePet();
   const { data: unreadCount = 0, refetch: refetchUnreadCount } =
     useUnreadNotificationCountQuery();
-
-  useEffect(() => {
-    if (dbPets?.length) usePetStore.getState().initActivePetFromList(dbPets);
-  }, [dbPets]);
 
   const {
     data: activePetDetails,
@@ -117,9 +167,7 @@ export default function Dashboard() {
   const isCatProgress = activePetDetails?.pet_type === "cat";
 
   const needsMaintWindow =
-    isCatProgress &&
-    !!litterPeriod &&
-    litterPeriod !== "day";
+    isCatProgress && !!litterPeriod && litterPeriod !== "day";
 
   const maintenanceSinceIso = useMemo(() => {
     if (!needsMaintWindow || !litterPeriod) return null;
@@ -140,144 +188,27 @@ export default function Dashboard() {
     householdCatIds,
     maintenanceSinceIso,
     Boolean(
-      householdCatIds.length > 0 &&
-        needsMaintWindow &&
-        maintenanceSinceIso,
+      householdCatIds.length > 0 && needsMaintWindow && maintenanceSinceIso,
     ),
   );
 
-  const pets: PetSummary[] = useMemo(
+  const dailyProgress: DailyProgressCategory[] = useMemo(
     () =>
-      (dbPets ?? [])
-        .filter(isPetActiveForDashboard)
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          breed: p.breed ?? "",
-          imageUrl: p.avatar_url,
-        })),
-    [dbPets],
+      buildDailyProgressRings({
+        details: activePetDetails ?? null,
+        activities: todayActivities ?? [],
+        householdCatToday: householdCatTodayActs,
+        householdMaintenanceWindow: householdMaintenanceWindowActs,
+        activePetId,
+      }),
+    [
+      activePetDetails,
+      todayActivities,
+      householdCatTodayActs,
+      householdMaintenanceWindowActs,
+      activePetId,
+    ],
   );
-
-  const dailyProgress: DailyProgressCategory[] = useMemo(() => {
-    const details = activePetDetails ?? null;
-    const acts = todayActivities ?? [];
-    const isCatProgress = details?.pet_type === "cat";
-
-    const totalMeals = details
-      ? details.foods
-          .filter((f) => !isTreatFood(f))
-          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
-      : 0;
-    const totalTreats = details
-      ? details.foods
-          .filter((f) => isTreatFood(f))
-          .reduce((sum, f) => sum + dailyProgressFoodTarget(f), 0)
-      : 0;
-    const totalExercise =
-      details?.exercises_per_day ?? details?.exercise?.walks_per_day ?? 0;
-    const medPetId = activePetDetails?.id ?? activePetId ?? "";
-    const medProgress =
-      details && medPetId
-        ? sumMedicationDoseProgress(details.medications, acts, medPetId)
-        : { fulfilled: 0, expected: 0 };
-    const currentMeds = medProgress.fulfilled;
-    const totalMedsRing = medProgress.expected;
-    const hasMeds = (details?.medications.length ?? 0) > 0;
-
-    const currentExercise = acts.filter(
-      (a) => a.activity_type === "exercise",
-    ).length;
-    const currentMeals = acts.filter(
-      (a) => a.activity_type === "food" && !a.is_treat,
-    ).length;
-    const currentTreats = acts.filter(
-      (a) => a.activity_type === "food" && a.is_treat,
-    ).length;
-
-    const litterGoalPeriod = details?.household_litter_cleaning_period;
-    const maintActsForHouseholdCats =
-      isCatProgress &&
-      litterGoalPeriod &&
-      litterGoalPeriod !== "day"
-        ? householdMaintenanceWindowActs
-        : householdCatTodayActs;
-    const currentMaintenance =
-      isCatProgress && litterGoalPeriod
-        ? maintActsForHouseholdCats.filter(
-            (a) => a.activity_type === "maintenance",
-          ).length
-        : 0;
-    const totalMaintenance = Math.max(
-      0,
-      details?.household_litter_cleanings_per_period ?? 0,
-    );
-
-    const exerciseRing: DailyProgressCategory = {
-      id: "exercise",
-      label: "Exercise",
-      icon: "run",
-      current: currentExercise,
-      total: totalExercise,
-      ringColor: Colors.progressExercise,
-      trackColor: Colors.progressExerciseTrack,
-    };
-    const mealsRing: DailyProgressCategory = {
-      id: "meals",
-      label: "Meals",
-      icon: "food-drumstick",
-      current: currentMeals,
-      total: totalMeals,
-      ringColor: Colors.progressMeals,
-      trackColor: Colors.progressMealsTrack,
-    };
-    const medsRing: DailyProgressCategory = {
-      id: "meds",
-      label: "Meds",
-      icon: "pill",
-      current: currentMeds,
-      total: hasMeds ? totalMedsRing : 0,
-      ringColor: Colors.progressMeds,
-      trackColor: Colors.progressMedsTrack,
-    };
-
-    if (!isCatProgress) {
-      return [
-        exerciseRing,
-        mealsRing,
-        {
-          id: "treats",
-          label: "Treats",
-          icon: "bone",
-          current: currentTreats,
-          total: totalTreats,
-          ringColor: Colors.progressTreats,
-          trackColor: Colors.progressTreatsTrack,
-        },
-        medsRing,
-      ];
-    }
-
-    return [
-      exerciseRing,
-      mealsRing,
-      {
-        id: "maintenance",
-        label: "Maintenance",
-        icon: "broom",
-        current: currentMaintenance,
-        total: totalMaintenance,
-        ringColor: Colors.progressTreats,
-        trackColor: Colors.progressTreatsTrack,
-      },
-      medsRing,
-    ];
-  }, [
-    activePetDetails,
-    todayActivities,
-    householdCatTodayActs,
-    householdMaintenanceWindowActs,
-  ]);
 
   const dailyProgressAllComplete = useMemo(
     () => isDailyProgressComplete(dailyProgress),
@@ -297,33 +228,19 @@ export default function Dashboard() {
         (a, b) =>
           new Date(a.visit_at).getTime() - new Date(b.visit_at).getTime(),
       )
-      .map((v) =>
-        mapPetVetVisitToDashboard(v, timeDisplay, dateDisplay),
-      );
+      .map((v) => mapPetVetVisitToDashboard(v, timeDisplay, dateDisplay));
   }, [vetVisitRows, timeDisplay, dateDisplay]);
 
-  const resolvedPetIdForPerm = useMemo(() => {
-    if (
-      activePetId &&
-      (dbPets ?? []).some(
-        (p) => p.id === activePetId && isPetActiveForDashboard(p),
-      )
-    ) {
-      return activePetId;
-    }
-    return (dbPets ?? []).find((p) => isPetActiveForDashboard(p))?.id ?? null;
-  }, [activePetId, dbPets]);
-
   const canLogActivities = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_log_activities",
   );
   const canManageVetVisits = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_manage_vet_visits",
   );
   const canManageMedications = useCanPerformAction(
-    resolvedPetIdForPerm,
+    activePetId,
     "can_manage_medications",
   );
   const medications: MedicationSummary[] = useMemo(() => {
@@ -350,22 +267,22 @@ export default function Dashboard() {
         badgeLabel: badge.label,
       };
     });
-  }, [activePetDetails, activePetId, todayActivities, timeDisplay, dateDisplay]);
+  }, [
+    activePetDetails,
+    activePetId,
+    todayActivities,
+    timeDisplay,
+    dateDisplay,
+  ]);
 
   const navigateToAddActivity = useCallback(() => {
     push("/(logged-in)/add-activity");
   }, [push]);
 
   const navigateToActivity = useCallback(() => {
-    push("/(logged-in)/activity");
-  }, [push]);
-
-  const handleSwitchPet = useCallback(
-    (id: string) => {
-      setActivePetMutation.mutate(id);
-    },
-    [setActivePetMutation],
-  );
+    if (!activePetId) return;
+    push(`/(logged-in)/pet/${activePetId}/activity-log` as Href);
+  }, [push, activePetId]);
 
   const openMedicationEditor = useCallback(
     (medicationId: string) => {
@@ -379,15 +296,18 @@ export default function Dashboard() {
 
   const openAddMedication = useCallback(() => {
     if (!activePetId) return;
+    const count = activePetDetails?.medications?.length ?? 0;
+    if (!isPro && count >= 1) {
+      push(`/(logged-in)/pet/${activePetId}/medications` as Href);
+      return;
+    }
     push(`/(logged-in)/pet/${activePetId}/medications/new` as Href);
-  }, [push, activePetId]);
+  }, [push, activePetId, isPro, activePetDetails?.medications?.length]);
 
   const openVetVisitEditor = useCallback(
     (visitId: string) => {
       if (!activePetId) return;
-      push(
-        `/(logged-in)/pet/${activePetId}/vet-visits/${visitId}` as Href,
-      );
+      push(`/(logged-in)/pet/${activePetId}/vet-visits/${visitId}` as Href);
     },
     [push, activePetId],
   );
@@ -443,8 +363,7 @@ export default function Dashboard() {
       (activePetDetails?.pet_type === "cat" &&
         householdCatIds.length > 0 &&
         householdCatTodayPending));
-  const showActivitySkeleton =
-    Boolean(activePetId) && todayActivitiesPending;
+  const showActivitySkeleton = Boolean(activePetId) && todayActivitiesPending;
   const showHealthSkeleton =
     Boolean(activePetId) && (detailsPending || vetVisitsPending);
 
@@ -471,7 +390,7 @@ export default function Dashboard() {
             <DashboardHeader
               pets={pets}
               activePetId={activePetId}
-              onSwitchPet={handleSwitchPet}
+              onSwitchPet={switchPet}
               unreadNotificationCount={unreadCount}
               onNotificationsPress={() =>
                 push("/(logged-in)/notifications" as Href)
@@ -509,6 +428,7 @@ export default function Dashboard() {
                     categories={dailyProgress}
                     petType={activePetDetails?.pet_type ?? null}
                     allComplete={dailyProgressAllComplete}
+                    animationKey={activePetId ?? ""}
                   />
                 )}
               </View>
@@ -523,6 +443,7 @@ export default function Dashboard() {
                 onLogActivityPress={navigateToAddActivity}
                 onSeeAllPress={navigateToActivity}
                 showLogActivity={canLogActivities === true}
+                animationKey={activePetId ?? ""}
               />
             )}
 
@@ -558,6 +479,12 @@ export default function Dashboard() {
           <PetManagement pets={pets} onAddPet={goToAddPet} />
         </PullToRefreshScrollView>
       </View>
+      <ProSoftPaywallSheet
+        visible={softPaywall != null}
+        kind={softPaywall}
+        petName={activePetDetails?.name}
+        onClose={() => setSoftPaywall(null)}
+      />
     </View>
   );
 }
