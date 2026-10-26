@@ -25,10 +25,10 @@ function payload(opts: {
 }
 
 describe("isExpirationCurrentlyValid", () => {
-  it("treats null / empty expiration as lifetime (still valid)", () => {
+  it("treats explicit null expiration as lifetime and rejects empty dates", () => {
     assert.equal(isExpirationCurrentlyValid(null, now), true);
-    assert.equal(isExpirationCurrentlyValid(undefined, now), true);
-    assert.equal(isExpirationCurrentlyValid("", now), true);
+    assert.equal(isExpirationCurrentlyValid(undefined, now), false);
+    assert.equal(isExpirationCurrentlyValid("", now), false);
   });
 
   it("accepts a future expiration", () => {
@@ -212,9 +212,9 @@ describe("evaluateEntitlement", () => {
     assert.equal(v.kind, "unknown");
   });
 
-  it("empty subscriber with no history is unknown (do not downgrade)", () => {
+  it("empty verified subscriber confirms no entitlement", () => {
     const v = evaluateEntitlement(payload({}), now);
-    assert.equal(v.kind, "unknown");
+    assert.equal(v.kind, "confirmed_inactive");
   });
 
   it("willRenew false is not treated as inactive", () => {

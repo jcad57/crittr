@@ -69,6 +69,10 @@ export async function resolveSession(
       .eq("read", false),
   ]);
 
+  for (const result of [profileRes, ownedCountRes, coCareCountRes, pendingInvitesRes, removalNotifRes]) {
+    if (result.error) throw result.error;
+  }
+  if (!profileRes.data) throw new Error("Could not load your profile");
   let profile = profileRes.data ?? null;
   const ownedCount = ownedCountRes.error ? 0 : ownedCountRes.count ?? 0;
   const coCareCount = coCareCountRes.error ? 0 : coCareCountRes.count ?? 0;
@@ -100,12 +104,13 @@ export async function resolveSession(
 
   if (profileComplete && hasPets) {
     if (profile && !profile.onboarding_complete) {
-      const { data: updated } = await supabase
+      const { data: updated, error } = await supabase
         .from("profiles")
         .update({ onboarding_complete: true })
         .eq("id", userId)
         .select()
         .single();
+      if (error) throw error;
       profile = updated ?? profile;
     }
     return {

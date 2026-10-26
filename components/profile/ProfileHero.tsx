@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   heroAvatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",

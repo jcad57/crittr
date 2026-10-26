@@ -3,9 +3,8 @@
  *
  * The primary entitlement-update path is `revenuecat-webhook`. When that
  * webhook is delayed (network blip, RC retry queue, sandbox flake), the
- * client may also call this function to immediately reconcile the
- * `profiles` entitlement mirror (`crittr_pro_active` + expiration metadata)
- * with RevenueCat's current `crittr_pro` state.
+ * client may also call this function to immediately reconcile
+ * `profiles.crittr_pro_until` with RevenueCat's current state.
  *
  * Deploy:
  *   supabase functions deploy sync-crittr-pro-entitlement
@@ -14,15 +13,17 @@
  *   - SUPABASE_SERVICE_ROLE_KEY
  *   - REVENUECAT_SECRET_API_KEY
  *
- * Body: `{ "appUserId"?: string, "source"?: string, "alternateAppUserIds"?: string[] }`
+ * Body: `{ "source"?: "session" | "checkout" }`. Identity is derived from the verified JWT.
  */
-// @ts-nocheck — Deno edge (`npm:`, `https://esm.sh`) is not typed by the app tsconfig.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-import { reconcileCrittrProForUser } from "../_shared/revenueCatEntitlement.ts";
+import {
+  ReconciliationBusyError,
+  reconcileCrittrProForUser,
+} from "../_shared/revenueCatEntitlement.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -74,57 +75,31 @@ Deno.serve(async (req: Request) => {
       appUserId?: string;
       source?: string;
       alternateAppUserIds?: unknown;
-      patience?: "short" | "long";
     };
 
-    const alternateRaw = body.alternateAppUserIds;
-    const alternateAppUserIds = Array.isArray(alternateRaw)
-      ? alternateRaw.filter((x): x is string => typeof x === "string" && x.length > 0)
-      : [];
+    // Legacy app builds may include identity hints; never use them as authority.
+    if (body.appUserId && body.appUserId !== user.id) {
+      return json({ error: "subscriber_identity_mismatch" }, 400);
+    }
+    const { before, after } = await reconcileCrittrProForUser(
+      supabaseAdmin,
+      user.id,
+      {
+        checkout: ["checkout", "restore", "paywall"].includes(body.source ?? ""),
+      },
+    );
 
-    const appUserId =
-      typeof body.appUserId === "string" && body.appUserId.length > 0
-        ? body.appUserId
-        : user.id;
-
-    /**
-     * Long polling budget is used when the client knows a recent purchase /
-     * promo redemption is about to surface in RevenueCat (checkout success,
-     * Restore tap, first session after sign-up). Short budget is used for
-     * routine focus-triggered refreshes where we don't want to hammer RC.
-     */
-    const longPoll =
-      body.patience === "long" ||
-      body.source === "checkout" ||
-      body.source === "session" ||
-      body.source === "restore" ||
-      body.source === "app_launch";
-
-    const { before, after, activeBefore, activeAfter } =
-      await reconcileCrittrProForUser(
-        supabaseAdmin,
-        user.id,
-        appUserId,
-        {
-          alternateAppUserIds,
-          subscriberSync: longPoll
-            ? { maxAttempts: 12, delayMs: 2_000 }
-            : { maxAttempts: 3, delayMs: 2_000 },
-        },
-      );
-
+    return json({ ok: true, crittr_pro_until: after, previous: before }, 200);
+  } catch (e) {
+    if (e instanceof ReconciliationBusyError)
+      return json({ error: "sync_in_progress" }, 429);
+    console.error("[sync-crittr-pro-entitlement]", e);
     return json(
       {
-        ok: true,
-        crittr_pro_active: activeAfter,
-        crittr_pro_until: after,
-        previous: before,
-        previous_active: activeBefore,
+        error: "internal_error",
+        message: "Subscription verification is temporarily unavailable",
       },
-      200,
+      500,
     );
-  } catch (e) {
-    console.error("[sync-crittr-pro-entitlement]", e);
-    return json({ error: "internal_error", message: String(e) }, 500);
   }
 });

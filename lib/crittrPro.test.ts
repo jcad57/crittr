@@ -86,118 +86,30 @@ describe("isCrittrProEntitlementActive", () => {
   });
 });
 
-describe("isCrittrProFromProfile (Supabase mirror)", () => {
-  it("uses crittr_pro_active as the access flag", () => {
-    assert.equal(
-      isCrittrProFromProfile({ crittr_pro_active: true, crittr_pro_until: null }),
-      true,
-    );
-    assert.equal(
-      isCrittrProFromProfile({
-        crittr_pro_active: false,
-        crittr_pro_until: future,
-      }),
-      false,
-    );
+const verified = { crittr_pro_active: true, crittr_pro_until: future, crittr_pro_last_synced_at: new Date().toISOString(), subscription_environment: "production" as const };
+describe("verified server profile access", () => {
+  it("accepts a recent verified purchase", () => assert.equal(isCrittrProFromProfile(verified), true));
+  it("rejects a bare manually enabled flag", () => assert.equal(isCrittrProFromProfile({crittr_pro_active:true,crittr_pro_until:null}),false));
+  it("rejects legacy expiry-only rows", () => assert.equal(isCrittrProFromProfile({crittr_pro_until:future}),false));
+  it("rejects expired, stale and invalid snapshots", () => {
+    for (const override of [{crittr_pro_until:past},{crittr_pro_last_synced_at:past},{crittr_pro_until:"invalid"},{subscription_environment:null},{crittr_pro_active:false}]) {
+      const profile = {...verified,...override};
+      // A one-day-old verification is still fresh; explicitly exceed the offline window.
+      if (override.crittr_pro_last_synced_at) profile.crittr_pro_last_synced_at = new Date(Date.now()-73*3600_000).toISOString();
+      assert.equal(isCrittrProFromProfile(profile),false);
+    }
   });
-
-  it("allows lifetime: active + null expiration", () => {
-    assert.equal(
-      isCrittrProFromProfile({ crittr_pro_active: true, crittr_pro_until: null }),
-      true,
-    );
+  it("accepts verified lifetime and time-bounded admin grants", () => {
+    assert.equal(isCrittrProFromProfile({...verified,crittr_pro_until:null}),true);
+    assert.equal(isCrittrProFromProfile({...verified,subscription_environment:"admin",crittr_pro_last_synced_at:new Date(Date.now()-10*86400_000).toISOString()}),true);
+    assert.equal(isCrittrProFromProfile({...verified,subscription_environment:"admin",crittr_pro_until:past}),false);
   });
-
-  it("falls back to until > now when active is unset (legacy rows)", () => {
-    assert.equal(
-      isCrittrProFromProfile({
-        crittr_pro_active: null,
-        crittr_pro_until: future,
-      }),
-      true,
-    );
-    assert.equal(
-      isCrittrProFromProfile({
-        crittr_pro_active: undefined,
-        crittr_pro_until: past,
-      }),
-      false,
-    );
-    assert.equal(
-      isCrittrProFromProfile({
-        crittr_pro_active: undefined,
-        crittr_pro_until: null,
-      }),
-      false,
-    );
+  it("keeps UI aligned with the server even when native CustomerInfo disagrees", () => {
+    assert.equal(resolveClientIsCrittrPro(true,ent({isActive:true}),{...verified,crittr_pro_active:false}),false);
+    assert.equal(resolveClientIsCrittrPro(true,ent({isActive:false}),verified),true);
   });
-});
-
-describe("resolveClientIsCrittrPro", () => {
-  it("prefers CustomerInfo once observed", () => {
-    assert.equal(
-      resolveClientIsCrittrPro(
-        true,
-        ent({ isActive: true, expiresAt: null }),
-        { crittr_pro_active: false, crittr_pro_until: null },
-      ),
-      true,
-    );
-    assert.equal(
-      resolveClientIsCrittrPro(
-        true,
-        ent({ isActive: false }),
-        { crittr_pro_active: true, crittr_pro_until: future },
-      ),
-      false,
-    );
-  });
-
-  it("does not revoke known Pro when CustomerInfo has not been observed", () => {
-    assert.equal(
-      resolveClientIsCrittrPro(false, null, {
-        crittr_pro_active: true,
-        crittr_pro_until: future,
-      }),
-      true,
-    );
-  });
-
-  it("preserves known-active CustomerInfo when a later fetch is unavailable", () => {
-    assert.equal(
-      resolveClientIsCrittrPro(
-        true,
-        ent({ isActive: true, expiresAt: future, willRenew: true }),
-        { crittr_pro_active: false, crittr_pro_until: null },
-      ),
-      true,
-    );
-  });
-
-  it("is not Pro when CustomerInfo was observed with no entitlement", () => {
-    assert.equal(
-      resolveClientIsCrittrPro(true, ent({ isActive: false }), {
-        crittr_pro_active: true,
-        crittr_pro_until: future,
-      }),
-      false,
-    );
-  });
-});
-
-describe("entitlementFromProfileMirror", () => {
-  it("maps lifetime mirror rows", () => {
-    const mapped = entitlementFromProfileMirror({
-      crittr_pro_active: true,
-      crittr_pro_until: null,
-      subscription_will_renew: false,
-      subscription_store: "promotional",
-      crittr_pro_product_id: null,
-      crittr_pro_ownership_type: "PURCHASED",
-      crittr_pro_last_synced_at: "2026-08-14T00:00:00.000Z",
-    });
-    assert.equal(mapped?.isActive, true);
-    assert.equal(mapped?.expiresAt, null);
-    assert.equal(mapped?.source, "profile_mirror");
+  it("maps lifetime metadata without inferring access from null expiry", () => {
+    const mirror=entitlementFromProfileMirror({...verified,crittr_pro_until:null,subscription_will_renew:false,subscription_store:"promotional"});
+    assert.equal(mirror?.isActive,true);assert.equal(mirror?.expiresAt,null);
   });
 });

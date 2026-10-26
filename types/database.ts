@@ -41,8 +41,8 @@ export type Profile = {
   /**
    * Server-side mirror of RevenueCat `crittr_pro`. True when the entitlement is
    * currently active (including lifetime grants with no expiration). Written
-   * only by the webhook / sync edge function. This is the access flag — not
-   * `crittr_pro_until`.
+   * only by trusted billing/admin projection code. Call `isCrittrProFromProfile`
+   * to validate expiry, verification age and source before granting client access.
    */
   crittr_pro_active?: boolean | null;
   /**
@@ -63,6 +63,8 @@ export type Profile = {
   revenuecat_app_user_id: string | null;
   /** Store that issued the active subscription: `app_store`, `play_store`, or `promotional`. */
   subscription_store: string | null;
+  /** Trusted server verification source; sandbox access requires explicit enrollment. */
+  subscription_environment?: "production" | "sandbox" | "promotional" | "admin" | null;
   /** Receipt-level identifier (originalTransactionId on iOS, purchaseToken on Android). */
   original_purchase_id: string | null;
   /** True when auto-renew is on, false when the user cancelled (still in paid period). */

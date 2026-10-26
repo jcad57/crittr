@@ -18,21 +18,28 @@ import {
   type ResolvedOnboarding,
 } from "@/lib/auth/resolveSession";
 import { isAuthUserStillRegistered } from "@/lib/auth/sessionValidity";
-import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import {
   ingestProfileMirror,
   resetCrittrProClientState,
 } from "@/lib/iap/crittrProClientState";
-import {
-  logoutRevenueCatUser,
-} from "@/lib/iap/revenueCat";
-import {
-  prefetchLoggedInSessionData,
-  waitForDashboardPets,
-} from "@/lib/prefetchSessionData";
+import { logoutRevenueCatUser } from "@/lib/iap/revenueCat";
+import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/query/client";
-import { purgePersistedQueryCache } from "@/lib/query/persistence";
-import { supabase, wipeSupabaseAuthFromDevice } from "@/lib/supabase";
+import {
+  purgePersistedQueryCache,
+  startQueryCachePersistence,
+} from "@/lib/query/persistence";
+import { secureStorage } from "@/lib/secureStorage";
+import {
+  advanceSessionGeneration,
+  sessionGeneration,
+} from "@/lib/sessionGeneration";
+import { useActivityFormStore } from "@/stores/activityFormStore";
+import {
+  supabase,
+  getSupabaseAuthStorageKey,
+  wipeSupabaseAuthFromDevice,
+} from "@/lib/supabase";
 import * as authService from "@/services/auth";
 import { fetchProfileRow, markOnboardingComplete } from "@/services/profiles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -61,7 +68,10 @@ function syncProfileRowToQuery(profile: Profile | null) {
   queryClient.setQueryData(profileQueryKey(profile.id), profile);
 }
 
-function isRecentlyCreatedAuthUser(session: Session, windowMs = 120_000): boolean {
+function isRecentlyCreatedAuthUser(
+  session: Session,
+  windowMs = 120_000,
+): boolean {
   const created = session.user.created_at;
   if (!created) return false;
   const ts = Date.parse(created);
@@ -82,16 +92,14 @@ const loggedOutState = {
   isHydrating: false,
 } as const;
 
+let logoutInFlight: Promise<void> | null = null;
+let initializationInFlight: Promise<void> | null = null;
 let authListenerUnsub: (() => void) | null = null;
 /** One in-flight `getSession` for `syncSessionFromSupabase` — avoids piling calls on GoTrue mutex. */
 let syncSessionFromSupabaseInFlight: Promise<boolean> | null = null;
 /** Single-flight `hydrateFromSupabaseSession` keyed by access token so listener + direct callers share work. */
 let hydrateInFlight: { token: string; promise: Promise<boolean> } | null = null;
-/**
- * Pets-list warm started after hydrate returns (so GoTrue's lock is released).
- * Sign-in / Google / cold-start await this so the dashboard does not mount on
- * an empty cache and stick on "Loading your dashboard…".
- */
+/** Compatibility bridge for sign-in callers; routing never waits for network prefetch. */
 let dashboardReadyWait: Promise<void> = Promise.resolve();
 
 type AuthState = {
@@ -109,6 +117,7 @@ type AuthState = {
   /** Target step index in `ONBOARDING_STEPS` when user must resume onboarding. */
   onboardingResumeStep: number | null;
   isLoading: boolean;
+  initializationError: string | null;
   isLoggedIn: boolean;
   needsOnboarding: boolean;
   /**
@@ -206,33 +215,11 @@ async function completeNativeSocialSession(
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  /**
-   * Access token from the most recent successful `resolveSession` call. Used to
-   * dedupe the cold-start `onAuthStateChange("INITIAL_SESSION")` callback that
-   * fires immediately after `initialize()` already resolved the same session,
-   * which otherwise triggers a redundant Supabase round-trip on every launch.
-   * Reset to `null` on logout so a fresh sign-in always re-resolves.
-   */
-  let lastResolvedSessionToken: string | null = null;
-
-  const reconcileCrittrProWithRevenueCat = (userId: string) => {
-    /**
-     * Log in RC with the Supabase user id, then ask the backend to reconcile
-     * the entitlement mirror using the same app user id the SDK reports (see
-     * `syncCrittrProForSession`). Only mutates profile Pro fields so a
-     * profile-only refresh is sufficient.
-     */
-    void (async () => {
-      try {
-        const r = await syncCrittrProForSession(userId);
-        if (r === "synced") void get().refreshProfileOnly();
-      } catch (e) {
-        if (__DEV__) console.warn("[authStore] RC Pro reconcile failed", e);
-      }
-    })();
-  };
-
   const clearAuxiliarySessionState = () => {
+    advanceSessionGeneration();
+    hydrateInFlight = null;
+    syncSessionFromSupabaseInFlight = null;
+    useActivityFormStore.getState().reset();
     queryClient.clear();
     void purgePersistedQueryCache();
     void clearAuthSnapshot();
@@ -243,12 +230,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
   };
 
   const purgeInvalidSession = async () => {
-    await wipeSupabaseAuthFromDevice();
     clearAuxiliarySessionState();
     void logoutRevenueCatUser();
-    lastResolvedSessionToken = null;
+
     dashboardReadyWait = Promise.resolve();
     set(loggedOutState);
+    await wipeSupabaseAuthFromDevice();
   };
 
   /**
@@ -292,10 +279,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
       coCarePetCount: resolved.coCarePetCount,
       onboardingResumeStep: resolved.onboardingResumeStep,
       isLoggedIn: true,
+      isHydrating: false,
+      initializationError: null,
       needsOnboarding: resolved.needsOnboarding,
       requiresCoCareRemovedScreen,
     });
-    lastResolvedSessionToken = session.access_token;
+
     syncProfileRowToQuery(resolved.profile);
     ingestProfileMirror(resolved.profile);
     persistAuthSnapshot();
@@ -315,29 +304,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
   const scheduleDashboardReady = (
     session: Session,
     needsOnboarding: boolean,
-  ): Promise<void> =>
-    (async () => {
-      try {
-        await sleep(0);
-        if (get().session?.user?.id !== session.user.id) return;
-        if (!needsOnboarding) {
-          void prefetchLoggedInSessionData(session.user.id);
-          await waitForDashboardPets(session.user.id);
-        }
-      } catch (e) {
-        if (__DEV__) {
-          console.warn("[authStore] post-sign-in dashboard warm failed", e);
-        }
-      } finally {
-        const current = get();
+  ): Promise<void> => {
+    // A warm cache is an optimization, never a routing prerequisite.
+    const generation = sessionGeneration();
+    if (!needsOnboarding)
+      setTimeout(() => {
         if (
-          current.session?.access_token === session.access_token ||
-          !current.isLoggedIn
-        ) {
-          set({ isHydrating: false });
-        }
-      }
-    })();
+          generation === sessionGeneration() &&
+          get().session?.user.id === session.user.id
+        )
+          void prefetchLoggedInSessionData(session.user.id);
+      }, 0);
+    return Promise.resolve();
+  };
 
   /**
    * Cold-start path for a user we already know. Applies the remembered
@@ -345,8 +324,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
    * confirms the account still exists and re-resolves against the server.
    */
   const revalidateRestoredSession = async (session: Session) => {
+    const generation = sessionGeneration();
     try {
       const stillRegistered = await isAuthUserStillRegistered();
+      if (generation !== sessionGeneration()) return;
       if (!stillRegistered) {
         await purgeInvalidSession();
         return;
@@ -358,15 +339,23 @@ export const useAuthStore = create<AuthState>((set, get) => {
       } = await supabase.auth.getSession();
       const active = latest ?? session;
 
+      if (
+        generation !== sessionGeneration() ||
+        get().session?.user.id !== active.user.id
+      )
+        return;
       if (active.access_token !== get().session?.access_token) {
         set((prev) => ({ ...prev, session: active }));
-        lastResolvedSessionToken = active.access_token;
       }
 
       const resolved = await resolveSession(active);
 
       /** The user may have signed out while this was in flight. */
-      if (get().session?.user?.id !== active.user.id) return;
+      if (
+        generation !== sessionGeneration() ||
+        get().session?.user?.id !== active.user.id
+      )
+        return;
 
       applyResolvedSession(active, resolved);
     } catch (e) {
@@ -382,423 +371,428 @@ export const useAuthStore = create<AuthState>((set, get) => {
   };
 
   return {
-  session: null,
-  profile: null,
-  hasPets: false,
-  ownedPetCount: 0,
-  coCarePetCount: 0,
-  requiresCoCareRemovedScreen: false,
-  onboardingResumeStep: null,
-  isLoading: true,
-  isLoggedIn: false,
-  needsOnboarding: false,
-  isHydrating: false,
+    session: null,
+    profile: null,
+    hasPets: false,
+    ownedPetCount: 0,
+    coCarePetCount: 0,
+    requiresCoCareRemovedScreen: false,
+    onboardingResumeStep: null,
+    isLoading: true,
+    initializationError: null,
+    isLoggedIn: false,
+    needsOnboarding: false,
+    isHydrating: false,
 
-  initialize: async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session) {
-        const snapshot = await readAuthSnapshot(session.user.id);
-
-        if (snapshot) {
-          /**
-           * Returning user. Everything needed to pick the right screen is on
-           * disk, so apply it and let the app paint now — validating the
-           * session and re-resolving onboarding costs several round trips and
-           * used to hold the splash screen for all of them.
-           */
-          set({
-            session,
-            profile: snapshot.profile,
-            hasPets: snapshot.hasPets,
-            ownedPetCount: snapshot.ownedPetCount,
-            coCarePetCount: snapshot.coCarePetCount,
-            onboardingResumeStep: snapshot.onboardingResumeStep,
-            isLoggedIn: true,
-            needsOnboarding: snapshot.needsOnboarding,
-            requiresCoCareRemovedScreen: snapshot.requiresCoCareRemovedScreen,
-            isHydrating: false,
-          });
-          lastResolvedSessionToken = session.access_token;
-          syncProfileRowToQuery(snapshot.profile);
-          ingestProfileMirror(snapshot.profile);
-
-          identifyAnalyticsUser({
-            userId: session.user.id,
-            profile: snapshot.profile,
-            ownedPetCount: snapshot.ownedPetCount,
-            onboardingComplete: !snapshot.needsOnboarding,
-          });
-
-          /**
-           * Validating the session calls `refreshSession`, which holds GoTrue's
-           * lock — every PostgREST request waits on it for a token. Letting the
-           * user's data load first keeps that check off the critical path.
-           */
-          const warmed = snapshot.needsOnboarding
-            ? Promise.resolve()
-            : prefetchLoggedInSessionData(session.user.id);
-
-          void warmed.then(() => revalidateRestoredSession(session));
-          reconcileCrittrProWithRevenueCat(session.user.id);
-        } else {
-          /**
-           * First launch on this device (or a snapshot too old to trust).
-           * Resolve against the server before routing so we never flash the
-           * wrong screen.
-           */
-          const stillRegistered = await isAuthUserStillRegistered();
-          if (!stillRegistered) {
-            await purgeInvalidSession();
-          } else {
-            const {
-              data: { session: latestSession },
-            } = await supabase.auth.getSession();
-            await get().hydrateFromSupabaseSession(latestSession ?? session);
-            await get().whenDashboardReady();
+    initialize: () => {
+      if (initializationInFlight) return initializationInFlight;
+      const generation = sessionGeneration();
+      const task = (async () => {
+        set({ initializationError: null });
+        authListenerUnsub?.();
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, session) => {
+          // Supabase awaits listeners while holding the auth lock: no async work here.
+          if (!session) {
+            if (event === "SIGNED_OUT" && get().session) {
+              clearAuxiliarySessionState();
+              set(loggedOutState);
+            }
+            return;
           }
-        }
-      }
-
-      // Tear down any previous listener before registering a new one
-      authListenerUnsub?.();
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (session) {
-            // Cold-start dedupe: `INITIAL_SESSION` fires right after `initialize()`
-            // already resolved the same session. Skip the redundant round-trip
-            // when the access token still matches what we just resolved.
-            if (
-              event === "INITIAL_SESSION" &&
-              session.access_token === lastResolvedSessionToken
-            ) {
-              return;
-            }
-            const stillRegistered = await isAuthUserStillRegistered(event);
-            if (!stillRegistered) {
-              await purgeInvalidSession();
-              return;
-            }
-            /**
-             * Do not call `getSession()` here. Operations like `updateUser` and
-             * `refreshSession` run under GoTrue’s global auth lock and await
-             * `onAuthStateChange` subscribers. `getSession()` also uses that
-             * lock, which can deadlock the UI (e.g. “Update password” spinning
-             * forever). The `session` passed to this callback is the
-             * up-to-date session the client just persisted.
-             */
-            const activeSession = session;
-
-            if (event === "TOKEN_REFRESHED") {
-              /**
-               * Token rotation does not change onboarding/pet counts. Applying a
-               * full `hydrateFromSupabaseSession` here races cold-start prefetch
-               * (and `revalidateRestoredSession`'s own `refreshSession`) and was
-               * timing out `resolveSession` under load — leaving WARN spam and
-               * starving the schedule tab of bandwidth.
-               *
-               * Only short-circuit when already routed; a TOKEN_REFRESHED during
-               * a fresh sign-in must still fall through to hydrate.
-               */
-              if (get().isLoggedIn) {
-                set({ session: activeSession });
-                lastResolvedSessionToken = activeSession.access_token;
-                return;
-              }
-            }
-
-            if (event === "USER_UPDATED") {
-              /**
-               * `updateUser` (e.g. new password) awaits this callback before its
-               * promise resolves. `resolveSession` is several PostgREST round-trips
-               * and can run longer than the client’s `updateUser` timeout, surfacing
-               * as a false “connection” error. Apply the new session immediately,
-               * then re-resolve profile/pets in the background.
-               */
-              set((prev) => ({
-                ...prev,
-                session: activeSession,
-                isLoggedIn: true,
-              }));
-              lastResolvedSessionToken = activeSession.access_token;
-              void (async () => {
-                try {
-                  const resolved = await resolveSession(activeSession);
-                  applyResolvedSession(activeSession, resolved);
-                } catch (e) {
-                  if (__DEV__) {
-                    console.warn(
-                      "[authStore] USER_UPDATED follow-up resolveSession failed",
-                      e,
-                    );
-                  }
-                }
-              })();
-              return;
-            }
-
-            await get().hydrateFromSupabaseSession(activeSession);
-          } else {
-            clearAuxiliarySessionState();
-            lastResolvedSessionToken = null;
-            set(loggedOutState);
+          if (event === "INITIAL_SESSION") return; // initialize owns the first restore.
+          if (get().session?.user.id === session.user.id && get().isLoggedIn) {
+            set({ session });
+            if (event === "USER_UPDATED")
+              setTimeout(() => {
+                void get().refreshProfileOnly();
+              }, 0);
+            return;
           }
-        },
-      );
-      authListenerUnsub = () => subscription.unsubscribe();
-    } catch (error) {
-      console.error("Auth initialization failed:", error);
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  signUp: async (email, password, firstName, lastName) => {
-    const result = await authService.signUpWithEmail(
-      email,
-      password,
-      firstName,
-      lastName,
-    );
-    trackSignUp("email");
-    return result;
-  },
-
-  verifyEmailOtp: (email, token) => authService.verifySignupOtp(email, token),
-
-  resendSignupOtp: (email) => authService.resendSignupOtp(email),
-
-  signInWithEmail: async (email, password) => {
-    await authService.signInWithEmail(email, password);
-    trackLogin("email");
-    /**
-     * `signInWithPassword` awaits the `SIGNED_IN` listener, which hydrates
-     * the session. Wait for the deferred pets prefetch so the dashboard
-     * mounts with cache instead of a stuck full-page spinner.
-     */
-    await get().whenDashboardReady();
-  },
-
-  signInWithGoogle: async () => {
-    const { signInWithGoogleNative } = await import("@/lib/auth/googleOAuth");
-    const r = await signInWithGoogleNative();
-    if (r.status === "cancelled") return;
-    await completeNativeSocialSession(get, r.session, "google");
-  },
-
-  signInWithApple: async () => {
-    const { signInWithAppleNative } = await import("@/lib/auth/appleOAuth");
-    const r = await signInWithAppleNative();
-    if (r.status === "cancelled") return;
-    await completeNativeSocialSession(get, r.session, "apple");
-  },
-
-  whenDashboardReady: () => dashboardReadyWait,
-
-  hydrateFromSupabaseSession: async (session) => {
-    if (!session) return false;
-    if (
-      hydrateInFlight &&
-      hydrateInFlight.token === session.access_token
-    ) {
-      return hydrateInFlight.promise;
-    }
-
-    const prev = get();
-    if (
-      prev.isLoggedIn &&
-      prev.session?.access_token === session.access_token
-    ) {
-      return true;
-    }
-
-    /**
-     * Already routed from an auth snapshot (or a prior resolve) and the JWT
-     * merely rotated. Swap the session without flipping `isHydrating` or
-     * contending for PostgREST — background revalidation owns that work.
-     */
-    if (
-      prev.isLoggedIn &&
-      prev.session?.user?.id === session.user.id
-    ) {
-      set({ session, isHydrating: false });
-      lastResolvedSessionToken = session.access_token;
-      return true;
-    }
-
-    const promise = (async () => {
-      /**
-       * Surface a "logging you in…" state to UI so layouts don't route to
-       * onboarding/dashboard before we know the user's actual onboarding
-       * state. This is also the signal `app/auth/callback.tsx` uses to wait
-       * for hydration on a deep-link return. We deliberately do NOT set the
-       * `session` field yet — it goes in atomically with `isLoggedIn: true`
-       * on success, so consumers never see a half-applied state.
-       */
-      set({ isHydrating: true });
-
-      let lastError: unknown = null;
-      for (let attempt = 1; attempt <= RESOLVE_SESSION_MAX_ATTEMPTS; attempt++) {
+          if (event === "TOKEN_REFRESHED") return;
+          const currentGeneration = sessionGeneration();
+          setTimeout(() => {
+            if (currentGeneration === sessionGeneration())
+              void get().hydrateFromSupabaseSession(session);
+          }, 0);
+        });
+        authListenerUnsub = () => subscription.unsubscribe();
         try {
-          const resolved = await withTimeout(
-            resolveSession(session),
-            RESOLVE_SESSION_ATTEMPT_TIMEOUT_MS,
-            "Load account",
+          const raw = await withTimeout(
+            secureStorage.getItem(getSupabaseAuthStorageKey()),
+            2000,
+            "Read cached session",
           );
-          applyResolvedSession(session, resolved);
-          reconcileCrittrProWithRevenueCat(session.user.id);
-          dashboardReadyWait = scheduleDashboardReady(
-            session,
-            resolved.needsOnboarding,
-          );
-          return true;
-        } catch (e) {
-          lastError = e;
-          if (__DEV__) {
-            console.warn(
-              `[authStore] resolveSession attempt ${attempt} failed`,
-              e,
+          const cached = raw ? (JSON.parse(raw) as Session) : null;
+          if (cached?.user?.id && cached.access_token && cached.refresh_token) {
+            const [snapshot] = await withTimeout(
+              Promise.all([
+                readAuthSnapshot(cached.user.id),
+                startQueryCachePersistence(
+                  cached.user.id,
+                  () => generation === sessionGeneration(),
+                ),
+              ]),
+              2000,
+              "Read cached account",
             );
+            if (
+              snapshot &&
+              generation === sessionGeneration() &&
+              !get().isLoggedIn
+            ) {
+              set({
+                ...snapshot,
+                session: cached,
+                isLoggedIn: true,
+                isLoading: false,
+                isHydrating: false,
+              });
+              ingestProfileMirror(snapshot.profile);
+            }
           }
-          if (attempt < RESOLVE_SESSION_MAX_ATTEMPTS) {
-            await sleep(500);
-          }
+        } catch {
+          /* Supabase can still restore when a snapshot is unreadable. */
         }
+        try {
+          const {
+            data: { session },
+            error,
+          } = await withTimeout(
+            supabase.auth.getSession(),
+            AUTH_GET_SESSION_TIMEOUT_MS,
+            "Restore session",
+          );
+          if (generation !== sessionGeneration()) return;
+          if (error) throw error;
+          if (session) {
+            await startQueryCachePersistence(
+              session.user.id,
+              () => generation === sessionGeneration(),
+            );
+            if (generation !== sessionGeneration()) return;
+            if (
+              get().isLoggedIn &&
+              get().session?.user.id === session.user.id
+            ) {
+              set({ session });
+              void revalidateRestoredSession(session);
+            } else await get().hydrateFromSupabaseSession(session);
+          } else if (get().isLoggedIn) await purgeInvalidSession();
+        } catch {
+          if (generation === sessionGeneration() && !get().isLoggedIn)
+            set({
+              initializationError:
+                "Could not load your account. Check your connection and retry.",
+            });
+        } finally {
+          set({ isLoading: false });
+        }
+      })();
+      initializationInFlight = task;
+      void task
+        .finally(() => {
+          if (initializationInFlight === task) initializationInFlight = null;
+        })
+        .catch(() => {});
+      return task;
+    },
+
+    signUp: async (email, password, firstName, lastName) => {
+      await logoutInFlight;
+      const result = await authService.signUpWithEmail(
+        email,
+        password,
+        firstName,
+        lastName,
+      );
+      trackSignUp("email");
+      return result;
+    },
+
+    verifyEmailOtp: (email, token) => authService.verifySignupOtp(email, token),
+
+    resendSignupOtp: (email) => authService.resendSignupOtp(email),
+
+    signInWithEmail: async (email, password) => {
+      await logoutInFlight;
+      const session = await authService.signInWithEmail(email, password);
+      if (session && !(await get().hydrateFromSupabaseSession(session)))
+        throw new Error("Could not load your account. Retry signing in.");
+      trackLogin("email");
+      /**
+       * `signInWithPassword` awaits the `SIGNED_IN` listener, which hydrates
+       * the session. Wait for the deferred pets prefetch so the dashboard
+       * mounts with cache instead of a stuck full-page spinner.
+       */
+      await get().whenDashboardReady();
+    },
+
+    signInWithGoogle: async () => {
+      await logoutInFlight;
+      const { signInWithGoogleNative } = await import("@/lib/auth/googleOAuth");
+      const r = await signInWithGoogleNative();
+      if (r.status === "cancelled") return;
+      await completeNativeSocialSession(get, r.session, "google");
+    },
+
+    signInWithApple: async () => {
+      await logoutInFlight;
+      const { signInWithAppleNative } = await import("@/lib/auth/appleOAuth");
+      const r = await signInWithAppleNative();
+      if (r.status === "cancelled") return;
+      await completeNativeSocialSession(get, r.session, "apple");
+    },
+
+    whenDashboardReady: () => dashboardReadyWait,
+
+    hydrateFromSupabaseSession: async (session) => {
+      if (!session) return false;
+      if (hydrateInFlight && hydrateInFlight.token === session.access_token) {
+        return hydrateInFlight.promise;
+      }
+
+      const prev = get();
+      if (
+        prev.isLoggedIn &&
+        prev.session?.access_token === session.access_token
+      ) {
+        return true;
       }
 
       /**
-       * All attempts exhausted. Keep the persisted session intact (the user is
-       * authenticated server-side), but leave `isLoggedIn` false so UI routes
-       * back to sign-in / welcome. Caller can surface the failure.
+       * Already routed from an auth snapshot (or a prior resolve) and the JWT
+       * merely rotated. Swap the session without flipping `isHydrating` or
+       * contending for PostgREST — background revalidation owns that work.
        */
-      dashboardReadyWait = Promise.resolve();
-      set({ isHydrating: false });
-      if (__DEV__) {
-        console.warn(
-          "[authStore] hydrateFromSupabaseSession exhausted retries",
-          lastError,
-        );
+      if (prev.isLoggedIn && prev.session?.user?.id === session.user.id) {
+        set({ session, isHydrating: false });
+
+        return true;
       }
-      return false;
-    })();
 
-    hydrateInFlight = { token: session.access_token, promise };
-    try {
-      return await promise;
-    } finally {
-      if (hydrateInFlight?.promise === promise) hydrateInFlight = null;
-    }
-  },
-
-  syncSessionFromSupabase: async () => {
-    if (syncSessionFromSupabaseInFlight) {
-      return syncSessionFromSupabaseInFlight;
-    }
-    syncSessionFromSupabaseInFlight = (async () => {
-      try {
-        const { data, error } = await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_GET_SESSION_TIMEOUT_MS,
-          "Restore session",
+      if (prev.session?.user.id !== session.user.id) {
+        clearAuxiliarySessionState();
+        set({ ...loggedOutState, session });
+      }
+      const generation = sessionGeneration();
+      const promise = (async () => {
+        /**
+         * Surface a "logging you in…" state to UI so layouts don't route to
+         * onboarding/dashboard before we know the user's actual onboarding
+         * state. This is also the signal `app/auth/callback.tsx` uses to wait
+         * for hydration on a deep-link return. We deliberately do NOT set the
+         * `session` field yet — it goes in atomically with `isLoggedIn: true`
+         * on success, so consumers never see a half-applied state.
+         */
+        set({ isHydrating: true, initializationError: null });
+        await startQueryCachePersistence(
+          session.user.id,
+          () => generation === sessionGeneration(),
         );
-        const session = data.session;
-        if (error || !session) return false;
-        return await get().hydrateFromSupabaseSession(session);
-      } catch (e) {
+        if (generation !== sessionGeneration()) return false;
+
+        let lastError: unknown = null;
+        for (
+          let attempt = 1;
+          attempt <= RESOLVE_SESSION_MAX_ATTEMPTS;
+          attempt++
+        ) {
+          try {
+            const resolved = await withTimeout(
+              resolveSession(session),
+              RESOLVE_SESSION_ATTEMPT_TIMEOUT_MS,
+              "Load account",
+            );
+            if (generation !== sessionGeneration()) return false;
+            applyResolvedSession(session, resolved);
+            dashboardReadyWait = scheduleDashboardReady(
+              session,
+              resolved.needsOnboarding,
+            );
+            return true;
+          } catch (e) {
+            if (generation !== sessionGeneration()) return false;
+            lastError = e;
+            if (__DEV__) {
+              console.warn(
+                `[authStore] resolveSession attempt ${attempt} failed`,
+                e,
+              );
+            }
+            if (attempt < RESOLVE_SESSION_MAX_ATTEMPTS) {
+              await sleep(500);
+            }
+          }
+        }
+
+        /**
+         * All attempts exhausted. Keep the persisted session intact (the user is
+         * authenticated server-side), but leave `isLoggedIn` false so UI routes
+         * back to sign-in / welcome. Caller can surface the failure.
+         */
+        if (generation !== sessionGeneration()) return false;
+        dashboardReadyWait = Promise.resolve();
+        set({
+          isHydrating: false,
+          initializationError:
+            "Could not load your account. Check your connection and retry.",
+        });
         if (__DEV__) {
-          console.warn("[authStore] syncSessionFromSupabase failed", e);
+          console.warn(
+            "[authStore] hydrateFromSupabaseSession exhausted retries",
+            lastError,
+          );
         }
         return false;
+      })();
+
+      hydrateInFlight = { token: session.access_token, promise };
+      try {
+        return await promise;
       } finally {
-        syncSessionFromSupabaseInFlight = null;
+        if (hydrateInFlight?.promise === promise) hydrateInFlight = null;
       }
-    })();
-    return syncSessionFromSupabaseInFlight;
-  },
+    },
 
-  deleteAccount: async () => {
-    await authService.requestAccountDeletion();
-    const { signOutGoogleSdk } = await import("@/lib/auth/googleOAuth");
-    await signOutGoogleSdk();
-    await wipeSupabaseAuthFromDevice();
-    void logoutRevenueCatUser();
-    hydrateInFlight = null;
-    syncSessionFromSupabaseInFlight = null;
-    lastResolvedSessionToken = null;
-    dashboardReadyWait = Promise.resolve();
-    clearAuxiliarySessionState();
-    set(loggedOutState);
-  },
+    syncSessionFromSupabase: async () => {
+      if (syncSessionFromSupabaseInFlight) {
+        return syncSessionFromSupabaseInFlight;
+      }
+      const generation = sessionGeneration();
+      const task = (async () => {
+        try {
+          const { data, error } = await withTimeout(
+            supabase.auth.getSession(),
+            AUTH_GET_SESSION_TIMEOUT_MS,
+            "Restore session",
+          );
+          const session = data.session;
+          if (generation !== sessionGeneration() || error || !session)
+            return false;
+          return await get().hydrateFromSupabaseSession(session);
+        } catch (e) {
+          if (__DEV__) {
+            console.warn("[authStore] syncSessionFromSupabase failed", e);
+          }
+          return false;
+        }
+      })();
+      syncSessionFromSupabaseInFlight = task;
+      void task
+        .finally(() => {
+          if (syncSessionFromSupabaseInFlight === task)
+            syncSessionFromSupabaseInFlight = null;
+        })
+        .catch(() => {});
+      return task;
+    },
 
-  signOut: async () => {
-    await authService.signOut();
-    const { signOutGoogleSdk } = await import("@/lib/auth/googleOAuth");
-    await signOutGoogleSdk();
-    void logoutRevenueCatUser();
-    dashboardReadyWait = Promise.resolve();
-    clearAuxiliarySessionState();
-    set(loggedOutState);
-  },
+    deleteAccount: async () => {
+      const generation = sessionGeneration();
+      await authService.requestAccountDeletion();
+      if (generation === sessionGeneration()) await get().signOut();
+    },
 
-  setProfile: (profile) => {
-    set((s) => ({
-      profile,
-      ...deriveProfileOnboardingState(profile, s.hasPets),
-    }));
-    queryClient.setQueryData(profileQueryKey(profile.id), profile);
-    persistAuthSnapshot();
-    void get().refreshProfileOnly();
-  },
+    signOut: () => {
+      if (logoutInFlight) return logoutInFlight;
+      clearAuxiliarySessionState();
+      set(loggedOutState);
+      dashboardReadyWait = Promise.resolve();
+      // Reset the desired native identity immediately; do not wait for an open store sheet.
+      void logoutRevenueCatUser();
+      const task = (async () => {
+        await wipeSupabaseAuthFromDevice();
+        const { signOutGoogleSdk } = await import("@/lib/auth/googleOAuth");
+        await signOutGoogleSdk();
+      })();
+      logoutInFlight = task;
+      void task
+        .finally(() => {
+          if (logoutInFlight === task) logoutInFlight = null;
+        })
+        .catch(() => {});
+      return task;
+    },
 
-  replaceProfileSnapshot: (profile) => set({ profile }),
-
-  refreshProfileOnly: async () => {
-    const session = get().session;
-    if (!session) return;
-
-    let profile: Profile | null;
-    try {
-      profile = await fetchProfileRow(session.user.id);
-    } catch (error) {
-      if (__DEV__) console.warn("[authStore] refreshProfileOnly failed", error);
-      return;
-    }
-
-    set((s) => ({
-      profile,
-      ...deriveProfileOnboardingState(profile, s.hasPets),
-    }));
-    syncProfileRowToQuery(profile);
-    ingestProfileMirror(profile);
-    persistAuthSnapshot();
-    identifyAnalyticsUser({
-      userId: session.user.id,
-      profile,
-      ownedPetCount: get().ownedPetCount,
-      onboardingComplete: !get().needsOnboarding,
-    });
-  },
-
-  refreshAuthSession: async () => {
-    const session = get().session;
-    if (!session) return;
-    const resolved = await resolveSession(session);
-    applyResolvedSession(session, resolved);
-  },
-
-  completeOnboarding: async () => {
-    const { session } = get();
-    if (!session) throw new Error("No session");
-
-    const profile = await markOnboardingComplete(session.user.id);
-    if (profile) {
+    setProfile: (profile) => {
+      if (profile.id !== get().session?.user.id) return;
+      set((s) => ({
+        profile,
+        ...deriveProfileOnboardingState(profile, s.hasPets),
+      }));
       queryClient.setQueryData(profileQueryKey(profile.id), profile);
-    }
-    await get().refreshProfileOnly();
-    trackTutorialComplete();
-  },
-};
+      ingestProfileMirror(profile);
+      persistAuthSnapshot();
+      void get().refreshProfileOnly();
+    },
+
+    replaceProfileSnapshot: (profile) => {
+      if (profile && profile.id !== get().session?.user.id) return;
+      set({ profile });
+      ingestProfileMirror(profile);
+    },
+
+    refreshProfileOnly: async () => {
+      const session = get().session;
+      if (!session) return;
+
+      const generation = sessionGeneration();
+      let profile: Profile | null;
+      try {
+        profile = await fetchProfileRow(session.user.id);
+      } catch (error) {
+        if (__DEV__)
+          console.warn("[authStore] refreshProfileOnly failed", error);
+        return;
+      }
+
+      if (
+        generation !== sessionGeneration() ||
+        get().session?.user.id !== session.user.id
+      )
+        return;
+      set((s) => ({
+        profile,
+        ...deriveProfileOnboardingState(profile, s.hasPets),
+      }));
+      syncProfileRowToQuery(profile);
+      ingestProfileMirror(profile);
+      persistAuthSnapshot();
+      identifyAnalyticsUser({
+        userId: session.user.id,
+        profile,
+        ownedPetCount: get().ownedPetCount,
+        onboardingComplete: !get().needsOnboarding,
+      });
+    },
+
+    refreshAuthSession: async () => {
+      const session = get().session;
+      if (!session) return;
+      const generation = sessionGeneration();
+      const resolved = await resolveSession(session);
+      if (
+        generation !== sessionGeneration() ||
+        get().session?.user.id !== session.user.id
+      )
+        return;
+      applyResolvedSession(session, resolved);
+    },
+
+    completeOnboarding: async () => {
+      const { session } = get();
+      if (!session) throw new Error("No session");
+
+      const generation = sessionGeneration();
+      const profile = await markOnboardingComplete(session.user.id);
+      if (generation !== sessionGeneration()) return;
+      if (profile) {
+        queryClient.setQueryData(profileQueryKey(profile.id), profile);
+      }
+      await get().refreshProfileOnly();
+      trackTutorialComplete();
+    },
+  };
 });

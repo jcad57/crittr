@@ -1,7 +1,6 @@
-import type { ImageSourcePropType } from "react-native";
 
 /** 40×40 tile, 26×26 artwork — matches pet profile `RecordsNavCard`. */
-export const PROFILE_ICONS: Record<string, ImageSourcePropType> = {
+export const PROFILE_ICONS: Record<string, number> = {
   name: require("@/assets/icons/name-icon.png"),
   phone: require("@/assets/icons/phone-icon.png"),
   email: require("@/assets/icons/email-icon.png"),

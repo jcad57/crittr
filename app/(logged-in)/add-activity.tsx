@@ -54,7 +54,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView, type KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "@/screen-styles/add-activity.styles";
 
@@ -90,7 +90,7 @@ export default function AddActivityScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<KeyboardAwareScrollViewRef | null>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
   /** Covers network save + interstitial so Save stays locked after mutations settle. */
   const [isCompleting, setIsCompleting] = useState(false);

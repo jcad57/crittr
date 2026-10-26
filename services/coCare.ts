@@ -23,7 +23,9 @@ const CO_CARE_INVITE_VALIDATION_MESSAGES: Record<string, string> = {
 
 function messageForCoCareInviteValidation(code: string | undefined): string {
   if (!code) return "Could not send this invite.";
-  return CO_CARE_INVITE_VALIDATION_MESSAGES[code] ?? "Could not send this invite.";
+  return (
+    CO_CARE_INVITE_VALIDATION_MESSAGES[code] ?? "Could not send this invite."
+  );
 }
 
 /** PostgREST sometimes returns jsonb RPC results as a JSON string. */
@@ -35,9 +37,7 @@ function parseCoCareInviteValidation(raw: unknown): {
   if (typeof raw === "string") {
     try {
       const p = JSON.parse(raw) as { ok?: unknown; code?: string };
-      return typeof p.ok === "boolean"
-        ? { ok: p.ok, code: p.code }
-        : null;
+      return typeof p.ok === "boolean" ? { ok: p.ok, code: p.code } : null;
     } catch {
       return null;
     }
@@ -47,16 +47,6 @@ function parseCoCareInviteValidation(raw: unknown): {
     return typeof o.ok === "boolean" ? { ok: o.ok, code: o.code } : null;
   }
   return null;
-}
-
-function permissionsForNewCoCarerRow(invite: {
-  permissions?: unknown;
-}): CoCarePermissions {
-  const raw = invite.permissions;
-  if (raw && typeof raw === "object" && raw !== null) {
-    return { ...DEFAULT_CO_CARE_PERMISSIONS, ...(raw as CoCarePermissions) };
-  }
-  return DEFAULT_CO_CARE_PERMISSIONS;
 }
 
 /** Coerce RPC `RETURNS TABLE` results (array, single object, or null). */
@@ -145,14 +135,16 @@ export async function sendCoCareInvite(
       id?: string | null;
       error?: string;
     };
-    const { data, error } = await supabase.functions.invoke<
-      SendCoCareInviteResponse
-    >("send-co-care-invite", {
-      body: {
-        petId,
-        inviteeEmail: normalised,
-      },
-    });
+    const { data, error } =
+      await supabase.functions.invoke<SendCoCareInviteResponse>(
+        "send-co-care-invite",
+        {
+          body: {
+            petId,
+            inviteeEmail: normalised,
+          },
+        },
+      );
 
     if (error) {
       console.warn(
@@ -194,15 +186,22 @@ export async function fetchPendingInvitesForUser(
 
   if (invites.length === 0) return [];
 
-  const petIds = [...new Set(invites.map((i) => i.pet_id).filter(Boolean))] as string[];
-  const inviterIds = [...new Set(invites.map((i) => i.invited_by).filter(Boolean))];
+  const petIds = [
+    ...new Set(invites.map((i) => i.pet_id).filter(Boolean)),
+  ] as string[];
+  const inviterIds = [
+    ...new Set(invites.map((i) => i.invited_by).filter(Boolean)),
+  ];
 
   const [petsRes, profilesRes] = await Promise.all([
     petIds.length > 0
       ? supabase.from("pets").select("id, name").in("id", petIds)
       : Promise.resolve({ data: [] }),
     inviterIds.length > 0
-      ? supabase.from("profiles").select("id, first_name, last_name").in("id", inviterIds)
+      ? supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", inviterIds)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -216,7 +215,7 @@ export async function fetchPendingInvitesForUser(
 
   return invites.map((inv) => ({
     ...inv,
-    pet_name: inv.pet_id ? petMap.get(inv.pet_id) ?? undefined : undefined,
+    pet_name: inv.pet_id ? (petMap.get(inv.pet_id) ?? undefined) : undefined,
     inviter_name: profileMap.get(inv.invited_by) ?? undefined,
   }));
 }
@@ -246,32 +245,20 @@ export async function acceptInvite(
 
   if (fetchErr || !invite) throw fetchErr ?? new Error("Invite not found");
 
-  const { data: accepterHasPro, error: proErr } =
-    await supabase.rpc("user_has_crittr_pro");
+  const { data: accepterHasPro, error: proErr } = await supabase.rpc(
+    "user_has_crittr_pro",
+  );
   if (proErr) throw proErr;
   if (!accepterHasPro) {
     throw new Error(CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE);
   }
 
-  // Insert co-carer row first (while invite is still "pending") so the RLS
-  // policy on pet_co_carers can verify the invite exists.
-  const { error: insertErr } = await supabase
-    .from("pet_co_carers")
-    .insert({
-      pet_id: invite.pet_id,
-      user_id: userId,
-      invited_by: invite.invited_by,
-      permissions: permissionsForNewCoCarerRow(invite),
-    });
-
-  if (insertErr) throw insertErr;
-
-  const { error: updateErr } = await supabase
-    .from("co_carer_invites")
-    .update({ status: "accepted", responded_at: new Date().toISOString() })
-    .eq("id", inviteId);
-
-  if (updateErr) throw updateErr;
+  const { data: petId, error: acceptError } = await supabase.rpc(
+    "accept_co_care_invite",
+    { target_invite: inviteId },
+  );
+  if (acceptError) throw acceptError;
+  if (!petId) throw new Error("Could not accept invitation");
 
   trackCoCareInviteAccepted();
 
@@ -281,9 +268,9 @@ export async function acceptInvite(
     .eq("id", userId)
     .single();
 
-  const accepterName = [accepter?.first_name, accepter?.last_name]
-    .filter(Boolean)
-    .join(" ") || "Someone";
+  const accepterName =
+    [accepter?.first_name, accepter?.last_name].filter(Boolean).join(" ") ||
+    "Someone";
 
   const { data: pet } = await supabase
     .from("pets")
@@ -302,9 +289,7 @@ export async function acceptInvite(
   return { petId: invite.pet_id as string };
 }
 
-export async function declineInvite(
-  inviteId: string,
-): Promise<void> {
+export async function declineInvite(inviteId: string): Promise<void> {
   const { error } = await supabase
     .from("co_carer_invites")
     .update({ status: "declined", responded_at: new Date().toISOString() })
@@ -325,7 +310,10 @@ export async function revokeInvite(inviteId: string): Promise<void> {
 // ─── Co-carer relationships ─────────────────────────────────────────────────
 
 export type CoCarerWithProfile = PetCoCarer & {
-  profile: Pick<Profile, "id" | "first_name" | "last_name" | "avatar_url"> | null;
+  profile: Pick<
+    Profile,
+    "id" | "first_name" | "last_name" | "avatar_url"
+  > | null;
 };
 
 export async function fetchCoCarersForPet(
@@ -333,7 +321,9 @@ export async function fetchCoCarersForPet(
 ): Promise<CoCarerWithProfile[]> {
   const { data, error } = await supabase
     .from("pet_co_carers")
-    .select("*, profile:profiles!pet_co_carers_user_id_fkey(id, first_name, last_name, avatar_url)")
+    .select(
+      "*, profile:profiles!pet_co_carers_user_id_fkey(id, first_name, last_name, avatar_url)",
+    )
     .eq("pet_id", petId)
     .order("created_at", { ascending: true });
 
@@ -448,9 +438,9 @@ export async function leaveCoCare(
       .eq("id", userId)
       .single();
 
-    const leaverName = [leaver?.first_name, leaver?.last_name]
-      .filter(Boolean)
-      .join(" ") || "Someone";
+    const leaverName =
+      [leaver?.first_name, leaver?.last_name].filter(Boolean).join(" ") ||
+      "Someone";
 
     await supabase.from("notifications").insert({
       user_id: pet.owner_id,

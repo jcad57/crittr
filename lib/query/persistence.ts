@@ -1,83 +1,97 @@
+import type { Query } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import {
-  persistQueryClient,
+  persistQueryClientRestore,
+  persistQueryClientSubscribe,
   removeOldestQuery,
 } from "@tanstack/react-query-persist-client";
 
-const CACHE_KEY = "crittr.reactQueryCache";
-
-/**
- * Bump whenever a persisted query's payload shape changes. Restored data is
- * rendered before any network response arrives, so an old shape would reach
- * components that no longer understand it.
- */
-const CACHE_SCHEMA_VERSION = "1";
-
-/**
- * Entitlement and price state must come from RevenueCat on every launch — a
- * restored "Pro" payload would unlock gated UI before the SDK answers, and a
- * restored price would render a number we might not be able to charge.
- */
-const NEVER_PERSIST_ROOT_KEYS = new Set([
-  "subscriptionDetails",
-  "proPricing",
+const CACHE_SCHEMA_VERSION = "2";
+const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
+const PERSIST_ROOTS = new Set([
+  "profile",
+  "pets",
+  "petDetails",
+  "todayActivities",
+  "petVetVisits",
+  "healthSnapshot",
+  "schedule",
 ]);
-
-/** Older than this and we discard the whole cache rather than paint stale data. */
-const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
-const persister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: CACHE_KEY,
-  /**
-   * Android's AsyncStorage has a fixed total size budget; dropping the oldest
-   * query and retrying keeps a large cache from failing to persist entirely.
-   */
-  retry: removeOldestQuery,
-  throttleTime: 2_000,
-});
-
+let revision = 0,
+  activeUserId: string | null = null;
 let restorePromise: Promise<void> | null = null;
+let stop: (() => void) | undefined;
+let writes = Promise.resolve();
+const cacheKey = (id: string) => `crittr.reactQueryCache.v2.${id}`;
 
-/**
- * Rehydrate the query cache from disk and keep writing it back as it changes.
- * Awaited by the boot gate so the first painted frame already has the user's
- * pets, profile and health data instead of spinners.
- */
-export function startQueryCachePersistence(): Promise<void> {
-  if (restorePromise) return restorePromise;
-
-  const [, promise] = persistQueryClient({
-    queryClient,
-    persister,
-    maxAge: MAX_CACHE_AGE_MS,
-    buster: CACHE_SCHEMA_VERSION,
-    dehydrateOptions: {
-      shouldDehydrateQuery: (query) => {
-        if (query.state.status !== "success") return false;
-        const root = query.queryKey[0];
-        return typeof root === "string" && !NEVER_PERSIST_ROOT_KEYS.has(root);
+/** Only restore after identifying the session; old-account reads/writes are fenced. */
+export function startQueryCachePersistence(
+  userId: string,
+  isCurrent = () => true,
+): Promise<void> {
+  if (activeUserId === userId && restorePromise) return restorePromise;
+  stop?.();
+  stop = undefined;
+  const generation = ++revision;
+  activeUserId = userId;
+  const current = () => revision === generation && isCurrent();
+  const persister = createAsyncStoragePersister({
+    key: cacheKey(userId),
+    throttleTime: 2000,
+    retry: removeOldestQuery,
+    storage: {
+      getItem: async (key) => {
+        const raw = await AsyncStorage.getItem(key);
+        return current() ? raw : null;
       },
+      setItem: (key, value) => {
+        const task = writes.then(async () => {
+          if (current()) await AsyncStorage.setItem(key, value);
+        });
+        writes = task.catch(() => {});
+        return task;
+      },
+      removeItem: (key) => AsyncStorage.removeItem(key),
     },
   });
-
-  restorePromise = promise.catch((e) => {
-    if (__DEV__) console.warn("[queryPersistence] restore failed", e);
-  });
-
+  const options = {
+    queryClient,
+    persister,
+    buster: CACHE_SCHEMA_VERSION,
+    maxAge: MAX_CACHE_AGE_MS,
+    dehydrateOptions: {
+      shouldDehydrateQuery: (query: Query) =>
+        query.state.status === "success" &&
+        PERSIST_ROOTS.has(String(query.queryKey[0])) &&
+        (!["profile", "pets"].includes(String(query.queryKey[0])) ||
+          query.queryKey[1] === userId),
+    },
+  };
+  restorePromise = persistQueryClientRestore(options)
+    .then(() => {
+      if (current()) stop = persistQueryClientSubscribe(options);
+    })
+    .catch((error) => {
+      if (__DEV__) console.warn("[queryPersistence] restore failed", error);
+    });
   return restorePromise;
 }
-
-/**
- * Drop the on-disk cache. Must run on sign-out and on invalid-session purge so
- * the next account on this device never restores the previous user's data.
- */
 export async function purgePersistedQueryCache(): Promise<void> {
+  const oldId = activeUserId;
+  ++revision;
+  stop?.();
+  stop = undefined;
+  activeUserId = null;
+  restorePromise = null;
+  await writes;
   try {
-    await persister.removeClient();
-  } catch (e) {
-    if (__DEV__) console.warn("[queryPersistence] purge failed", e);
+    await AsyncStorage.multiRemove([
+      "crittr.reactQueryCache",
+      ...(oldId ? [cacheKey(oldId)] : []),
+    ]);
+  } catch {
+    /* Cache failure must not prevent logout. */
   }
 }

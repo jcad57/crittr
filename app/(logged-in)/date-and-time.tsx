@@ -161,12 +161,12 @@ export default function DateAndTimeScreen() {
         visible={openPicker !== null && activeOptions.length > 0}
         transparent
         animationType="fade"
-        onRequestClose={() => busyKey === null && setOpenPicker(null)}
+        onRequestClose={() => { if (busyKey === null) setOpenPicker(null); }}
       >
         <View style={styles.modalRoot}>
           <Pressable
             style={styles.modalBackdrop}
-            onPress={() => busyKey === null && setOpenPicker(null)}
+            onPress={() => { if (busyKey === null) setOpenPicker(null); }}
             disabled={busyKey !== null}
           />
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -213,7 +213,7 @@ export default function DateAndTimeScreen() {
             })}
             <Pressable
               style={styles.cancelSheet}
-              onPress={() => busyKey === null && setOpenPicker(null)}
+              onPress={() => { if (busyKey === null) setOpenPicker(null); }}
               disabled={busyKey !== null}
             >
               <Text style={styles.cancelSheetText}>Cancel</Text>

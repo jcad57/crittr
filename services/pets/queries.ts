@@ -27,51 +27,67 @@ export async function fetchUserPets(ownerId: string): Promise<Pet[]> {
  */
 export async function fetchAccessiblePets(
   userId: string,
+  signal?: AbortSignal,
 ): Promise<PetWithRole[]> {
   /**
    * Co-cared pets are embedded through the membership row so shared pets no
    * longer need a second round trip after the links come back.
    */
-  const [ownedRes, coCaredRes] = await Promise.all([
-    supabase
-      .from("pets")
-      .select("*")
-      .eq("owner_id", userId)
-      .eq("is_archived", false)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("pet_co_carers")
-      .select("permissions, pet:pets!inner(*)")
-      .eq("user_id", userId)
-      /** PostgREST filters embedded resources by their alias, not the table name. */
-      .eq("pet.is_archived", false),
-  ]);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const timeout = setTimeout(abort, 12000);
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  try {
+    const [ownedRes, coCaredRes] = await Promise.all([
+      supabase
+        .from("pets")
+        .select("*")
+        .eq("owner_id", userId)
+        .eq("is_archived", false)
+        .order("created_at", { ascending: true })
+        .abortSignal(controller.signal),
+      supabase
+        .from("pet_co_carers")
+        .select("permissions, pet:pets!inner(*)")
+        .eq("user_id", userId)
+        /** PostgREST filters embedded resources by their alias, not the table name. */
+        .eq("pet.is_archived", false)
+        .abortSignal(controller.signal),
+    ]);
 
-  if (ownedRes.error) throw ownedRes.error;
-  if (coCaredRes.error) throw coCaredRes.error;
+    if (controller.signal.aborted && !signal?.aborted)
+      throw new Error("Loading your pets took too long. Please try again.");
+    if (ownedRes.error) throw ownedRes.error;
+    if (coCaredRes.error) throw coCaredRes.error;
 
-  const owned: PetWithRole[] = (ownedRes.data ?? []).map((p) => ({
-    ...p,
-    role: "owner" as const,
-  }));
+    const owned: PetWithRole[] = (ownedRes.data ?? []).map((p) => ({
+      ...p,
+      role: "owner" as const,
+    }));
 
-  const coCaredRows = (coCaredRes.data ?? []) as unknown as {
-    permissions: CoCarePermissions;
-    pet: Pet | null;
-  }[];
+    const coCaredRows = (coCaredRes.data ?? []) as unknown as {
+      permissions: CoCarePermissions;
+      pet: Pet | null;
+    }[];
 
-  const shared: PetWithRole[] = coCaredRows
-    .filter((row): row is { permissions: CoCarePermissions; pet: Pet } =>
-      row.pet != null,
-    )
-    .map((row) => ({
-      ...row.pet,
-      role: "co_carer" as const,
-      permissions: row.permissions,
-    }))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const shared: PetWithRole[] = coCaredRows
+      .filter(
+        (row): row is { permissions: CoCarePermissions; pet: Pet } =>
+          row.pet != null,
+      )
+      .map((row) => ({
+        ...row.pet,
+        role: "co_carer" as const,
+        permissions: row.permissions,
+      }))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-  return [...owned, ...shared];
+    return [...owned, ...shared];
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
 }
 
 /**
@@ -203,7 +219,8 @@ export async function fetchPetProfile(
     .eq("id", petId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
 
   const row = data as unknown as PetDetailRow;
   const litterByOwner = await fetchLitterGoalsByOwner([row]);

@@ -7,7 +7,7 @@ import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useAuthStore } from "@/stores/authStore";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { AppState, type AppStateStatus, Platform } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 
 /**
  * Window inside which back-to-back sync triggers (resume + profile-driven prefs
@@ -33,7 +33,7 @@ export default function ReminderNotificationSync() {
       profile?.notify_co_care_activities,
       profile?.notify_medications,
       profile?.notify_vet_visits,
-      profile?.updated_at,
+      profile?.id,
     ],
   );
 
@@ -48,7 +48,7 @@ export default function ReminderNotificationSync() {
         void syncCrittrReminderNotifications(userId, prefs).catch((e) => {
           if (__DEV__) console.warn(`[ReminderNotificationSync] ${label}`, e);
         });
-      }, SYNC_DEBOUNCE_MS);
+      }, label === "prefs/day" ? 2000 : SYNC_DEBOUNCE_MS);
     },
     [userId, prefs],
   );
@@ -60,7 +60,7 @@ export default function ReminderNotificationSync() {
         debounceTimerRef.current = null;
       }
     };
-  }, []);
+  }, [userId, prefs]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -81,7 +81,7 @@ export default function ReminderNotificationSync() {
     const sub = AppState.addEventListener(
       "change",
       (next: AppStateStatus) => {
-        const prev = appStateRef.current;
+        const prev = appStateRef.current ?? "active";
         appStateRef.current = next;
         if (prev.match(/inactive|background/) && next === "active") {
           requestSync("resume");

@@ -6,12 +6,9 @@ import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { proPricingQueryKey } from "@/lib/query/keys";
 import { configureRevenueCat } from "@/lib/iap/revenueCat";
 import { queryClient } from "@/lib/query/client";
-import { startQueryCachePersistence } from "@/lib/query/persistence";
 import { fetchProPricing } from "@/services/proPricing";
 import { ensureAppRatingFirstOpenRecorded } from "@/lib/appRatingPersistence";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
-import { setupReactQueryFocusManager } from "@/lib/query/focusManager";
-import { setupSupabaseAuthAutoRefresh } from "@/lib/supabaseAuthAppState";
 import { useAuthStore } from "@/stores/authStore";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -27,10 +24,8 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
-
-setupReactQueryFocusManager();
+import { useEffect } from "react";
+import { Pressable, Text, StyleSheet, View } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -46,34 +41,10 @@ export default function SessionGate() {
     DMSans_600SemiBold,
     DMSans_700Bold,
   });
-  const [cacheRestored, setCacheRestored] = useState(false);
-  const initialized = useRef(false);
-
-  /**
-   * Restore before auth resolves and before the router mounts: screens read the
-   * cache on their first render, so anything restored later would arrive after
-   * they have already committed to a loading state.
-   */
+  const initializationError = useAuthStore((s) => s.initializationError);
   useEffect(() => {
-    let cancelled = false;
-    void startQueryCachePersistence().finally(() => {
-      if (!cancelled) setCacheRestored(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      initialize();
-    }
+    void initialize();
   }, [initialize]);
-
-  useEffect(() => {
-    return setupSupabaseAuthAutoRefresh();
-  }, []);
 
   useEffect(() => {
     return setupAppResumeHandler();
@@ -87,8 +58,7 @@ export default function SessionGate() {
     void configureRevenueCat();
   }, []);
 
-  const isReady =
-    (fontsLoaded || !!fontError) && cacheRestored && !isAuthLoading;
+  const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
@@ -105,6 +75,26 @@ export default function SessionGate() {
   if (!isReady) {
     return <View style={styles.bootPlaceholder} />;
   }
+
+  if (initializationError)
+    return (
+      <View
+        style={[
+          styles.bootPlaceholder,
+          { justifyContent: "center", padding: 32 },
+        ]}
+      >
+        <Text>{initializationError}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            void initialize();
+          }}
+        >
+          <Text>Retry</Text>
+        </Pressable>
+      </View>
+    );
 
   return (
     <QueryClientProvider client={queryClient}>

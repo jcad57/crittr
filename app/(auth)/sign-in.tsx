@@ -53,7 +53,7 @@ const ANIMALS_PEAKING = require("@/assets/images/animals-peaking.png");
 const ANIMALS_PEAKING_RESOLVED = RNImage.resolveAssetSource(ANIMALS_PEAKING);
 const ANIMALS_PEAKING_ASPECT =
   ANIMALS_PEAKING_RESOLVED?.width && ANIMALS_PEAKING_RESOLVED.width > 0
-    ? ANIMALS_PEAKING_RESOLVED.height / ANIMALS_PEAKING_RESOLVED.width
+    ? (ANIMALS_PEAKING_RESOLVED.height ?? 1) / ANIMALS_PEAKING_RESOLVED.width
     : 1;
 
 function oauthPasswordHint(hint: "google" | "apple"): string {

@@ -1,3 +1,4 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import { scheduleDayKey } from "@/lib/query/keys";
 import { queryClient } from "@/lib/query/client";
 import {
@@ -18,7 +19,6 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { InteractionManager } from "react-native";
 
 export function useScheduleDayQuery(
   petId: string | null | undefined,
@@ -55,7 +55,7 @@ export function useWarmScheduleCache(petIds: string[], localYmd: string) {
     let interaction: { cancel: () => void } | null = null;
 
     const timer = setTimeout(() => {
-      interaction = InteractionManager.runAfterInteractions(() => {
+      interaction = runWhenIdle(() => {
         if (cancelled) return;
         void warmScheduleForPets(petIdsKey.split(","), localYmd);
       });

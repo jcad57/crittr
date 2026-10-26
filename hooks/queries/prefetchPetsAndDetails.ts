@@ -1,4 +1,9 @@
-import { fetchAccessiblePets, fetchPetsWithDetails } from "@/services/pets";
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import {
+  fetchAccessiblePets,
+  fetchPetsWithDetails,
+  fetchPetProfile,
+} from "@/services/pets";
 import type { PetWithRole } from "@/types/database";
 import type { QueryClient } from "@tanstack/react-query";
 import { petDetailsQueryKey, petsQueryKey } from "@/lib/query/keys";
@@ -17,6 +22,16 @@ export async function warmPetDetailsCache(
   queryClient: QueryClient,
   pets: PetWithRole[],
 ): Promise<void> {
+  if (pets.length === 1) {
+    const id = pets[0].id;
+    // Share the exact query with the mounted dashboard instead of racing a batch fetch.
+    await queryClient.prefetchQuery({
+      queryKey: petDetailsQueryKey(id),
+      queryFn: () => fetchPetProfile(id),
+    });
+    return;
+  }
+  const generation = sessionGeneration();
   const missingIds = pets
     .map((p) => p.id)
     .filter(
@@ -32,6 +47,7 @@ export async function warmPetDetailsCache(
 
   try {
     const details = await fetchPetsWithDetails(missingIds);
+    if (generation !== sessionGeneration()) return;
     for (const detail of details) {
       queryClient.setQueryData(petDetailsQueryKey(detail.id), detail);
     }
@@ -50,7 +66,8 @@ export function prefetchPetsList(
 ): Promise<void> {
   return queryClient.prefetchQuery({
     queryKey: petsQueryKey(userId),
-    queryFn: () => fetchAccessiblePets(userId),
+    queryFn: ({ signal }) => fetchAccessiblePets(userId, signal),
+    retry: 1,
   });
 }
 

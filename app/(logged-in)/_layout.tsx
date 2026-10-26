@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.splashBackground,
   },
   navOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
   },
 });

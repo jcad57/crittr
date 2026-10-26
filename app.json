@@ -8,7 +8,6 @@
     "scheme": "crittr",
     "backgroundColor": "#fff7f1",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jcadeichmann.crittr",
@@ -20,20 +19,17 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "statusBar": {
-        "barStyle": "dark-content",
-        "backgroundColor": "#FDF8F3"
-      },
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/app-icon-temp.png",
         "backgroundImage": "./assets/images/app-icon-temp.png",
         "monochromeImage": "./assets/images/app-icon-temp.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "package": "com.jcadeichmann.crittr",
       "playStoreUrl": "https://play.google.com/store/apps/details?id=com.jcadeichmann.crittr"
     },
@@ -42,6 +38,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withFirebaseSceneDelegate",
       "expo-router",
       [
         "expo-splash-screen",
@@ -74,7 +71,6 @@
           "defaultChannel": "default"
         }
       ],
-      "react-native-enriched-markdown",
       [
         "@react-native-firebase/app",
         {
@@ -95,13 +91,14 @@
         "expo-build-properties",
         {
           "ios": {
-            "buildReactNativeFromSource": true,
             "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBAnalytics"]
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAnalytics"
+            ]
           }
         }
       ],
-      "./plugins/withFmtXcode26Fix",
       [
         "react-native-google-mobile-ads",
         {
@@ -116,8 +113,6 @@
           "userTrackingPermission": "Crittr uses this identifier to show you more relevant ads."
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/analytics",
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",

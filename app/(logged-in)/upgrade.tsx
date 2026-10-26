@@ -380,7 +380,7 @@ const upgradeFooter = StyleSheet.create({
     fontSize: 14,
   },
   activatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.55)",

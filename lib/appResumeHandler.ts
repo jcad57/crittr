@@ -1,63 +1,53 @@
-import {
-  consumeAppForegroundedAwayMs,
-  noteAppBackgrounded,
-  STALE_RESUME_AFTER_MS,
-} from "@/lib/appLifecycle";
+import { focusManager, onlineManager } from "@tanstack/react-query";
+import * as Network from "expo-network";
 import { queryClient } from "@/lib/query/client";
 import { supabase } from "@/lib/supabase";
-import { AppState, Platform, type AppStateStatus } from "react-native";
-
-/**
- * When the app has been backgrounded at least `STALE_RESUME_AFTER_MS`, treat it
- * as a cold-ish resume: cancel in-flight queries (they may be zombie fetches the
- * OS suspended), invalidate active (mounted) queries so the visible UI refetches,
- * and kick the Realtime socket back up.
- *
- * `focusManager` + `refetchOnWindowFocus` alone are not sufficient: React Query
- * will not start a new fetch while a previous one is still marked as in-flight,
- * so without an explicit cancel we stay stuck on whatever loader was visible
- * pre-background. We also restrict invalidation to `refetchType: "active"` so
- * inactive (unmounted) queries don't all refetch in the background — they will
- * fetch fresh next time they're observed.
- */
+import { AppState, Platform } from "react-native";
 
 export function setupAppResumeHandler(): () => void {
   if (Platform.OS === "web") return () => {};
-
-  let lastState: AppStateStatus = AppState.currentState;
-
-  const onChange = (next: AppStateStatus) => {
-    const prev = lastState;
-    lastState = next;
-
-    if (prev === "active" && next !== "active") {
-      noteAppBackgrounded(Date.now());
+  let disposed = false,
+    revision = 0,
+    backgroundedAt: number | null = null;
+  const apply = async (state: string) => {
+    const version = ++revision;
+    if (state !== "active") {
+      backgroundedAt ??= Date.now();
+      focusManager.setFocused(false);
+      await supabase.auth.stopAutoRefresh();
       return;
     }
-
-    if (next !== "active" || prev === "active") return;
-
-    const awayMs = consumeAppForegroundedAwayMs();
-    if (awayMs < STALE_RESUME_AFTER_MS) return;
-
-    void queryClient.cancelQueries();
-    void queryClient.invalidateQueries({
-      refetchType: "active",
-      /**
-       * Breeds and allergies are static lists cached for a day. Refetching them
-       * on every resume competes with the requests that actually changed.
-       */
-      predicate: (query) => query.queryKey[0] !== "reference",
-    });
-
-    try {
-      supabase.realtime.disconnect();
-      supabase.realtime.connect();
-    } catch {
-      /** never let resume housekeeping throw up to the app. */
-    }
+    const away = backgroundedAt == null ? 0 : Date.now() - backgroundedAt;
+    backgroundedAt = null;
+    if (away >= 30_000)
+      await queryClient.cancelQueries({ fetchStatus: "fetching" });
+    if (disposed || version !== revision) return;
+    focusManager.setFocused(true);
+    await supabase.auth.startAutoRefresh();
   };
-
-  const sub = AppState.addEventListener("change", onChange);
-  return () => sub.remove();
+  const app = AppState.addEventListener("change", (state) => {
+    void apply(state).catch(() => {});
+  });
+  let networkRevision = 0;
+  const online = (state: Network.NetworkState) =>
+    onlineManager.setOnline(
+      state.isConnected !== false && state.isInternetReachable !== false,
+    );
+  const network = Network.addNetworkStateListener((state) => {
+    networkRevision++;
+    online(state);
+  });
+  void Network.getNetworkStateAsync()
+    .then((state) => {
+      if (!disposed && networkRevision === 0) online(state);
+    })
+    .catch(() => {});
+  void apply(AppState.currentState ?? "unknown").catch(() => {});
+  return () => {
+    disposed = true;
+    revision++;
+    app.remove();
+    network.remove();
+    void supabase.auth.stopAutoRefresh();
+  };
 }

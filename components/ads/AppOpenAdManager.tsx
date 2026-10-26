@@ -1,3 +1,4 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import { AdUnitIds, APP_OPEN_ADS_ENABLED } from "@/config/ads";
 import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
 import { useCanShowAds } from "@/hooks/useCanShowAds";
@@ -8,7 +9,7 @@ import {
 } from "@/lib/appOpenAdLastShown";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { AppState, type AppStateStatus, InteractionManager } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 import mobileAds, { useAppOpenAd } from "react-native-google-mobile-ads";
 
 /** Minimum time between app open ad impressions (relaxed in __DEV__ so you can test repeatedly). */
@@ -44,7 +45,7 @@ export default function AppOpenAdManager() {
 
   const suppressAutoshowAfterPreload = useRef(false);
   const pendingShowReason = useRef<PendingShowReason | null>("cold_start");
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<string>(AppState.currentState ?? "active");
   /** Dedupes concurrent inits; matches `AdMobBootstrap` but guarantees `load()` runs after SDK is ready. */
   const initOnceRef = useRef<Promise<void> | null>(null);
   const ensureMobileAdsInitialized = useCallback(() => {
@@ -84,7 +85,7 @@ export default function AppOpenAdManager() {
     pendingShowReason.current = null;
     if (await shouldThrottleShow()) return;
     await new Promise<void>((resolve) => {
-      InteractionManager.runAfterInteractions(() => resolve());
+      runWhenIdle(() => resolve());
     });
     /** Re-read eligibility: navigation onto an ad-free route can land during the wait. */
     if (!isLoaded || !canRequestRef.current) return;

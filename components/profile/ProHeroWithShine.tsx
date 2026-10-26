@@ -176,7 +176,7 @@ export default function ProHeroWithShine({
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
           </Animated.View>
         ) : null}
@@ -207,7 +207,7 @@ export default function ProHeroWithShine({
               }
               start={PRO_GRADIENT_START}
               end={PRO_GRADIENT_END}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               dither
             />
           </Animated.View>

@@ -1,3 +1,4 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
@@ -35,7 +36,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  InteractionManager,
   Platform,
   Pressable,
   StyleSheet,
@@ -237,7 +237,7 @@ export default function ProCheckoutScreen() {
             settled = true;
             resolve();
           };
-          InteractionManager.runAfterInteractions(done);
+          runWhenIdle(done);
           setTimeout(done, 400);
         });
         if (cancelled) return;

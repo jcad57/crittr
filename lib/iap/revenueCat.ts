@@ -1,9 +1,9 @@
-import {
-  ingestCustomerInfoUnavailable,
-  ingestRevenueCatCustomerInfo,
-} from "@/lib/iap/crittrProClientState";
+import { sessionGeneration } from "@/lib/sessionGeneration";
 import { Platform } from "react-native";
-import Purchases, { type CustomerInfo, LOG_LEVEL } from "react-native-purchases";
+import Purchases, {
+  type CustomerInfo,
+  LOG_LEVEL,
+} from "react-native-purchases";
 
 const RC_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? "";
 const RC_API_KEY_ANDROID =
@@ -66,101 +66,90 @@ export function isRevenueCatConfigured(): boolean {
   return configured;
 }
 
-/**
- * Aliases the current RevenueCat user with `userId` (Supabase auth user id) so
- * purchases on this device are linked to that account. Idempotent — RC handles
- * re-login safely. Returns the latest CustomerInfo so callers can sync.
- */
-export async function loginRevenueCatUser(
+let identityQueue: Promise<unknown> = Promise.resolve();
+let desiredUserId: string | null = null;
+let identityRevision = 0;
+function serialized<T>(action: () => Promise<T>): Promise<T> {
+  const task = identityQueue.then(action, action);
+  identityQueue = task.catch(() => {});
+  return task;
+}
+/** Login, purchases, restores, and logout share one native identity queue. */
+export function withRevenueCatUser<T>(
+  userId: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  desiredUserId = userId;
+  const revision = identityRevision,
+    generation = sessionGeneration();
+  return serialized(async () => {
+    if (
+      generation !== sessionGeneration() ||
+      revision !== identityRevision ||
+      desiredUserId !== userId
+    )
+      throw new Error("Billing account changed");
+    await configureRevenueCat(userId);
+    if (!configured)
+      throw new Error("Subscriptions are unavailable in this build");
+    if ((await Purchases.getAppUserID()) !== userId)
+      await Purchases.logIn(userId);
+    if (
+      generation !== sessionGeneration() ||
+      revision !== identityRevision ||
+      desiredUserId !== userId ||
+      (await Purchases.getAppUserID()) !== userId
+    )
+      throw new Error("Billing account changed");
+    const result = await action();
+    if (
+      generation !== sessionGeneration() ||
+      revision !== identityRevision ||
+      desiredUserId !== userId
+    )
+      throw new Error("Billing account changed");
+    return result;
+  });
+}
+export function loginRevenueCatUser(
   userId: string,
 ): Promise<CustomerInfo | null> {
-  if (!platformApiKey()) return null;
-  await configureRevenueCat(userId);
-  if (!configured) return null;
-  try {
-    const result = await Purchases.logIn(userId);
-    ingestRevenueCatCustomerInfo(result.customerInfo);
-    return result.customerInfo;
-  } catch (e) {
-    if (__DEV__) console.warn("[RevenueCat] logIn failed", e);
-    ingestCustomerInfoUnavailable();
-    return null;
-  }
+  return withRevenueCatUser(userId, () => Purchases.getCustomerInfo()).catch(
+    () => null,
+  );
 }
-
-/**
- * Resets RevenueCat to an anonymous user (used on app sign-out). RC will
- * generate a fresh anonymous id; future logins re-attach the Supabase id.
- */
-export async function logoutRevenueCatUser(): Promise<void> {
-  if (!configured) return;
-  try {
-    await Purchases.logOut();
-  } catch (e) {
-    if (__DEV__) console.warn("[RevenueCat] logOut failed", e);
-  }
+export function logoutRevenueCatUser(): Promise<void> {
+  identityRevision++;
+  desiredUserId = null;
+  return serialized(async () => {
+    if (!configured) return;
+    try {
+      if (!(await Purchases.isAnonymous())) await Purchases.logOut();
+    } catch {
+      /* Backend authorization never relies on this device identity. */
+    }
+  });
 }
-
-/**
- * Whether the store can take a payment on this device at all.
- *
- * Android returns false on emulators without Play services, when no Google
- * account is signed in, and inside work profiles that block purchases — the
- * BILLING_UNAVAILABLE case. We only consult this to explain a failure we've
- * already seen, and assume `true` when the check itself errors so a flaky
- * probe can never block a paying customer.
- */
+export async function getRevenueCatCustomerInfo(
+  userId?: string,
+): Promise<CustomerInfo | null> {
+  const id = userId ?? desiredUserId;
+  if (!id) return null;
+  return loginRevenueCatUser(id);
+}
+export function getIdentifiedRevenueCatCustomerInfo(
+  userId: string,
+): Promise<CustomerInfo | null> {
+  return withRevenueCatUser(userId, async () => {
+    await Purchases.invalidateCustomerInfoCache();
+    return Purchases.getCustomerInfo();
+  }).catch(() => null);
+}
 export async function canMakeStorePayments(): Promise<boolean> {
-  if (!isRevenueCatConfigured()) return true;
+  if (!configured) return true;
   try {
     return await Purchases.canMakePayments();
-  } catch (e) {
-    if (__DEV__) console.warn("[RevenueCat] canMakePayments failed", e);
-    return true;
-  }
-}
-
-export async function getRevenueCatCustomerInfo(): Promise<CustomerInfo | null> {
-  if (!platformApiKey()) return null;
-  await configureRevenueCat();
-  if (!configured) return null;
-  try {
-    const info = await Purchases.getCustomerInfo();
-    ingestRevenueCatCustomerInfo(info);
-    return info;
-  } catch (e) {
-    if (__DEV__) console.warn("[RevenueCat] getCustomerInfo failed", e);
-    ingestCustomerInfoUnavailable();
-    return null;
-  }
-}
-
-/**
- * CustomerInfo for the signed-in Supabase user, not an anonymous SDK identity.
- *
- * Session boot configures RevenueCat without an app user id, so a raw
- * `getCustomerInfo()` can still be attached to `$RCAnonymousID:…` (and any
- * device receipts transferred onto it). Feature gates and paywall preflight
- * must identify first, then drop the local cache so we don't treat a stale
- * sandbox / previous-account entitlement as this user's Pro status.
- */
-export async function getIdentifiedRevenueCatCustomerInfo(
-  userId: string,
-): Promise<CustomerInfo | null> {
-  const fromLogin = await loginRevenueCatUser(userId);
-  if (!configured) return fromLogin;
-  try {
-    await Purchases.invalidateCustomerInfoCache();
   } catch {
-    /* best-effort: still use whatever logIn / getCustomerInfo returns */
-  }
-  try {
-    const info = await Purchases.getCustomerInfo();
-    ingestRevenueCatCustomerInfo(info);
-    return info;
-  } catch (e) {
-    if (__DEV__) console.warn("[RevenueCat] getCustomerInfo failed", e);
-    ingestCustomerInfoUnavailable();
-    return fromLogin;
+    return true;
   }
 }

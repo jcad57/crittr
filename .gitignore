@@ -49,3 +49,6 @@ app-example
 
 # Tamagui generated
 tamagui.generated.css
+
+# Account-specific administrative instructions; never run as a migration.
+/docs/local/test-pro-grant.sql

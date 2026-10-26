@@ -5,7 +5,7 @@ import { Platform, StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   dim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.45)",
   },
   sheet: {

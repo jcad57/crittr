@@ -1,3 +1,4 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import { trackAppRatingPromptShown } from "@/lib/analytics";
 import { APP_OPEN_LAST_SHOWN_STORAGE_KEY } from "@/lib/appOpenAdLastShown";
 import {
@@ -16,7 +17,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager, Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 /** Let the dashboard paint (and app-open ads settle) before interrupting. */
 const EVALUATE_DELAY_MS = 2800;
@@ -82,7 +83,7 @@ export function useAppRatingPrompt(): void {
   useEffect(() => {
     if (Platform.OS === "web") return;
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = runWhenIdle(() => {
       timeout = setTimeout(() => setUiReady(true), EVALUATE_DELAY_MS);
     });
     return () => {

@@ -1,7 +1,7 @@
 import {
   type CrittrProEntitlement,
   entitlementFromProfileMirror,
-  isCrittrProEntitlementActive,
+  isCrittrProFromProfile,
   type CrittrProProfileMirror,
 } from "@/lib/crittrPro";
 import { entitlementFromCustomerInfo } from "@/lib/iap/crittrProRevenueCat";
@@ -22,6 +22,7 @@ const INITIAL: CrittrProClientState = {
 };
 
 let snapshot: CrittrProClientState = INITIAL;
+let verifiedProfile: CrittrProProfileMirror | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -43,7 +44,9 @@ export function getCrittrProClientState(): CrittrProClientState {
   return snapshot;
 }
 
-export function subscribeCrittrProClientState(listener: () => void): () => void {
+export function subscribeCrittrProClientState(
+  listener: () => void,
+): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -51,8 +54,8 @@ export function subscribeCrittrProClientState(listener: () => void): () => void 
 }
 
 /**
- * Apply a successful RevenueCat `CustomerInfo` payload. This is the client
- * source of truth: `entitlements.active.crittr_pro` decides Pro.
+ * Keep native purchase metadata for checkout diagnostics. Feature access is
+ * decided by the independently verified server projection.
  */
 export function ingestRevenueCatCustomerInfo(info: CustomerInfo): void {
   const entitlement = entitlementFromCustomerInfo(info);
@@ -84,10 +87,11 @@ export function ingestCustomerInfoUnavailable(): void {
   }
 }
 
-/** Bootstrap / fallback from the synced Supabase row when RC has not spoken yet. */
+/** Save the verified profile independently from native purchase metadata. */
 export function ingestProfileMirror(
   profile: CrittrProProfileMirror | null | undefined,
 ): void {
+  verifiedProfile = profile ?? null;
   if (snapshot.customerInfoObserved) return;
   const entitlement = entitlementFromProfileMirror(profile);
   replace({
@@ -97,13 +101,11 @@ export function ingestProfileMirror(
 }
 
 export function resetCrittrProClientState(): void {
+  verifiedProfile = null;
   replace(INITIAL);
 }
 
-/** True when this process has observed an active Crittr Pro entitlement. */
+/** Compatibility helper for checkout watchdogs; requires verified server access. */
 export function clientHasUnlockedPro(): boolean {
-  return (
-    snapshot.customerInfoObserved &&
-    isCrittrProEntitlementActive(snapshot.entitlement)
-  );
+  return isCrittrProFromProfile(verifiedProfile);
 }

@@ -76,8 +76,8 @@ export default function ActivityHistoryFilterBar({
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
-  const filterRef = useRef<View>(null);
-  const sortRef = useRef<View>(null);
+  const filterRef = useRef<React.ComponentRef<typeof View>>(null);
+  const sortRef = useRef<React.ComponentRef<typeof View>>(null);
 
   const dismiss = useCallback(() => {
     setMenu(null);
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.2)",
   },
   modalPanel: {

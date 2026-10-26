@@ -1,3 +1,4 @@
+import { deferSessionWork } from "@/lib/deferSessionWork";
 import {
   healthSnapshotKey,
   notificationsKey,
@@ -31,15 +32,13 @@ export function useLoggedInQueryBootstrap() {
   useEffect(() => {
     if (!userId) return;
 
-    void syncTodayVetVisitMirrorsToActivities(userId).catch((e) => {
-      if (__DEV__) console.warn("[vetVisitMirror] bootstrap", e);
-    });
+    return deferSessionWork(() => syncTodayVetVisitMirrorsToActivities(userId));
   }, [userId, localYmd]);
 
   /** Register Expo push token for remote co-care alerts (no-op if permission denied). */
   useEffect(() => {
     if (!userId || Platform.OS === "web") return;
-    void syncExpoPushTokenToSupabase(userId);
+    return deferSessionWork(() => syncExpoPushTokenToSupabase(userId));
   }, [userId]);
 
   useEffect(() => {

@@ -62,7 +62,7 @@ export default function OrangeButton({
         disabled={disabled || loading}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        onPress={onPress}
+        onPress={onPress ?? undefined}
         onPressIn={(e) => {
           if (!(disabled || loading)) {
             orangeButtonPressHaptic();

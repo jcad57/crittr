@@ -25,7 +25,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { encodeBase64 } from "jsr:@std/encoding@1.0.5/base64";
 
 const corsHeaders: Record<string, string> = {
@@ -355,7 +355,7 @@ type ClaudeFilePrepared =
   | { tag: "skipped"; reason: string; filename: string };
 
 async function prepareClaudeFileInput(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   file: FileRow,
 ): Promise<ClaudeFilePrepared> {
   const filename = file.original_filename ?? "file";
@@ -517,6 +517,10 @@ Deno.serve(async (req: Request) => {
     if (userErr || !user) {
       return json({ error: "unauthorized" }, 401);
     }
+
+    const { data: hasPro, error: proError } = await supabaseAuth.rpc("user_has_crittr_pro");
+    if (proError) return json({ error: "subscription_verification_unavailable" }, 503);
+    if (hasPro !== true) return json({ error: "crittr_pro_required" }, 403);
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
     if (!apiKey) {

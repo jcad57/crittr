@@ -3,10 +3,10 @@ import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { ImageSourcePropType } from "react-native";
+import type { ImageProps } from "expo-image";
 
 type Props = {
-  iconImage?: ImageSourcePropType;
+  iconImage?: ImageProps["source"];
   /** When set, renders a vector icon instead of `iconImage`. */
   materialIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;

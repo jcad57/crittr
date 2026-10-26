@@ -1,7 +1,7 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import { Colors } from "@/theme/colors";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import {
-  InteractionManager,
   Platform,
   RefreshControl,
   type RefreshControlProps,
@@ -22,7 +22,7 @@ export type UsePullToRefreshOptions = {
  * Pull-to-refresh state + `RefreshControl` for `ScrollView`, `FlatList`, or `SectionList`.
  *
  * On **iOS**, the actual `refresh()` call runs after
- * `InteractionManager.runAfterInteractions` and the next animation frame so work
+ * `runWhenIdle` and the next animation frame so work
  * does not start in the same turn as the release gesture (closer to native
  * `UIRefreshControl` feel). Android runs the fetch immediately when `onRefresh`
  * fires.
@@ -58,7 +58,7 @@ export function usePullToRefresh(
     // the scroll view / refresh control finishes the current interaction cycle
     // (same pattern as native UIRefreshControl timing).
     if (Platform.OS === "ios") {
-      InteractionManager.runAfterInteractions(() => {
+      runWhenIdle(() => {
         requestAnimationFrame(runFetch);
       });
     } else {

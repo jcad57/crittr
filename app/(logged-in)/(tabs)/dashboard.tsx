@@ -33,8 +33,6 @@ import {
   useResponsiveUi,
 } from "@/hooks/useResponsiveUi";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { queryClient } from "@/lib/query/client";
-import { petsQueryKey } from "@/lib/query/keys";
 import { useAuthStore } from "@/stores/authStore";
 import { Colors } from "@/theme/colors";
 import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
@@ -57,9 +55,8 @@ import {
   mapPetVetVisitToDashboard,
 } from "@/utils/vetVisitDashboard";
 import type { Href } from "expo-router";
-import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, Text, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** Horizontal padding on `styles.content` — used with `AUTH_CONTENT_MAX_WIDTH` for capped sections. */
@@ -79,34 +76,10 @@ export default function Dashboard() {
   const {
     data: dbPets,
     isLoading: isPetsLoading,
+    isError: petsFailed,
+    error: petsError,
     refetch: refetchPets,
   } = usePetsQuery();
-
-  /**
-   * Recover a hung pets fetch without cancelling a healthy in-flight request.
-   * If this tab is focused and still has no list after a short beat, cancel
-   * the zombie query and retry — the same unstick as switching tabs and back.
-   */
-  useFocusEffect(
-    useCallback(() => {
-      if (dbPets != null) return;
-      let cancelled = false;
-      const timer = setTimeout(() => {
-        if (cancelled) return;
-        const userId = useAuthStore.getState().session?.user?.id;
-        if (!userId) return;
-        const key = petsQueryKey(userId);
-        void (async () => {
-          await queryClient.cancelQueries({ queryKey: key });
-          await refetchPets();
-        })();
-      }, 2_000);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }, [dbPets, refetchPets]),
-  );
 
   /**
    * First pet is always free (free-tier limit is one pet). Pro is only
@@ -377,6 +350,12 @@ export default function Dashboard() {
     };
   }, [windowWidth]);
 
+  if (petsFailed && !dbPets) return (
+    <View style={{ flex: 1, justifyContent: "center", padding: 24 }}>
+      <Text>Could not load your pets. {petsError?.message}</Text>
+      <Pressable onPress={() => { void refetchPets(); }}><Text>Try again</Text></Pressable>
+    </View>
+  );
   if (isPetsLoading && !dbPets) {
     return <DashboardLoading />;
   }

@@ -1,3 +1,4 @@
+import { runWhenIdle } from "@/lib/runWhenIdle";
 import { useActivityMonthCountQuery } from "@/hooks/queries/useActivityMonthCountQuery";
 import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
@@ -17,7 +18,7 @@ import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, InteractionManager } from "react-native";
+import { AppState } from "react-native";
 
 /** Don't celebrate more often than this, even across different pets. */
 const MIN_GAP_MS = 14 * 24 * 60 * 60 * 1000;
@@ -91,7 +92,7 @@ export function useActivityMilestoneCelebration(): {
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = runWhenIdle(() => {
       timeout = setTimeout(() => setUiReady(true), EVALUATE_DELAY_MS);
     });
     return () => {

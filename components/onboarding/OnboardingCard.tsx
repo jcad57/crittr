@@ -29,7 +29,7 @@ const WELCOME_BG = require("@/assets/images/welcome-bg.png");
 const WELCOME_BG_RESOLVED = RNImage.resolveAssetSource(WELCOME_BG);
 const WELCOME_BG_ASPECT =
   WELCOME_BG_RESOLVED?.width && WELCOME_BG_RESOLVED.width > 0
-    ? WELCOME_BG_RESOLVED.height / WELCOME_BG_RESOLVED.width
+    ? (WELCOME_BG_RESOLVED.height ?? 1) / WELCOME_BG_RESOLVED.width
     : 1;
 
 type OnboardingCardProps = {
@@ -164,52 +164,56 @@ export default function OnboardingCard({
       {headerNode}
 
       {scrollBody ? (
-        <KeyboardAwareScrollView
-          ref={scrollRef}
+        <View
           style={[
             styles.flex,
             welcomeBackground && styles.scrollAboveWelcomeBg,
           ]}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: symmetricVerticalPad ?? scrollPaddingTop,
-              paddingBottom: symmetricVerticalPad ?? scrollBottomPad,
-              ...(centerContent && {
-                flexGrow: 1,
-                justifyContent: "center" as const,
-              }),
-            },
-          ]}
-          bottomOffset={20}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          alwaysBounceVertical={false}
-          removeClippedSubviews={!welcomeBackground}
-          {...(Platform.OS === "android"
-            ? ({ overScrollMode: "never" } as const)
-            : {})}
         >
-          <View
-            style={[
-              styles.content,
-              !centerContent && { minHeight: minScrollBodyHeight },
-              { paddingBottom: headerOverlay ? 0 : insets.bottom },
-              !header && { paddingTop: 8 },
-              welcomeBackground && { overflow: "visible" as const },
+          <KeyboardAwareScrollView
+            ref={scrollRef}
+            style={styles.flex}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: symmetricVerticalPad ?? scrollPaddingTop,
+                paddingBottom: symmetricVerticalPad ?? scrollBottomPad,
+                ...(centerContent && {
+                  flexGrow: 1,
+                  justifyContent: "center" as const,
+                }),
+              },
             ]}
+            bottomOffset={20}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            alwaysBounceVertical={false}
+            removeClippedSubviews={!welcomeBackground}
+            {...(Platform.OS === "android"
+              ? ({ overScrollMode: "never" } as const)
+              : {})}
           >
             <View
               style={[
-                authContentColumnStyle(),
-                scrollBody && !centerContent ? { flexGrow: 1 } : null,
+                styles.content,
+                !centerContent && { minHeight: minScrollBodyHeight },
+                { paddingBottom: headerOverlay ? 0 : insets.bottom },
+                !header && { paddingTop: 8 },
+                welcomeBackground && { overflow: "visible" as const },
               ]}
             >
-              {children}
+              <View
+                style={[
+                  authContentColumnStyle(),
+                  scrollBody && !centerContent ? { flexGrow: 1 } : null,
+                ]}
+              >
+                {children}
+              </View>
             </View>
-          </View>
-        </KeyboardAwareScrollView>
+          </KeyboardAwareScrollView>
+        </View>
       ) : (
         <View
           style={[
@@ -248,7 +252,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   headerInFlow: {
     zIndex: 1,

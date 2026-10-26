@@ -37,3 +37,6 @@ verify_jwt = false
 # Same ES256 gateway issue; auth enforced via Bearer + getUser + logged_by check.
 [functions.push-co-carer-activity]
 verify_jwt = false
+
+[functions.reconcile-crittr-pro-entitlements]
+verify_jwt = false

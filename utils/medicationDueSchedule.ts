@@ -139,8 +139,8 @@ export function computeNextDueDate(
 }
 
 /** Days from today to `due` (positive = due in the future, 0 = today, negative = overdue). */
-export function daysFromTodayTo(due: Date): number {
-  return daysBetween(startOfDay(new Date()), startOfDay(due));
+export function daysFromTodayTo(due: Date, now: Date = new Date()): number {
+  return daysBetween(startOfDay(now), startOfDay(due));
 }
 
 /** Computed next due from schedule + anchor, else explicit `next_due_date` if set. */

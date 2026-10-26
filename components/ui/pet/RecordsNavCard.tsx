@@ -2,7 +2,7 @@ import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import type { ImageSourcePropType } from "react-native";
+import type { ImageSource } from "expo-image";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export type RecordsNavItem = {
@@ -12,7 +12,7 @@ export type RecordsNavItem = {
   /** Vector icon — omit when `iconImage` is set. */
   icon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   /** PNG asset (e.g. pet profile records); matches food row icon sizing. */
-  iconImage?: ImageSourcePropType;
+  iconImage?: ImageSource;
   iconBg: string;
   iconColor?: string;
   onPress?: () => void;

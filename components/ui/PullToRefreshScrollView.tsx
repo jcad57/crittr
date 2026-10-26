@@ -1,5 +1,5 @@
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { forwardRef } from "react";
+import { forwardRef, type ComponentRef } from "react";
 import {
   ScrollView,
   type ScrollViewProps,
@@ -15,7 +15,7 @@ export type PullToRefreshScrollViewProps = ScrollViewProps & {
  * For `FlatList` / `SectionList`, use `usePullToRefresh` and pass `refreshControl` yourself.
  */
 const PullToRefreshScrollView = forwardRef<
-  ScrollView,
+  ComponentRef<typeof ScrollView>,
   PullToRefreshScrollViewProps
 >(function PullToRefreshScrollView(
   { onRefresh, refreshControl: _ignore, children, ...rest },

@@ -1,28 +1,19 @@
+import type { Profile } from "@/types/database";
 import { profileQueryKey } from "@/lib/query/keys";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
-import {
-  ingestCustomerInfoUnavailable,
-  ingestRevenueCatCustomerInfo,
-} from "@/lib/iap/crittrProClientState";
-import { customerInfoHasCrittrPro } from "@/lib/iap/crittrProRevenueCat";
-import { getIdentifiedRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { fetchProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { Alert } from "react-native";
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 
-/**
- * Pro check + navigation to the upgrade screen when a feature is gated.
- *
- * Revalidates against identified RevenueCat CustomerInfo before denying so a
- * lagging `profiles` mirror (lifetime grant, restore, other-device purchase)
- * never mis-routes a paying member to upgrade. If CustomerInfo is unavailable,
- * fall back to the synced `crittr_pro_active` mirror — do not revoke known Pro.
- */
+/** Use the verified profile lease; reconcile before denying a stale/missing entitlement. */
 export function useProGateNavigation() {
   const queryClient = useQueryClient();
   const { data: profile, isPlaceholderData } = useProfileQuery();
@@ -36,21 +27,28 @@ export function useProGateNavigation() {
     const uid = useAuthStore.getState().session?.user?.id;
     if (!uid) return false;
 
-    try {
-      const info = await getIdentifiedRevenueCatCustomerInfo(uid);
-      if (info) {
-        ingestRevenueCatCustomerInfo(info);
-        return customerInfoHasCrittrPro(info);
-      }
-      ingestCustomerInfoUnavailable();
-    } catch {
-      ingestCustomerInfoUnavailable();
-    }
-
-    const fresh = await queryClient.fetchQuery({
+    const generation = sessionGeneration();
+    const cached = queryClient.getQueryData<Profile>(profileQueryKey(uid));
+    if (isCrittrProFromProfile(cached)) return true;
+    let fresh = await queryClient.fetchQuery({
       queryKey: profileQueryKey(uid),
       queryFn: () => fetchProfile(uid),
+      staleTime: 0,
     });
+    if (!isCrittrProFromProfile(fresh)) {
+      const result = await syncCrittrProForSession(uid);
+      if (result !== "synced")
+        throw new Error("Subscription verification unavailable");
+      if (generation !== sessionGeneration())
+        throw new Error("Your account changed");
+      fresh = await queryClient.fetchQuery({
+        queryKey: profileQueryKey(uid),
+        queryFn: () => fetchProfile(uid),
+        staleTime: 0,
+      });
+    }
+    if (generation !== sessionGeneration())
+      throw new Error("Your account changed");
     return isCrittrProFromProfile(fresh);
   }, [queryClient]);
 
@@ -65,11 +63,20 @@ export function useProGateNavigation() {
   /**
    * Runs `allowed` only if the user has Pro; otherwise opens the upgrade screen
    * (or `onDenied` when provided — used for contextual soft paywalls).
-   * Always revalidates Pro from RevenueCat first so cached profile rows cannot wrongly gate Pro users.
+   * Recent verified access works offline; missing access is checked with the server before upgrade.
    */
   const runWithProOrUpgrade = useCallback(
     async (allowed: () => void, onDenied?: () => void): Promise<boolean> => {
-      const hasPro = await resolveProFromServer();
+      let hasPro: boolean;
+      try {
+        hasPro = await resolveProFromServer();
+      } catch {
+        Alert.alert(
+          "Could not verify subscription",
+          "Check your connection and try again.",
+        );
+        return false;
+      }
       if (hasPro) {
         allowed();
         return true;

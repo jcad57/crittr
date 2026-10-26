@@ -253,7 +253,7 @@ export default function PetActivityHistoryScreen() {
         )}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        ListHeaderComponent={listScrollHeader}
+        ListHeaderComponent={listScrollHeader ?? undefined}
         onEndReached={dateFilterYmd ? undefined : loadMoreActivities}
         onEndReachedThreshold={0.6}
         ListFooterComponent={
@@ -261,7 +261,7 @@ export default function PetActivityHistoryScreen() {
             <View style={styles.listFooter}>
               <ActivityIndicator size="small" color={Colors.orange} />
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           <View style={styles.emptyBlock}>

@@ -51,19 +51,19 @@ const PET_PAWS = require("@/assets/images/pet-paws-img.png");
 const WELCOME_BG_RESOLVED = RNImage.resolveAssetSource(WELCOME_BG);
 const WELCOME_BG_ASPECT =
   WELCOME_BG_RESOLVED?.width && WELCOME_BG_RESOLVED.width > 0
-    ? WELCOME_BG_RESOLVED.height / WELCOME_BG_RESOLVED.width
+    ? (WELCOME_BG_RESOLVED.height ?? 1) / WELCOME_BG_RESOLVED.width
     : 1;
 
 const DOG_CAT_RESOLVED = RNImage.resolveAssetSource(DOG_CAT_LOGO);
 const DOG_CAT_ASPECT =
   DOG_CAT_RESOLVED?.width && DOG_CAT_RESOLVED.width > 0
-    ? DOG_CAT_RESOLVED.height / DOG_CAT_RESOLVED.width
+    ? (DOG_CAT_RESOLVED.height ?? 1) / DOG_CAT_RESOLVED.width
     : 1;
 
 const PAWS_RESOLVED = RNImage.resolveAssetSource(PET_PAWS);
 const PAWS_ASPECT =
   PAWS_RESOLVED?.width && PAWS_RESOLVED.width > 0
-    ? PAWS_RESOLVED.height / PAWS_RESOLVED.width
+    ? (PAWS_RESOLVED.height ?? 1) / PAWS_RESOLVED.width
     : 1;
 
 export default function WelcomeContent() {

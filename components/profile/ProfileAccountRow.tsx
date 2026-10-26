@@ -4,11 +4,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import type { ComponentProps } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { ImageSourcePropType } from "react-native";
+import type { ImageProps } from "expo-image";
 
 type Props = {
   icon?: ComponentProps<typeof MaterialCommunityIcons>["name"];
-  iconImage?: ImageSourcePropType;
+  iconImage?: ImageProps["source"];
   label: string;
   value: string;
 };

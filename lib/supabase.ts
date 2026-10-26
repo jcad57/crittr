@@ -1,7 +1,7 @@
 import "react-native-url-polyfill/auto";
 
 import { createClient } from "@supabase/supabase-js";
-import * as SecureStore from "expo-secure-store";
+import { secureStorage } from "@/lib/secureStorage";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -19,112 +19,6 @@ export function getSupabaseAuthStorageKey(): string {
     return "sb-unknown-auth-token";
   }
 }
-
-/**
- * Expo SecureStore warns (and plans to throw in a future SDK) when a single value
- * exceeds 2048 bytes. Supabase's persisted session (access JWT + refresh token +
- * `user` with metadata) routinely exceeds that once custom claims/metadata are
- * attached. To keep the session securely in the iOS keychain / Android Keystore
- * without tripping the limit, we split values into chunks of ≤ 1800 bytes and
- * track them with a small manifest stored at the original key.
- *
- * Layout:
- *   <key>              → JSON manifest `{ __lss: 1, count: N }` (only when chunked)
- *   <key>__lss__0..N-1 → chunk strings
- *
- * If a legacy (un-chunked) value already exists at `<key>`, we still return it
- * transparently so existing sessions survive the upgrade — the next write will
- * migrate it to the chunked layout.
- */
-const SECURE_STORE_CHUNK_SIZE = 1800;
-const CHUNK_KEY_SUFFIX = "__lss__";
-
-type LargeSecureStoreManifest = { __lss: 1; count: number };
-
-function isManifest(value: unknown): value is LargeSecureStoreManifest {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { __lss?: unknown }).__lss === 1 &&
-    typeof (value as { count?: unknown }).count === "number"
-  );
-}
-
-async function removeChunkedValue(key: string, count: number): Promise<void> {
-  for (let i = 0; i < count; i++) {
-    try {
-      await SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`);
-    } catch {
-      /* best-effort cleanup */
-    }
-  }
-}
-
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    const head = await SecureStore.getItemAsync(key);
-    if (head == null) return null;
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(head);
-    } catch {
-      return head;
-    }
-    if (!isManifest(parsed)) return head;
-
-    const chunks: string[] = [];
-    for (let i = 0; i < parsed.count; i++) {
-      const chunk = await SecureStore.getItemAsync(
-        `${key}${CHUNK_KEY_SUFFIX}${i}`,
-      );
-      if (chunk == null) return null;
-      chunks.push(chunk);
-    }
-    return chunks.join("");
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    const existingHead = await SecureStore.getItemAsync(key);
-    if (existingHead != null) {
-      try {
-        const parsed: unknown = JSON.parse(existingHead);
-        if (isManifest(parsed)) {
-          await removeChunkedValue(key, parsed.count);
-        }
-      } catch {
-        /* legacy value — will be overwritten below */
-      }
-    }
-
-    if (value.length <= SECURE_STORE_CHUNK_SIZE) {
-      await SecureStore.setItemAsync(key, value);
-      return;
-    }
-
-    const chunkCount = Math.ceil(value.length / SECURE_STORE_CHUNK_SIZE);
-    for (let i = 0; i < chunkCount; i++) {
-      const start = i * SECURE_STORE_CHUNK_SIZE;
-      const chunk = value.slice(start, start + SECURE_STORE_CHUNK_SIZE);
-      await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunk);
-    }
-    const manifest: LargeSecureStoreManifest = { __lss: 1, count: chunkCount };
-    await SecureStore.setItemAsync(key, JSON.stringify(manifest));
-  },
-  removeItem: async (key: string): Promise<void> => {
-    const head = await SecureStore.getItemAsync(key);
-    if (head != null) {
-      try {
-        const parsed: unknown = JSON.parse(head);
-        if (isManifest(parsed)) {
-          await removeChunkedValue(key, parsed.count);
-        }
-      } catch {
-        /* legacy value; just delete the primary key below */
-      }
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
-};
 
 /**
  * Hard client-side timeout for every Supabase HTTP request.
@@ -186,11 +80,12 @@ function fetchWithTimeout(
   );
 
   const userSignal = init?.signal ?? null;
+  const onAbort = () => controller.abort();
   if (userSignal) {
     if (userSignal.aborted) {
       controller.abort();
     } else {
-      userSignal.addEventListener("abort", () => controller.abort(), {
+      userSignal.addEventListener("abort", onAbort, {
         once: true,
       });
     }
@@ -198,12 +93,13 @@ function fetchWithTimeout(
 
   return fetch(input, { ...init, signal: controller.signal }).finally(() => {
     clearTimeout(timeoutId);
+    userSignal?.removeEventListener("abort", onAbort);
   });
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage: secureStorage,
     autoRefreshToken: true,
     persistSession: true,
     /** PKCE for OAuth code exchange in the WebBrowser session (React Native). */
@@ -225,7 +121,7 @@ export async function wipeSupabaseAuthFromDevice(): Promise<void> {
     /* still try to delete storage */
   }
   try {
-    await ExpoSecureStoreAdapter.removeItem(getSupabaseAuthStorageKey());
+    await secureStorage.removeItem(getSupabaseAuthStorageKey());
   } catch {
     /* key missing or SecureStore error */
   }

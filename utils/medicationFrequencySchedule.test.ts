@@ -254,7 +254,7 @@ describe("last given and overdue next due", () => {
     const next = resolveNextDueDate(med, NOW);
     assert.ok(next);
     assert.equal(ymd(next!), "2026-09-08");
-    assert.ok(daysFromTodayTo(next!) > 0);
+    assert.ok(daysFromTodayTo(next!, NOW) > 0);
     assert.equal(expectedDosesOn(med, ymd(NOW)), 0);
   });
 
@@ -264,7 +264,7 @@ describe("last given and overdue next due", () => {
     const next = resolveNextDueDate(med, NOW);
     assert.ok(next);
     assert.equal(ymd(next!), "2026-09-23");
-    assert.ok(daysFromTodayTo(next!) > 0);
+    assert.ok(daysFromTodayTo(next!, NOW) > 0);
     assert.equal(isLastGivenOccurrence(med, lastGiven), true);
     assert.equal(isMedicationDueOnLocalDate(med, lastGiven), true);
     assert.equal(expectedDosesOn(med, lastGiven), 1);
@@ -275,7 +275,7 @@ describe("last given and overdue next due", () => {
     const next = resolveNextDueDate(med, NOW);
     assert.ok(next);
     assert.equal(ymd(next!), "2026-04-21");
-    assert.ok(daysFromTodayTo(next!) < 0);
+    assert.ok(daysFromTodayTo(next!, NOW) < 0);
   });
 
   it("cleared last given uses created_at as first due and shows due when overdue", () => {
@@ -287,6 +287,6 @@ describe("last given and overdue next due", () => {
     const next = resolveNextDueDate(med, NOW);
     assert.ok(next);
     assert.equal(ymd(next!), "2026-03-01");
-    assert.ok(daysFromTodayTo(next!) < 0);
+    assert.ok(daysFromTodayTo(next!, NOW) < 0);
   });
 });

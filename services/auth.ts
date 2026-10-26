@@ -59,11 +59,12 @@ export async function resendSignupOtp(email: string) {
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
   if (error) throw error;
+  return data.session;
 }
 
 export async function signOut() {

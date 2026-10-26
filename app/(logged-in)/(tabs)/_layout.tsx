@@ -6,10 +6,11 @@ import { Tabs } from "expo-router";
  * so switching tabs does not run the root stack’s push/replace slide animation.
  * The real chrome is `FloatingBottomNav`.
  */
+export const unstable_settings = { initialRouteName: "dashboard" };
+
 export default function LoggedInTabsLayout() {
   return (
     <Tabs
-      initialRouteName="dashboard"
       tabBar={() => null}
       screenOptions={{
         headerShown: false,
@@ -17,7 +18,7 @@ export default function LoggedInTabsLayout() {
          * Pre-mount tab scenes so the first Schedule tap is a JUMP_TO, not a
          * cold mount that builds the date strip on the critical path.
          */
-        lazy: false,
+        lazy: true,
         freezeOnBlur: true,
         sceneStyle: { backgroundColor: Colors.cream },
       }}

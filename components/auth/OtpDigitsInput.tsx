@@ -1,11 +1,10 @@
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ComponentRef } from "react";
 import {
-  NativeSyntheticEvent,
   StyleSheet,
   TextInput,
-  TextInputKeyPressEventData,
+  TextInputKeyPressEvent,
   View,
 } from "react-native";
 
@@ -27,7 +26,7 @@ export default function OtpDigitsInput({
   error,
   disabled,
 }: OtpDigitsInputProps) {
-  const inputsRef = useRef<(TextInput | null)[]>([]);
+  const inputsRef = useRef<(ComponentRef<typeof TextInput> | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
 
   const focusAt = useCallback((i: number) => {
@@ -55,7 +54,7 @@ export default function OtpDigitsInput({
   );
 
   const onKeyPress = useCallback(
-    (index: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (index: number, e: TextInputKeyPressEvent) => {
       if (e.nativeEvent.key !== "Backspace") return;
       if (value[index]) return;
       if (index > 0) {

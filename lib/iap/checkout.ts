@@ -1,12 +1,12 @@
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import { queryClient } from "@/lib/query/client";
+import { profileQueryKey } from "@/lib/query/keys";
 import { isCrittrProFromProfile } from "@/lib/crittrPro";
 import {
-  clientHasUnlockedPro,
+  ingestProfileMirror,
   ingestRevenueCatCustomerInfo,
 } from "@/lib/iap/crittrProClientState";
-import {
-  resolveProActivationWaitMs,
-  type ProActivationSource,
-} from "@/lib/iap/proActivation";
+import { type ProActivationSource } from "@/lib/iap/proActivation";
 import { customerInfoHasCrittrPro as rcCustomerInfoHasCrittrPro } from "@/lib/iap/crittrProRevenueCat";
 import {
   mapPurchasesError,
@@ -17,7 +17,7 @@ import {
   configureRevenueCat,
   getIdentifiedRevenueCatCustomerInfo,
   isRevenueCatConfigured,
-  loginRevenueCatUser,
+  withRevenueCatUser,
 } from "@/lib/iap/revenueCat";
 import {
   syncCrittrProAfterCheckout,
@@ -224,8 +224,12 @@ function selectPackageForBilling(
 
   if (Platform.OS === "android") {
     const playShaped =
-      candidates.find((pkg) => isPlayBasePlanProductId(pkg.product.identifier)) ??
-      (typed && isPlayBasePlanProductId(typed.product.identifier) ? typed : null);
+      candidates.find((pkg) =>
+        isPlayBasePlanProductId(pkg.product.identifier),
+      ) ??
+      (typed && isPlayBasePlanProductId(typed.product.identifier)
+        ? typed
+        : null);
     if (playShaped) return playShaped;
   }
 
@@ -260,9 +264,9 @@ export async function fetchProPackageForBillingDetailed(
   const pkg = selectPackageForBilling(result.offering, billing);
   if (!pkg) {
     const have =
-      result.offering.availablePackages?.map(
-        (p) => `${p.identifier}:${p.product.identifier}`,
-      ).join(", ") ?? "(none)";
+      result.offering.availablePackages
+        ?.map((p) => `${p.identifier}:${p.product.identifier}`)
+        .join(", ") ?? "(none)";
     return {
       ok: false,
       reason: "package_missing",
@@ -300,7 +304,6 @@ export async function fetchProPackageForBilling(
   const result = await fetchProPackageForBillingDetailed(billing);
   return result.ok ? result.package : null;
 }
-
 
 export function customerInfoHasCrittrPro(info: CustomerInfo): boolean {
   return rcCustomerInfoHasCrittrPro(info);
@@ -364,10 +367,8 @@ export async function purchaseProPackage(
    * GET /subscribers/{supabaseUserId} can miss the new purchase (common with
    * Xcode StoreKit Configuration + async auth RC login).
    *
-   * Bound the wait so a hung logIn cannot prevent the payment sheet from
-   * opening; the identify call continues in the background.
+   * Identity changes and the purchase itself run in one native queue below.
    */
-  await withTimeout(loginRevenueCatUser(user.id), 8_000);
   if (!isRevenueCatConfigured()) {
     throw new ProPurchaseException({
       userCancelled: false,
@@ -393,9 +394,11 @@ export async function purchaseProPackage(
         storeProductId: playOption?.storeProductId ?? null,
       });
     }
-    const result = playOption
-      ? await Purchases.purchaseSubscriptionOption(playOption)
-      : await Purchases.purchasePackage(pkg);
+    const result = await withRevenueCatUser(user.id, () =>
+      playOption
+        ? Purchases.purchaseSubscriptionOption(playOption)
+        : Purchases.purchasePackage(pkg),
+    );
     ingestRevenueCatCustomerInfo(result.customerInfo);
     trackPurchase({
       ...commercial,
@@ -440,7 +443,6 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
   }
 
   await configureRevenueCat();
-  await withTimeout(loginRevenueCatUser(user.id), 8_000);
   if (!isRevenueCatConfigured()) {
     throw new ProPurchaseException({
       userCancelled: false,
@@ -449,7 +451,9 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
     });
   }
   try {
-    const customerInfo = await Purchases.restorePurchases();
+    const customerInfo = await withRevenueCatUser(user.id, () =>
+      Purchases.restorePurchases(),
+    );
     ingestRevenueCatCustomerInfo(customerInfo);
     const unlocked = customerInfoHasCrittrPro(customerInfo);
     trackRestorePurchases(unlocked);
@@ -463,188 +467,71 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
   }
 }
 
-const PROFILE_POLL_TIMEOUT_MS = 4_000;
 const AUTH_LOOKUP_TIMEOUT_MS = 5_000;
-const RC_REFRESH_TIMEOUT_MS = 4_000;
 
 const ACTIVATION_SYNC_ERROR =
   "Your purchase succeeded but Pro status hasn't synced yet. You won't be charged again. Retry activation, or go to the dashboard — Crittr Pro will unlock as soon as it syncs.";
 
-/**
- * Finish client-side Pro unlock after a store success.
- *
- * RevenueCat CustomerInfo is the client source of truth. When the SDK already
- * reports Crittr Pro we return immediately and reconcile the `profiles` mirror
- * in the background. Blocking the UI on that Edge Function is what left
- * TestFlight / production checkouts stuck on "Activating Crittr Pro…":
- * `functions.invoke` ignores `timeout`, REST can lag StoreKit, and iOS timers
- * can stall after the payment sheet.
- *
- * We only wait (briefly) when the store succeeded but the entitlement is not
- * in CustomerInfo yet (ask-to-buy, Play pending → owned, restore race).
+/** Confirm the server projection after purchase/restore before unlocking any paid route.
+ * Retry transient reconciliation contention within one bounded activation budget.
  */
 export async function waitForProActivation(options?: {
   purchaseCustomerInfo?: CustomerInfo;
   source?: ProActivationSource;
 }): Promise<void> {
-  if (options?.purchaseCustomerInfo) {
-    ingestRevenueCatCustomerInfo(options.purchaseCustomerInfo);
-  }
-
-  const source = options?.source ?? "purchase";
-  const revenueCatAlreadyHasPro =
-    (options?.purchaseCustomerInfo != null &&
-      customerInfoHasCrittrPro(options.purchaseCustomerInfo)) ||
-    clientHasUnlockedPro();
-
-  const waitMs = resolveProActivationWaitMs({
-    source,
-    revenueCatAlreadyHasPro,
-  });
-
-  const user = await lookupAuthUser();
-
-  if (revenueCatAlreadyHasPro) {
-    if (user) kickoffBackendEntitlementSync(user.id, source, options?.purchaseCustomerInfo);
-    return;
-  }
-
-  if (!user) {
+  const generation = sessionGeneration(),
+    deadline = Date.now() + 45000;
+  const remaining = () => Math.max(1, deadline - Date.now());
+  const user = await withTimeout(lookupAuthUser(), remaining());
+  if (!user || generation !== sessionGeneration())
     throw new Error(ACTIVATION_SYNC_ERROR);
-  }
-
-  const deadline = Date.now() + waitMs;
-  const remaining = () => Math.max(0, deadline - Date.now());
-
-  await withTimeout(loginRevenueCatUser(user.id), Math.min(RC_REFRESH_TIMEOUT_MS, remaining()));
-  if (clientHasUnlockedPro()) {
-    kickoffBackendEntitlementSync(user.id, source, options?.purchaseCustomerInfo);
-    return;
-  }
-
-  if (isRevenueCatConfigured() && remaining() > 400) {
-    try {
-      const info = await withTimeout(
-        Purchases.getCustomerInfo(),
-        Math.min(RC_REFRESH_TIMEOUT_MS, remaining()),
+  let nextSyncAt = 0;
+  while (Date.now() < deadline) {
+    if (Date.now() >= nextSyncAt) {
+      await withTimeout(
+        runEntitlementSync(user.id, options?.source ?? "purchase"),
+        remaining(),
       );
-      if (info) ingestRevenueCatCustomerInfo(info);
-    } catch {
-      /* ignore */
+      nextSyncAt = Date.now() + 5000;
     }
-    if (clientHasUnlockedPro()) {
-      kickoffBackendEntitlementSync(user.id, source, options?.purchaseCustomerInfo);
-      return;
-    }
-  }
-
-  if (remaining() > 500) {
-    await withTimeout(
-      runEntitlementSync(user.id, source, options?.purchaseCustomerInfo),
+    if (generation !== sessionGeneration())
+      throw new Error("Your account changed. Sign in to check your purchase.");
+    const response = await withTimeout(
+      Promise.resolve(
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+      ),
       remaining(),
     );
-    if (clientHasUnlockedPro() || (await profileShowsActivePro())) return;
-  }
-
-  while (remaining() > 0) {
-    if (clientHasUnlockedPro() || (await profileShowsActivePro())) {
-      kickoffBackendEntitlementSync(user.id, source, options?.purchaseCustomerInfo);
-      return;
+    if (!response) break;
+    const { data, error } = response;
+    if (generation !== sessionGeneration())
+      throw new Error("Your account changed");
+    if (error) throw error;
+    if (data) {
+      ingestProfileMirror(data);
+      queryClient.setQueryData(profileQueryKey(user.id), data);
+      if (isCrittrProFromProfile(data)) return;
     }
-    if (isRevenueCatConfigured() && remaining() > 400) {
-      try {
-        const info = await withTimeout(
-          Purchases.getCustomerInfo(),
-          Math.min(2_000, remaining()),
-        );
-        if (info) ingestRevenueCatCustomerInfo(info);
-      } catch {
-        /* ignore */
-      }
-      if (clientHasUnlockedPro()) {
-        kickoffBackendEntitlementSync(user.id, source, options?.purchaseCustomerInfo);
-        return;
-      }
-    }
-    await sleep(Math.min(300, remaining()));
+    await sleep(Math.min(1000, remaining()));
   }
-
-  if (clientHasUnlockedPro() || (await profileShowsActivePro())) return;
-
   throw new Error(ACTIVATION_SYNC_ERROR);
-}
-
-function kickoffBackendEntitlementSync(
-  userId: string,
-  source: ProActivationSource,
-  purchaseCustomerInfo?: CustomerInfo,
-): void {
-  void runEntitlementSync(userId, source, purchaseCustomerInfo).catch((e) => {
-    if (__DEV__) console.warn("[iapCheckout] background entitlement sync failed", e);
-  });
 }
 
 async function runEntitlementSync(
   userId: string,
   source: ProActivationSource,
-  purchaseCustomerInfo?: CustomerInfo,
 ): Promise<void> {
-  if (source === "restore") {
-    await syncCrittrProAfterRestore(userId);
-    return;
-  }
-  const rcId = await safeGetRevenueCatAppUserId();
-  const alternates = alternateRcIdsForSync(purchaseCustomerInfo, rcId);
-  if (source === "paywall") {
-    await syncCrittrProForPaywall(rcId, alternates);
-    return;
-  }
-  await syncCrittrProAfterCheckout(rcId, alternates);
+  if (source === "restore") await syncCrittrProAfterRestore(userId);
+  else if (source === "paywall") await syncCrittrProForPaywall();
+  else await syncCrittrProAfterCheckout();
 }
 
 async function lookupAuthUser(): Promise<{ id: string } | null> {
-  const result = await withTimeout(supabase.auth.getUser(), AUTH_LOOKUP_TIMEOUT_MS);
-  return result?.data.user ?? null;
-}
-
-function alternateRcIdsForSync(
-  purchaseInfo: CustomerInfo | undefined,
-  currentRcId: string | null,
-): string[] {
-  const oid = purchaseInfo?.originalAppUserId;
-  if (!oid || !oid.length) return [];
-  if (currentRcId && oid === currentRcId) return [];
-  return [oid];
-}
-
-async function safeGetRevenueCatAppUserId(): Promise<string | null> {
-  if (!isRevenueCatConfigured()) return null;
-  try {
-    const id = await withTimeout(Purchases.getAppUserID(), 3_000);
-    return typeof id === "string" && id.length > 0 ? id : null;
-  } catch (e) {
-    if (__DEV__) console.warn("[iapCheckout] getAppUserID failed", e);
-    return null;
-  }
-}
-
-async function profileShowsActivePro(): Promise<boolean> {
-  const flagged = await withTimeout(
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return false;
-      const { data } = await supabase
-        .from("profiles")
-        .select("crittr_pro_active, crittr_pro_until")
-        .eq("id", user.id)
-        .maybeSingle();
-      return isCrittrProFromProfile(data);
-    })(),
-    PROFILE_POLL_TIMEOUT_MS,
+  const result = await withTimeout(
+    supabase.auth.getUser(),
+    AUTH_LOOKUP_TIMEOUT_MS,
   );
-  return flagged === true;
+  return result?.data.user ?? null;
 }
 
 function sleep(ms: number): Promise<void> {

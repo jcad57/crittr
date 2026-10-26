@@ -1,30 +1,32 @@
-import { resolveClientIsCrittrPro } from "@/lib/crittrPro";
-import {
-  getCrittrProClientState,
-  subscribeCrittrProClientState,
-} from "@/lib/iap/crittrProClientState";
+import { isCrittrProFromProfile, proAccessDeadline } from "@/lib/crittrPro";
 import type { Profile } from "@/types/database";
-import { useSyncExternalStore } from "react";
-
-/**
- * Crittr Pro entitlement for the current user.
- *
- * RevenueCat `CustomerInfo.entitlements.active.crittr_pro` is the client
- * source of truth once it has been observed. The Supabase profile mirror
- * (`crittr_pro_active`) is only the bootstrap / offline fallback — it is not
- * the definition of Pro, and `crittr_pro_until` is never used as an access
- * flag on its own.
- */
+import { useEffect, useReducer } from "react";
+import { AppState } from "react-native";
+/** One authority for labels and gated actions, including expiry while the app stays open. */
 export function useIsCrittrPro(profile: Profile | null | undefined): boolean {
-  const state = useSyncExternalStore(
-    subscribeCrittrProClientState,
-    getCrittrProClientState,
-    getCrittrProClientState,
-  );
-
-  return resolveClientIsCrittrPro(
-    state.customerInfoObserved,
-    state.entitlement,
-    profile ?? null,
-  );
+  const [, tick] = useReducer((n: number) => n + 1, 0);
+  const deadline = proAccessDeadline(profile);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      const remaining = deadline - Date.now();
+      if (remaining > 0)
+        timer = setTimeout(
+          () => {
+            tick();
+            schedule();
+          },
+          Math.min(remaining + 10, 2147483647),
+        );
+    };
+    schedule();
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active") tick();
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      listener.remove();
+    };
+  }, [deadline]);
+  return isCrittrProFromProfile(profile);
 }

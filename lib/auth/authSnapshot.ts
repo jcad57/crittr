@@ -4,7 +4,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const SNAPSHOT_KEY = "crittr.authSnapshot";
 
 /** Bump when `AuthSnapshot` changes shape so stale payloads are ignored, not applied. */
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 2;
+let writes = Promise.resolve();
+function serialize(action: () => Promise<void>): Promise<void> {
+  const task = writes.then(action, action);
+  writes = task.catch(() => {});
+  return task;
+}
 
 /**
  * Beyond this the account may have changed enough (pets added on another
@@ -43,7 +49,7 @@ export async function readAuthSnapshot(
 
     const parsed = JSON.parse(raw) as Partial<AuthSnapshot>;
     if (parsed.version !== SNAPSHOT_VERSION) return null;
-    if (parsed.userId !== userId) return null;
+    if (parsed.userId !== userId || parsed.profile?.id !== userId) return null;
     if (typeof parsed.resolvedAt !== "number") return null;
     if (Date.now() - parsed.resolvedAt > SNAPSHOT_MAX_AGE_MS) return null;
 
@@ -65,7 +71,7 @@ export async function writeAuthSnapshot(
   };
 
   try {
-    await AsyncStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    await serialize(() => AsyncStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot)));
   } catch {
     /** Snapshot is a launch-speed optimization; failing to save it is not fatal. */
   }
@@ -73,7 +79,7 @@ export async function writeAuthSnapshot(
 
 export async function clearAuthSnapshot(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(SNAPSHOT_KEY);
+    await serialize(() => AsyncStorage.removeItem(SNAPSHOT_KEY));
   } catch {
     /* nothing to recover from */
   }
