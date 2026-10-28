@@ -102,7 +102,7 @@ export default function PetProfileHero({
                 <MaterialCommunityIcons
                   name="pencil-outline"
                   size={20}
-                  color="rgba(255,255,255,0.95)"
+                  color={Colors.peachDark}
                 />
               </Pressable>
             ) : null}
@@ -118,7 +118,7 @@ export default function PetProfileHero({
             key={`${t.label}-${i}`}
             style={[styles.tag, t.muted ? styles.tagSubtle : styles.tagActive]}
           >
-            <Text style={styles.tagText} numberOfLines={1}>
+            <Text style={[styles.tagText, !t.muted && styles.tagTextActive]} numberOfLines={1}>
               {t.label}
             </Text>
           </View>
@@ -130,8 +130,8 @@ export default function PetProfileHero({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.orange,
-    borderRadius: 20,
+    backgroundColor: Colors.peach,
+    borderRadius: 26,
     padding: 18,
     overflow: "hidden",
   },
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: Font.displayBold,
-    fontSize: 24,
-    color: Colors.white,
+    fontSize: 28,
+    color: Colors.textPrimary,
   },
   nameEditHit: {
     marginTop: 2,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   subline: {
     fontFamily: Font.uiRegular,
     fontSize: 14,
-    color: "rgba(255,255,255,0.92)",
+    color: Colors.peachDark,
     lineHeight: 20,
   },
   tagsRow: {
@@ -242,16 +242,19 @@ const styles = StyleSheet.create({
   },
   /** Original style for “not true” / unknown (translucent on orange) */
   tagSubtle: {
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: Colors.warmWhite,
   },
   /** True / positive fact — dark teal-forest */
   tagActive: {
-    backgroundColor: Colors.petHeroTagActive,
+    backgroundColor: Colors.sage,
+  },
+  tagTextActive: {
+    color: Colors.sageDark,
   },
   tagText: {
     fontFamily: Font.uiMedium,
     fontSize: 11,
-    color: Colors.white,
+    color: Colors.peachDark,
     textAlign: "center",
   },
 });

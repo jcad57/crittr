@@ -8,12 +8,12 @@ export type WeightHistoryRangeOption = {
 };
 
 export const WEIGHT_HISTORY_RANGE_OPTIONS: WeightHistoryRangeOption[] = [
+  { id: "ALL", label: "All" },
   { id: "1W", label: "1W" },
   { id: "1M", label: "1M" },
   { id: "3M", label: "3M" },
   { id: "6M", label: "6M" },
   { id: "1Y", label: "1Y" },
-  { id: "ALL", label: "All" },
 ];
 
 export type WeightChartPoint = {

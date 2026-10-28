@@ -28,7 +28,8 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "package": "com.jcadeichmann.crittr",
       "playStoreUrl": "https://play.google.com/store/apps/details?id=com.jcadeichmann.crittr"

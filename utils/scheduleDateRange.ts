@@ -66,3 +66,21 @@ export function scheduleRangeStartYmd(
 export function scheduleRangeLength(startYmd: string, todayYmd: string): number {
   return Math.max(1, daysBetweenYmd(startYmd, todayYmd) + SCHEDULE_DAYS_AFTER + 1);
 }
+
+/** Keep the selected card and the queried calendar day within the same range. */
+export function clampScheduleYmd(ymd: string, startYmd: string, endYmd: string): string {
+  return ymd < startYmd ? startYmd : ymd > endYmd ? endYmd : ymd;
+}
+
+/** A null choice follows today across midnight; an explicit past date stays put. */
+export function selectedScheduleYmd(
+  choice: string | null,
+  todayYmd: string,
+  signupYmd: string | null,
+): string {
+  return clampScheduleYmd(
+    choice ?? todayYmd,
+    scheduleRangeStartYmd(signupYmd, todayYmd),
+    addDaysToYmd(todayYmd, SCHEDULE_DAYS_AFTER),
+  );
+}

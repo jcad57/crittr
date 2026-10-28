@@ -153,7 +153,22 @@ function pickActiveFromSlice(
   info: CustomerInfoEntitlementSlice,
 ): CustomerInfoEntitlementFields | null {
   const active = info.entitlements.active;
-  return active[CRITTR_PRO_ENTITLEMENT_ID] ?? null;
+  return (
+    [
+      active[CRITTR_PRO_ENTITLEMENT_ID],
+      active[CRITTR_PRO_ENTITLEMENT_LEGACY_ID],
+    ]
+      .filter(
+        (ent): ent is CustomerInfoEntitlementFields => ent?.isActive === true,
+      )
+      .sort((a, b) => {
+        const end = (ent: CustomerInfoEntitlementFields) =>
+          ent.expirationDate == null
+            ? Infinity
+            : Date.parse(ent.expirationDate);
+        return end(a) === end(b) ? 0 : end(a) > end(b) ? -1 : 1;
+      })[0] ?? null
+  );
 }
 
 export function customerInfoSliceHasCrittrPro(

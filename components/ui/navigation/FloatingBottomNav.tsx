@@ -165,6 +165,7 @@ export default function FloatingBottomNav() {
               key={tab.id}
               style={({ pressed }) => [
                 styles.tab,
+                isActive && styles.tabActive,
                 pressed && styles.tabPressed,
               ]}
               onPress={() => {
@@ -184,7 +185,7 @@ export default function FloatingBottomNav() {
               <MaterialCommunityIcons
                 name={isActive ? tab.iconActive : tab.icon}
                 size={22}
-                color={isActive ? Colors.orange : Colors.gray400}
+                color={isActive ? Colors.peachDark : Colors.gray400}
               />
               <Text
                 style={[styles.tabLabel, isActive && styles.tabLabelActive]}
@@ -211,15 +212,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     height: FLOATING_NAV_BAR_HEIGHT,
     borderRadius: FLOATING_NAV_BAR_HEIGHT / 2,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.warmWhite,
     paddingHorizontal: 6,
     borderWidth: 1,
-    borderColor: Colors.gray100,
+    borderColor: Colors.creamDark,
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 8,
+    paddingVertical: 5,
   },
   tab: {
     flex: 1,
@@ -228,6 +230,10 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingVertical: 6,
     minWidth: 0,
+  },
+  tabActive: {
+    backgroundColor: Colors.peach,
+    borderRadius: 24,
   },
   tabPressed: {
     opacity: 0.75,
@@ -239,6 +245,6 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     fontFamily: Font.isSemiBold,
-    color: Colors.orange,
+    color: Colors.peachDark,
   },
 });

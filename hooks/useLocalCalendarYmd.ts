@@ -11,12 +11,12 @@ import { AppState, type AppStateStatus } from "react-native";
  * when nothing renders); the AppState resume listener catches the day rollover
  * when the user comes back.
  */
-export function useLocalCalendarYmd(): string {
-  const [ymd, setYmd] = useState(() => getLocalYmd());
+export function useLocalCalendarYmd(timeZone?: string | null): string {
+  const [, setYmd] = useState(() => getLocalYmd(new Date(), timeZone));
 
   useEffect(() => {
     const sync = () => {
-      const next = getLocalYmd();
+      const next = getLocalYmd(new Date(), timeZone);
       setYmd((prev) => (prev === next ? prev : next));
     };
 
@@ -56,7 +56,7 @@ export function useLocalCalendarYmd(): string {
       if (timeoutId) clearTimeout(timeoutId);
       sub.remove();
     };
-  }, []);
+  }, [timeZone]);
 
-  return ymd;
+  return getLocalYmd(new Date(), timeZone);
 }

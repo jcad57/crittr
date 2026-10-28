@@ -1,0 +1,17 @@
+{
+  "imports": {
+    "@/types/database": "../../../types/database.ts",
+    "@/utils/localCalendarDate": "../../../utils/localCalendarDate.ts",
+    "@/utils/medicationDueSchedule": "../../../utils/medicationDueSchedule.ts",
+    "@/utils/medicationDosageDraft": "../../../utils/medicationDosageDraft.ts",
+    "@/constants/medicationEditForm": "../../../constants/medicationEditForm.ts",
+    "@/utils/medicationDosageSlots": "../../../utils/medicationDosageSlots.ts",
+    "@/utils/medicationReminderTimes": "../../../utils/medicationReminderTimes.ts",
+    "@/utils/medicationSchedule": "../../../utils/medicationSchedule.ts",
+    "@/utils/petFood": "../../../utils/petFood.ts",
+    "@/utils/petFoodTime": "../../../utils/petFoodTime.ts",
+    "@/utils/userDateTimeFormat": "../../../utils/userDateTimeFormat.ts",
+    "@/utils/exercisePlans": "../../../utils/exercisePlans.ts",
+    "@/utils/schedulePeriods": "../../../utils/schedulePeriods.ts"
+  }
+}

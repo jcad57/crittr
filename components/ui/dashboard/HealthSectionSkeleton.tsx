@@ -29,7 +29,11 @@ function SkeletonMedRow({
   );
 }
 
-function SkeletonVisitRow({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle> }) {
+function SkeletonVisitRow({
+  pulseStyle,
+}: {
+  pulseStyle: AnimatedStyle<ViewStyle>;
+}) {
   return (
     <View style={styles.visitRowWrap}>
       <View style={styles.visitRowMain}>
@@ -44,7 +48,7 @@ function SkeletonVisitRow({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle>
   );
 }
 
-/** Mirrors {@link HealthSection}: medications list + vet visits in a health-style list card. */
+/** Mirrors {@link HealthSection}: medications list + peach visit cards with a date tile. */
 export default function HealthSectionSkeleton() {
   const pulseStyle = useSkeletonPulse();
 
@@ -62,10 +66,8 @@ export default function HealthSectionSkeleton() {
         ))}
       </HealthListCard>
 
-      <SectionLabel style={styles.visitsLabel}>Upcoming vet visits</SectionLabel>
-      <HealthListCard>
-        <SkeletonVisitRow pulseStyle={pulseStyle} />
-      </HealthListCard>
+      <SectionLabel style={styles.visitsLabel}>Health & wellbeing</SectionLabel>
+      <SkeletonVisitRow pulseStyle={pulseStyle} />
     </View>
   );
 }
@@ -133,23 +135,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
   },
   visitRowWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingRight: 4,
+    borderRadius: 26,
+    backgroundColor: Colors.peach,
+    paddingHorizontal: 15,
+    paddingVertical: 17,
+    marginBottom: 10,
   },
   visitRowMain: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingLeft: 12,
-    gap: 10,
+    gap: 12,
     minWidth: 0,
   },
   visitIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 54,
+    height: 64,
+    borderRadius: 17,
     backgroundColor: Colors.gray200,
   },
   visitMid: {

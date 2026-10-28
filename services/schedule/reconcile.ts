@@ -227,7 +227,8 @@ export async function ensureScheduleForDay(
   const existing = await fetchScheduleItemsForDay(petId, localYmd);
   throwIfAborted(signal);
 
-  const today = getLocalYmd();
+  const zoneDetails = await resolvePetDetailsForSchedule(petId, { fresh: false });
+  const today = getLocalYmd(new Date(), zoneDetails?.care_time_zone);
   if (compareYmd(localYmd, today) < 0) {
     const details = await resolvePetDetailsForSchedule(petId, { fresh: false });
     const visits = await resolveVetVisitsForSchedule(petId, { fresh: false });

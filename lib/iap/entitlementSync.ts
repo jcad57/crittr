@@ -34,7 +34,9 @@ async function sync(
     key = `${generation}:${userId}`;
   if (flights.has(key)) return flights.get(key)!;
   const task = (async (): Promise<CrittrProEntitlementSyncResult> => {
-    await withTimeout(loginRevenueCatUser(userId), 5000).catch(() => {});
+    // The server verifies this UUID independently; a stalled native store must
+    // not delay a dashboard grant or access on another platform.
+    void withTimeout(loginRevenueCatUser(userId), 5000).catch(() => {});
     if (generation !== sessionGeneration()) return "skipped";
     const controller = new AbortController(),
       timer = setTimeout(
@@ -51,7 +53,7 @@ async function sync(
     } finally {
       clearTimeout(timer);
     }
-  })();
+  })().catch((): CrittrProEntitlementSyncResult => "failed");
   flights.set(key, task);
   try {
     return await task;

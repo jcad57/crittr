@@ -41,12 +41,12 @@ export async function resyncScheduleForward(petId: string): Promise<void> {
    */
   abortBackgroundReconciles(petId);
 
-  const today = getLocalYmd();
   const [details, visits] = await Promise.all([
     resolvePetDetailsForSchedule(petId, { fresh: true }),
     resolveVetVisitsForSchedule(petId, { fresh: true }),
   ]);
   if (!details) return;
+  const today = getLocalYmd(new Date(), details.care_time_zone);
 
   /**
    * Cancel in-flight day fetches so a stale ensureScheduleForDay cannot

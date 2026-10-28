@@ -1,4 +1,10 @@
-import { getRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
+import { getIdentifiedRevenueCatCustomerInfo } from "@/lib/iap/revenueCat";
+import {
+  isCrittrProFromProfile,
+  type CrittrProProfileMirror,
+} from "@/lib/crittrPro";
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import { withTimeout } from "@/lib/iap/withTimeout";
 import { selectCrittrProEntitlementFromCustomerInfo } from "@/lib/iap/crittrProRevenueCat";
 import { baseProductId } from "@/lib/iap/storeTerms";
 import Purchases, {
@@ -6,6 +12,7 @@ import Purchases, {
   type PurchasesEntitlementInfo,
   type Store,
 } from "react-native-purchases";
+import { Linking } from "react-native";
 
 /**
  * Display-friendly subscription summary mirrored from RevenueCat. Field names
@@ -15,8 +22,14 @@ import Purchases, {
  */
 export type SubscriptionDetails = {
   productIdentifier: string;
-  status: "active" | "trialing" | "canceled" | "expired" | "billing_issue" | "lifetime";
-  planLabel: "annual" | "monthly" | "lifetime";
+  status:
+    | "active"
+    | "trialing"
+    | "canceled"
+    | "expired"
+    | "billing_issue"
+    | "lifetime";
+  planLabel: "annual" | "monthly" | "lifetime" | "granted";
   interval: "month" | "year" | null;
   /** Localized price string, e.g. "$4.99 / month". `—` when unknown. */
   priceFormatted: string;
@@ -34,8 +47,10 @@ export type SubscriptionDetails = {
   managementUrl: string | null;
   /** True when this subscription was granted by Apple Family Sharing. */
   isFamilyShared: boolean;
-  /** True when RevenueCat reports an active entitlement with no expiration. */
+  /** Lifetime purchase or an explicitly identified RevenueCat lifetime promotion. */
   isLifetime: boolean;
+  /** Promotional/admin access has no recurring charge or store cancellation. */
+  isPromotional: boolean;
 };
 
 const PERIOD_TYPE_TO_STATUS: Record<
@@ -83,7 +98,11 @@ function planLabelFromProductId(
 ): SubscriptionDetails["planLabel"] {
   if (isLifetime) return "lifetime";
   const lower = `${productId} ${productPlanIdentifier ?? ""}`.toLowerCase();
-  if (lower.includes("annual") || lower.includes("year") || lower.includes("p1y")) {
+  if (
+    lower.includes("annual") ||
+    lower.includes("year") ||
+    lower.includes("p1y")
+  ) {
     return "annual";
   }
   return "monthly";
@@ -92,8 +111,22 @@ function planLabelFromProductId(
 function intervalFromPlanLabel(
   plan: SubscriptionDetails["planLabel"],
 ): "month" | "year" | null {
-  if (plan === "lifetime") return null;
+  if (plan === "lifetime" || plan === "granted") return null;
   return plan === "annual" ? "year" : "month";
+}
+
+function hasLifetimePresentation(
+  expiresAt: string | null,
+  productId: string,
+  store: string | null,
+): boolean {
+  // Some promotional lifetime records retain a far-future deadline. This is
+  // presentation only: access still enforces the provider's actual expiry.
+  return (
+    expiresAt === null ||
+    (store?.toLowerCase() === "promotional" &&
+      /^rc_promo_.+_lifetime$/.test(productId))
+  );
 }
 
 function statusFromEntitlement(
@@ -105,7 +138,10 @@ function statusFromEntitlement(
   if (ent.isActive) {
     return PERIOD_TYPE_TO_STATUS[ent.periodType] ?? "active";
   }
-  if (ent.expirationDate && new Date(ent.expirationDate).getTime() < Date.now()) {
+  if (
+    ent.expirationDate &&
+    new Date(ent.expirationDate).getTime() < Date.now()
+  ) {
     return "expired";
   }
   return "canceled";
@@ -147,11 +183,93 @@ async function priceLabelForProduct(
  * Builds the display DTO for the Subscriptions screen from RC `CustomerInfo`.
  * Returns `null` when the user has no Crittr Pro entitlement on file.
  */
-export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | null> {
-  const info: CustomerInfo | null = await getRevenueCatCustomerInfo();
-  if (!info) return null;
+export function subscriptionDetailsFromProfile(
+  profile: CrittrProProfileMirror | null | undefined,
+): SubscriptionDetails | null {
+  if (!profile || !isCrittrProFromProfile(profile)) return null;
+  const productId = profile.crittr_pro_product_id ?? "";
+  const isLifetime = hasLifetimePresentation(
+    profile.crittr_pro_until,
+    productId,
+    profile.subscription_store,
+  );
+  const isPromotional =
+    profile.subscription_store === "promotional" ||
+    profile.subscription_environment === "admin";
+  const planLabel = isLifetime
+    ? "lifetime"
+    : isPromotional
+      ? "granted"
+      : planLabelFromProductId(productId, null, false);
+  const managementUrl =
+    profile.subscription_store === "app_store"
+      ? "https://apps.apple.com/account/subscriptions"
+      : profile.subscription_store === "play_store"
+        ? "https://play.google.com/store/account/subscriptions"
+        : null;
+  return {
+    productIdentifier: productId,
+    status: isLifetime ? "lifetime" : "active",
+    planLabel,
+    interval: intervalFromPlanLabel(planLabel),
+    priceFormatted: isLifetime
+      ? "Lifetime access"
+      : isPromotional
+        ? "Complimentary access"
+        : "—",
+    currency: "",
+    startedAt: null,
+    currentPeriodStart: null,
+    currentPeriodEnd: profile.crittr_pro_until,
+    trialStart: null,
+    trialEnd: null,
+    canceledAt: null,
+    cancelAtPeriodEnd:
+      !isLifetime &&
+      !isPromotional &&
+      profile.subscription_will_renew === false,
+    storeLabel: isPromotional
+      ? "Promotional"
+      : storeLabel((profile.subscription_store ?? "").toUpperCase() as Store),
+    managementUrl: isLifetime ? null : managementUrl,
+    isFamilyShared: profile.crittr_pro_ownership_type === "FAMILY_SHARED",
+    isLifetime,
+    isPromotional,
+  };
+}
+
+export async function fetchSubscriptionDetails(
+  userId: string,
+  profile?: CrittrProProfileMirror | null,
+): Promise<SubscriptionDetails | null> {
+  const generation = sessionGeneration();
+  const info: CustomerInfo | null =
+    (await withTimeout(getIdentifiedRevenueCatCustomerInfo(userId), 8000)) ??
+    null;
+  if (generation !== sessionGeneration())
+    throw new Error("Your billing account changed.");
+  const verified = subscriptionDetailsFromProfile(profile);
+  if (!info) {
+    if (verified) return verified;
+    throw new Error("We couldn't refresh your subscription. Please try again.");
+  }
 
   const ent = selectCrittrProEntitlementFromCustomerInfo(info);
+  // A grant has already been verified server-side; missing/stale device metadata
+  // must not hide it or replace it with an older monthly subscription.
+  if (
+    verified &&
+    (!ent?.isActive ||
+      ent.productIdentifier !== verified.productIdentifier ||
+      (ent.expirationDate == null
+        ? verified.currentPeriodEnd !== null
+        : Date.parse(ent.expirationDate) !==
+          Date.parse(verified.currentPeriodEnd ?? "")))
+  )
+    return {
+      ...verified,
+      managementUrl: info.managementURL ?? verified.managementUrl,
+    };
   if (!ent) return null;
 
   const productId = ent.productIdentifier;
@@ -168,19 +286,33 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     info.subscriptionsByProductIdentifier[storeProductId] ??
     info.subscriptionsByProductIdentifier[productId];
 
-  const isLifetime = ent.isActive && ent.expirationDate == null;
-  const planLabel = planLabelFromProductId(
-    productId,
-    ent.productPlanIdentifier,
-    isLifetime,
-  );
+  const isLifetime =
+    ent.isActive &&
+    hasLifetimePresentation(ent.expirationDate, productId, ent.store);
+  const isPromotional = ent.store === "PROMOTIONAL";
+  const planLabel =
+    isPromotional && !isLifetime
+      ? "granted"
+      : planLabelFromProductId(
+          productId,
+          ent.productPlanIdentifier,
+          isLifetime,
+        );
   const interval = intervalFromPlanLabel(planLabel);
-  const { priceFormatted, currency } = await priceLabelForProduct(
-    storeProductId,
-    interval ?? "month",
-  );
+  const { priceFormatted, currency } =
+    isLifetime || isPromotional
+      ? {
+          priceFormatted: isLifetime
+            ? "Lifetime access"
+            : "Complimentary access",
+          currency: "",
+        }
+      : await priceLabelForProduct(storeProductId, interval ?? "month");
 
-  const cancelAtPeriodEnd = ent.isActive && !ent.willRenew && !isLifetime;
+  if (generation !== sessionGeneration())
+    throw new Error("Your billing account changed.");
+  const cancelAtPeriodEnd =
+    ent.isActive && !ent.willRenew && !isLifetime && !isPromotional;
   const status = statusFromEntitlement(ent, isLifetime);
 
   return {
@@ -191,7 +323,8 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     priceFormatted: isLifetime ? "Lifetime access" : priceFormatted,
     currency,
     startedAt: ent.originalPurchaseDate ?? null,
-    currentPeriodStart: subRecord?.purchaseDate ?? ent.latestPurchaseDate ?? null,
+    currentPeriodStart:
+      subRecord?.purchaseDate ?? ent.latestPurchaseDate ?? null,
     currentPeriodEnd: ent.expirationDate,
     trialStart: ent.periodType === "TRIAL" ? ent.latestPurchaseDate : null,
     trialEnd: ent.periodType === "TRIAL" ? ent.expirationDate : null,
@@ -201,6 +334,7 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
     managementUrl: info.managementURL,
     isFamilyShared: ent.ownershipType === "FAMILY_SHARED",
     isLifetime,
+    isPromotional,
   };
 }
 
@@ -209,6 +343,14 @@ export async function fetchSubscriptionDetails(): Promise<SubscriptionDetails | 
  * defer to Apple / Google's subscription management UI, which RevenueCat
  * exposes as a single helper.
  */
-export async function openManageSubscriptions(): Promise<void> {
+export async function openManageSubscriptions(
+  managementUrl?: string | null,
+): Promise<void> {
+  // RevenueCat's URL opens the store that owns the subscription, including
+  // subscriptions purchased on the user's other platform.
+  if (managementUrl) {
+    await Linking.openURL(managementUrl);
+    return;
+  }
   await Purchases.showManageSubscriptions();
 }

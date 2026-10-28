@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { TestIds } from "react-native-google-mobile-ads";
+import { ADS_ENABLED } from "./featureFlags";
 
 /**
  * AdMob unit IDs. Real IDs ship in release builds; Google-provided test IDs are used in __DEV__
@@ -70,11 +71,11 @@ export const AdUnitIds = {
 export type AdPlacement = "dashboard_top";
 
 export const ENABLED_AD_PLACEMENTS: Record<AdPlacement, boolean> = {
-  dashboard_top: true,
+  dashboard_top: ADS_ENABLED,
 };
 
 /** App open (cold start + resume) — set false to ship without the format. */
-export const APP_OPEN_ADS_ENABLED = true;
+export const APP_OPEN_ADS_ENABLED = ADS_ENABLED;
 
 /** Interstitial (e.g. activity submit) for non-Pro users. */
-export const INTERSTITIAL_ADS_ENABLED = true;
+export const INTERSTITIAL_ADS_ENABLED = ADS_ENABLED;

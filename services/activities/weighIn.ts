@@ -22,7 +22,7 @@ const WEIGH_IN_DEFAULT_LABEL = "Weigh-in";
  */
 function parseWeightOrThrow(raw: string): number {
   const cleaned = raw.replace(",", ".").trim();
-  const value = parseFloat(cleaned);
+  const value = Number(cleaned);
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error("Enter a valid weight greater than 0.");
   }
@@ -37,139 +37,59 @@ function localDateOnly(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * Insert a `pet_weight_entries` row + a mirrored `pet_activities` row in one go.
- * Also updates the pet's current weight on `pets`. Returns the activity row so
- * the caller can navigate / refresh exactly like other log* helpers.
- */
+export class DuplicateWeighInError extends Error {
+  constructor(public readonly recordedAt: string) {
+    super("A weigh-in already exists for this date.");
+    this.name = "DuplicateWeighInError";
+  }
+}
+
+async function saveWeighIn(
+  petId: string,
+  form: WeighInActivityFormData,
+  loggedAt: string,
+  replaceExisting = false,
+  activityId?: string,
+): Promise<PetActivity> {
+  const recordedAt = localDateOnly(new Date(loggedAt));
+  const { data, error } = await supabase.rpc("save_pet_weigh_in", {
+    p_pet_id: petId,
+    p_recorded_at: recordedAt,
+    p_logged_at: loggedAt,
+    p_weight: parseWeightOrThrow(form.weight),
+    p_unit: form.weightUnit === "kg" ? "kg" : "lbs",
+    p_label: form.label.trim() || WEIGH_IN_DEFAULT_LABEL,
+    p_notes: form.notes.trim() || null,
+    p_replace_existing: replaceExisting,
+    p_activity_id: activityId ?? null,
+  }).single();
+  if (error?.code === "P2001") throw new DuplicateWeighInError(recordedAt);
+  if (error) throw error;
+  return data as PetActivity;
+}
+
+/** Save chart, timeline, and latest pet weight atomically; duplicates require consent. */
 export async function logWeighIn(
   petId: string,
   userId: string,
   form: WeighInActivityFormData,
-  options?: LogActivityOptions,
+  options?: LogActivityOptions & { replaceExisting?: boolean },
 ): Promise<PetActivity> {
-  const weight = parseWeightOrThrow(form.weight);
-  const unit: "lbs" | "kg" = form.weightUnit === "kg" ? "kg" : "lbs";
-  const loggedAtIso = options?.loggedAt ?? new Date().toISOString();
-  const recordedAt = localDateOnly(new Date(loggedAtIso));
-
-  const { data: entry, error: entryErr } = await supabase
-    .from("pet_weight_entries")
-    .insert({
-      pet_id: petId,
-      recorded_at: recordedAt,
-      weight_lbs: weight,
-      weight_unit: unit,
-    })
-    .select()
-    .single();
-
-  if (entryErr) throw entryErr;
-
-  const { data, error } = await supabase
-    .from("pet_activities")
-    .insert({
-      pet_id: petId,
-      logged_by: userId,
-      activity_type: "weigh_in",
-      label: form.label.trim() || WEIGH_IN_DEFAULT_LABEL,
-      weight_lbs: weight,
-      weight_unit: unit,
-      weight_entry_id: entry.id,
-      notes: form.notes.trim() || null,
-      logged_at: loggedAtIso,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    /** Roll back the entry so the chart doesn't show an orphaned point. */
-    await supabase.from("pet_weight_entries").delete().eq("id", entry.id);
-    throw error;
-  }
-
-  await supabase
-    .from("pets")
-    .update({ weight_lbs: weight, weight_unit: unit })
-    .eq("id", petId);
-
+  const data = await saveWeighIn(petId, form,
+    options?.loggedAt ?? new Date().toISOString(), options?.replaceExisting);
   requestRemoteCoCarerActivityPush(data.id);
   trackActivityLogged("weigh_in");
-  return data as PetActivity;
+  return data;
 }
 
-/**
- * Update an existing weigh-in activity (and its linked weight entry). When the
- * weight or unit changes we also bring the pet's current weight in line if this
- * is the most recent reading.
- */
 export async function updateWeighInActivity(
   activityId: string,
   form: WeighInActivityFormData,
-  options?: { loggedAt?: string },
+  options?: { loggedAt?: string; replaceExisting?: boolean },
 ): Promise<PetActivity> {
-  const weight = parseWeightOrThrow(form.weight);
-  const unit: "lbs" | "kg" = form.weightUnit === "kg" ? "kg" : "lbs";
-
-  const { data: existing, error: existingErr } = await supabase
-    .from("pet_activities")
-    .select("id, pet_id, weight_entry_id, logged_at")
-    .eq("id", activityId)
-    .single();
-
-  if (existingErr) throw existingErr;
-
-  const loggedAtIso = options?.loggedAt ?? existing.logged_at;
-  const recordedAt = localDateOnly(new Date(loggedAtIso));
-
-  const { data, error } = await supabase
-    .from("pet_activities")
-    .update({
-      label: form.label.trim() || WEIGH_IN_DEFAULT_LABEL,
-      weight_lbs: weight,
-      weight_unit: unit,
-      notes: form.notes.trim() || null,
-      logged_at: loggedAtIso,
-    })
-    .eq("id", activityId)
-    .select()
-    .single();
-
+  const { data: existing, error } = await supabase.from("pet_activities")
+    .select("pet_id, logged_at").eq("id", activityId).single();
   if (error) throw error;
-
-  if (existing.weight_entry_id) {
-    await supabase
-      .from("pet_weight_entries")
-      .update({
-        recorded_at: recordedAt,
-        weight_lbs: weight,
-        weight_unit: unit,
-      })
-      .eq("id", existing.weight_entry_id);
-  }
-
-  /** Sync the pet's current weight if this is still the latest reading. */
-  if (existing.pet_id) {
-    const { data: latest } = await supabase
-      .from("pet_weight_entries")
-      .select("id, weight_lbs, weight_unit")
-      .eq("pet_id", existing.pet_id)
-      .order("recorded_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latest && latest.id === existing.weight_entry_id) {
-      await supabase
-        .from("pets")
-        .update({
-          weight_lbs: latest.weight_lbs,
-          weight_unit: latest.weight_unit,
-        })
-        .eq("id", existing.pet_id);
-    }
-  }
-
-  return data as PetActivity;
+  return saveWeighIn(existing.pet_id, form, options?.loggedAt ?? existing.logged_at,
+    options?.replaceExisting, activityId);
 }
-

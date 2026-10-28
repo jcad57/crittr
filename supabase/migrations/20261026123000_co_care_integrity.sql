@@ -65,7 +65,7 @@ END $$;
 CREATE TRIGGER co_care_consume_invitation AFTER INSERT ON public.pet_co_carers
  FOR EACH ROW EXECUTE FUNCTION public.consume_co_care_invitations();
 
-CREATE FUNCTION public.accept_co_care_invite(target_invite uuid)
+CREATE OR REPLACE FUNCTION public.accept_co_care_invite(target_invite uuid)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE invitation public.co_carer_invites; owner uuid;
 BEGIN

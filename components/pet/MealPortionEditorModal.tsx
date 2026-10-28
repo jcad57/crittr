@@ -92,8 +92,6 @@ export default function MealPortionEditorModal({
   }, [portionSize, portionUnit, feedTime, initial, onSave, onClose]);
 
   const timeLabel = formatUserTime(feedTime, timeDisplay);
-  const iosTimePickerOpen = timePickerOpen && Platform.OS !== "android";
-  const showForm = visible && !iosTimePickerOpen;
 
   const onTimePickerChange = useCallback(
     (event: DateTimePickerEvent, date?: Date) => {
@@ -128,7 +126,7 @@ export default function MealPortionEditorModal({
       onRequestClose={handleRequestClose}
     >
       <View style={styles.modalRoot}>
-        {showForm ? (
+        {visible ? (
         <View style={styles.overlay}>
           <Pressable
             style={styles.backdrop}
@@ -141,6 +139,7 @@ export default function MealPortionEditorModal({
           <Pressable
             style={styles.sheet}
             onPress={Keyboard.dismiss}
+            accessible={false}
           >
             <View style={styles.header}>
               <Text style={styles.headerTitle}>{title}</Text>
@@ -200,6 +199,7 @@ export default function MealPortionEditorModal({
             <Pressable
               style={styles.timeRow}
               onPress={openTimePicker}
+              accessibilityLabel="Edit feeding time"
             >
               <MaterialCommunityIcons
                 name="clock-outline"
@@ -221,15 +221,19 @@ export default function MealPortionEditorModal({
         </View>
         ) : null}
 
-        <InlineTimePickerSheet
-          visible={timePickerOpen}
-          value={timeDraft}
-          is24Hour={is24Hour}
-          title="Feeding time"
-          onNativeChange={onTimePickerChange}
-          onCancel={closeTimePicker}
-          onConfirm={confirmTimePicker}
-        />
+        {timePickerOpen ? (
+          <View style={styles.timePickerOverlay} pointerEvents="box-none">
+            <InlineTimePickerSheet
+              visible={timePickerOpen}
+              value={timeDraft}
+              is24Hour={is24Hour}
+              title="Feeding time"
+              onNativeChange={onTimePickerChange}
+              onCancel={closeTimePicker}
+              onConfirm={confirmTimePicker}
+            />
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -238,6 +242,10 @@ export default function MealPortionEditorModal({
 const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
+  },
+  timePickerOverlay: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 2,
   },
   overlay: {
     flex: 1,

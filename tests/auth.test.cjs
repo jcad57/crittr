@@ -58,6 +58,8 @@ test("sign-out fences pending hydration and auth listeners return synchronously"
       resetCrittrProClientState() {},
     },
     "@/services/auth": {},
+    "@/services/pushTokens": { unregisterExpoPushToken: async () => {} },
+    "@/services/reminderNotificationSchedule": { cancelCrittrScheduledNotifications: async () => {} },
     "@/lib/auth/googleOAuth": { signOutGoogleSdk: async () => {} },
     "@/lib/sessionGeneration": {
       sessionGeneration: () => generation,
@@ -186,6 +188,8 @@ test("cached account shell becomes ready before network validation", async () =>
       resetCrittrProClientState() {},
     },
     "@/services/auth": {},
+    "@/services/pushTokens": { unregisterExpoPushToken: async () => {} },
+    "@/services/reminderNotificationSchedule": { cancelCrittrScheduledNotifications: async () => {} },
     "@/lib/auth/googleOAuth": { signOutGoogleSdk: async () => {} },
     "@/lib/sessionGeneration": {
       sessionGeneration: () => generation,

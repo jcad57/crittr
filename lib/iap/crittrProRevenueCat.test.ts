@@ -48,21 +48,27 @@ function makeEnt(overrides: Partial<EntitlementStub> = {}): EntitlementStub {
 describe("customerInfoSliceHasCrittrPro", () => {
   it("is Pro for an active monthly entitlement", () => {
     const info = stubInfo({
-      active: { crittr_pro: makeEnt({ productIdentifier: "crittr_pro_monthly" }) },
+      active: {
+        crittr_pro: makeEnt({ productIdentifier: "crittr_pro_monthly" }),
+      },
     });
     assert.equal(customerInfoSliceHasCrittrPro(info), true);
   });
 
   it("is Pro for an active annual entitlement", () => {
     const info = stubInfo({
-      active: { crittr_pro: makeEnt({ productIdentifier: "crittr_pro_annual" }) },
+      active: {
+        crittr_pro: makeEnt({ productIdentifier: "crittr_pro_annual" }),
+      },
     });
     assert.equal(customerInfoSliceHasCrittrPro(info), true);
   });
 
   it("is Pro when canceled but still in the paid period", () => {
     const info = stubInfo({
-      active: { crittr_pro: makeEnt({ willRenew: false, expirationDate: future }) },
+      active: {
+        crittr_pro: makeEnt({ willRenew: false, expirationDate: future }),
+      },
     });
     assert.equal(customerInfoSliceHasCrittrPro(info), true);
   });
@@ -105,14 +111,56 @@ describe("customerInfoSliceHasCrittrPro", () => {
     const info = stubInfo({
       active: {},
       all: {
-        crittr_pro: makeEnt({ isActive: false, expirationDate: past, willRenew: false }),
+        crittr_pro: makeEnt({
+          isActive: false,
+          expirationDate: past,
+          willRenew: false,
+        }),
       },
     });
     assert.equal(customerInfoSliceHasCrittrPro(info), false);
   });
 
   it("is not Pro when there is no crittr_pro entitlement", () => {
-    assert.equal(customerInfoSliceHasCrittrPro(stubInfo({ active: {} })), false);
+    assert.equal(
+      customerInfoSliceHasCrittrPro(stubInfo({ active: {} })),
+      false,
+    );
+  });
+
+  it("recognizes an explicitly supported legacy dashboard grant", () => {
+    const info = stubInfo({
+      active: {
+        "Crittr Pro": makeEnt({ expirationDate: null, store: "PROMOTIONAL" }),
+      },
+    });
+    assert.equal(customerInfoSliceHasCrittrPro(info), true);
+    assert.equal(entitlementFromCustomerInfoSlice(info).expiresAt, null);
+  });
+
+  it("prefers a lifetime grant over a recurring plan across the supported IDs", () => {
+    const info = stubInfo({
+      active: {
+        crittr_pro: makeEnt(),
+        "Crittr Pro": makeEnt({
+          expirationDate: null,
+          productIdentifier: "rc_promo_legacy_lifetime",
+          store: "PROMOTIONAL",
+          willRenew: false,
+        }),
+      },
+    });
+    assert.equal(
+      entitlementFromCustomerInfoSlice(info).productIdentifier,
+      "rc_promo_legacy_lifetime",
+    );
+    assert.equal(entitlementFromCustomerInfoSlice(info).expiresAt, null);
+    assert.equal(
+      customerInfoSliceHasCrittrPro(
+        stubInfo({ active: { unrelated: makeEnt() } }),
+      ),
+      false,
+    );
   });
 });
 

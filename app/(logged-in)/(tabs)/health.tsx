@@ -276,7 +276,7 @@ export default function HealthScreen() {
         ) : null}
 
         <HealthSectionHeader
-          title="MEDICATIONS"
+          title="Medications"
           onAddPress={
             effectivePetId && canManageMedications === true
               ? () => push(`/(logged-in)/pet/${effectivePetId}/medications`)
@@ -317,7 +317,7 @@ export default function HealthScreen() {
         )}
 
         <HealthSectionHeader
-          title="VACCINATIONS"
+          title="Vaccinations"
           onAddPress={
             effectivePetId && canManageVaccinations === true
               ? openManageVaccinations
@@ -346,7 +346,7 @@ export default function HealthScreen() {
         )}
 
         <HealthSectionHeader
-          title="UPCOMING VISITS"
+          title="Upcoming visits"
           onAddPress={
             effectivePetId && canManageVetVisits === true
               ? openAddVisit
@@ -374,7 +374,7 @@ export default function HealthScreen() {
           </View>
         )}
 
-        <HealthSectionHeader title="RECORDS" />
+        <HealthSectionHeader title="Records" />
         <RecordsNavCard items={recordsItems} />
       </ScrollView>
     </View>

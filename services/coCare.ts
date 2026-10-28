@@ -15,6 +15,9 @@ import {
 export const CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE =
   "Crittr Pro is required to co-care. Upgrade to accept this invitation.";
 
+export const CO_CARE_INVITE_UNAVAILABLE_MESSAGE =
+  "This invitation is no longer available. Ask the pet owner to send a new invite.";
+
 const CO_CARE_INVITE_VALIDATION_MESSAGES: Record<string, string> = {
   email_required: "Enter an email address to send an invite.",
   not_owner: "You can only invite co-carers for pets you own.",
@@ -103,7 +106,9 @@ export async function sendCoCareInvite(
     { lookup_email: normalised },
   );
   if (lookupError) {
-    console.warn("lookup_user_by_email failed:", lookupError.message);
+    // A failed lookup is not evidence that this person has no account.
+    // Stop before saving/emailing an invitation through the wrong channel.
+    throw lookupError;
   }
   // PostgREST usually returns an array of rows; a single row may come back as one object.
   const lookupRows = normalizeRpcRows<{ id: string }>(authLookup);
@@ -241,9 +246,11 @@ export async function acceptInvite(
     .from("co_carer_invites")
     .select("*")
     .eq("id", inviteId)
-    .single();
+    .eq("invited_user_id", userId)
+    .maybeSingle();
 
-  if (fetchErr || !invite) throw fetchErr ?? new Error("Invite not found");
+  if (fetchErr) throw fetchErr;
+  if (!invite) throw new Error(CO_CARE_INVITE_UNAVAILABLE_MESSAGE);
 
   const { data: accepterHasPro, error: proErr } = await supabase.rpc(
     "user_has_crittr_pro",
@@ -257,36 +264,57 @@ export async function acceptInvite(
     "accept_co_care_invite",
     { target_invite: inviteId },
   );
-  if (acceptError) throw acceptError;
+  if (acceptError) {
+    // The owner may revoke the invite between the lookup and this transaction.
+    if (
+      acceptError.code === "42501" &&
+      [
+        "Invitation not found",
+        "Invitation is no longer valid",
+        "Invitation is no longer pending",
+      ].includes(acceptError.message)
+    ) {
+      throw new Error(CO_CARE_INVITE_UNAVAILABLE_MESSAGE);
+    }
+    throw acceptError;
+  }
   if (!petId) throw new Error("Could not accept invitation");
 
   trackCoCareInviteAccepted();
 
-  const { data: accepter } = await supabase
-    .from("profiles")
-    .select("first_name, last_name")
-    .eq("id", userId)
-    .single();
+  // Membership has committed. Optional notification metadata must not turn
+  // successful acceptance into an error that encourages users to retry it.
+  try {
+    const [{ data: accepter }, { data: pet }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase
+        .from("pets")
+        .select("name")
+        .eq("id", petId)
+        .maybeSingle(),
+    ]);
 
-  const accepterName =
-    [accepter?.first_name, accepter?.last_name].filter(Boolean).join(" ") ||
-    "Someone";
+    const accepterName =
+      [accepter?.first_name, accepter?.last_name].filter(Boolean).join(" ") ||
+      "Someone";
 
-  const { data: pet } = await supabase
-    .from("pets")
-    .select("name")
-    .eq("id", invite.pet_id)
-    .single();
+    const { error } = await supabase.from("notifications").insert({
+      user_id: invite.invited_by,
+      type: "co_care_accepted",
+      title: "Invitation accepted",
+      body: `${accepterName} accepted your invitation to co-care for ${pet?.name ?? "your pet"}.`,
+      data: { pet_id: petId },
+    });
+    if (error) console.warn("[acceptInvite] acceptance notification failed", error);
+  } catch (error) {
+    console.warn("[acceptInvite] acceptance notification failed", error);
+  }
 
-  await supabase.from("notifications").insert({
-    user_id: invite.invited_by,
-    type: "co_care_accepted",
-    title: "Invitation accepted",
-    body: `${accepterName} accepted your invitation to co-care for ${pet?.name ?? "your pet"}.`,
-    data: { pet_id: invite.pet_id },
-  });
-
-  return { petId: invite.pet_id as string };
+  return { petId: petId as string };
 }
 
 export async function declineInvite(inviteId: string): Promise<void> {

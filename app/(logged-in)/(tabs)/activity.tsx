@@ -1,3 +1,4 @@
+import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import ScheduleDateSelector from "@/components/ui/schedule/ScheduleDateSelector";
 import ScheduleDaySkeleton from "@/components/ui/schedule/ScheduleDaySkeleton";
@@ -5,6 +6,7 @@ import SchedulePeriodSection from "@/components/ui/schedule/SchedulePeriodSectio
 import { Colors } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
+  useActivitiesOnDayQuery,
   usePetDetailsQuery,
   useUnreadNotificationCountQuery,
 } from "@/hooks/queries";
@@ -24,7 +26,8 @@ import { useSignupYmd } from "@/hooks/useSignupYmd";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { queryClient } from "@/lib/query/client";
 import type { PetScheduleItem } from "@/types/database";
-import { getLocalYmd } from "@/utils/localCalendarDate";
+import { selectedScheduleYmd } from "@/utils/scheduleDateRange";
+import { unlinkedActivitiesForScheduleDay } from "@/utils/pastScheduleActivities";
 import {
   periodForScheduledTime,
   SCHEDULE_PERIOD_LABELS,
@@ -33,7 +36,7 @@ import {
 } from "@/utils/schedulePeriods";
 import { dateLocaleFor } from "@/utils/userDateTimeFormat";
 import type { Href } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -65,20 +68,27 @@ export default function ScheduleScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
   const { dateDisplay } = useUserDateTimePrefs();
-  const todayYmd = useLocalCalendarYmd();
   const signupYmd = useSignupYmd();
-  const { data: unreadCount = 0, refetch: refetchUnreadCount } =
+  const { data: unreadCount = 0 } =
     useUnreadNotificationCountQuery();
 
-  const { activePetId, pets, petsLoaded, hasNoPets, switchPet } =
+  const { activePetId, livingPets, pets, petsLoaded, hasNoPets, switchPet } =
     useActivePet();
+  const careTimeZone = livingPets.find((p) => p.id === activePetId)?.care_time_zone;
+  const todayYmd = useLocalCalendarYmd(careTimeZone);
 
-  const [selectedYmd, setSelectedYmd] = useState(todayYmd);
-
-  useEffect(() => {
-    // Roll selected day forward if the device crosses midnight while parked on "today".
-    setSelectedYmd((prev) => (prev === getLocalYmd() ? todayYmd : prev));
+  const [pickedYmd, setPickedYmd] = useState<string | null>(null);
+  const selectedYmd = selectedScheduleYmd(pickedYmd, todayYmd, signupYmd);
+  const isPast = selectedYmd < todayYmd;
+  const selectDay = useCallback((ymd: string) => {
+    setPickedYmd(ymd === todayYmd ? null : ymd);
   }, [todayYmd]);
+  const {
+    data: pastActivities,
+    isPending: historyPending,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useActivitiesOnDayQuery(activePetId, isPast ? selectedYmd : null);
 
   const petIds = useMemo(() => pets.map((p) => p.id), [pets]);
   /** Switching pets should hit cache, not a fetch — keep the others warm. */
@@ -94,6 +104,10 @@ export default function ScheduleScreen() {
     isError: isScheduleError,
     refetch: refetchSchedule,
   } = useScheduleDayQuery(activePetId, selectedYmd);
+
+  const unlinkedActivities = useMemo(() => unlinkedActivitiesForScheduleDay(
+    pastActivities ?? [], scheduleItems ?? [], activePetId, selectedYmd,
+  ), [pastActivities, scheduleItems, activePetId, selectedYmd]);
 
   const toggleMutation = useToggleScheduleItemMutation();
   const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -166,40 +180,39 @@ export default function ScheduleScreen() {
     if (!activePetId) return;
     setPullRefreshing(true);
     try {
-      await refetchScheduleDayForced(activePetId, selectedYmd);
+      await Promise.all([
+        refetchScheduleDayForced(activePetId, selectedYmd),
+        ...(isPast ? [refetchHistory()] : []),
+      ]);
     } catch {
       /** The error state already covers this; a failed pull shouldn't crash. */
     } finally {
       setPullRefreshing(false);
     }
-  }, [activePetId, selectedYmd]);
+  }, [activePetId, selectedYmd, isPast, refetchHistory]);
 
   const petType = petDetails?.pet_type ?? null;
-  const hasAnyItems = (scheduleItems?.length ?? 0) > 0;
+  const hasAnyItems = (scheduleItems?.length ?? 0) > 0 || (isPast && unlinkedActivities.length > 0);
   /**
    * Chrome (title / pets / dates) always paints. Only the body waits on data.
    * Cached schedule rows show immediately; a background reconcile may follow.
    */
   const showContentLoading =
-    !scheduleItems &&
-    !isScheduleError &&
-    (!petsLoaded || !activePetId || isSchedulePending || isScheduleFetching);
+    (!scheduleItems && !isScheduleError &&
+      (!petsLoaded || !activePetId || isSchedulePending || isScheduleFetching)) ||
+    (isPast && !pastActivities && historyPending);
 
   /** Without this a failed fetch is indistinguishable from an empty day. */
-  const showError = !!activePetId && !scheduleItems && isScheduleError;
+  const showError = !!activePetId && ((!scheduleItems && isScheduleError) || (isPast && !pastActivities && historyError));
 
   return (
     <View style={styles.root}>
       <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerInner}>
           <View style={styles.headerTitles}>
-            {/* <Text style={styles.weekday} numberOfLines={1}>
-              {headerDate.weekday}
-            </Text>
-            <Text style={styles.dateLine} numberOfLines={1}>
-              {headerDate.dateLine}
-            </Text> */}
             <DashboardHeader
+              title={selectedYmd === todayYmd ? "Today’s care" : "Daily care"}
+              dateLabel={`${headerDate.weekday}, ${headerDate.dateLine}`}
               pets={pets}
               activePetId={activePetId}
               onSwitchPet={switchPet}
@@ -211,17 +224,11 @@ export default function ScheduleScreen() {
             />
           </View>
 
-          {/* <PetPillSwitcher
-            pets={pets}
-            activePetId={activePetId}
-            onSwitchPet={switchPet}
-          /> */}
-
           <ScheduleDateSelector
             selectedYmd={selectedYmd}
             todayYmd={todayYmd}
             signupYmd={signupYmd}
-            onSelectYmd={setSelectedYmd}
+            onSelectYmd={selectDay}
           />
         </View>
       </View>
@@ -257,7 +264,7 @@ export default function ScheduleScreen() {
             <Text
               style={styles.retryText}
               accessibilityRole="button"
-              onPress={() => void refetchSchedule()}
+              onPress={() => { void refetchSchedule(); if (isPast) void refetchHistory(); }}
             >
               Tap to try again
             </Text>
@@ -265,8 +272,9 @@ export default function ScheduleScreen() {
         ) : !hasAnyItems ? (
           <View style={styles.emptyBlock}>
             <Text style={styles.emptyText}>
-              Nothing scheduled for this day. Add meals, medications, or
-              activities on your pet&apos;s profile.
+              {isPast
+                ? "No saved schedule or logged activities for this date."
+                : "Nothing scheduled for this day. Add meals, medications, or activities on your pet’s profile."}
             </Text>
           </View>
         ) : (
@@ -283,6 +291,18 @@ export default function ScheduleScreen() {
                 onEdit={handleEdit}
               />
             ))}
+            {isPast && unlinkedActivities.length > 0 ? (
+              <ActivityFeed
+                title="Logged activities"
+                activities={unlinkedActivities}
+                petType={petType}
+                showLogActivity={false}
+                animationKey={scheduleAnimationKey}
+                onSeeAllPress={() => {
+                  if (activePetId) push(`/(logged-in)/pet/${activePetId}/activity-log` as Href);
+                }}
+              />
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -297,7 +317,7 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     backgroundColor: Colors.cream,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
     borderBottomColor: Colors.creamDark,
   },
   headerInner: {

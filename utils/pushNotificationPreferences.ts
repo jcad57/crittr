@@ -9,6 +9,7 @@ export type NotificationCategoryPrefs = {
   notify_co_care_activities: boolean;
   notify_medications: boolean;
   notify_vet_visits: boolean;
+  notify_vaccinations: boolean;
 };
 
 export const NOTIFICATION_PREF_KEYS = [
@@ -16,6 +17,7 @@ export const NOTIFICATION_PREF_KEYS = [
   "notify_co_care_activities",
   "notify_medications",
   "notify_vet_visits",
+  "notify_vaccinations",
 ] as const satisfies readonly (keyof NotificationCategoryPrefs)[];
 
 export type NotificationPrefColumnKey = (typeof NOTIFICATION_PREF_KEYS)[number];
@@ -56,9 +58,11 @@ export function mergeNotificationColumnsPreferLiveCache(
 ): Profile {
   if (!liveCache) return serverRow;
   const out: Profile = { ...serverRow };
+  const livePrefs = notificationPrefsFromProfile(liveCache);
+  const serverPrefs = notificationPrefsFromProfile(serverRow);
   for (const k of NOTIFICATION_PREF_KEYS) {
-    const lc = coerceNotificationPrefColumn(liveCache[k]);
-    const sr = coerceNotificationPrefColumn(serverRow[k]);
+    const lc = livePrefs[k];
+    const sr = serverPrefs[k];
     if (lc !== sr) {
       (out as Record<NotificationPrefColumnKey, boolean>)[k] = lc;
     }
@@ -72,6 +76,7 @@ export function defaultNotificationCategoryPrefs(): NotificationCategoryPrefs {
     notify_co_care_activities: true,
     notify_medications: true,
     notify_vet_visits: true,
+    notify_vaccinations: true,
   };
 }
 
@@ -85,7 +90,34 @@ export function notificationPrefsFromProfile(
     notify_co_care_activities: p.notify_co_care_activities !== false,
     notify_medications: p.notify_medications !== false,
     notify_vet_visits: p.notify_vet_visits !== false,
+    notify_vaccinations: p.notify_vaccinations == null
+      ? !(p.notify_meals_treats === false && p.notify_co_care_activities === false && p.notify_medications === false && p.notify_vet_visits === false)
+      : p.notify_vaccinations !== false,
   };
+}
+
+/** Recheck queued/foreground alerts against the current account and preferences. */
+export function shouldPresentNotification(
+  data: Record<string, unknown>,
+  userId: string | undefined,
+  profile: Profile | null | undefined,
+): boolean {
+  if (!userId || profile?.id !== userId) return false;
+  if (typeof data.recipient_user_id === "string" && data.recipient_user_id !== userId) return false;
+  const prefs = notificationPrefsFromProfile(profile);
+  switch (data.type) {
+    case "care_task_due": {
+      const category = data.category;
+      return typeof category === "string" && NOTIFICATION_PREF_KEYS.includes(category as NotificationPrefColumnKey)
+        && prefs[category as NotificationPrefColumnKey];
+    }
+    case "meal_reminder":
+    case "treat_reminder": return prefs.notify_meals_treats;
+    case "medication_reminder": return prefs.notify_medications;
+    case "vet_reminder": return prefs.notify_vet_visits;
+    case "vaccination_reminder": return prefs.notify_vaccinations;
+    default: return prefs.notify_co_care_activities;
+  }
 }
 
 export async function hasShownPostOnboardingPushPrompt(): Promise<boolean> {

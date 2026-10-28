@@ -16,7 +16,10 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { queryClient } from "@/lib/query/client";
-import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
+import {
+  CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE,
+  CO_CARE_INVITE_UNAVAILABLE_MESSAGE,
+} from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import type { AppNotification } from "@/types/database";
 import { Image } from "expo-image";
@@ -132,10 +135,14 @@ export default function NotificationsScreen() {
         },
         onError: (err) => {
           const msg = err.message ?? "Could not accept invite.";
+          const unavailable = msg === CO_CARE_INVITE_UNAVAILABLE_MESSAGE;
+          if (unavailable && !n.read) markRead.mutate(n.id);
           Alert.alert(
-            msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
-              ? "Crittr Pro required"
-              : "Error",
+            unavailable
+              ? "Invitation unavailable"
+              : msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
+                ? "Crittr Pro required"
+                : "Error",
             msg,
           );
         },

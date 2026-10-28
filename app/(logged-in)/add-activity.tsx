@@ -1,3 +1,4 @@
+import { activityTypeFromParam, canMatchSchedule, pendingScheduleMatches } from "@/utils/activityEntry";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetailStepRef";
 import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSwitch";
@@ -61,29 +62,13 @@ import { styles } from "@/screen-styles/add-activity.styles";
 const SAVE_LABEL = "Save";
 const CONTINUE_LABEL = "Continue";
 
-/** Categories that may have matching schedule slots for the day. */
-const SCHEDULE_MATCH_TYPES = new Set<ActivityType>([
-  "exercise",
-  "food",
-  "medication",
-  "potty",
-]);
-
-/** Deep-link from screens like weight history that skip the type picker. */
-function lockedActivityTypeFromParam(
-  raw: string | string[] | undefined,
-): ActivityType | null {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === "weigh_in" ? "weigh_in" : null;
-}
-
 export default function AddActivityScreen() {
   const router = useRouter();
   const { type: typeParam, petId: rawPetIdParam } = useLocalSearchParams<{
     type?: string;
     petId?: string;
   }>();
-  const lockedType = lockedActivityTypeFromParam(typeParam);
+  const lockedType = activityTypeFromParam(typeParam);
   const petIdParam = Array.isArray(rawPetIdParam)
     ? rawPetIdParam[0]
     : rawPetIdParam;
@@ -92,6 +77,7 @@ export default function AddActivityScreen() {
   const scrollInsetBottom = useFloatingNavScrollInset();
   const scrollRef = useRef<KeyboardAwareScrollViewRef | null>(null);
   const stepRef = useRef<ActivityDetailStepRef | null>(null);
+  const initialMatchHandled = useRef(false);
   /** Covers network save + interstitial so Save stays locked after mutations settle. */
   const [isCompleting, setIsCompleting] = useState(false);
   const [matchModalVisible, setMatchModalVisible] = useState(false);
@@ -130,7 +116,6 @@ export default function AddActivityScreen() {
   const setActivePetMutation = useSetActivePetMutation();
   const { data: allPets } = usePetsQuery();
   const canShowAds = useCanShowAds();
-  const todayYmd = useLocalCalendarYmd();
 
   const resolvedPetId = useMemo(() => {
     if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
@@ -146,13 +131,14 @@ export default function AddActivityScreen() {
     if (!resolvedPetId || !(allPets ?? []).length) return null;
     return (allPets ?? []).find((p) => p.id === resolvedPetId) ?? null;
   }, [resolvedPetId, allPets]);
+  const todayYmd = useLocalCalendarYmd(primaryPetForLog?.care_time_zone);
 
   const canLogActivities = useCanPerformAction(
     resolvedPetId,
     "can_log_activities",
   );
 
-  const { data: scheduleItems } = useScheduleDayQuery(resolvedPetId, todayYmd);
+  const { data: scheduleItems, isPending: schedulePending } = useScheduleDayQuery(resolvedPetId, todayYmd);
   const toggleScheduleItem = useToggleScheduleItemMutation();
 
   const exerciseMut = useLogExerciseMutation();
@@ -168,6 +154,7 @@ export default function AddActivityScreen() {
   const scrollKey = `${step}-${effectiveType ?? "none"}`;
 
   useLayoutEffect(() => {
+    initialMatchHandled.current = false;
     reset();
     if (lockedType) {
       selectType(lockedType);
@@ -263,9 +250,7 @@ export default function AddActivityScreen() {
 
   const uncompletedScheduleForType = useCallback(
     (type: ActivityType): PetScheduleItem[] => {
-      return (scheduleItems ?? []).filter(
-        (item) => !item.completed_at && item.activity_type === type,
-      );
+      return pendingScheduleMatches(type, scheduleItems);
     },
     [scheduleItems],
   );
@@ -273,7 +258,7 @@ export default function AddActivityScreen() {
   const handleContinueFromType = useCallback(() => {
     if (!activityType || isCompleting) return;
 
-    if (SCHEDULE_MATCH_TYPES.has(activityType)) {
+    if (canMatchSchedule(activityType)) {
       const matches = uncompletedScheduleForType(activityType);
       if (matches.length > 0) {
         setMatchModalItems(matches);
@@ -290,6 +275,13 @@ export default function AddActivityScreen() {
     uncompletedScheduleForType,
     proceedToDetails,
   ]);
+
+  useEffect(() => {
+    if (!lockedType || !canMatchSchedule(lockedType) || initialMatchHandled.current ||
+        schedulePending || activityType !== lockedType || canLogActivities !== true) return;
+    initialMatchHandled.current = true;
+    handleContinueFromType();
+  }, [lockedType, schedulePending, activityType, canLogActivities, handleContinueFromType]);
 
   const closeMatchModal = useCallback(() => {
     if (completingMatchId || isCompleting) return;
@@ -328,12 +320,15 @@ export default function AddActivityScreen() {
   );
 
   const runSaveThenFinish = useCallback(
-    async (persist: () => Promise<void>) => {
+    async (persist: () => Promise<void | boolean>) => {
       if (isCompleting) return;
       setIsCompleting(true);
       try {
         // Persist first so closing the app during the ad cannot lose the log.
-        await persist();
+        if ((await persist()) === false) {
+          setIsCompleting(false);
+          return;
+        }
         await finish();
       } catch (error) {
         setIsCompleting(false);
@@ -452,10 +447,11 @@ export default function AddActivityScreen() {
       const loggedAtIso =
         useActivityFormStore.getState().activityOccurredAt?.toISOString() ??
         new Date().toISOString();
-      await weighInMut.mutateAsync({
+      const activity = await weighInMut.mutateAsync({
         form: weighInForm,
         loggedAtIso,
       });
+      return activity !== null;
     });
   }, [weighInMut, weighInForm, resolvedPetId, runSaveThenFinish]);
 
@@ -492,7 +488,7 @@ export default function AddActivityScreen() {
     );
   }
 
-  if (resolvedPetId && canLogActivities === undefined) {
+  if (resolvedPetId && (canLogActivities === undefined || (lockedType && canMatchSchedule(lockedType) && schedulePending))) {
     return (
       <View
         style={[styles.screen, styles.centeredFull, { paddingTop: insets.top }]}

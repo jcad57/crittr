@@ -25,6 +25,8 @@ import {
 import { logoutRevenueCatUser } from "@/lib/iap/revenueCat";
 import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/query/client";
+import { unregisterExpoPushToken } from "@/services/pushTokens";
+import { cancelCrittrScheduledNotifications } from "@/services/reminderNotificationSchedule";
 import {
   purgePersistedQueryCache,
   startQueryCachePersistence,
@@ -215,7 +217,8 @@ async function completeNativeSocialSession(
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  const clearAuxiliarySessionState = () => {
+  const clearAuxiliarySessionState = (preserveReminderUserId?: string) => {
+    void cancelCrittrScheduledNotifications(preserveReminderUserId).catch((error) => console.warn("[notifications] clear schedule", error));
     advanceSessionGeneration();
     hydrateInFlight = null;
     syncSessionFromSupabaseInFlight = null;
@@ -573,7 +576,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
 
       if (prev.session?.user.id !== session.user.id) {
-        clearAuxiliarySessionState();
+        clearAuxiliarySessionState(session.user.id);
         set({ ...loggedOutState, session });
       }
       const generation = sessionGeneration();
@@ -697,12 +700,20 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     signOut: () => {
       if (logoutInFlight) return logoutInFlight;
+      const previousUserId = get().session?.user.id;
       clearAuxiliarySessionState();
       set(loggedOutState);
       dashboardReadyWait = Promise.resolve();
       // Reset the desired native identity immediately; do not wait for an open store sheet.
       void logoutRevenueCatUser();
       const task = (async () => {
+        if (previousUserId) {
+          try {
+            await withTimeout(unregisterExpoPushToken(previousUserId), 4000, "Unregister notifications");
+          } catch (error) {
+            console.warn("[notifications] could not unregister this device", error);
+          }
+        }
         await wipeSupabaseAuthFromDevice();
         const { signOutGoogleSdk } = await import("@/lib/auth/googleOAuth");
         await signOutGoogleSdk();

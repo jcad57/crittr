@@ -527,11 +527,14 @@ async function runEntitlementSync(
 }
 
 async function lookupAuthUser(): Promise<{ id: string } | null> {
+  const generation = sessionGeneration();
   const result = await withTimeout(
     supabase.auth.getUser(),
     AUTH_LOOKUP_TIMEOUT_MS,
   );
-  return result?.data.user ?? null;
+  return generation === sessionGeneration()
+    ? (result?.data.user ?? null)
+    : null;
 }
 
 function sleep(ms: number): Promise<void> {

@@ -40,6 +40,10 @@ export function getExpectedDosesForLocalDate(
 ): number {
   if (!isMedicationDueOnLocalDate(m, localYmd)) return 0;
 
+  return Math.max(medicationDoseCount(m), getMedicationReminderTimes(m).length);
+}
+
+function medicationDoseCount(m: PetMedication): number {
   const n = m.doses_per_period;
   if (n != null && n > 0) {
     return Math.min(8, Math.max(1, Math.floor(n)));
@@ -118,6 +122,18 @@ function defaultReminderTimesForDoseCount(count: number): string[] {
     out.push(`${String(hour).padStart(2, "0")}:00`);
   }
   return out;
+}
+
+/** Shared by the visible schedule and device reminders, including legacy rows. */
+export function medicationScheduleTimes(med: PetMedication): string[] {
+  const times = getMedicationReminderTimes(med);
+  const expected = Math.max(medicationDoseCount(med), times.length);
+  if (times.length === 0) return defaultReminderTimesForDoseCount(expected);
+  for (const time of defaultReminderTimesForDoseCount(expected)) {
+    if (times.length >= expected) break;
+    if (!times.includes(time)) times.push(time);
+  }
+  return times.slice(0, expected);
 }
 
 /**
@@ -285,26 +301,13 @@ export function buildPlannedScheduleForDay(
   }
 
   // ── Medications ──────────────────────────────────────────────────────────
-  for (const med of details.medications) {
+  for (const rawMed of details.medications) {
+    const med = details.care_time_zone ? { ...rawMed, created_at: getLocalYmd(new Date(rawMed.created_at), details.care_time_zone) } : rawMed;
     if (!isMedicationDueOnLocalDate(med, localYmd)) continue;
     const expected = getExpectedDosesForLocalDate(med, localYmd);
     if (expected <= 0) continue;
 
-    let times = getMedicationReminderTimes(med);
-    if (times.length === 0) {
-      times = defaultReminderTimesForDoseCount(expected);
-    }
-    // If reminder count < expected doses, pad; if more, trim to expected.
-    if (times.length < expected) {
-      const pad = defaultReminderTimesForDoseCount(expected);
-      for (const t of pad) {
-        if (times.length >= expected) break;
-        if (!times.includes(t)) times.push(t);
-      }
-      times = times.slice(0, expected);
-    } else if (times.length > expected) {
-      times = times.slice(0, expected);
-    }
+    const times = medicationScheduleTimes(med);
 
     for (const hhmm of times) {
       const { hour, minute } = parseScheduleTime(hhmm);
@@ -402,9 +405,12 @@ export function buildPlannedScheduleForDay(
   // ── Vet visits on this local day ─────────────────────────────────────────
   for (const visit of vetVisits) {
     const visitDate = new Date(visit.visit_at);
-    if (getLocalYmd(visitDate) !== localYmd) continue;
-    const hour = visitDate.getHours();
-    const minute = visitDate.getMinutes();
+    if (getLocalYmd(visitDate, details.care_time_zone) !== localYmd) continue;
+    const clockParts = details.care_time_zone ? new Intl.DateTimeFormat("en-US", {
+      timeZone: details.care_time_zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(visitDate) : null;
+    const hour = clockParts ? Number(clockParts.find((p) => p.type === "hour")?.value) : visitDate.getHours();
+    const minute = clockParts ? Number(clockParts.find((p) => p.type === "minute")?.value) : visitDate.getMinutes();
     items.push({
       pet_id: petId,
       local_date: localYmd,

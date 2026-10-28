@@ -3,6 +3,7 @@ import {
   getExerciseActivityIcon,
   getMealsActivityIcon,
 } from "@/constants/activityTypeProgressIcons";
+import { Font } from "@/theme/typography";
 import { Colors } from "@/theme/colors";
 import type { ActivityType } from "@/types/database";
 import { Image } from "expo-image";
@@ -94,6 +95,8 @@ type Props = {
   petType: string | null | undefined;
   selected: ActivityType | null;
   onSelect: (type: ActivityType) => void;
+  showTitle?: boolean;
+  disabled?: boolean;
 };
 
 const GRID_ICON_SIZE = 28;
@@ -102,12 +105,14 @@ export default function ActivityTypeStep({
   petType,
   selected,
   onSelect,
+  showTitle = true,
+  disabled = false,
 }: Props) {
   const options = useMemo(() => optionsForPetType(petType), [petType]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What type of activity are you logging?</Text>
+      {showTitle ? <Text style={styles.title}>What type of activity are you logging?</Text> : null}
 
       <View style={styles.grid}>
         {options.map((opt) => {
@@ -115,6 +120,10 @@ export default function ActivityTypeStep({
           return (
             <Pressable
               key={opt.type}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityLabel={opt.label}
+              accessibilityState={{ selected: isActive, disabled }}
               style={[
                 styles.card,
                 isActive && { borderColor: opt.color, borderWidth: 2 },
@@ -146,7 +155,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   title: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiBold,
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: "center",
@@ -160,10 +169,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "47%",
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.warmWhite,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: Colors.creamDark,
     paddingVertical: 20,
     alignItems: "center",
     gap: 10,
@@ -180,7 +189,7 @@ const styles = StyleSheet.create({
     height: GRID_ICON_SIZE,
   },
   cardLabel: {
-    fontFamily: "InstrumentSans-SemiBold",
+    fontFamily: Font.uiBold,
     fontSize: 14,
     color: Colors.textPrimary,
   },

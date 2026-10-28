@@ -10,6 +10,6 @@ module.exports = defineConfig([
     rules: Object.fromEntries(['refs','set-state-in-effect','preserve-manual-memoization','immutability','purity']
       .map(name => ['react-hooks/' + name, 'warn'])),
   },
-  { files: ['scripts/**/*.js','plugins/**/*.js','tests/**/*.cjs'], languageOptions: { globals: { __dirname: 'readonly', module: 'readonly', require: 'readonly', process: 'readonly', console: 'readonly' } } },
+  { files: ['scripts/**/*.{js,cjs}','plugins/**/*.js','tests/**/*.cjs'], languageOptions: { globals: { __dirname: 'readonly', module: 'readonly', require: 'readonly', process: 'readonly', console: 'readonly' } } },
   { files: ['supabase/functions/**/*.ts'], rules: { 'import/no-unresolved': ['error', { ignore: ['^https://', '^jsr:'] }] } },
 ]);

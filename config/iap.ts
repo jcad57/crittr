@@ -4,7 +4,8 @@
  *
  * - Entitlement id: `crittr_pro` (single entitlement granted by both monthly
  *   and annual subscription products). Must match
- *   `supabase/functions/_shared/revenueCatEntitlement.ts`.
+ *   `supabase/functions/_shared/revenueCatEntitlement.ts`. Existing grants to
+ *   the exact legacy id `Crittr Pro` are also honored; use `crittr_pro` for new grants.
  * - Offering id:    `default`    (the RC offering surfaced as `current` to the
  *   client, holds Monthly + Annual `PurchasesPackage` entries).
  * - Package types use the predefined RC `MONTHLY` / `ANNUAL` identifiers so we

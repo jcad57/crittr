@@ -29,7 +29,7 @@ export default function HealthActionBanner({
   return (
     <View style={styles.banner}>
       <View style={styles.iconCircle}>
-        <MaterialCommunityIcons name="alert" size={26} color={Colors.white} />
+        <MaterialCommunityIcons name="alert-circle-outline" size={26} color={Colors.peachDark} />
       </View>
       <View style={styles.mid}>
         <Text style={styles.title}>{title}</Text>
@@ -60,17 +60,17 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.profileHeroDark,
-    borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    gap: 12,
+    backgroundColor: Colors.peach,
+    borderRadius: 24,
+    paddingVertical: 17,
+    paddingHorizontal: 15,
+    gap: 10,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
+    width: 30,
+    height: 40,
     borderRadius: 24,
-    backgroundColor: Colors.orange,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -80,27 +80,29 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    fontFamily: Font.uiBold,
-    fontSize: 15,
-    color: Colors.white,
+    fontFamily: Font.displayBold,
+    fontSize: 17,
+    color: Colors.textPrimary,
   },
   sub: {
     fontFamily: Font.uiRegular,
     fontSize: 13,
-    color: "rgba(255,255,255,0.72)",
+    color: Colors.peachDark,
     lineHeight: 18,
   },
   /** Keeps layout stable when swapping label for spinner. */
   markDoneSlot: {
     minWidth: 76,
-    minHeight: 22,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: Colors.warmWhite,
   },
   markDone: {
     fontFamily: Font.uiSemiBold,
-    fontSize: 14,
-    color: Colors.orange,
+    fontSize: 12,
+    color: Colors.peachDark,
   },
   markDoneDisabled: {
     opacity: 0.45,

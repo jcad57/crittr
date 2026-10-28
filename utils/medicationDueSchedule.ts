@@ -54,6 +54,7 @@ function daysBetween(a: Date, b: Date): number {
 export function medicationScheduleAnchor(m: PetMedication): Date {
   const last = lastGivenYmd(m);
   if (last) return startOfDay(parseYmdToLocalDate(last));
+  if (m.next_due_date) return startOfDay(parseYmdToLocalDate(m.next_due_date));
   return startOfDay(parseYmdToLocalDate(m.created_at));
 }
 

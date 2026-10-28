@@ -12,15 +12,15 @@ export default function HealthListCard({ children }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.warmWhite,
+    borderRadius: 22,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
+    borderColor: Colors.creamDark,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 0,
   },
 });

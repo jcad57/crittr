@@ -1,529 +1,94 @@
-import {
-  DEFAULT_ANDROID_CHANNEL_ID,
-  getNotificationPermissionStatus,
-} from "@/lib/pushNotifications";
-import {
-  dueSoonScheduleKind,
-  enumerateUpcomingMedicationDueDates,
-} from "@/utils/medicationDueSchedule";
-import { getMedicationReminderTimes } from "@/utils/medicationReminderTimes";
-import { dailyProgressExerciseTarget } from "@/utils/exercisePlans";
-import {
-  dailyProgressFoodTarget,
-  isTreatFood,
-  portionsForPetFood,
-} from "@/utils/petFood";
+import { getNotificationPermissionStatus } from "@/lib/pushNotifications";
 import { sessionGeneration } from "@/lib/sessionGeneration";
 import { supabase } from "@/lib/supabase";
-import { fetchAccessiblePets, fetchPetsWithDetails } from "@/services/pets";
-import { fetchTodayActivitiesForPetIds } from "@/services/activities";
-import type {
-  PetFood,
-  PetMedication,
-  PetVetVisit,
-  PetWithDetails,
-} from "@/types/database";
+import { queryClient } from "@/lib/query/client";
 import type { NotificationCategoryPrefs } from "@/utils/pushNotificationPreferences";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 export const CRITTR_NOTIF_ID_PREFIX = "crittr-";
-
-type ScheduleRequest = Parameters<
-  typeof Notifications.scheduleNotificationAsync
->[0];
-type Schedule = (request: ScheduleRequest) => Promise<string>;
-let scheduleRevision = 0;
-let mutations = Promise.resolve();
-function serialize(action: () => Promise<void>): Promise<void> {
-  const task = mutations.then(action, action);
-  mutations = task.catch(() => {});
-  return task;
+type ReminderScheduleStatus = { userId: string; enabled: boolean; timeZone: string | null; missingOwnerTimeZones: number; error: string | null };
+let scheduleStatus: ReminderScheduleStatus | null = null;
+let revision = 0;
+let cancellations = Promise.resolve();
+const listeners = new Set<() => void>();
+export function getReminderScheduleStatus() { return scheduleStatus; }
+export function subscribeReminderScheduleStatus(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
 }
-const MEAL_AFTER_MIN = 5;
-const MED_BEFORE_MIN = 5;
-const VET_BEFORE_MS = 60 * 60 * 1000;
-const ACTIVITY_NUDGE_HOUR = 15;
-const ACTIVITY_NUDGE_MINUTE = 0;
-
-function parsePgTimeToHourMinute(t: string): { hour: number; minute: number } {
-  const parts = t.trim().split(":");
-  const h = parseInt(parts[0] ?? "0", 10);
-  const m = parseInt(parts[1] ?? "0", 10);
-  return {
-    hour: Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 0,
-    minute: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0,
-  };
+function publish(status: ReminderScheduleStatus) {
+  scheduleStatus = status;
+  listeners.forEach((listener) => listener());
+}
+export function reportReminderSetupFailure(userId: string, error: unknown) {
+  publish({ userId, enabled: false, timeZone: scheduleStatus?.userId === userId ? scheduleStatus.timeZone : null,
+    missingOwnerTimeZones: scheduleStatus?.userId === userId ? scheduleStatus.missingOwnerTimeZones : 0,
+    error: error instanceof Error ? error.message : "Notification setup failed. Refresh setup to retry." });
 }
 
-function addMinutes(
-  hour: number,
-  minute: number,
-  delta: number,
-): { hour: number; minute: number } {
-  let total = hour * 60 + minute + delta;
-  total = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  return { hour: Math.floor(total / 60), minute: total % 60 };
+/** Keep one stable care zone for the owner, even if a second device is traveling. */
+export async function initializeCareTimeZone(userId: string): Promise<void> {
+  const generation = sessionGeneration();
+  const { data, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (generation !== sessionGeneration() || data.session?.user.id !== userId) return;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { data: changed, error } = await supabase.rpc("initialize_care_time_zone", { p_time_zone: timeZone });
+  if (error) throw error;
+  if (changed === true && generation === sessionGeneration()) {
+    void queryClient.invalidateQueries({ queryKey: ["pets"] });
+    void queryClient.invalidateQueries({ queryKey: ["petDetails"] });
+  }
 }
 
-function parseReminderHHmm(
-  raw: string | null | undefined,
-): { hour: number; minute: number } | null {
-  if (!raw?.trim()) return null;
-  const s = raw.trim();
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
-  if (!m) return null;
-  const h = parseInt(m[1]!, 10);
-  const min = parseInt(m[2]!, 10);
-  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
-  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
-  return { hour: h, minute: min };
+/** Serial cancellation fences sign-out/account switching and never removes other apps' requests. */
+export function cancelCrittrScheduledNotifications(preserveUserId?: string): Promise<void> {
+  ++revision;
+  return cancelInstalledCrittrNotifications(preserveUserId);
 }
-
-function formatLocalYmd(d: Date): string {
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, "0");
-  const da = String(d.getDate()).padStart(2, "0");
-  return `${y}-${mo}-${da}`;
-}
-
-export async function cancelCrittrScheduledNotifications(): Promise<void> {
-  ++scheduleRevision;
-  if (Platform.OS === "web") return;
-  await serialize(async () => {
-    const all = await Notifications.getAllScheduledNotificationsAsync();
-    await Promise.all(
-      all
-        .filter((n) => n.identifier.startsWith(CRITTR_NOTIF_ID_PREFIX))
-        .map((n) =>
-          Notifications.cancelScheduledNotificationAsync(n.identifier),
-        ),
-    );
+function cancelInstalledCrittrNotifications(preserveUserId?: string): Promise<void> {
+  if (Platform.OS === "web") return Promise.resolve();
+  const work = cancellations.then(async () => {
+    const installed = await Notifications.getAllScheduledNotificationsAsync();
+    for (const request of installed) {
+      if (request.identifier.startsWith(CRITTR_NOTIF_ID_PREFIX) &&
+          (!preserveUserId || !request.identifier.startsWith(`${CRITTR_NOTIF_ID_PREFIX}${preserveUserId}-`))) {
+        await Notifications.cancelScheduledNotificationAsync(request.identifier);
+      }
+    }
   });
-}
-
-function petExerciseIncomplete(
-  detail: PetWithDetails,
-  todayActs: { pet_id: string; activity_type: string }[],
-): boolean {
-  if (detail.is_memorialized) return false;
-  const target = dailyProgressExerciseTarget(detail);
-  if (target <= 0) return false;
-  const done = todayActs.filter(
-    (a) => a.pet_id === detail.id && a.activity_type === "exercise",
-  ).length;
-  return done < target;
+  cancellations = work.catch(() => {});
+  return work;
 }
 
 /**
- * One gentle daily nudge per pet after the latest configured feed/treat time
- * (avoids one notification per portion / per missing serving).
+ * Task reminders are now scheduled by the server in the owner's care time zone.
+ * Existing callers still refresh setup after permission/pref/task changes.
+ * Native repeating alarms must be removed before this device opts into server delivery.
  */
-async function scheduleConsolidatedFeedingReminder(
-  petName: string,
-  petId: string,
-  foods: PetFood[],
-  schedule: Schedule,
-): Promise<void> {
-  type Slot = { hour: number; minute: number; isTreat: boolean };
-  const slots: Slot[] = [];
-
-  for (const food of foods) {
-    const portions = portionsForPetFood(food);
-    const treat = isTreatFood(food);
-    if (portions.length > 0) {
-      for (const portion of portions) {
-        const { hour, minute } = parsePgTimeToHourMinute(portion.feed_time);
-        const { hour: h, minute: m } = addMinutes(hour, minute, MEAL_AFTER_MIN);
-        slots.push({ hour: h, minute: m, isTreat: treat });
-      }
-    } else if (treat && dailyProgressFoodTarget(food) > 0) {
-      slots.push({ hour: 20, minute: 0, isTreat: true });
-    }
-  }
-
-  if (slots.length === 0) return;
-
-  let bestSlot = slots[0]!;
-  let bestT = -1;
-  for (const s of slots) {
-    const t = s.hour * 60 + s.minute;
-    if (t >= bestT) {
-      bestSlot = s;
-      bestT = t;
-    }
-  }
-
-  const hasTreat = slots.some((s) => s.isTreat);
-  const hasMeal = slots.some((s) => !s.isTreat);
-  const title =
-    hasTreat && hasMeal
-      ? "Meal & treat reminder"
-      : hasTreat
-        ? "Treat reminder"
-        : "Meal reminder";
-
-  await schedule({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}meals-${petId}`,
-    content: {
-      title,
-      body: `${petName}: gentle reminder to log today's meals and treats if you haven't yet.`,
-      data: {
-        type: "meal_reminder",
-        petId,
-        href: `/(logged-in)/add-activity`,
-      },
-      ...(Platform.OS === "android"
-        ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-        : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: bestSlot.hour,
-      minute: bestSlot.minute,
-    },
-  });
-}
-
-function formatMedicationBatchReminderBody(
-  petName: string,
-  medNames: string[],
-): string {
-  const sorted = [...medNames].sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
-  let namesPart: string;
-  if (sorted.length === 1) {
-    namesPart = sorted[0]!;
-  } else if (sorted.length === 2) {
-    namesPart = `${sorted[0]!} and ${sorted[1]!}`;
-  } else {
-    const last = sorted[sorted.length - 1]!;
-    namesPart = `${sorted.slice(0, -1).join(", ")}, and ${last}`;
-  }
-  const doseWord = sorted.length === 1 ? "dose" : "doses";
-  return `${petName}: time to give ${namesPart} (${doseWord} due in about ${MED_BEFORE_MIN} minutes).`;
-}
-
-type SlotMed = { medicationId: string; name: string };
-
-function mergeUniqueSlotMeds(list: SlotMed[], addition: SlotMed): SlotMed[] {
-  if (list.some((x) => x.medicationId === addition.medicationId)) return list;
-  return [...list, addition];
-}
-
-/**
- * Daily meds: one notification per reminder time (multiple meds at the same time batched).
- * Interval meds (weekly/monthly/custom): DATE triggers only on scheduled due days.
- */
-async function scheduleMedicationsForPet(
-  petName: string,
-  petId: string,
-  medications: PetMedication[],
-  schedule: Schedule,
-): Promise<void> {
-  const dailyByTrigger = new Map<string, SlotMed[]>();
-  const dateByKey = new Map<string, { fireAt: Date; slotMeds: SlotMed[] }>();
-  const nowMs = Date.now();
-
-  for (const med of medications) {
-    const slots = getMedicationReminderTimes(med);
-    if (slots.length === 0) continue;
-
-    const medName = med.name.trim() || "medication";
-    const slotMed: SlotMed = { medicationId: med.id, name: medName };
-    const isDaily = dueSoonScheduleKind(med) === "daily";
-
-    for (const slot of slots) {
-      const t = parseReminderHHmm(slot);
-      if (!t) continue;
-      const { hour: h, minute: m } = addMinutes(
-        t.hour,
-        t.minute,
-        -MED_BEFORE_MIN,
-      );
-      const triggerKey = `${h}-${m}`;
-
-      if (isDaily) {
-        const list = dailyByTrigger.get(triggerKey) ?? [];
-        dailyByTrigger.set(triggerKey, mergeUniqueSlotMeds(list, slotMed));
-      } else {
-        const dueDays = enumerateUpcomingMedicationDueDates(med);
-        for (const dueDay of dueDays) {
-          const ymd = formatLocalYmd(dueDay);
-          const mergeKey = `${ymd}|${triggerKey}`;
-          const fireAt = new Date(dueDay);
-          fireAt.setHours(h, m, 0, 0);
-          if (fireAt.getTime() <= nowMs) continue;
-
-          const prev = dateByKey.get(mergeKey);
-          if (prev) {
-            dateByKey.set(mergeKey, {
-              fireAt: prev.fireAt,
-              slotMeds: mergeUniqueSlotMeds(prev.slotMeds, slotMed),
-            });
-          } else {
-            dateByKey.set(mergeKey, {
-              fireAt,
-              slotMeds: mergeUniqueSlotMeds([], slotMed),
-            });
-          }
-        }
-      }
-    }
-  }
-
-  for (const [triggerKey, slotMeds] of dailyByTrigger) {
-    if (slotMeds.length === 0) continue;
-    const [hStr, mStr] = triggerKey.split("-");
-    const h = parseInt(hStr!, 10);
-    const m = parseInt(mStr!, 10);
-    const ids = slotMeds.map((x) => x.medicationId).sort();
-    const medHref =
-      ids.length === 1
-        ? `/(logged-in)/pet/${petId}/medications/${ids[0]}`
-        : `/(logged-in)/pet/${petId}/medications`;
-    await schedule({
-      identifier: `${CRITTR_NOTIF_ID_PREFIX}med-${petId}-${h}-${m}`,
-      content: {
-        title: "Medication reminder",
-        body: formatMedicationBatchReminderBody(
-          petName,
-          slotMeds.map((x) => x.name),
-        ),
-        data: {
-          type: "medication_reminder",
-          petId,
-          medicationIds: ids,
-          href: medHref,
-          ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
-        },
-        ...(Platform.OS === "android"
-          ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-          : {}),
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: h,
-        minute: m,
-      },
-    });
-  }
-
-  for (const [mergeKey, { fireAt, slotMeds }] of dateByKey) {
-    if (slotMeds.length === 0) continue;
-    const ids = slotMeds.map((x) => x.medicationId).sort();
-    const safeId = mergeKey.replace(/\|/g, "--");
-    const medHref =
-      ids.length === 1
-        ? `/(logged-in)/pet/${petId}/medications/${ids[0]}`
-        : `/(logged-in)/pet/${petId}/medications`;
-    await schedule({
-      identifier: `${CRITTR_NOTIF_ID_PREFIX}med-date-${petId}-${safeId}`,
-      content: {
-        title: "Medication reminder",
-        body: formatMedicationBatchReminderBody(
-          petName,
-          slotMeds.map((x) => x.name),
-        ),
-        data: {
-          type: "medication_reminder",
-          petId,
-          medicationIds: ids,
-          href: medHref,
-          ...(ids.length === 1 ? { medicationId: ids[0]! } : {}),
-        },
-        ...(Platform.OS === "android"
-          ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-          : {}),
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: fireAt,
-      },
-    });
-  }
-}
-
-async function scheduleVetVisit(
-  petName: string,
-  visit: PetVetVisit,
-  schedule: Schedule,
-): Promise<void> {
-  const at = new Date(visit.visit_at).getTime();
-  const fireAt = at - VET_BEFORE_MS;
-  if (fireAt <= Date.now()) return;
-  await schedule({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}vet-${visit.id}`,
-    content: {
-      title: "Vet visit coming up",
-      body: `${petName}: ${visit.title.trim() || "Vet visit"} in about an hour.`,
-      data: {
-        type: "vet_reminder",
-        petId: visit.pet_id,
-        visitId: visit.id,
-        href: `/(logged-in)/pet/${visit.pet_id}/vet-visits/${visit.id}`,
-      },
-      ...(Platform.OS === "android"
-        ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-        : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: new Date(fireAt),
-    },
-  });
-}
-
-async function scheduleActivityNudge(
-  petNames: string[],
-  schedule: Schedule,
-): Promise<void> {
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(ACTIVITY_NUDGE_HOUR, ACTIVITY_NUDGE_MINUTE, 0, 0);
-  if (now.getTime() >= target.getTime()) return;
-
-  const names =
-    petNames.length <= 2
-      ? petNames.join(" and ")
-      : `${petNames.slice(0, 2).join(", ")} and others`;
-
-  await schedule({
-    identifier: `${CRITTR_NOTIF_ID_PREFIX}activity-nudge`,
-    content: {
-      title: "Activity check-in",
-      body: `You still have exercise goals to log today for ${names}.`,
-      data: {
-        type: "activity_nudge",
-        href: "/(logged-in)/add-activity",
-      },
-      ...(Platform.OS === "android"
-        ? { sound: "default", channelId: DEFAULT_ANDROID_CHANNEL_ID }
-        : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: target,
-    },
-  });
-}
-
-async function fetchUpcomingVetVisits(
-  petIds: string[],
-): Promise<PetVetVisit[]> {
-  if (petIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("pet_vet_visits")
-    .select("*")
-    .in("pet_id", petIds)
-    .gte("visit_at", new Date().toISOString())
-    .order("visit_at", { ascending: true });
-
-  if (error) {
+export async function syncCrittrReminderNotifications(userId: string, _prefs?: NotificationCategoryPrefs): Promise<void> {
+  const request = ++revision, generation = sessionGeneration();
+  const current = () => request === revision && generation === sessionGeneration();
+  try {
+    await initializeCareTimeZone(userId);
+    if (!current()) return;
+    const { data, error } = await supabase.rpc("care_reminder_status");
+    if (error) throw error;
+    if (!current()) return;
+    const status = data as { enabled?: boolean; time_zone?: string | null; missing_owner_time_zones?: number } | null;
+    if (!status?.enabled) throw new Error("Server care reminders are awaiting activation. Update notification setup after the server rollout.");
+    const permission = Platform.OS === "web" ? "granted" : await getNotificationPermissionStatus();
+    if (!current()) return;
+    // All future care reminders are remote. This also removes old consolidated
+    // feeding alerts and generic nudges, so the two pipelines cannot both fire.
+    await cancelInstalledCrittrNotifications();
+    if (!current()) return;
+    publish({ userId, enabled: permission === Notifications.PermissionStatus.GRANTED,
+      timeZone: status.time_zone ?? null, missingOwnerTimeZones: status.missing_owner_time_zones ?? 0, error: null });
+  } catch (error) {
+    if (current()) publish({ userId, enabled: false, timeZone: null, missingOwnerTimeZones: 0,
+      error: error instanceof Error ? error.message : "Reminder setup failed. Refresh setup to retry." });
     throw error;
   }
-  return (data ?? []) as PetVetVisit[];
-}
-
-/**
- * Rebuilds all Crittr local notifications from Supabase data + profile prefs.
- * Call after login, foreground, prefs change, or when calendar day may have changed.
- */
-export async function syncCrittrReminderNotifications(
-  userId: string,
-  prefs: NotificationCategoryPrefs,
-): Promise<void> {
-  if (Platform.OS === "web") return;
-
-  const revision = ++scheduleRevision,
-    generation = sessionGeneration();
-  const current = () =>
-    revision === scheduleRevision && generation === sessionGeneration();
-  const plan: ScheduleRequest[] = [];
-  const schedule: Schedule = async (request) => {
-    plan.push(request);
-    return request.identifier ?? "";
-  };
-
-  const perm = await getNotificationPermissionStatus();
-  if (perm !== Notifications.PermissionStatus.GRANTED) return;
-
-  const pets = await fetchAccessiblePets(userId);
-  const activePets = pets.filter((p) => !p.is_memorialized);
-
-  const petIds = activePets.map((p) => p.id);
-  const [detailsList, todayActs] = await Promise.all([
-    fetchPetsWithDetails(petIds),
-    fetchTodayActivitiesForPetIds(petIds),
-  ]);
-
-  // Fetch every input before changing the installed schedule.
-  const visits = prefs.notify_vet_visits
-    ? await fetchUpcomingVetVisits(petIds)
-    : [];
-  if (!current()) return;
-
-  if (prefs.notify_meals_treats) {
-    for (const d of detailsList) {
-      await scheduleConsolidatedFeedingReminder(
-        d.name,
-        d.id,
-        d.foods,
-        schedule,
-      );
-    }
-  }
-
-  if (prefs.notify_medications) {
-    for (const d of detailsList) {
-      await scheduleMedicationsForPet(d.name, d.id, d.medications, schedule);
-    }
-  }
-
-  if (prefs.notify_vet_visits) {
-    const petNameById = new Map(detailsList.map((p) => [p.id, p.name]));
-    for (const v of visits) {
-      await scheduleVetVisit(
-        petNameById.get(v.pet_id) ?? "Your pet",
-        v,
-        schedule,
-      );
-    }
-  }
-
-  if (prefs.notify_co_care_activities) {
-    const incomplete = detailsList.filter((d) =>
-      petExerciseIncomplete(d, todayActs),
-    );
-    if (incomplete.length > 0) {
-      await scheduleActivityNudge(
-        incomplete.map((p) => p.name),
-        schedule,
-      );
-    }
-  }
-  await serialize(async () => {
-    if (!current()) return;
-    const installed = await Notifications.getAllScheduledNotificationsAsync();
-    const wanted = new Set<string>();
-    for (const request of plan) {
-      if (!current()) return;
-      const identifier = `${CRITTR_NOTIF_ID_PREFIX}${userId}-${request.identifier?.slice(CRITTR_NOTIF_ID_PREFIX.length)}`;
-      wanted.add(identifier);
-      await Notifications.scheduleNotificationAsync({ ...request, identifier });
-    }
-    if (!current()) return;
-    // Stable identifiers replace matching reminders; obsolete ones are removed only after success.
-    for (const previous of installed) {
-      if (!current()) return;
-      if (
-        previous.identifier.startsWith(CRITTR_NOTIF_ID_PREFIX) &&
-        !wanted.has(previous.identifier)
-      )
-        await Notifications.cancelScheduledNotificationAsync(
-          previous.identifier,
-        );
-    }
-  });
 }

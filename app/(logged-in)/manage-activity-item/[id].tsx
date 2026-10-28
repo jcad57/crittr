@@ -249,12 +249,12 @@ export default function ManageActivityItemScreen() {
     if (!activityId) return;
     const loggedAtIso =
       useActivityFormStore.getState().activityOccurredAt?.toISOString();
-    await updateWeighIn.mutateAsync({
+    const activity = await updateWeighIn.mutateAsync({
       activityId,
       form: weighInForm,
       loggedAtIso,
     });
-    finish();
+    if (activity) finish();
   }, [activityId, updateWeighIn, weighInForm, finish]);
 
   const goBack = useCallback(() => {

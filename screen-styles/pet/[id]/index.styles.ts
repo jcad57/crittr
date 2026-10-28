@@ -1,5 +1,5 @@
 import { Colors } from "@/theme/colors";
-import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
+import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -52,15 +52,17 @@ export const styles = StyleSheet.create({
   },
 
   detailsCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.warmWhite,
+    borderRadius: 22,
     paddingHorizontal: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: Colors.creamDark,
   },
   infoRow: {
     flexDirection: "row",

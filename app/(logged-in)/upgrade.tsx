@@ -51,13 +51,26 @@ export default function UpgradeScreen() {
   const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
   const insets = useSafeAreaInsets();
   const { height: windowH } = useWindowDimensions();
-  const [billing, setBilling] = useState<BillingPeriod>("annual");
   const [activatingExisting, setActivatingExisting] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const params = useLocalSearchParams<{
     fromOnboarding?: string;
     returnTo?: string;
+    billing?: string;
+    source?: string;
   }>();
+  const [billingChoice, setBillingChoice] = useState<{
+    requested: string | undefined;
+    value: BillingPeriod;
+  } | null>(null);
+  const billing: BillingPeriod =
+    billingChoice && billingChoice.requested === params.billing
+      ? billingChoice.value
+      : params.billing === "monthly"
+        ? "monthly"
+        : "annual";
+  const setBilling = (value: BillingPeriod) =>
+    setBillingChoice({ requested: params.billing, value });
   const fromOnboarding =
     params.fromOnboarding === "1" || params.fromOnboarding === "true";
 
@@ -67,7 +80,12 @@ export default function UpgradeScreen() {
   useEffect(() => {
     trackPaywallViewed({
       billing,
-      source: fromOnboarding ? "onboarding" : params.returnTo || "upgrade",
+      source:
+        params.source === "website"
+          ? "website"
+          : fromOnboarding
+            ? "onboarding"
+            : params.returnTo || "upgrade",
     });
     // Paywall impression is once per visit, not per billing toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps

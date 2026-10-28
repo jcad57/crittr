@@ -1,4 +1,5 @@
 import { getDailyProgressRingIcons } from "@/constants/activityTypeProgressIcons";
+import { DASHBOARD_PROGRESS_COLORS, DASHBOARD_PROGRESS_TRACK } from "@/theme/dashboardProgressColors";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { DailyProgressCategory } from "@/types/ui";
@@ -35,17 +36,23 @@ export default function DailyProgress({
   return (
     <View style={styles.row}>
       {categories.map((cat) => {
+        const notTracked = cat.total <= 0;
         const progress = cat.total > 0 ? cat.current / cat.total : 0;
         const iconSource = ringIcons[cat.id];
         const targetMet = cat.total > 0 && cat.current >= cat.total;
-        const ringColor = allComplete
+        const ringColor = allComplete && !notTracked
           ? Colors.progressCompleteRing
-          : cat.ringColor;
-        const trackColor = allComplete
+          : DASHBOARD_PROGRESS_COLORS[cat.id] ?? cat.ringColor;
+        const trackColor = allComplete && !notTracked
           ? Colors.progressCompleteTrack
-          : cat.trackColor;
+          : DASHBOARD_PROGRESS_TRACK;
         return (
-          <View key={cat.id} style={styles.item}>
+          <View
+            key={cat.id}
+            style={[styles.item, notTracked && styles.itemNotTracked]}
+            accessible={notTracked}
+            accessibilityLabel={notTracked ? `${cat.label}, not tracked` : undefined}
+          >
             <ProgressRing
               size={RING_SIZE}
               strokeWidth={STROKE_WIDTH}
@@ -61,7 +68,7 @@ export default function DailyProgress({
             <Text
               style={[
                 styles.label,
-                allComplete && styles.labelAllComplete,
+                allComplete && !notTracked && styles.labelAllComplete,
               ]}
             >
               {cat.label}
@@ -69,7 +76,7 @@ export default function DailyProgress({
             <Text
               style={[
                 styles.fraction,
-                allComplete
+                allComplete && !notTracked
                   ? styles.fractionAllComplete
                   : targetMet
                     ? styles.fractionComplete
@@ -94,6 +101,9 @@ const styles = StyleSheet.create({
   item: {
     alignItems: "center",
     gap: 6,
+  },
+  itemNotTracked: {
+    opacity: 0.42,
   },
   icon: {
     width: 26,

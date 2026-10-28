@@ -7,9 +7,11 @@ function loadTS(relative, dependencies = {}, extras = {}) {
   const code = ts.transpileModule(
     fs.readFileSync(path.join(process.cwd(), relative), "utf8"),
     {
+      fileName: relative,
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
         target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.ReactJSX,
       },
     },
   ).outputText;

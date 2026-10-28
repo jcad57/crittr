@@ -74,6 +74,8 @@ export type Profile = {
   notify_co_care_activities?: boolean;
   notify_medications?: boolean;
   notify_vet_visits?: boolean;
+  notify_vaccinations?: boolean;
+  care_time_zone?: string | null;
   /** Clock style in lists, pickers, and labels: `12h` (default) or `24h`. */
   time_display_format?: "12h" | "24h";
   /** Calendar ordering in UI: `mdy` (MM/DD, default) vs `dmy` (DD/MM). */
@@ -92,6 +94,8 @@ export type Profile = {
 export type Pet = {
   id: string;
   owner_id: string;
+  /** Owner's saved care zone, projected by the database for shared schedules. */
+  care_time_zone?: string | null;
   pet_type: PetType | null;
   name: string;
   breed: string | null;

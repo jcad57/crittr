@@ -1,7 +1,10 @@
 import { Colors } from "@/theme/colors";
 import type { VetVisitSummary } from "@/types/ui";
 import type { PetVetVisit } from "@/types/database";
-import type { UserDateDisplay, UserTimeDisplay } from "@/utils/userDateTimeFormat";
+import type {
+  UserDateDisplay,
+  UserTimeDisplay,
+} from "@/utils/userDateTimeFormat";
 import { dateLocaleFor, formatUserTime } from "@/utils/userDateTimeFormat";
 
 /** True when the visit is today or in the future (local calendar). */
@@ -31,6 +34,7 @@ export function mapPetVetVisitToDashboard(
   return {
     id: row.id,
     title: row.title,
+    dayLabel: String(d.getDate()).padStart(2, "0"),
     date: dateStr,
     time: timeStr,
     accentColor: Colors.lavenderDark,

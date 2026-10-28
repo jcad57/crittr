@@ -11,16 +11,6 @@ import { ensureAppRatingFirstOpenRecorded } from "@/lib/appRatingPersistence";
 import { setupAppResumeHandler } from "@/lib/appResumeHandler";
 import { useAuthStore } from "@/stores/authStore";
 import * as WebBrowser from "expo-web-browser";
-import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_600SemiBold,
-  DMSans_700Bold,
-} from "@expo-google-fonts/dm-sans";
-import {
-  Fraunces_600SemiBold,
-  Fraunces_700Bold,
-} from "@expo-google-fonts/fraunces";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Slot, SplashScreen } from "expo-router";
@@ -32,15 +22,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function SessionGate() {
   const isAuthLoading = useAuthStore((s) => s.isLoading);
   const initialize = useAuthStore((s) => s.initialize);
-  const [fontsLoaded, fontError] = useFonts({
-    ...FONT_FACES,
-    Fraunces_600SemiBold,
-    Fraunces_700Bold,
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_600SemiBold,
-    DMSans_700Bold,
-  });
+  const [fontsLoaded, fontError] = useFonts(FONT_FACES);
   const initializationError = useAuthStore((s) => s.initializationError);
   useEffect(() => {
     void initialize();

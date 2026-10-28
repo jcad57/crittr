@@ -91,14 +91,16 @@ export default function RecordsNavCard({ items }: RecordsNavCardProps) {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.warmWhite,
+    borderRadius: 22,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: Colors.creamDark,
   },
   row: {
     flexDirection: "row",
@@ -130,7 +132,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },

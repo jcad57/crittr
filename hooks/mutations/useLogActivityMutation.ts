@@ -29,6 +29,7 @@ import type {
   WeighInActivityFormData,
 } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
+import { saveWithWeighInConfirmation } from "./confirmWeighInReplacement";
 
 function invalidateLoggedActivityCaches(petId: string) {
   void queryClient.invalidateQueries({
@@ -208,12 +209,15 @@ export function useLogWeighInMutation(petId: string | null) {
       loggedAtIso: string;
     }) => {
       if (!petId || !userId) throw new Error("Missing pet or user");
-      return logWeighIn(petId, userId, payload.form, {
-        loggedAt: payload.loggedAtIso,
-      });
+      return saveWithWeighInConfirmation((replaceExisting) =>
+        logWeighIn(petId, userId, payload.form, {
+          loggedAt: payload.loggedAtIso,
+          replaceExisting,
+        }),
+      );
     },
-    onSuccess: () => {
-      if (petId) {
+    onSuccess: (activity) => {
+      if (petId && activity) {
         invalidateLoggedActivityCaches(petId);
         invalidateWeightCaches(petId, userId);
       }

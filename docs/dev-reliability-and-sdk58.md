@@ -57,8 +57,12 @@ Use Node 24 (`nvm use`; supported even-numbered Node versions are declared in pa
 npm ci
 npx expo prebuild --platform ios --no-install
 pod install --project-directory=ios
-npx expo run:ios
+npm run ios -- --device "iPhone 17 Pro"
 ```
+
+Use `npm run ios` for simulator builds. The simulator launcher builds with Expo's supported `--device generic` path, then installs that `.app` with `--binary` onto the chosen simulator. This avoids Expo's developer-certificate preflight for the Apple sign-in entitlement. Simulator ad-hoc signing and the app's Apple sign-in configuration are retained. A real phone still uses normal signing via `npm run ios:device`.
+
+You can select a simulator by name or UUID: `npm run ios -- --device <UUID>`. Without `--device`, the first available booted iOS simulator is used. After the first build, `npm run ios -- --no-build` reopens the existing build faster; rebuild whenever native dependencies or configuration change. Add `--no-bundler` when reusing Metro already running on port 8081. The literal `simulator` is not a destination accepted by raw `npx expo run:ios`; the project launcher accepts it as an alias for its default selection.
 
 For testing, keep Metro running with `npx expo start --dev-client`. Press Shift+M and choose Device Hub, or open `http://localhost:8081/_expo/plugins/expo-device-hub`. `npm run devicehub` also starts the Hub CLI. Rebuild native clients after SDK/native dependency changes. Both Apple Device Hub and Expo Device Hub recognize the iOS27 device.
 

@@ -19,13 +19,15 @@ type PetStatChipsProps = {
 export default function PetStatChips({ items }: PetStatChipsProps) {
   return (
     <View style={styles.row}>
-      {items.map((item) => {
+      {items.map((item, index) => {
+        const tone = [Colors.sage, Colors.lavenderLight, Colors.peach][index % 3];
+        const ink = [Colors.sageDark, Colors.lavenderDark, Colors.peachDark][index % 3];
         const inner = (
           <>
             <MaterialCommunityIcons
               name={item.icon}
               size={18}
-              color={Colors.orange}
+              color={ink}
               style={styles.icon}
             />
             <Text style={styles.value} numberOfLines={1}>
@@ -41,6 +43,7 @@ export default function PetStatChips({ items }: PetStatChipsProps) {
               key={item.label}
               style={({ pressed }) => [
                 styles.chip,
+                { backgroundColor: tone },
                 styles.chipTappable,
                 pressed && styles.chipPressed,
               ]}
@@ -54,7 +57,7 @@ export default function PetStatChips({ items }: PetStatChipsProps) {
         }
 
         return (
-          <View key={item.label} style={styles.chip}>
+          <View key={item.label} style={[styles.chip, { backgroundColor: tone }]}>
             {inner}
           </View>
         );
@@ -71,15 +74,15 @@ const styles = StyleSheet.create({
   chip: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: 22,
+    paddingVertical: 15,
     paddingHorizontal: 10,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 0,
   },
   chipTappable: {
     borderWidth: 1,
@@ -94,7 +97,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontFamily: Font.displaySemiBold,
-    fontSize: 15,
+    fontSize: 19,
     color: Colors.textPrimary,
     textAlign: "center",
     marginBottom: 2,

@@ -68,7 +68,7 @@ export default function PetPillSwitcher({
                 <MaterialCommunityIcons
                   name="paw"
                   size={16}
-                  color={isActive ? Colors.white : Colors.gray500}
+                  color={isActive ? Colors.peachDark : Colors.gray500}
                 />
               )}
             </View>
@@ -103,16 +103,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 6,
     paddingRight: 14,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.warmWhite,
     borderWidth: 1,
-    borderColor: Colors.gray300,
+    borderColor: Colors.creamDark,
     maxWidth: 200,
   },
   petPillActive: {
-    backgroundColor: Colors.orange,
-    borderColor: Colors.orange,
+    backgroundColor: Colors.peach,
+    borderColor: "#F4B98C",
   },
   pillAvatar: {
     width: AVATAR_IN_PILL,
@@ -137,6 +137,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   petPillLabelActive: {
-    color: Colors.white,
+    color: Colors.peachDark,
   },
 });

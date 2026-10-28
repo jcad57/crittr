@@ -2,9 +2,10 @@
  * push-co-carer-activity
  *
  * After a co-carer logs an activity, the client invokes this with `{ activity_id }`.
- * Verifies the JWT matches `pet_activities.logged_by`, then sends Expo push notifications
- * to the pet owner and other co-carers who have `notify_co_care_activities` enabled and
- * a row in `user_expo_push_tokens`.
+ * Verifies the JWT matches `pet_activities.logged_by`, then wakes the durable
+ * delivery queue for that activity. Database triggers choose recipients and
+ * enqueue one job per registered device; the shared worker checks preferences,
+ * access, tickets and receipts. Cron handles retries after the app closes.
  *
  * In-app notification rows are created by the DB trigger `notify_co_carers_on_activity_insert`;
  * this function covers the app-killed / no-Realtime case.
@@ -17,6 +18,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { processPushDeliveries } from "../_shared/processPushDeliveries.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -31,16 +33,6 @@ type ActivityRow = {
   label: string | null;
   vet_visit_id: string | null;
 };
-
-function buildBody(
-  actorName: string,
-  petName: string,
-  act: ActivityRow,
-): string {
-  const title = (act.label ?? "").trim();
-  const base = `${actorName} logged an activity for ${petName}`;
-  return title ? `${base}: ${title}` : base;
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -137,135 +129,11 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { data: pet, error: petErr } = await admin
-    .from("pets")
-    .select("id, name, owner_id")
-    .eq("id", row.pet_id)
-    .maybeSingle();
-
-  if (petErr || !pet?.owner_id) {
-    return new Response(JSON.stringify({ error: "Pet not found" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  try {
+    const result = await processPushDeliveries(admin, row.id, Deno.env.get("EXPO_ACCESS_TOKEN"));
+    return Response.json({ ok: true, ...result }, { headers: corsHeaders });
+  } catch (error) {
+    console.error("[push-co-carer-activity] delivery deferred", error instanceof Error ? error.message : "Unknown error");
+    return Response.json({ error: "Delivery queued for retry" }, { status: 503, headers: corsHeaders });
   }
-
-  const petName = (pet.name as string)?.trim() || "your pet";
-  const ownerId = pet.owner_id as string;
-
-  const { data: actorProfile } = await admin
-    .from("profiles")
-    .select("first_name, last_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const actorName =
-    [actorProfile?.first_name, actorProfile?.last_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || "Someone";
-
-  const title = "Activity logged";
-  const msgBody = buildBody(actorName, petName, row);
-  const href = `/(logged-in)/manage-activity-item/${row.id}`;
-
-  const recipientIds = new Set<string>();
-
-  if (ownerId !== user.id) {
-    const { data: op } = await admin
-      .from("profiles")
-      .select("id, notify_co_care_activities")
-      .eq("id", ownerId)
-      .maybeSingle();
-    if (op && (op.notify_co_care_activities !== false)) {
-      recipientIds.add(ownerId);
-    }
-  }
-
-  const { data: coCarers } = await admin
-    .from("pet_co_carers")
-    .select("user_id")
-    .eq("pet_id", row.pet_id);
-
-  for (const cc of coCarers ?? []) {
-    const uid = cc.user_id as string;
-    if (uid === user.id) continue;
-    const { data: pr } = await admin
-      .from("profiles")
-      .select("notify_co_care_activities")
-      .eq("id", uid)
-      .maybeSingle();
-    if (pr && (pr.notify_co_care_activities !== false)) {
-      recipientIds.add(uid);
-    }
-  }
-
-  if (recipientIds.size === 0) {
-    return new Response(JSON.stringify({ ok: true, sent: 0 }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const { data: tokenRows } = await admin
-    .from("user_expo_push_tokens")
-    .select("user_id, expo_push_token")
-    .in("user_id", [...recipientIds]);
-
-  const messages: Record<string, unknown>[] = [];
-  for (const t of tokenRows ?? []) {
-    const token = (t as { expo_push_token: string }).expo_push_token?.trim();
-    if (!token) continue;
-    messages.push({
-      to: token,
-      title,
-      body: msgBody,
-      data: {
-        href,
-        pet_id: row.pet_id,
-        activity_id: row.id,
-        type: "co_carer_activity_logged",
-      },
-      sound: "default",
-      channelId: "default",
-      priority: "high",
-    });
-  }
-
-  if (messages.length === 0) {
-    return new Response(JSON.stringify({ ok: true, sent: 0 }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Accept-Encoding": "gzip, deflate",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(messages),
-  });
-
-  if (!pushRes.ok) {
-    const txt = await pushRes.text();
-    console.error("[push-co-carer-activity] Expo error", pushRes.status, txt);
-    return new Response(
-      JSON.stringify({ error: "Push provider error", detail: txt.slice(0, 200) }),
-      {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  return new Response(
-    JSON.stringify({ ok: true, sent: messages.length }),
-    {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    },
-  );
 });

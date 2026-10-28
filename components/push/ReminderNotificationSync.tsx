@@ -6,6 +6,8 @@ import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useAuthStore } from "@/stores/authStore";
 import { notificationPrefsFromProfile } from "@/utils/pushNotificationPreferences";
+import { queryClient } from "@/lib/query/client";
+import * as Network from "expo-network";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 
@@ -25,16 +27,11 @@ export default function ReminderNotificationSync() {
   const localYmd = useLocalCalendarYmd();
   const appStateRef = useRef(AppState.currentState);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncRequestRef = useRef(0);
 
   const prefs = useMemo(
-    () => (profile ? notificationPrefsFromProfile(profile) : null),
-    [
-      profile?.notify_meals_treats,
-      profile?.notify_co_care_activities,
-      profile?.notify_medications,
-      profile?.notify_vet_visits,
-      profile?.id,
-    ],
+    () => (profile?.id === userId ? notificationPrefsFromProfile(profile) : null),
+    [profile, userId],
   );
 
   const requestSync = useCallback(
@@ -43,18 +40,28 @@ export default function ReminderNotificationSync() {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      debounceTimerRef.current = setTimeout(() => {
+      const request = ++syncRequestRef.current;
+      let retries = 0;
+      const sync = async () => {
         debounceTimerRef.current = null;
-        void syncCrittrReminderNotifications(userId, prefs).catch((e) => {
-          if (__DEV__) console.warn(`[ReminderNotificationSync] ${label}`, e);
-        });
-      }, label === "prefs/day" ? 2000 : SYNC_DEBOUNCE_MS);
+        try {
+          await syncCrittrReminderNotifications(userId, prefs);
+        } catch (error) {
+          console.warn(`[ReminderNotificationSync] ${label}`, error);
+          if (request === syncRequestRef.current && retries < 3) {
+            debounceTimerRef.current = setTimeout(() => void sync(), 2000 * 2 ** retries++);
+          }
+        }
+      };
+      debounceTimerRef.current = setTimeout(() => void sync(), label === "prefs/day" ? 2000 : SYNC_DEBOUNCE_MS);
     },
     [userId, prefs],
   );
 
   useEffect(() => {
+    const requests = syncRequestRef;
     return () => {
+      ++requests.current;
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
@@ -75,6 +82,17 @@ export default function ReminderNotificationSync() {
   useEffect(() => {
     requestSync("prefs/day");
   }, [requestSync, localYmd]);
+
+  useEffect(() => {
+    const network = Network.addNetworkStateListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) requestSync("reconnect");
+    });
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.action.type !== "invalidate") return;
+      if (["pets", "petDetails", "todayActivities", "petVetVisits", "healthSnapshot"].includes(String(event.query.queryKey[0]))) requestSync("pet data");
+    });
+    return () => { network.remove(); unsubscribe(); };
+  }, [requestSync]);
 
   useEffect(() => {
     if (Platform.OS === "web" || !userId || !prefs) return;

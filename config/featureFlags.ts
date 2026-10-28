@@ -12,3 +12,6 @@
  * nested screens.
  */
 export const PET_NAV_AVATAR_PET_SWITCH_ENABLED = false;
+
+/** Pause every ad format and ad consent prompt while retaining the integration. */
+export const ADS_ENABLED = false;

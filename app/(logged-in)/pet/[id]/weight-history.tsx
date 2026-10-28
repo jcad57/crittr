@@ -48,7 +48,7 @@ export default function WeightHistoryScreen() {
     error,
   } = usePetWeightEntriesQuery(petId ?? null);
 
-  const [range, setRange] = useState<WeightHistoryRange>("3M");
+  const [range, setRange] = useState<WeightHistoryRange>("ALL");
 
   const unit = useMemo(
     () => preferredUnit(entries, details?.weight_unit ?? null),

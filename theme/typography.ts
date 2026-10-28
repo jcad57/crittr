@@ -7,17 +7,17 @@ export const MAIN_SCREEN_TITLE_SIZE = 28;
 export const MANAGE_SCREEN_TITLE_SIZE = 20;
 
 export const Font = {
-  // Display (Fraunces)
-  displaySemiBold: "Fraunces_600SemiBold",
-  displayBold: "Fraunces_700Bold",
-  // UI body (DM Sans) — used by main logged-in screens
-  uiRegular: "DMSans_400Regular",
-  uiMedium: "DMSans_500Medium",
-  uiSemiBold: "DMSans_600SemiBold",
-  uiBold: "DMSans_700Bold",
-  // Instrument Sans — used by onboarding, activity steps, nav, and card components
-  isRegular: "InstrumentSans-Regular",
-  isMedium: "InstrumentSans-Medium",
-  isSemiBold: "InstrumentSans-SemiBold",
-  isBold: "InstrumentSans-Bold",
+  // Display — the website uses Fredoka at medium / semibold weights
+  displaySemiBold: "Fredoka-Medium",
+  displayBold: "Fredoka-SemiBold",
+  // UI body — Nunito, matching the website
+  uiRegular: "Nunito-Regular",
+  uiMedium: "Nunito-Medium",
+  uiSemiBold: "Nunito-SemiBold",
+  uiBold: "Nunito-Bold",
+  // Compatibility keys for onboarding, activity steps, navigation and cards
+  isRegular: "Nunito-Regular",
+  isMedium: "Nunito-Medium",
+  isSemiBold: "Nunito-SemiBold",
+  isBold: "Nunito-Bold",
 } as const;

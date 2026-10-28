@@ -18,5 +18,5 @@ export function requestRemoteCoCarerActivityPush(activityId: string): void {
       if (error && __DEV__) {
         console.warn("[push-co-carer-activity]", error.message);
       }
-    });
+    }).catch((error) => console.warn("[push-co-carer-activity] immediate delivery deferred", error));
 }

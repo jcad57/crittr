@@ -34,23 +34,17 @@ function summarizeTrusted(
   payload: RcSubscriberPayload,
   allowSandbox: boolean,
 ): EntitlementSummary {
-  const verdict = evaluateEntitlement(payload);
+  const verdict = evaluateEntitlement(payload, Date.now(), { allowSandbox });
   if (verdict.kind === "unknown")
     throw new Error("Invalid RevenueCat response");
   if (verdict.kind !== "active") return empty();
   const summary = verdict.summary;
-  const sub = Object.entries(payload.subscriber.subscriptions ?? {}).find(
-    ([id]) =>
-      id === summary.productIdentifier ||
-      id.split(":")[0] === summary.productIdentifier?.split(":")[0],
-  )?.[1];
-  if (sub?.is_sandbox === true && !allowSandbox) return empty();
   return {
     isActive: true,
     crittrProUntil: summary.expiresAt,
     productIdentifier: summary.productIdentifier,
     store: summary.store,
-    environment: sub?.is_sandbox
+    environment: summary.isSandbox
       ? "sandbox"
       : summary.store === "promotional"
         ? "promotional"

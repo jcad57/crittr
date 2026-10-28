@@ -240,4 +240,187 @@ describe("evaluateEntitlement", () => {
     assert.equal(summary.isActive, true);
     assert.equal(summary.willRenew, false);
   });
+
+  it("honors legacy lifetime grants alongside expired canonical purchases", () => {
+    const result = evaluateEntitlement(
+      payload({
+        entitlements: {
+          crittr_pro: {
+            expires_date: past,
+            product_identifier: "monthly",
+            purchase_date: past,
+          },
+          "Crittr Pro": {
+            expires_date: null,
+            product_identifier: "rc_promo_legacy_lifetime",
+            purchase_date: past,
+          },
+        },
+      }),
+      now,
+    );
+    assert.equal(result.kind, "active");
+    if (result.kind === "active") {
+      assert.equal(result.summary.expiresAt, null);
+      assert.equal(result.summary.store, "promotional");
+    }
+  });
+
+  it("selects lifetime over an active monthly entitlement", () => {
+    const result = evaluateEntitlement(
+      payload({
+        entitlements: {
+          crittr_pro: {
+            expires_date: future,
+            product_identifier: "monthly",
+            purchase_date: past,
+          },
+          "Crittr Pro": {
+            expires_date: null,
+            product_identifier: "rc_promo_legacy_lifetime",
+            purchase_date: past,
+          },
+        },
+      }),
+      now,
+    );
+    assert.equal(result.kind, "active");
+    if (result.kind === "active") assert.equal(result.summary.expiresAt, null);
+  });
+
+  it("never treats a promotional transaction as recurring or sandbox-only access", () => {
+    const data = payload({
+      entitlements: {
+        crittr_pro: {
+          expires_date: future,
+          product_identifier: "rc_promo_monthly",
+          purchase_date: past,
+        },
+      },
+      subscriptions: {
+        rc_promo_monthly: {
+          expires_date: future,
+          store: "promotional",
+          is_sandbox: true,
+        },
+      },
+    });
+    const result = evaluateEntitlement(data, now, { allowSandbox: false });
+    assert.equal(result.kind, "active");
+    if (result.kind === "active") {
+      assert.equal(result.summary.willRenew, false);
+      assert.equal(result.summary.isSandbox, false);
+    }
+  });
+
+  it("keeps access through billing grace, then expires it", () => {
+    const data = payload({
+      entitlements: {
+        crittr_pro: {
+          expires_date: past,
+          product_identifier: "monthly",
+          purchase_date: past,
+        },
+      },
+      subscriptions: {
+        monthly: {
+          expires_date: past,
+          store: "app_store",
+          grace_period_expires_date: future,
+          billing_issues_detected_at: past,
+        },
+      },
+    });
+    const result = evaluateEntitlement(data, now);
+    assert.equal(result.kind, "active");
+    if (result.kind === "active") {
+      assert.equal(result.summary.expiresAt, future);
+      assert.equal(result.summary.willRenew, false);
+    }
+    assert.equal(
+      evaluateEntitlement(data, Date.parse(future)).kind,
+      "confirmed_inactive",
+    );
+  });
+
+  it("matches the current Google Play base plan rather than a refunded old plan", () => {
+    const result = evaluateEntitlement(
+      payload({
+        entitlements: {
+          crittr_pro: {
+            expires_date: future,
+            product_identifier: "pro",
+            purchase_date: past,
+          },
+        },
+        subscriptions: {
+          "pro:old": {
+            expires_date: past,
+            store: "play_store",
+            refunded_at: past,
+          },
+          "pro:annual": { expires_date: future, store: "play_store" },
+        },
+      }),
+      now,
+    );
+    assert.equal(result.kind, "active");
+    if (result.kind === "active")
+      assert.equal(result.summary.store, "play_store");
+  });
+
+  it("checks sandbox eligibility for one-time lifetime purchases", () => {
+    const data = payload({
+      entitlements: {
+        crittr_pro: {
+          expires_date: null,
+          product_identifier: "lifetime",
+          purchase_date: past,
+        },
+      },
+    });
+    data.subscriber.non_subscriptions = {
+      lifetime: [{ store: "app_store", is_sandbox: true, purchase_date: past }],
+    };
+    assert.equal(
+      evaluateEntitlement(data, now, { allowSandbox: false }).kind,
+      "confirmed_inactive",
+    );
+    const result = evaluateEntitlement(data, now, { allowSandbox: true });
+    assert.equal(result.kind, "active");
+    if (result.kind === "active") {
+      assert.equal(result.summary.store, "app_store");
+      assert.equal(result.summary.willRenew, false);
+    }
+  });
+
+  it("preserves the last verification for malformed provider responses", () => {
+    for (const entitlements of [
+      undefined,
+      [],
+      "invalid",
+      { crittr_pro: {} },
+      { crittr_pro: { product_identifier: "pro", expires_date: "invalid" } },
+    ]) {
+      const data = {
+        subscriber: { entitlements, subscriptions: {} },
+      } as unknown as RcSubscriberPayload;
+      assert.equal(evaluateEntitlement(data, now).kind, "unknown");
+    }
+    assert.equal(
+      evaluateEntitlement(
+        payload({
+          entitlements: {
+            unrelated: {
+              expires_date: null,
+              product_identifier: "other",
+              purchase_date: past,
+            },
+          },
+        }),
+        now,
+      ).kind,
+      "confirmed_inactive",
+    );
+  });
 });

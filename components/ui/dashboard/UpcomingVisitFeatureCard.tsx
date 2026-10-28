@@ -1,47 +1,30 @@
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { VetVisitSummary } from "@/types/ui";
-import {
-  dateLocaleFor,
-  type UserDateDisplay,
-} from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type UpcomingVisitFeatureCardProps = {
   visit?: VetVisitSummary;
+  petName?: string | null;
   onPress?: () => void;
-  /** When true, renders a dark placeholder encouraging the user to schedule. */
+  /** When true, encourages the user to schedule their next visit. */
   empty?: boolean;
 };
 
-function badgeFromVisit(
-  visit: VetVisitSummary,
-  dateDisplay: UserDateDisplay,
-): string {
-  if (visit.badgeLabel) return visit.badgeLabel;
-  const t = Date.parse(visit.date);
-  if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleDateString(dateLocaleFor(dateDisplay), {
-    month: "short",
-  });
-}
-
 export default function UpcomingVisitFeatureCard({
   visit,
+  petName,
   onPress,
   empty,
 }: UpcomingVisitFeatureCardProps) {
-  const { dateDisplay } = useUserDateTimePrefs();
-
   if (empty || !visit) {
     const inner = (
       <View style={styles.emptyInner}>
         <MaterialCommunityIcons
           name="calendar-heart"
           size={28}
-          color={Colors.orangeLight}
+          color={Colors.peachDark}
         />
         <View style={styles.emptyTextBlock}>
           <Text style={styles.emptyTitle}>Schedule your next visit</Text>
@@ -53,7 +36,7 @@ export default function UpcomingVisitFeatureCard({
           <MaterialCommunityIcons
             name="chevron-right"
             size={24}
-            color={Colors.gray400}
+            color={Colors.peachDark}
           />
         ) : null}
       </View>
@@ -72,55 +55,67 @@ export default function UpcomingVisitFeatureCard({
     return <View style={styles.card}>{inner}</View>;
   }
 
-  const badge = badgeFromVisit(visit, dateDisplay);
+  const details = [petName?.trim(), visit.subtitle, visit.time]
+    .filter(Boolean)
+    .join(" · ");
+  const accessibilityLabel = [
+    "Upcoming vet visit",
+    petName?.trim(),
+    visit.title,
+    visit.date,
+    visit.time,
+    visit.subtitle,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const inner = (
+    <View style={styles.row}>
+      <View style={styles.dateTile}>
+        <Text style={styles.day}>{visit.dayLabel}</Text>
+        <Text style={styles.month}>{visit.badgeLabel?.toUpperCase()}</Text>
+      </View>
+      <View style={styles.content}>
+        <Text style={styles.eyebrow}>Upcoming vet visit</Text>
+        <Text style={styles.title}>{visit.title}</Text>
+        <Text style={styles.subtitle}>{details}</Text>
+      </View>
+      {onPress ? (
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={24}
+          color={Colors.textPrimary}
+        />
+      ) : null}
+    </View>
+  );
 
-  return (
+  return onPress ? (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.85}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
     >
-      <View style={styles.row}>
-        <View style={styles.iconTile}>
-          <MaterialCommunityIcons
-            name="stethoscope"
-            size={22}
-            color={Colors.orangeLight}
-          />
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.title}>{visit.title}</Text>
-          {(visit.subtitle || visit.time) && (
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {visit.subtitle
-                ? `${visit.subtitle} · ${visit.date}`
-                : `${visit.date} · ${visit.time}`}
-            </Text>
-          )}
-        </View>
-        <View style={styles.right}>
-          {badge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          ) : null}
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={22}
-            color={Colors.gray400}
-          />
-        </View>
-      </View>
+      {inner}
     </TouchableOpacity>
+  ) : (
+    <View
+      style={styles.card}
+      accessible
+      accessibilityLabel={accessibilityLabel}
+    >
+      {inner}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    backgroundColor: Colors.featureDark,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    borderRadius: 26,
+    backgroundColor: Colors.peach,
+    paddingVertical: 17,
+    paddingHorizontal: 15,
     marginBottom: 10,
   },
   row: {
@@ -128,44 +123,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  iconTile: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Colors.featureDarkElevated,
+  dateTile: {
+    minWidth: 54,
+    minHeight: 64,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 17,
+    backgroundColor: Colors.warmWhite,
     alignItems: "center",
     justifyContent: "center",
+    gap: 1,
+  },
+  day: {
+    fontFamily: Font.displayBold,
+    fontSize: 29,
+    lineHeight: 33,
+    color: Colors.textPrimary,
+    fontVariant: ["tabular-nums"],
+  },
+  month: {
+    fontFamily: Font.uiBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: Colors.textPrimary,
   },
   content: {
     flex: 1,
+    minWidth: 0,
     gap: 4,
+  },
+  eyebrow: {
+    fontFamily: Font.uiBold,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: Colors.peachDark,
   },
   title: {
     fontFamily: Font.uiBold,
     fontSize: 17,
-    color: Colors.white,
+    lineHeight: 22,
+    color: Colors.textPrimary,
   },
   subtitle: {
-    fontFamily: Font.uiRegular,
+    fontFamily: Font.uiMedium,
     fontSize: 13,
-    color: Colors.gray400,
+    color: "#7D6555",
     lineHeight: 18,
-  },
-  right: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  badge: {
-    backgroundColor: Colors.orange,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 13,
-    color: Colors.white,
   },
   emptyInner: {
     flexDirection: "row",
@@ -177,14 +181,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   emptyTitle: {
-    fontFamily: Font.uiBold,
+    fontFamily: Font.displayBold,
     fontSize: 16,
-    color: Colors.white,
+    color: Colors.textPrimary,
   },
   emptySubtitle: {
     fontFamily: Font.uiRegular,
     fontSize: 13,
-    color: Colors.gray400,
+    color: Colors.peachDark,
     lineHeight: 18,
   },
 });

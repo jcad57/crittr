@@ -56,11 +56,11 @@ export function usePushNotificationPreferences() {
   );
 
   const persistUntilEmpty = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || useAuthStore.getState().session?.user.id !== userId) return;
     const mutateAsync = mutationRef.current;
     if (!mutateAsync) return;
 
-    while (Object.keys(pendingPatchRef.current).length > 0) {
+    while (useAuthStore.getState().session?.user.id === userId && Object.keys(pendingPatchRef.current).length > 0) {
       const batch = { ...pendingPatchRef.current };
       pendingPatchRef.current = {};
 
@@ -109,8 +109,10 @@ export function usePushNotificationPreferences() {
     Partial<NotificationCategoryPrefs>,
     OptimisticCtx
   >({
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
     mutationFn: async (next) => {
-      if (!userId) throw new Error("Not signed in");
+      if (!userId || useAuthStore.getState().session?.user.id !== userId) throw new Error("Not signed in");
       return updateProfile(userId, next);
     },
     onMutate: async (next) => {
@@ -145,7 +147,7 @@ export function usePushNotificationPreferences() {
       return { previousQuery, previousAuth, applied: true };
     },
     onError: (_err, variables, ctx) => {
-      if (!userId || !ctx || !ctx.applied) return;
+      if (!userId || useAuthStore.getState().session?.user.id !== userId || !ctx || !ctx.applied) return;
       if (ctx.previousQuery !== undefined) {
         queryClient.setQueryData(
           profileQueryKey(userId),
@@ -159,12 +161,12 @@ export function usePushNotificationPreferences() {
       }
       useAuthStore.getState().replaceProfileSnapshot(ctx.previousAuth);
 
-      mergePendingPatch(variables);
-      applyNotificationPatchLocally(variables);
-      enqueuePersistDrain();
+      // Keep the latest toggles and allow an explicit retry after bounded attempts.
+      pendingPatchRef.current = { ...variables, ...pendingPatchRef.current };
+      applyNotificationPatchLocally(pendingPatchRef.current);
     },
     onSuccess: (serverProfile, _vars) => {
-      if (!userId || !serverProfile) return;
+      if (!userId || !serverProfile || useAuthStore.getState().session?.user.id !== userId) return;
 
       const liveBeforeSet = queryClient.getQueryData<Profile | null>(
         profileQueryKey(userId),
@@ -247,5 +249,6 @@ export function usePushNotificationPreferences() {
     updatePrefs,
     flushPending,
     isSaving: mutation.isPending,
+    saveError: mutation.isError ? "Couldn't save notification preferences. Check your connection and retry." : null,
   };
 }

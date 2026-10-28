@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   list: {
-    gap: 8,
+    gap: 14,
     overflow: "visible",
   },
 });

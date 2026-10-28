@@ -1,4 +1,5 @@
 import { isAdsEligible } from "@/lib/ads/adEligibility";
+import { ADS_ENABLED } from "@/config/featureFlags";
 import { useProfileQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useTrackingConsent } from "@/hooks/useTrackingConsent";
@@ -22,7 +23,7 @@ export function useCanShowAds(): boolean {
   const pathname = usePathname() ?? "";
   const isOnLoggedInRoute = segments.some((s) => s === "(logged-in)");
 
-  if (!canRequestAds) return false;
+  if (!ADS_ENABLED || !canRequestAds) return false;
 
   return isAdsEligible({
     isLoggedIn,

@@ -129,6 +129,7 @@ export default function ScheduleActivityCard({
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={completed ? "Mark incomplete" : "Mark complete"}
+            accessibilityState={{ checked: completed }}
             style={({ pressed }) => [
               styles.checkBtn,
               completed ? styles.checkBtnDone : styles.checkBtnTodo,
@@ -169,12 +170,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    paddingVertical: 12,
+    backgroundColor: Colors.warmWhite,
+    borderRadius: 22,
+    paddingVertical: 18,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: Colors.gray100,
+    borderColor: Colors.creamDark,
     overflow: "visible",
     position: "relative",
   },
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: ACTIVITY_ROW_ICON_BOX,
     height: ACTIVITY_ROW_ICON_BOX,
-    borderRadius: 12,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,

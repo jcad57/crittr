@@ -40,3 +40,7 @@ verify_jwt = false
 
 [functions.reconcile-crittr-pro-entitlements]
 verify_jwt = false
+
+# Service-only worker; authenticates PUSH_DISPATCH_AUTH inside the handler.
+[functions.dispatch-notification-pushes]
+verify_jwt = false

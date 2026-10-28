@@ -3,7 +3,7 @@ const fs = require("node:fs"),
 const base = "@electric-sql/pglite";
 const { PGlite } = require(base);
 const { pg_trgm } = require(base + "/contrib/pg_trgm");
-async function load() {
+async function load({ skipMigrations = [], beforeMigration } = {}) {
   const db = new PGlite({ extensions: { pg_trgm } });
   await db.exec(`
  CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
@@ -21,10 +21,11 @@ async function load() {
  `);
   const files = fs
     .readdirSync("supabase/migrations")
-    .filter((p) => p.endsWith(".sql"))
+    .filter((p) => p.endsWith(".sql") && !skipMigrations.includes(p))
     .sort();
   for (const file of files) {
     try {
+      if (beforeMigration) await beforeMigration(db, file);
       await db.exec(
         fs.readFileSync(path.join("supabase/migrations", file), "utf8"),
       );
@@ -33,7 +34,11 @@ async function load() {
     }
   }
   await db.exec(`GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public,storage TO authenticated,service_role; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated,service_role;
- REVOKE ALL ON public.billing_test_accounts,public.billing_reconciliation,public.billing_webhook_events,public.billing_admin_grants FROM authenticated;`);
+ DO $$ DECLARE t text; BEGIN
+  FOREACH t IN ARRAY ARRAY['billing_test_accounts','billing_reconciliation','billing_webhook_events','billing_admin_grants'] LOOP
+   IF to_regclass('public.' || t) IS NOT NULL THEN EXECUTE format('REVOKE ALL ON public.%I FROM authenticated', t); END IF;
+  END LOOP;
+ END $$;`);
   return db;
 }
 module.exports = { load };

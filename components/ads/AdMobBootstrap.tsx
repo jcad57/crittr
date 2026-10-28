@@ -1,4 +1,5 @@
 import { ensureTrackingConsent } from "@/lib/ads/trackingConsent";
+import { ADS_ENABLED } from "@/config/featureFlags";
 import { useEffect } from "react";
 import mobileAds, {
   MaxAdContentRating,
@@ -14,6 +15,7 @@ import mobileAds, {
  */
 export default function AdMobBootstrap() {
   useEffect(() => {
+    if (!ADS_ENABLED) return;
     let cancelled = false;
 
     (async () => {

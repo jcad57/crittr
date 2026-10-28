@@ -1,6 +1,6 @@
 export const Colors = {
   // Brand
-  orange: "#FC8D2C",
+  orange: "#FD8A2D",
   orangeLight: "#FFF0E5",
   orangeDark: "#c2540a",
 
@@ -14,8 +14,15 @@ export const Colors = {
   splashBackground: "#fff7f1",
 
   /** Dashboard / marketing cream (replaces full-screen orange gradient) */
-  cream: "#FDF8F3",
-  creamDark: "#EDE4D8",
+  cream: "#FAF7F1",
+  creamDark: "#E4DED2",
+
+  // Website surfaces
+  warmWhite: "#FFFDF8",
+  sage: "#E6ECD7",
+  sageDark: "#536B43",
+  peach: "#FFE5D5",
+  peachDark: "#9E542C",
 
   // Neutrals
   white: "#ffffff",
@@ -29,18 +36,18 @@ export const Colors = {
   gray600: "#4b5563",
   gray700: "#374151",
   gray800: "#1f2937",
-  gray900: "#111827",
+  gray900: "#101719",
 
   // Semantic
   background: "#ffffff",
   surface: "#f9fafb",
-  textPrimary: "#111827",
+  textPrimary: "#101719",
   textSecondary: "#6b7280",
   border: "#e5e7eb",
 
   // Status
   success: "#22c55e",
-  successLight: "#DCFCE7",
+  successLight: "#E6ECD7",
   error: "#ef4444",
   errorLight: "#fee2e2",
 
@@ -52,27 +59,27 @@ export const Colors = {
   gold: "#FFD43B",
   goldLight: "#FFF8DD",
   lavender: "#D5C1DD",
-  lavenderLight: "#F3EEFF",
+  lavenderLight: "#ECE1F5",
   mint: "#34D399",
   mintLight: "#D1FAE5",
   sky: "#C0E3E5",
-  skyLight: "#DBEAFE",
+  skyLight: "#E3F0EF",
 
   /**
    * Daily progress rings — soft “light” tints aligned to lavender / sky / amber / success
    * (see lavenderDark, skyDark, amberDark, successDark). Rings read clearly on cream;
    * tracks are whisper-light washes of the same families.
    */
-  progressExercise: "#4A8B8F",
+  progressExercise: "#467C7F",
   progressExerciseTrack: "#E8F6F6",
   progressTraining: "#8F4A6F",
   progressTrainingTrack: "#F6E8F2",
-  progressMeals: "#8B7A9E",
-  progressMealsTrack: "#EEE8F4",
-  progressTreats: "#22A55C",
-  progressTreatsTrack: "#DCFCE7",
-  progressMeds: "#D97706",
-  progressMedsTrack: "#FFF4E0",
+  progressMeals: "#846698",
+  progressMealsTrack: "#ECE1F5",
+  progressTreats: "#53714B",
+  progressTreatsTrack: "#E6ECD7",
+  progressMeds: "#A77A36",
+  progressMedsTrack: "#FFF0D5",
 
   /** Daily progress — all goals met (rings share one green family on success card) */
   progressCompleteRing: "#16A34A",

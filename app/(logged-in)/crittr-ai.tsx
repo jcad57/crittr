@@ -1,3 +1,4 @@
+import CrittrAiWelcomeCard from "@/components/crittr-ai/CrittrAiWelcomeCard";
 import CrittrAiAssistantTypingReveal from "@/components/crittr-ai/CrittrAiAssistantTypingReveal";
 import { TypingBubble } from "@/components/screens/crittr-ai/TypingBubble";
 import { Colors } from "@/theme/colors";
@@ -315,14 +316,17 @@ export default function CrittrAiScreen() {
         ) : null}
 
         {showWelcome ? (
-          <View
-            style={[styles.bubble, styles.bubbleAssistant]}
-            accessibilityRole="text"
-          >
-            <Text style={styles.bubbleText}>
-              {CRITTR_AI_WELCOME_ASSISTANT_TEXT}
-            </Text>
-          </View>
+          <>
+            <CrittrAiWelcomeCard />
+            <View
+              style={[styles.bubble, styles.bubbleAssistant]}
+              accessibilityRole="text"
+            >
+              <Text style={styles.bubbleText}>
+                {CRITTR_AI_WELCOME_ASSISTANT_TEXT}
+              </Text>
+            </View>
+          </>
         ) : null}
 
         {messages.map(renderMessage)}

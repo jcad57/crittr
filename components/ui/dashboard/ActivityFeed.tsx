@@ -32,6 +32,7 @@ const STAGGER_MS = 100;
 const SLIDE_UP_FROM_Y = 32;
 
 type ActivityFeedProps = {
+  title?: string;
   activities: PetActivity[];
   petType?: string | null;
   onLogActivityPress?: () => void;
@@ -43,6 +44,7 @@ type ActivityFeedProps = {
 };
 
 export default function ActivityFeed({
+  title = "Today’s activity",
   activities,
   petType = null,
   onLogActivityPress,
@@ -100,7 +102,7 @@ export default function ActivityFeed({
     return (
       <View style={styles.container}>
         <View style={styles.listHeader}>
-          <SectionLabel>Today&apos;s Activity</SectionLabel>
+          <SectionLabel>{title}</SectionLabel>
         </View>
         {showLogActivity ? (
           <TouchableOpacity
@@ -135,7 +137,7 @@ export default function ActivityFeed({
     <View style={styles.container}>
       <View style={styles.listHeader}>
         <SectionLabel style={styles.sectionLabelFlush}>
-          Today&apos;s Activity
+          {title}
         </SectionLabel>
         <View style={styles.headerRight}>
           {onSeeAllPress && (

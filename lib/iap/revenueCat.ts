@@ -54,10 +54,10 @@ export function configureRevenueCat(appUserId?: string | null): Promise<void> {
       configured = true;
     } catch (e) {
       if (__DEV__) console.warn("[RevenueCat] configure failed", e);
-    } finally {
-      configurePromise = null;
     }
-  })();
+  })().finally(() => {
+    configurePromise = null;
+  });
 
   return configurePromise;
 }

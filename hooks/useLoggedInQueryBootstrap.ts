@@ -13,12 +13,10 @@ import { prefetchLoggedInSessionData } from "@/lib/prefetchSessionData";
 import { queryClient } from "@/lib/query/client";
 import { syncTodayVetVisitMirrorsToActivities } from "@/services/vetVisitActivityMirror";
 import { supabase } from "@/lib/supabase";
-import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
 import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
-import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
 
 /**
  * Warm TanStack Query cache on mount for the logged-in session:
@@ -35,11 +33,6 @@ export function useLoggedInQueryBootstrap() {
     return deferSessionWork(() => syncTodayVetVisitMirrorsToActivities(userId));
   }, [userId, localYmd]);
 
-  /** Register Expo push token for remote co-care alerts (no-op if permission denied). */
-  useEffect(() => {
-    if (!userId || Platform.OS === "web") return;
-    return deferSessionWork(() => syncExpoPushTokenToSupabase(userId));
-  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -138,7 +131,6 @@ export function useLoggedInQueryBootstrap() {
           table: "notifications",
         },
         (payload) => {
-          const eventType = (payload as { eventType?: string }).eventType;
           const rowNew = payload.new as {
             user_id?: string;
             title?: string;
@@ -156,28 +148,8 @@ export function useLoggedInQueryBootstrap() {
             queryKey: unreadNotificationCountKey(userId),
           });
 
-          if (
-            eventType === "INSERT" &&
-            rowNew &&
-            AppState.currentState !== "active"
-          ) {
-            /** Co-care activity alerts use Expo push from the edge function to avoid doubling up. */
-            const nType = (rowNew as { type?: string }).type;
-            if (nType === "co_carer_activity_logged") return;
+          // OS banners come from the durable server queue, avoiding duplicate Realtime alerts.
 
-            const href = rowNew.data?.href;
-            void Notifications.scheduleNotificationAsync({
-              content: {
-                title: rowNew.title ?? "Crittr",
-                body: rowNew.body?.trim() || "You have a new notification.",
-                data:
-                  typeof href === "string"
-                    ? { href }
-                    : rowNew.data ?? undefined,
-              },
-              trigger: null,
-            }).catch(() => {});
-          }
         },
       )
       .subscribe((status, err) => {

@@ -272,10 +272,14 @@ export function useUpdateWeighInActivityMutation(petId: string | null) {
       form: WeighInActivityFormData;
       loggedAtIso?: string;
     }) =>
-      updateWeighInActivity(activityId, form, {
-        loggedAt: loggedAtIso,
-      }),
+      saveWithWeighInConfirmation((replaceExisting) =>
+        updateWeighInActivity(activityId, form, {
+          loggedAt: loggedAtIso,
+          replaceExisting,
+        }),
+      ),
     onSuccess: (activity, { activityId }) => {
+      if (!activity) return;
       invalidateActivityCaches(petId, activityId);
       void syncScheduleAfterActivityEdit(activity);
       if (petId) {
@@ -354,3 +358,4 @@ export function useDeletePetWeightEntryMutation(petId: string | null) {
     },
   });
 }
+import { saveWithWeighInConfirmation } from "./confirmWeighInReplacement";

@@ -5,6 +5,7 @@ import {
 } from "expo-tracking-transparency";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { AdsConsent, AdsConsentStatus } from "react-native-google-mobile-ads";
+import { ADS_ENABLED } from "@/config/featureFlags";
 
 /**
  * Result of the consent + ATT flow.
@@ -108,6 +109,7 @@ async function runConsentAndAtt(): Promise<TrackingConsentResult> {
  * so screens can re-check without re-prompting.
  */
 export function ensureTrackingConsent(): Promise<TrackingConsentResult> {
+  if (!ADS_ENABLED) return Promise.resolve(getCachedTrackingConsent());
   if (!cached) {
     cached = runConsentAndAtt();
   }
@@ -121,7 +123,7 @@ export function ensureTrackingConsent(): Promise<TrackingConsentResult> {
  */
 export function getCachedTrackingConsent(): TrackingConsentResult {
   return {
-    canRequestAds: true,
+    canRequestAds: ADS_ENABLED,
     personalizedAds: false,
     attStatus: PermissionStatus.UNDETERMINED,
   };

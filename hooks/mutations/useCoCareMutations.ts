@@ -41,7 +41,13 @@ export function useAcceptInviteMutation() {
   return useMutation({
     mutationFn: (inviteId: string) => acceptInvite(inviteId, userId!),
     onSuccess: async (result) => {
-      await useAuthStore.getState().refreshAuthSession();
+      try {
+        await useAuthStore.getState().refreshAuthSession();
+      } catch (error) {
+        // The membership is already committed; a failed refresh can be retried
+        // independently and must not report that accepting the invite failed.
+        console.warn("[acceptInvite] session refresh failed", error);
+      }
       if (userId) {
         void queryClient.invalidateQueries({
           queryKey: pendingInvitesKey(userId),
@@ -51,6 +57,9 @@ export function useAcceptInviteMutation() {
         });
         void queryClient.invalidateQueries({
           queryKey: notificationsKey(userId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: unreadNotificationCountKey(userId),
         });
       }
       /** Owner’s device may still cache sent invites as pending until refetched. */

@@ -14,6 +14,7 @@ import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import {
   ProPurchaseException,
   restoreProPurchases,
+  waitForProActivation,
 } from "@/lib/iap/checkout";
 import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import { storeAccountLabel, storePhrase } from "@/lib/iap/storeTerms";
@@ -56,6 +57,8 @@ export default function SubscriptionsScreen() {
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [syncFailed, setSyncFailed] = useState(false);
 
   /** True when the user has cancelled but their paid period hasn't ended yet. */
   const pendingNonRenewalAccess = useMemo(() => {
@@ -64,39 +67,49 @@ export default function SubscriptionsScreen() {
     return !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
   }, [sub]);
 
-  const onRefresh = useCallback(async () => {
+  const refreshBilling = useCallback(async () => {
     if (!userId) return;
-    setPullRefreshing(true);
+    setCheckingAccess(true);
     try {
-      await syncCrittrProForSession(userId);
-      await queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+      const result = await syncCrittrProForSession(userId);
+      setSyncFailed(result === "failed");
+      await refreshProfileOnly();
+      await queryClient.invalidateQueries({
+        queryKey: profileQueryKey(userId),
+      });
       await queryClient.invalidateQueries({
         queryKey: subscriptionDetailsQueryKey(userId),
       });
-      await refetch();
+    } finally {
+      setCheckingAccess(false);
+    }
+  }, [userId, queryClient, refreshProfileOnly]);
+
+  const onRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      await refreshBilling();
     } finally {
       setPullRefreshing(false);
     }
-  }, [userId, queryClient, refetch]);
+  }, [refreshBilling]);
 
-  /** App store cancellations don't push live updates; refetch on focus to catch them. */
+  /** Reconcile external grants/cancellations before deciding to show a paywall. */
   useFocusEffect(
     useCallback(() => {
-      if (!userId) return;
-      void queryClient.invalidateQueries({
-        queryKey: subscriptionDetailsQueryKey(userId),
-      });
-    }, [queryClient, userId]),
+      void refreshBilling().catch(() => setSyncFailed(true));
+    }, [refreshBilling]),
   );
 
+  const managementUrl = sub?.managementUrl;
   const onManageSubscription = useCallback(async () => {
     try {
-      await openManageSubscriptions();
+      await openManageSubscriptions(managementUrl);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       Alert.alert("Couldn't open subscription settings", msg);
     }
-  }, []);
+  }, [managementUrl]);
 
   /**
    * A cancelled-but-still-active subscription can't be re-bought: both stores
@@ -117,9 +130,10 @@ export default function SubscriptionsScreen() {
         );
         return;
       }
-      if (userId) {
-        await syncCrittrProForSession(userId);
-      }
+      await waitForProActivation({
+        purchaseCustomerInfo: result.customerInfo,
+        source: "restore",
+      });
       await refreshProfileOnly();
       if (userId) {
         await queryClient.invalidateQueries({
@@ -141,29 +155,31 @@ export default function SubscriptionsScreen() {
 
   if (profileLoading && !profile) {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.screen, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={Colors.orange} />
       </View>
     );
   }
 
   if (!isPro) {
-    const subLoadSettled = !detailsLoading;
-    if (subLoadSettled && !isError && !pendingNonRenewalAccess) {
+    const subLoadSettled = !detailsLoading && !checkingAccess;
+    if (subLoadSettled && !isError && !syncFailed && !pendingNonRenewalAccess) {
       return <Redirect href="/(logged-in)/upgrade?returnTo=subscriptions" />;
     }
 
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <ScreenHeader
-        title="Subscriptions"
-        onBack={() => router.back()}
-        right={
-          showNavRefetch ? (
-            <ActivityIndicator size="small" color={Colors.orange} />
-          ) : null
-        }
-      />
+          title="Subscriptions"
+          onBack={() => router.back()}
+          right={
+            showNavRefetch ? (
+              <ActivityIndicator size="small" color={Colors.orange} />
+            ) : null
+          }
+        />
 
         <ScrollView
           style={styles.scroll}
@@ -182,21 +198,21 @@ export default function SubscriptionsScreen() {
           }
         >
           <Text style={styles.lead}>
-            {isError
+            {isError || syncFailed
               ? "We couldn't refresh billing. Try again below."
-              : detailsLoading
+              : detailsLoading || checkingAccess
                 ? "Checking your subscription status…"
                 : pendingNonRenewalAccess
                   ? `Your plan is set to end with this billing period. You can resubscribe in ${storePhrase()} to continue without a gap.`
                   : ""}
           </Text>
 
-          {detailsLoading ? (
+          {detailsLoading || checkingAccess ? (
             <View style={styles.blockCenter}>
               <ActivityIndicator size="large" color={Colors.orange} />
               <Text style={styles.hint}>Checking subscription…</Text>
             </View>
-          ) : isError ? (
+          ) : isError || syncFailed ? (
             <View style={styles.card}>
               <Text style={styles.errText}>
                 {error instanceof Error
@@ -204,7 +220,7 @@ export default function SubscriptionsScreen() {
                   : "Could not load subscription."}
               </Text>
               <OrangeButton
-                onPress={() => void refetch()}
+                onPress={() => void onRefresh()}
                 style={styles.retryBtn}
                 loading={isFetching}
               >
@@ -295,7 +311,7 @@ export default function SubscriptionsScreen() {
           <>
             <SubscriptionDetailsView sub={sub} />
 
-            {pendingNonRenewalAccess ? (
+            {pendingNonRenewalAccess && !sub.isPromotional ? (
               <>
                 <View style={styles.cancelPushSpacer} />
                 <OrangeButton
@@ -303,6 +319,13 @@ export default function SubscriptionsScreen() {
                   accessibilityLabel="Re-subscribe to Crittr Pro"
                 >
                   Re-subscribe to Crittr Pro
+                </OrangeButton>
+              </>
+            ) : sub.isPromotional && sub.managementUrl ? (
+              <>
+                <View style={styles.cancelPushSpacer} />
+                <OrangeButton onPress={onManageSubscription}>
+                  Manage store subscriptions
                 </OrangeButton>
               </>
             ) : !sub.cancelAtPeriodEnd &&
@@ -340,9 +363,7 @@ export default function SubscriptionsScreen() {
             </Pressable>
 
             {sub.isFamilyShared ? (
-              <Text style={styles.footnote}>
-                The owner manages billing.
-              </Text>
+              <Text style={styles.footnote}>The owner manages billing.</Text>
             ) : null}
 
             {formatDate(sub.currentPeriodEnd) === "—" ? null : null}
@@ -350,8 +371,8 @@ export default function SubscriptionsScreen() {
         ) : !detailsLoading ? (
           <View style={styles.card}>
             <Text style={styles.errText}>
-              We couldn&apos;t find subscription details. Pull to refresh or
-              try again later.
+              We couldn&apos;t find subscription details. Pull to refresh or try
+              again later.
             </Text>
             <OrangeButton
               onPress={() => void refetch()}

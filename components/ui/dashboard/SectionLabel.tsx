@@ -20,10 +20,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   text: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: Colors.sectionLabel,
-    textTransform: "uppercase",
+    fontFamily: Font.displayBold,
+    fontSize: 19,
+    letterSpacing: -0.2,
+    color: Colors.textPrimary,
+    textTransform: "none",
   },
 });

@@ -1,10 +1,10 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { HealthVisitSummaryRow } from "@/components/ui/health/HealthVisitRow";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { MedicationSummary, VetVisitSummary } from "@/types/ui";
 import type { PetVaccination } from "@/types/database";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MedicationCard from "./MedicationCard";
 import SectionLabel from "./SectionLabel";
@@ -14,6 +14,7 @@ type HealthSectionProps = {
   medications: MedicationSummary[];
   vetVisits: VetVisitSummary[];
   onScheduleVisitPress?: () => void;
+  onViewAllVisitsPress?: () => void;
   /** Tapping a scheduled visit opens edit (same pattern as medications). */
   onVetVisitPress?: (visitId: string) => void;
   /** When set, tapping a medication opens its edit screen. */
@@ -29,7 +30,7 @@ type HealthSectionProps = {
     subtitle: string;
     onPress: () => void;
   } | null;
-  /** Active pet name — shown on visit rows to match the Health tab line format. */
+  /** Active pet name included alongside the visit details. */
   vetVisitPetName?: string | null;
 };
 
@@ -37,6 +38,7 @@ export default function HealthSection({
   medications,
   vetVisits,
   onScheduleVisitPress,
+  onViewAllVisitsPress,
   onVetVisitPress,
   onMedicationPress,
   onAddMedicationPress,
@@ -62,9 +64,7 @@ export default function HealthSection({
               medication={med}
               isLast={i === medications.length - 1}
               onPress={
-                onMedicationPress
-                  ? () => onMedicationPress(med.id)
-                  : undefined
+                onMedicationPress ? () => onMedicationPress(med.id) : undefined
               }
             />
           ))}
@@ -120,30 +120,38 @@ export default function HealthSection({
         </>
       ) : null}
 
-      <SectionLabel style={styles.visitsLabel}>
-        Upcoming vet visits
-      </SectionLabel>
-      {hasVisits ? (
-        <HealthListCard>
-          {vetVisits.map((visit, i) => (
-            <HealthVisitSummaryRow
-              key={visit.id}
-              title={visit.title}
-              detailLine={
-                vetVisitPetName?.trim()
-                  ? `${vetVisitPetName.trim()} · ${visit.date} · ${visit.time}`
-                  : `${visit.date} · ${visit.time}`
-              }
-              locationLine={visit.subtitle ?? null}
-              isLast={i === vetVisits.length - 1}
-              onPress={
-                onVetVisitPress
-                  ? () => onVetVisitPress(visit.id)
-                  : undefined
-              }
+      <View style={styles.visitsHeading}>
+        <SectionLabel style={styles.visitsHeadingLabel}>
+          Health & wellbeing
+        </SectionLabel>
+        {onViewAllVisitsPress ? (
+          <TouchableOpacity
+            style={styles.viewAll}
+            activeOpacity={0.7}
+            onPress={onViewAllVisitsPress}
+            accessibilityRole="button"
+            accessibilityLabel="View all health and vet visits"
+          >
+            <Text style={styles.viewAllText}>View all</Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={18}
+              color={Colors.peachDark}
             />
-          ))}
-        </HealthListCard>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {hasVisits ? (
+        vetVisits.map((visit) => (
+          <UpcomingVisitFeatureCard
+            key={visit.id}
+            visit={visit}
+            petName={vetVisitPetName}
+            onPress={
+              onVetVisitPress ? () => onVetVisitPress(visit.id) : undefined
+            }
+          />
+        ))
       ) : (
         <UpcomingVisitFeatureCard empty onPress={onScheduleVisitPress} />
       )}
@@ -157,6 +165,29 @@ const styles = StyleSheet.create({
   },
   visitsLabel: {
     marginTop: 20,
+  },
+  visitsHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  visitsHeadingLabel: {
+    flex: 1,
+    minWidth: 0,
+    marginBottom: 0,
+  },
+  viewAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    minHeight: 44,
+  },
+  viewAllText: {
+    fontFamily: Font.uiBold,
+    fontSize: 13,
+    color: Colors.peachDark,
   },
   vaccinationsLabel: {
     marginTop: 20,

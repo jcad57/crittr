@@ -1,3 +1,4 @@
+import ActivityTypePickerSheet from "@/components/activity/ActivityTypePickerSheet";
 import AdBanner from "@/components/ads/AdBanner";
 import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
 import PostOnboardingPushPrompt from "@/components/push/PostOnboardingPushPrompt";
@@ -35,7 +36,10 @@ import {
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useAuthStore } from "@/stores/authStore";
 import { Colors } from "@/theme/colors";
+import type { ActivityType, PetType } from "@/types/database";
 import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
+import { useScheduleDayQuery } from "@/hooks/queries/useScheduleQuery";
+import { isScheduleDayComplete } from "@/utils/scheduleDayComplete";
 import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
 import { buildDailyProgressRings } from "@/utils/dailyProgressRings";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
@@ -129,6 +133,8 @@ export default function Dashboard() {
   } = usePetVetVisitsQuery(activePetId ?? undefined);
 
   const localYmd = useLocalCalendarYmd();
+  const { data: todaySchedule, refetch: refetchTodaySchedule } = useScheduleDayQuery(activePetId, localYmd);
+  const allScheduledTasksComplete = isScheduleDayComplete(todaySchedule, activePetId, localYmd);
   const householdOwnerId = activePetDetails?.owner_id ?? null;
   const householdCatIds = useMemo(
     () => householdActiveCatIds(dbPets ?? [], householdOwnerId),
@@ -248,9 +254,18 @@ export default function Dashboard() {
     dateDisplay,
   ]);
 
+  const [activityPickerVisible, setActivityPickerVisible] = useState(false);
+  const [pickerPet, setPickerPet] = useState<{ id: string; type: PetType | null } | null>(null);
   const navigateToAddActivity = useCallback(() => {
-    push("/(logged-in)/add-activity");
-  }, [push]);
+    if (!activePetId || canLogActivities !== true) return;
+    const pet = dbPets?.find(row => row.id === activePetId);
+    setPickerPet({ id: activePetId, type: pet?.pet_type ?? null });
+    setActivityPickerVisible(true);
+  }, [activePetId, canLogActivities, dbPets]);
+  const openSelectedActivity = useCallback((type: ActivityType) => {
+    if (!pickerPet) return;
+    push({ pathname: "/(logged-in)/add-activity", params: { type, petId: pickerPet.id } });
+  }, [pickerPet, push]);
 
   const navigateToActivity = useCallback(() => {
     if (!activePetId) return;
@@ -310,6 +325,7 @@ export default function Dashboard() {
         refetchPetDetails(),
         refetchTodayActivities(),
         refetchVetVisits(),
+        refetchTodaySchedule(),
       );
     }
     if (householdCatIds.length > 0) {
@@ -324,6 +340,7 @@ export default function Dashboard() {
     refetchPetDetails,
     refetchTodayActivities,
     refetchVetVisits,
+    refetchTodaySchedule,
     refetchHouseholdCatToday,
     refetchHouseholdMaintWindow,
   ]);
@@ -391,15 +408,15 @@ export default function Dashboard() {
           <View style={styles.petDataBlock}>
             <AdBanner placement="dashboard_top" />
             <View style={[styles.sectionBlock, dailyProgressSectionWidthStyle]}>
-              <SectionLabel style={styles.sectionLabelFlush}>
-                Daily Progress
-              </SectionLabel>
               <View
                 style={[
                   styles.progressCard,
-                  dailyProgressAllComplete && styles.progressCardComplete,
+                  allScheduledTasksComplete && styles.progressCardComplete,
                 ]}
               >
+                <SectionLabel style={styles.sectionLabelFlush}>
+                  Daily progress
+                </SectionLabel>
                 {showDailyProgressSkeleton ? (
                   <DailyProgressSkeleton />
                 ) : (
@@ -437,6 +454,9 @@ export default function Dashboard() {
                   canManageVetVisits === true ? scheduleVetVisit : undefined
                 }
                 onVetVisitPress={openVetVisitEditor}
+                onViewAllVisitsPress={() =>
+                  push("/(logged-in)/(tabs)/health" as Href)
+                }
                 onMedicationPress={openMedicationEditor}
                 onAddMedicationPress={
                   canManageMedications === true ? openAddMedication : undefined
@@ -458,6 +478,12 @@ export default function Dashboard() {
           <PetManagement pets={pets} onAddPet={goToAddPet} />
         </PullToRefreshScrollView>
       </View>
+      <ActivityTypePickerSheet
+        visible={activityPickerVisible}
+        petType={pickerPet?.type ?? null}
+        onClose={() => setActivityPickerVisible(false)}
+        onSelect={openSelectedActivity}
+      />
       <ProSoftPaywallSheet
         visible={softPaywall != null}
         kind={softPaywall}
@@ -479,7 +505,7 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     backgroundColor: Colors.cream,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
     borderBottomColor: Colors.creamDark,
   },
   headerInner: {
@@ -501,12 +527,13 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   progressCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.peach,
     borderRadius: 24,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 18,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
+    borderColor: "transparent",
+    gap: 14,
   },
   progressCardComplete: {
     backgroundColor: Colors.successLight,

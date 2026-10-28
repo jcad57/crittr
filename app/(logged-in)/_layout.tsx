@@ -2,6 +2,7 @@ import PushNotificationBootstrap from "@/components/push/PushNotificationBootstr
 import PushNotificationNavigationListener from "@/components/push/PushNotificationNavigationListener";
 import ReminderNotificationSync from "@/components/push/ReminderNotificationSync";
 import RevenueCatProSync from "@/components/iap/RevenueCatProSync";
+import WebsiteUpgradeIntent from "@/components/iap/WebsiteUpgradeIntent";
 import { ActivityMilestoneCelebrationHost } from "@/components/pro/ActivityMilestoneCelebrationHost";
 import AppRatingPromptHost from "@/components/rating/AppRatingPromptHost";
 import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
@@ -45,6 +46,7 @@ export default function LoggedInLayout() {
       <PushNotificationNavigationListener />
       <ReminderNotificationSync />
       <RevenueCatProSync />
+      <WebsiteUpgradeIntent />
       <LoggedInQueryBootstrap />
       <ActivityMilestoneCelebrationHost />
       <AppRatingPromptHost />

@@ -32,6 +32,8 @@ function greetingLine(hour: number): string {
 
 type DashboardHeaderProps = {
   pets: PetSummary[];
+  title?: string;
+  dateLabel?: string;
   activePetId: string | null;
   onSwitchPet: (id: string) => void;
   onAddPet?: () => void;
@@ -42,6 +44,8 @@ type DashboardHeaderProps = {
 
 export default function DashboardHeader({
   pets,
+  title,
+  dateLabel,
   activePetId,
   onSwitchPet,
   onAddPet,
@@ -83,9 +87,9 @@ export default function DashboardHeader({
               { fontSize: greetingTitleSize, lineHeight: greetingLineHeight },
             ]}
           >
-            {greeting}
+            {title ?? greeting}
           </Text>
-          <Text style={styles.date}>{dateLine}</Text>
+          <Text style={styles.date}>{dateLabel ?? dateLine}</Text>
         </View>
         <View style={styles.rightIcons}>
           <TouchableOpacity

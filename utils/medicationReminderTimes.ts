@@ -16,23 +16,28 @@ export function getMedicationReminderTimes(med: PetMedication): string[] {
   if (Array.isArray(raw) && raw.length > 0) {
     const out = raw
       .filter((x): x is string => typeof x === "string" && isValidHHmm(x))
-      .map((x) => x.trim());
+      .map(normalizeTime);
     if (out.length > 0) return sortTimesAscUnique(out);
   }
   if (med.reminder_time?.trim() && isValidHHmm(med.reminder_time)) {
-    return [med.reminder_time.trim()];
+    return [normalizeTime(med.reminder_time)];
   }
   return [];
 }
 
 export function sortTimesAscUnique(times: string[]): string[] {
-  const unique = [...new Set(times.map((t) => t.trim()).filter(Boolean))];
+  const unique = [...new Set(times.filter(isValidHHmm).map(normalizeTime))];
   unique.sort((a, b) => {
     const [ah, am] = a.split(":").map((x) => parseInt(x, 10));
     const [bh, bm] = b.split(":").map((x) => parseInt(x, 10));
     return ah * 60 + am - (bh * 60 + bm);
   });
   return unique;
+}
+
+function normalizeTime(time: string): string {
+  const [hour, minute] = time.trim().split(":");
+  return `${hour.padStart(2, "0")}:${minute}`;
 }
 
 /** Persist: first time in `reminder_time`; full list in `reminder_times` only if 2+. */

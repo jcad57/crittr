@@ -8,7 +8,13 @@ export function useSubscriptionDetailsQuery() {
 
   return useQuery({
     queryKey: subscriptionDetailsQueryKey(userId ?? ""),
-    queryFn: fetchSubscriptionDetails,
+    queryFn: () => {
+      const profile = useAuthStore.getState().profile;
+      return fetchSubscriptionDetails(
+        userId!,
+        profile?.id === userId ? profile : null,
+      );
+    },
     enabled: Boolean(userId),
     /** Subscription state can update outside the app (Apple ID/Play Store cancel); refetch on focus. */
     staleTime: 0,

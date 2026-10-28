@@ -8,14 +8,15 @@ import {
   requestNotificationPermissionsAsync,
 } from "@/lib/pushNotifications";
 import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
+import { getReminderScheduleStatus, subscribeReminderScheduleStatus, syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import { useAuthStore } from "@/stores/authStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
-import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   Alert,
+  AppState,
   Linking,
   Platform,
   Pressable,
@@ -44,12 +45,15 @@ export default function ManageNotificationsScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const userId = useAuthStore((s) => s.session?.user?.id);
-  const { prefs, loading, updatePrefs, flushPending } =
+  const { prefs, loading, updatePrefs, flushPending, saveError } =
     usePushNotificationPreferences();
 
   const [permStatus, setPermStatus] = useState<Notifications.PermissionStatus>(
     Notifications.PermissionStatus.UNDETERMINED,
   );
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const reminderStatus = useSyncExternalStore(subscribeReminderScheduleStatus, getReminderScheduleStatus, () => null);
+  const currentReminderStatus = reminderStatus?.userId === userId ? reminderStatus : null;
 
   const refreshPermission = useCallback(async () => {
     if (Platform.OS === "web") return;
@@ -59,13 +63,15 @@ export default function ManageNotificationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void refreshPermission();
+      void refreshPermission().catch((error) => console.warn("[notifications] permission", error));
       if (!userId || Platform.OS === "web") return;
       void getNotificationPermissionStatus().then((s) => {
         if (s === Notifications.PermissionStatus.GRANTED) {
-          void syncExpoPushTokenToSupabase(userId);
+          void syncExpoPushTokenToSupabase(userId)
+            .then(() => setSetupError(null))
+            .catch(() => setSetupError("Remote push registration couldn't finish. Tap Refresh setup to retry."));
         }
-      });
+      }).catch((error) => console.warn("[notifications] permission", error));
 
       return () => {
         void flushPending();
@@ -73,11 +79,19 @@ export default function ManageNotificationsScreen() {
     }, [flushPending, refreshPermission, userId]),
   );
 
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refreshPermission().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [refreshPermission]);
+
   const allEnabled =
     prefs.notify_meals_treats &&
     prefs.notify_co_care_activities &&
     prefs.notify_medications &&
-    prefs.notify_vet_visits;
+    prefs.notify_vet_visits &&
+    prefs.notify_vaccinations;
 
   const setAll = (on: boolean) => {
     void updatePrefs({
@@ -85,14 +99,23 @@ export default function ManageNotificationsScreen() {
       notify_co_care_activities: on,
       notify_medications: on,
       notify_vet_visits: on,
+      notify_vaccinations: on,
     });
   };
 
   const requestOsPermission = async () => {
     if (Platform.OS === "web") return;
-    await requestNotificationPermissionsAsync();
-    await refreshPermission();
-    if (userId) void syncExpoPushTokenToSupabase(userId);
+    try {
+      await requestNotificationPermissionsAsync();
+      await refreshPermission();
+      if (userId) {
+        await syncCrittrReminderNotifications(userId, prefs);
+        await syncExpoPushTokenToSupabase(userId);
+        setSetupError(null);
+      }
+    } catch {
+      Alert.alert("Couldn't finish notification setup", "Check your connection and try again. You can also enable notifications in system settings.");
+    }
   };
 
   const openSystemSettings = () => {
@@ -134,7 +157,8 @@ export default function ManageNotificationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Choose which reminders Crittr may schedule on this device.
+          Choose care reminders and shared-care updates. Each pet&apos;s reminders
+          follow their owner&apos;s saved care time zone.
         </Text>
 
         {Platform.OS !== "web" ? (
@@ -142,9 +166,25 @@ export default function ManageNotificationsScreen() {
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>System permission</Text>
               <Text style={styles.cardSub}>{permissionLabel}</Text>
+              {setupError ? <Text style={styles.cardSub}>{setupError}</Text> : null}
+              {currentReminderStatus?.error ? <Text style={styles.cardSub}>{currentReminderStatus.error}</Text> : null}
+              {currentReminderStatus?.timeZone ? (
+                <Text style={styles.cardSub}>Your care time zone: {currentReminderStatus.timeZone}</Text>
+              ) : null}
+              {currentReminderStatus && currentReminderStatus.missingOwnerTimeZones > 0 ? (
+                <Text style={styles.cardSub}>
+                  A shared pet&apos;s owner needs to open the updated app to finish
+                  setting up their care time zone.
+                </Text>
+              ) : null}
             </View>
             <View style={styles.permissionRowRight}>
               <View style={styles.permissionActions}>
+                {permStatus === Notifications.PermissionStatus.GRANTED ? (
+                  <Pressable onPress={requestOsPermission} accessibilityRole="button">
+                    <Text style={styles.textBtnLabel}>Refresh setup</Text>
+                  </Pressable>
+                ) : null}
                 {permStatus !== Notifications.PermissionStatus.GRANTED ? (
                   <Pressable
                     style={({ pressed }) => [
@@ -189,6 +229,11 @@ export default function ManageNotificationsScreen() {
         ) : null}
 
         <Text style={styles.sectionLabel}>Reminders & activity</Text>
+        {saveError ? (
+          <Pressable onPress={() => void flushPending()} accessibilityRole="button">
+            <Text style={styles.cardSub}>{saveError} Tap to retry.</Text>
+          </Pressable>
+        ) : null}
 
         {loading ? (
           <Text style={styles.loadingText}>Loading preferences…</Text>
@@ -214,8 +259,7 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Meals & treats</Text>
                 <Text style={styles.cardSub}>
-                  One daily reminder after your latest scheduled meal or treat
-                  time (treats without times use an evening reminder)
+                  A reminder at each meal and treat time in your pet&apos;s schedule
                 </Text>
               </View>
               <Switch
@@ -231,10 +275,10 @@ export default function ManageNotificationsScreen() {
 
             <View style={styles.card}>
               <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>Co-care activities</Text>
+                <Text style={styles.cardTitle}>Exercise & co-care activities</Text>
                 <Text style={styles.cardSub}>
-                  Push when a co-carer logs food, potty, exercise, and more—and a
-                  daily nudge if exercise goals aren&apos;t met
+                  Reminders at scheduled exercise times, plus updates about who
+                  completed a shared pet&apos;s care tasks
                 </Text>
               </View>
               <Switch
@@ -252,7 +296,7 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Medications</Text>
                 <Text style={styles.cardSub}>
-                  Heads-up shortly before each medication’s reminder time
+                  A reminder at each scheduled medication time
                 </Text>
               </View>
               <Switch
@@ -270,7 +314,7 @@ export default function ManageNotificationsScreen() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Vet visits</Text>
                 <Text style={styles.cardSub}>
-                  Upcoming visits from your pet’s health calendar
+                  Reminders 24 hours and 1 hour before each vet visit
                 </Text>
               </View>
               <Switch
@@ -278,6 +322,22 @@ export default function ManageNotificationsScreen() {
                 onValueChange={(v) =>
                   void updatePrefs({ notify_vet_visits: v })
                 }
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
+              />
+            </View>
+            <View style={styles.card}>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Vaccinations</Text>
+                <Text style={styles.cardSub}>
+                  Reminders at 9 AM in the owner&apos;s care time zone one week before a vaccine expires
+                  and on its expiration date
+                </Text>
+              </View>
+              <Switch
+                value={prefs.notify_vaccinations}
+                onValueChange={(v) => void updatePrefs({ notify_vaccinations: v })}
                 trackColor={NOTIF_SWITCH_TRACK}
                 thumbColor={NOTIF_SWITCH_THUMB}
                 {...NOTIF_SWITCH_IOS_BG}

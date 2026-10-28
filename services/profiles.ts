@@ -87,6 +87,7 @@ export async function updateProfile(
       | "notify_co_care_activities"
       | "notify_medications"
       | "notify_vet_visits"
+      | "notify_vaccinations"
       | "time_display_format"
       | "date_display_format"
       | "crittr_pro_banner_theme"

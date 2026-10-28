@@ -1,5 +1,10 @@
+import {
+  PET_TYPE_OPTIONS,
+  petTypeMaterialIcon,
+} from "@/constants/petTypeIcons";
+import { useCoCarersForPetQuery } from "@/hooks/queries/useCoCareQuery";
+import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { Colors } from "@/theme/colors";
-import { petTypeMaterialIcon } from "@/constants/petTypeIcons";
 import { Font } from "@/theme/typography";
 import type { Pet, PetRole } from "@/types/database";
 import {
@@ -8,277 +13,264 @@ import {
 } from "@/utils/petListHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export type PetFeatureVariant = "orange" | "dark" | "memorial";
+type Props = { pet: Pet; variant: PetFeatureVariant; role?: PetRole };
 
-type PetFeatureCardProps = {
-  pet: Pet;
-  variant: PetFeatureVariant;
-  role?: PetRole;
-};
-
-const RADIUS = 28;
-
-export default function PetFeatureCard({ pet, variant, role }: PetFeatureCardProps) {
-  const breedLabel = getPetListBreedLabel(pet);
-  const ageLabel = getPetAgeCompactYrs(pet);
+export default function PetFeatureCard({ pet, variant, role }: Props) {
   const { push } = useNavigationCooldown();
-  const isMemorial = variant === "memorial";
-  const isOrange = variant === "orange";
-  const bg = isMemorial
+  const memorial = variant === "memorial";
+  const { data: carers } = useCoCarersForPetQuery(
+    role === "owner" && !memorial ? pet.id : null,
+  );
+  const count = carers
+    ? new Set([pet.owner_id, ...carers.map((carer) => carer.user_id)]).size
+    : null;
+  const breed = getPetListBreedLabel(pet);
+  const age = getPetAgeCompactYrs(pet);
+  const species =
+    PET_TYPE_OPTIONS.find((option) => option.id === pet.pet_type)?.label ??
+    "Pet";
+  const uri = pet.avatar_url?.trim();
+  const background = memorial
     ? Colors.memorialLavender
-    : isOrange
-      ? Colors.orange
-      : Colors.profileHeroDark;
-
-  const avatarUri = pet.avatar_url?.trim() || null;
-  const chevronColor = isMemorial
-    ? "rgba(255,255,255,0.75)"
-    : "rgba(255,255,255,0.9)";
-
-  const metaIconColor = isMemorial
+    : variant === "orange"
+      ? Colors.peach
+      : Colors.lavenderLight;
+  const ink = memorial
     ? Colors.memorialTextMuted
-    : "rgba(255,255,255,0.88)";
-  const typeIcon = petTypeMaterialIcon(pet.pet_type);
-
-  const goProfile = () => push(`/(logged-in)/pet/${pet.id}`);
+    : variant === "orange"
+      ? Colors.peachDark
+      : Colors.lavenderDark;
+  const microchip =
+    pet.is_microchipped === true
+      ? "Microchipped"
+      : pet.is_microchipped === false
+        ? "Not microchipped"
+        : "Microchip not set";
+  const team =
+    role === "owner" && count != null
+      ? `${count} ${count === 1 ? "carer" : "carers"}`
+      : role === "co_carer"
+        ? "Shared care"
+        : "Care team";
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: bg }]}
-      onPress={goProfile}
+      onPress={() => push(`/(logged-in)/pet/${pet.id}`)}
       activeOpacity={0.88}
+      style={[styles.card, { backgroundColor: background }]}
       accessibilityRole="button"
-      accessibilityLabel={`${pet.name}, ${breedLabel}, ${ageLabel}`}
+      accessibilityLabel={`${pet.name}, ${breed}, ${age}${memorial ? ", in loving memory" : `, ${microchip}, ${team}`}`}
       accessibilityHint="Opens profile"
     >
       <View style={styles.topRow}>
+        <View style={styles.species}>
+          <MaterialCommunityIcons
+            name={petTypeMaterialIcon(pet.pet_type)}
+            size={16}
+            color={ink}
+          />
+          <Text style={[styles.speciesText, { color: ink }]}>{species}</Text>
+        </View>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={24}
+          color={memorial ? Colors.memorialTextMuted : Colors.textPrimary}
+        />
+      </View>
+
+      <View style={styles.identityRow}>
         <View style={styles.identity}>
-          {isMemorial ? (
+          {memorial ? (
             <View style={styles.memorialBadge}>
               <MaterialCommunityIcons
                 name="flower-outline"
-                size={14}
+                size={13}
                 color={Colors.memorialGoldSoft}
               />
-              <Text style={styles.memorialBadgeText}>In loving memory</Text>
+              <Text style={styles.memorialLabel}>In loving memory</Text>
             </View>
           ) : null}
           <Text
-            style={[styles.name, isMemorial && styles.nameMemorial]}
-            numberOfLines={1}
+            style={[styles.name, memorial && styles.nameMemorial]}
+            numberOfLines={2}
           >
             {pet.name}
           </Text>
-
-          <View style={styles.metaRow}>
-            <View style={styles.metaChip}>
+          <Text style={[styles.meta, { color: ink }]}>
+            {breed} · {age}
+          </Text>
+          {!memorial ? (
+            <View style={styles.roleBadge}>
               <MaterialCommunityIcons
-                name={typeIcon}
-                size={16}
-                color={metaIconColor}
-              />
-              <Text
-                style={[styles.metaText, isMemorial && styles.metaTextMemorial]}
-                numberOfLines={1}
-              >
-                {breedLabel}
-              </Text>
-            </View>
-
-            <Text
-              style={[styles.metaDot, isMemorial && styles.metaDotMemorial]}
-            >
-              ·
-            </Text>
-            <View style={styles.metaChip}>
-              <MaterialCommunityIcons
-                name="cake-variant"
-                size={16}
-                color={metaIconColor}
-              />
-              <Text
-                style={[styles.metaText, isMemorial && styles.metaTextMemorial]}
-                numberOfLines={1}
-              >
-                {ageLabel}
-              </Text>
-            </View>
-          </View>
-
-          {!isMemorial && role === "co_carer" ? (
-            <View style={styles.coCarerBadge}>
-              <MaterialCommunityIcons
-                name="account-group-outline"
+                name={
+                  role === "co_carer"
+                    ? "account-group-outline"
+                    : "heart-outline"
+                }
                 size={14}
-                color={Colors.lavenderDark}
+                color={Colors.textPrimary}
               />
-              <Text style={styles.coCarerBadgeText}>Co-carer</Text>
+              <Text style={styles.roleLabel}>
+                {role === "co_carer" ? "Co-carer" : "Your companion"}
+              </Text>
             </View>
           ) : null}
         </View>
-        <View style={styles.avatarChevron}>
-          <View style={[styles.avatar, isMemorial && styles.avatarMemorial]}>
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={150}
-              />
-            ) : (
-              <MaterialCommunityIcons
-                name="paw"
-                size={36}
-                color={
-                  isMemorial
-                    ? Colors.memorialGoldSoft
-                    : isOrange
-                      ? Colors.white
-                      : Colors.orange
-                }
-              />
-            )}
-          </View>
-          <View accessible={false}>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={28}
-              color={chevronColor}
-              style={styles.chevron}
+        <View style={[styles.avatar, memorial && styles.avatarMemorial]}>
+          {uri ? (
+            <Image
+              source={{ uri }}
+              style={styles.photo}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
             />
-          </View>
+          ) : (
+            <MaterialCommunityIcons
+              name={petTypeMaterialIcon(pet.pet_type)}
+              size={38}
+              color={ink}
+            />
+          )}
         </View>
       </View>
+
+      {!memorial ? (
+        <View style={styles.footer}>
+          <View style={styles.footerItem}>
+            <MaterialCommunityIcons
+              name={
+                pet.is_microchipped === true
+                  ? "shield-check-outline"
+                  : "shield-outline"
+              }
+              size={18}
+              color={ink}
+            />
+            <Text style={[styles.footerText, { color: ink }]}>{microchip}</Text>
+          </View>
+          <View style={styles.footerItem}>
+            <MaterialCommunityIcons
+              name="account-group-outline"
+              size={18}
+              color={ink}
+            />
+            <Text style={[styles.footerText, { color: ink }]}>{team}</Text>
+          </View>
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: RADIUS,
+    borderRadius: 28,
     paddingHorizontal: 20,
-    paddingVertical: 22,
-    overflow: "hidden",
+    paddingTop: 17,
+    paddingBottom: 0,
   },
   topRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    marginBottom: 13,
+  },
+  species: { flexDirection: "row", alignItems: "center", gap: 6 },
+  speciesText: {
+    fontFamily: Font.uiBold,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+  },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
+    paddingBottom: 21,
   },
-  identity: {
-    flex: 1,
-    minWidth: 0,
+  identity: { flex: 1, minWidth: 0 },
+  name: {
+    fontFamily: Font.displayBold,
+    fontSize: 34,
+    lineHeight: 39,
+    color: Colors.textPrimary,
+    letterSpacing: -0.6,
   },
-  memorialBadge: {
+  nameMemorial: { color: Colors.white },
+  meta: {
+    fontFamily: Font.uiRegular,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  roleBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,253,248,0.65)",
+    marginTop: 10,
+  },
+  roleLabel: {
+    fontFamily: Font.uiBold,
+    fontSize: 10,
+    color: Colors.textPrimary,
+  },
+  avatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: Colors.warmWhite,
+    backgroundColor: Colors.warmWhite,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  photo: { width: "100%", height: "100%" },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(16,23,25,0.14)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingVertical: 14,
+  },
+  footerItem: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    paddingHorizontal: 10,
+    flexShrink: 1,
+  },
+  footerText: { fontFamily: Font.uiBold, fontSize: 11, flexShrink: 1 },
+  memorialBadge: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginBottom: 8,
   },
-  memorialBadgeText: {
+  memorialLabel: {
     fontFamily: Font.uiSemiBold,
-    fontSize: 11,
-    letterSpacing: 0.4,
+    fontSize: 10,
     color: Colors.memorialGoldSoft,
   },
-  coCarerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: Colors.lavenderLight,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.lavender,
-    marginTop: 10,
-  },
-  coCarerBadgeText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 11,
-    letterSpacing: 0.4,
-    color: Colors.lavenderDark,
-  },
-  name: {
-    fontFamily: Font.displayBold,
-    fontSize: 28,
-    color: Colors.white,
-    letterSpacing: -0.5,
-  },
-  nameMemorial: {
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.96)",
-  },
-  metaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    marginTop: 8,
-    gap: 6,
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    maxWidth: "100%",
-    flexShrink: 1,
-  },
-  metaText: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 18,
-    flexShrink: 1,
-  },
-  metaTextMemorial: {
-    color: Colors.memorialTextMuted,
-  },
-  metaDot: {
-    fontFamily: Font.uiRegular,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.45)",
-    lineHeight: 18,
-  },
-  metaDotMemorial: {
-    color: "rgba(255,255,255,0.35)",
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
   avatarMemorial: {
-    borderColor: "rgba(201,184,150,0.45)",
-    backgroundColor: "rgba(255,255,255,0.1)",
-  },
-  avatarImage: {
-    width: 72,
-    height: 72,
-  },
-  avatarChevron: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexShrink: 0,
-  },
-  chevron: {
-    marginLeft: 2,
+    borderColor: Colors.memorialGoldSoft,
+    backgroundColor: Colors.memorialLavenderDeep,
   },
 });

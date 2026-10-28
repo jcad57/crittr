@@ -1,5 +1,9 @@
 /** Local calendar date as YYYY-MM-DD (device timezone). */
-export function getLocalYmd(d = new Date()): string {
+export function getLocalYmd(d = new Date(), timeZone?: string | null): string {
+  if (timeZone) {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+    return ["year", "month", "day"].map((key) => parts.find((part) => part.type === key)?.value).join("-");
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");

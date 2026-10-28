@@ -5,7 +5,7 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS subscription_environment text,
   ADD COLUMN IF NOT EXISTS crittr_pro_product_id text;
 
-CREATE TABLE public.billing_test_accounts (
+CREATE TABLE IF NOT EXISTS public.billing_test_accounts (
   user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE
 );
 ALTER TABLE public.billing_test_accounts ENABLE ROW LEVEL SECURITY;
@@ -13,7 +13,7 @@ ALTER TABLE public.billing_test_accounts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.billing_test_accounts FROM anon, authenticated;
 
 -- Explicit administrator grants are separate from store purchases and expire automatically.
-CREATE TABLE public.billing_admin_grants (
+CREATE TABLE IF NOT EXISTS public.billing_admin_grants (
  user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
  expires_at timestamptz NOT NULL,
  reason text NOT NULL CHECK (length(trim(reason)) > 0),
@@ -21,7 +21,7 @@ CREATE TABLE public.billing_admin_grants (
 );
 ALTER TABLE public.billing_admin_grants ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.billing_admin_grants FROM anon, authenticated;
-CREATE FUNCTION public.project_billing_admin_grant()
+CREATE OR REPLACE FUNCTION public.project_billing_admin_grant()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE target_id uuid := coalesce(NEW.user_id, OLD.user_id);
 BEGIN
@@ -38,9 +38,10 @@ BEGIN
  END IF;
  IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END $$;
+DROP TRIGGER IF EXISTS billing_admin_grant_projection ON public.billing_admin_grants;
 CREATE TRIGGER billing_admin_grant_projection AFTER INSERT OR UPDATE OR DELETE ON public.billing_admin_grants
  FOR EACH ROW EXECUTE FUNCTION public.project_billing_admin_grant();
-CREATE FUNCTION public.set_crittr_pro_admin_grant(target uuid, expires_at timestamptz, reason text)
+CREATE OR REPLACE FUNCTION public.set_crittr_pro_admin_grant(target uuid, expires_at timestamptz, reason text)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
  IF expires_at <= now() OR expires_at > now() + interval '90 days' OR expires_at IS NULL THEN
@@ -164,11 +165,11 @@ CREATE POLICY paid_storage_update ON storage.objects AS RESTRICTIVE FOR UPDATE T
    (public.user_has_crittr_pro() AND public.pet_is_writable(split_part(name,'/',1)::uuid)));
 
 -- Fencing tokens prevent a slow/expired worker from overwriting a newer result.
-CREATE TABLE public.billing_reconciliation (
+CREATE TABLE IF NOT EXISTS public.billing_reconciliation (
  user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
  token uuid, started_at timestamptz, lease_until timestamptz
 );
-CREATE TABLE public.billing_webhook_events (
+CREATE TABLE IF NOT EXISTS public.billing_webhook_events (
  id text PRIMARY KEY, event_type text NOT NULL, received_at timestamptz DEFAULT now(),
  completed_at timestamptz, lease_until timestamptz, attempts integer NOT NULL DEFAULT 0
 );
@@ -176,7 +177,7 @@ ALTER TABLE public.billing_reconciliation ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.billing_webhook_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.billing_reconciliation, public.billing_webhook_events FROM anon, authenticated;
 
-CREATE FUNCTION public.begin_billing_reconciliation(target uuid, minimum_interval integer DEFAULT 5)
+CREATE OR REPLACE FUNCTION public.begin_billing_reconciliation(target uuid, minimum_interval integer DEFAULT 5)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE claimed uuid;
 BEGIN
@@ -187,7 +188,7 @@ BEGIN
  RETURNING token INTO claimed;
  RETURN claimed;
 END $$;
-CREATE FUNCTION public.commit_billing_reconciliation(target uuid, fence uuid, snapshot jsonb)
+CREATE OR REPLACE FUNCTION public.commit_billing_reconciliation(target uuid, fence uuid, snapshot jsonb)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE admin_until timestamptz;
 BEGIN
@@ -196,7 +197,10 @@ BEGIN
  -- Lock grant changes against this reconciliation before projecting either source.
  PERFORM 1 FROM public.profiles WHERE id=target FOR UPDATE;
  SELECT expires_at INTO admin_until FROM public.billing_admin_grants WHERE user_id=target AND expires_at>now();
- IF admin_until IS NOT NULL THEN
+ IF admin_until IS NOT NULL AND (
+   coalesce((snapshot->>'isActive')::boolean,false) IS NOT TRUE OR
+   (snapshot->>'crittrProUntil')::timestamptz < admin_until
+ ) THEN
   snapshot := jsonb_build_object('isActive',true,'crittrProUntil',admin_until,'environment','admin',
     'store','promotional','productIdentifier','admin_grant','ownershipType','ADMIN_GRANTED','willRenew',false);
  END IF;
@@ -215,11 +219,11 @@ BEGIN
  UPDATE public.billing_reconciliation SET lease_until = NULL WHERE user_id = target;
  RETURN true;
 END $$;
-CREATE FUNCTION public.release_billing_reconciliation(target uuid, fence uuid)
+CREATE OR REPLACE FUNCTION public.release_billing_reconciliation(target uuid, fence uuid)
 RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
  UPDATE public.billing_reconciliation SET lease_until = NULL WHERE user_id = target AND token = fence;
 $$;
-CREATE FUNCTION public.claim_billing_webhook(event_id text, kind text)
+CREATE OR REPLACE FUNCTION public.claim_billing_webhook(event_id text, kind text)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
  INSERT INTO public.billing_webhook_events(id,event_type) VALUES(event_id,kind) ON CONFLICT DO NOTHING;

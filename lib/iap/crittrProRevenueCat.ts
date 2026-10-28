@@ -15,14 +15,23 @@ export function customerInfoHasCrittrPro(info: CustomerInfo): boolean {
   return customerInfoSliceHasCrittrPro(info);
 }
 
-/** Prefer `active`, then historical `all` — canonical id first for new projects. */
+/** Select the same active grant as the access metadata, before historical purchases. */
 export function selectCrittrProEntitlementFromCustomerInfo(
   info: CustomerInfo,
 ): PurchasesEntitlementInfo | null {
+  const selected = entitlementFromCustomerInfoSlice(info);
+  const active = [
+    info.entitlements.active[CRITTR_PRO_ENTITLEMENT_ID],
+    info.entitlements.active[CRITTR_PRO_ENTITLEMENT_LEGACY_ID],
+  ].find(
+    (ent) =>
+      ent?.isActive &&
+      ent.productIdentifier === selected.productIdentifier &&
+      (ent.expirationDate ?? null) === selected.expiresAt,
+  );
   return (
-    info.entitlements.active[CRITTR_PRO_ENTITLEMENT_ID] ??
+    active ??
     info.entitlements.all[CRITTR_PRO_ENTITLEMENT_ID] ??
-    info.entitlements.active[CRITTR_PRO_ENTITLEMENT_LEGACY_ID] ??
     info.entitlements.all[CRITTR_PRO_ENTITLEMENT_LEGACY_ID] ??
     null
   );

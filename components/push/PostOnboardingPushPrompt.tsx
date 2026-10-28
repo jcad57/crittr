@@ -1,9 +1,11 @@
 import { requestNotificationPermissionsAsync } from "@/lib/pushNotifications";
 import { syncExpoPushTokenToSupabase } from "@/services/pushTokens";
+import { syncCrittrReminderNotifications } from "@/services/reminderNotificationSchedule";
 import { useAuthStore } from "@/stores/authStore";
 import {
   hasShownPostOnboardingPushPrompt,
   markPostOnboardingPushPromptShown,
+  notificationPrefsFromProfile,
 } from "@/utils/pushNotificationPreferences";
 import { useEffect } from "react";
 import { Platform } from "react-native";
@@ -24,16 +26,22 @@ export default function PostOnboardingPushPrompt() {
     (async () => {
       if (postOnboardingPermissionPromptInFlight) return;
       const already = await hasShownPostOnboardingPushPrompt();
-      if (cancelled || already) return;
+      if (cancelled || already || postOnboardingPermissionPromptInFlight) return;
       postOnboardingPermissionPromptInFlight = true;
       try {
         await requestNotificationPermissionsAsync();
         if (!cancelled) await markPostOnboardingPushPromptShown();
-        if (!cancelled && userId) void syncExpoPushTokenToSupabase(userId);
+        if (!cancelled && userId) {
+          const profile = useAuthStore.getState().profile;
+          if (profile) await syncCrittrReminderNotifications(userId, notificationPrefsFromProfile(profile));
+          await syncExpoPushTokenToSupabase(userId);
+        }
+      } catch (error) {
+        console.warn("[notifications] permission setup failed", error);
       } finally {
         postOnboardingPermissionPromptInFlight = false;
       }
-    })();
+    })().catch((error) => console.warn("[notifications] prompt failed", error));
 
     return () => {
       cancelled = true;

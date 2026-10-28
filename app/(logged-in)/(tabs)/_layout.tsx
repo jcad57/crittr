@@ -14,10 +14,7 @@ export default function LoggedInTabsLayout() {
       tabBar={() => null}
       screenOptions={{
         headerShown: false,
-        /**
-         * Pre-mount tab scenes so the first Schedule tap is a JUMP_TO, not a
-         * cold mount that builds the date strip on the critical path.
-         */
+        // Mount each screen on first visit to keep sign-in lightweight.
         lazy: true,
         freezeOnBlur: true,
         sceneStyle: { backgroundColor: Colors.cream },
@@ -29,6 +26,10 @@ export default function LoggedInTabsLayout() {
         on screen until the user switched tabs and back.
       */}
       <Tabs.Screen name="dashboard" options={{ freezeOnBlur: false }} />
+      {/* SDK 58 redirects undeclared tab routes to the initial tab. */}
+      <Tabs.Screen name="activity" />
+      <Tabs.Screen name="pets" />
+      <Tabs.Screen name="health" />
     </Tabs>
   );
 }

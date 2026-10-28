@@ -101,6 +101,8 @@ export type MedicationSummary = {
 
 export type VetVisitSummary = {
   id: string;
+  /** Local day of the visit, formatted from its timestamp (never a display date). */
+  dayLabel: string;
   title: string;
   date: string;
   time: string;
