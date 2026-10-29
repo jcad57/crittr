@@ -6,7 +6,7 @@ import { useDeletePetWeightEntryMutation } from "@/hooks/mutations/useManageActi
 import { usePetDetailsQuery, usePetWeightEntriesQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   entriesToChartPoints,
@@ -35,6 +35,8 @@ import {
 const SCALE_ICON = require("@/assets/icons/weight-scale-icon.png");
 
 export default function WeightHistoryScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { router, push } = useNavigationCooldown();
@@ -325,10 +327,10 @@ export default function WeightHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: {
     flex: 1,
@@ -529,4 +531,4 @@ const styles = StyleSheet.create({
   deleteBtnPressed: {
     backgroundColor: Colors.errorLight,
   },
-});
+}));

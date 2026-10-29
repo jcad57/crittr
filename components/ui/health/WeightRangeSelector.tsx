@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   WEIGHT_HISTORY_RANGE_OPTIONS,
@@ -13,6 +13,7 @@ type Props = {
 
 /** Pill segmented control mirroring the chart card style — used above the chart. */
 export default function WeightRangeSelector({ active, onChange }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.row}>
       {WEIGHT_HISTORY_RANGE_OPTIONS.map((opt) => {
@@ -36,7 +37,7 @@ export default function WeightRangeSelector({ active, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     backgroundColor: Colors.white,
@@ -67,4 +68,4 @@ const styles = StyleSheet.create({
   labelActive: {
     color: Colors.white,
   },
-});
+}));

@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { DEFAULT_COLORS as Colors } from "@/theme/seasonalThemes";
 import type { VetVisitSummary } from "@/types/ui";
 import type { PetVetVisit } from "@/types/database";
 import type {

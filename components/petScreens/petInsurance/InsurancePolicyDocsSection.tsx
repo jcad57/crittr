@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import type { PetInsuranceFile } from "@/types/database";
 import { formatBytes, mimeKind } from "@/utils/fileAttachmentDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/insurance.styles";
 
 type Props = {
   files: PetInsuranceFile[];
@@ -31,6 +31,8 @@ export default function InsurancePolicyDocsSection({
   openFile,
   confirmDeleteFile,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <View style={styles.policyDocsHeader}>

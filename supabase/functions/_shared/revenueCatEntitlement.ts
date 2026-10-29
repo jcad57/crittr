@@ -33,25 +33,36 @@ const empty = (): EntitlementSummary => ({
 function summarizeTrusted(
   payload: RcSubscriberPayload,
   allowSandbox: boolean,
-): EntitlementSummary {
+): { summary: EntitlementSummary; sandboxRestricted: boolean } {
   const verdict = evaluateEntitlement(payload, Date.now(), { allowSandbox });
   if (verdict.kind === "unknown")
     throw new Error("Invalid RevenueCat response");
-  if (verdict.kind !== "active") return empty();
+  if (verdict.kind !== "active") {
+    const sandbox = !allowSandbox
+      ? evaluateEntitlement(payload, Date.now(), { allowSandbox: true })
+      : null;
+    return {
+      summary: empty(),
+      sandboxRestricted: sandbox?.kind === "active" && sandbox.summary.isSandbox === true,
+    };
+  }
   const summary = verdict.summary;
   return {
-    isActive: true,
-    crittrProUntil: summary.expiresAt,
-    productIdentifier: summary.productIdentifier,
-    store: summary.store,
-    environment: summary.isSandbox
-      ? "sandbox"
-      : summary.store === "promotional"
-        ? "promotional"
-        : "production",
-    willRenew: summary.willRenew,
-    originalPurchaseId: summary.originalPurchaseId,
-    ownershipType: summary.ownershipType,
+    sandboxRestricted: false,
+    summary: {
+      isActive: true,
+      crittrProUntil: summary.expiresAt,
+      productIdentifier: summary.productIdentifier,
+      store: summary.store,
+      environment: summary.isSandbox
+        ? "sandbox"
+        : summary.store === "promotional"
+          ? "promotional"
+          : "production",
+      willRenew: summary.willRenew,
+      originalPurchaseId: summary.originalPurchaseId,
+      ownershipType: summary.ownershipType,
+    },
   };
 }
 export class RevenueCatRestError extends Error {
@@ -93,7 +104,7 @@ export async function reconcileCrittrProForUser(
   admin: SupabaseClient,
   userId: string,
   options: { checkout?: boolean; webhook?: boolean } = {},
-): Promise<{ before: string | null; after: string | null }> {
+): Promise<{ before: string | null; after: string | null; verification: "active" | "inactive" | "sandbox_restricted" }> {
   // Never consume client-supplied app user IDs or the legacy, potentially poisoned mapping.
   const { data: fence, error: lockError } = await admin.rpc(
     "begin_billing_reconciliation",
@@ -124,19 +135,22 @@ export async function reconcileCrittrProForUser(
     if (profileError) throw profileError;
     if (testerError) throw testerError;
     let summary = empty();
+    let sandboxRestricted = false;
     const attempts = options.checkout ? 4 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        summary = summarizeTrusted(
+        const trusted = summarizeTrusted(
           await fetchRevenueCatSubscriber(userId),
           Boolean(tester),
         );
+        summary = trusted.summary;
+        sandboxRestricted = trusted.sandboxRestricted;
       } catch (error) {
         if (!(error instanceof RevenueCatRestError && error.status === 404))
           throw error;
         summary = empty();
       }
-      if (summary.isActive || attempt === attempts - 1) break;
+      if (summary.isActive || sandboxRestricted || attempt === attempts - 1) break;
       await new Promise((resolve) => setTimeout(resolve, 1_000));
     }
     const { data: committed, error } = await admin.rpc(
@@ -151,7 +165,11 @@ export async function reconcileCrittrProForUser(
     if (!committed)
       throw new ReconciliationBusyError("Reconciliation superseded");
     // Access policies enforce expiry immediately. Downgrade never destroys user data.
-    return { before: profile.crittr_pro_until, after: summary.crittrProUntil };
+    return {
+      before: profile.crittr_pro_until,
+      after: summary.crittrProUntil,
+      verification: summary.isActive ? "active" : sandboxRestricted ? "sandbox_restricted" : "inactive",
+    };
   } finally {
     const { error } = await admin.rpc("release_billing_reconciliation", {
       target: userId,

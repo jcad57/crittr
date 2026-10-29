@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadTS } = require('./load-typescript.cjs');
 const { createProPurchaseFlow, PURCHASE_CALLBACK_TIMEOUT_MS } = loadTS('lib/iap/proPurchaseFlow.ts');
-const plan={billing:'annual',productId:'annual',amount:3999,currency:'usd'};
+const plan={billing:'annual',productId:'annual',amount:3999,currency:'usd',trial:null};
 const pkg={product:{identifier:'annual',price:39.99,currencyCode:'USD'}};
 const paid={customerInfo:{},hasCrittrPro:true,productIdentifier:'annual'};
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject};};
@@ -11,7 +11,7 @@ function harness(overrides={}) {
  let session='account:1';
  const deps={
   sessionKey:()=>session,detect:async()=>({hasCrittrPro:false,customerInfo:null}),
-  offering:async()=>({ok:true,package:pkg}),purchase:async()=>{calls.purchase++;return paid;},
+  offering:async()=>({ok:true,package:pkg}),trial:async()=>null,purchase:async()=>{calls.purchase++;return paid;},
   restore:async()=>{calls.restore++;return paid;},verify:async()=>{calls.verify++;},hasVerifiedAccess:()=>false,
   pricesChanged:()=>calls.prices++,pause:async()=>{},storeName:'App Store',...overrides,
  };
@@ -46,7 +46,7 @@ test('confirmed purchase recovery retries verification without charging again',a
 });
 test('pending payments are status checks, including after a network failure',async()=>{
  let bought=0,online=true,active=false;
- const h=harness({purchase:async()=>{bought++;throw {kind:'pending'};},detect:async()=>{if(!online)throw Error('Offline');return {hasCrittrPro:active,customerInfo:active?{}:null};}});
+ const h=harness({purchase:async()=>{bought++;throw {kind:'pending'};},detect:async()=>{if(!online)throw Error('Offline');return {hasCrittrPro:active,customerInfo:active?{}:null};},verify:async()=>{if(!online||!active)throw Error('Not confirmed');}});
  await h.flow.purchase(plan);assert.equal(h.flow.getSnapshot().phase,'pending');
  online=false;await h.flow.check();assert.equal(h.flow.getSnapshot().phase,'pending');
  online=true;await h.flow.purchase(plan);assert.equal(bought,1);assert.equal(h.flow.getSnapshot().phase,'pending');
@@ -166,7 +166,7 @@ test('a remounted checkout attaches to an outstanding native transaction without
  store.resolve(paid);await flush();assert.equal(h.flow.getSnapshot().phase,'complete');
 });
 test('preflight, offering, restore and verification stalls have bounded recovery',async()=>{
- for(const stage of ['detect','offering','restore','verify']) {
+ for(const stage of ['detect','offering','trial','restore','verify']) {
   const timers=manualTimers();
   const h=harness({schedule:timers.schedule,[stage]:()=>new Promise(()=>{})});
   const task=stage==='restore'?h.flow.restore():h.flow.purchase(plan);
@@ -206,4 +206,64 @@ test('reattaching the same controller consumes a settled native result only once
  store.resolve(paid);await flush();
  await h.flow.resumeOutstanding();await flush();
  assert.equal(verifies,1);assert.equal(h.flow.getSnapshot().working,false);assert.equal(h.flow.getSnapshot().phase,'recovery');
+});
+
+test('changed trial eligibility or duration requires review before any charge',async()=>{
+ const week={durationLabel:'7-day',iso8601:'P1W'};
+ const month={durationLabel:'1-month',iso8601:'P1M'};
+ for(const [reviewed,current] of [[week,null],[null,week],[week,month]]) {
+  const h=harness({trial:async()=>current});
+  await h.flow.purchase({...plan,trial:reviewed});
+  assert.equal(h.calls.purchase,0);assert.equal(h.calls.prices,1);assert.equal(h.flow.getSnapshot().working,false);
+  assert.match(h.flow.getSnapshot().message,/trial offer changed/);
+  assert.equal(h.flow.getSnapshot().requiresPlanReview,true);
+  await h.flow.purchase({...plan,trial:current});assert.equal(h.calls.purchase,1);assert.equal(h.flow.getSnapshot().phase,'complete');assert.equal(h.flow.getSnapshot().requiresPlanReview,false);
+ }
+});
+test('pending payments verify with the server while native entitlement data is stale',async()=>{
+ let detects=0,verified=false;
+ const h=harness({detect:async()=>{detects++;return {hasCrittrPro:false,customerInfo:null};},purchase:async()=>{throw {kind:'pending'};},verify:async()=>{if(!verified)throw Error('Not confirmed');}});
+ await h.flow.purchase(plan);await h.flow.check();
+ assert.equal(h.flow.getSnapshot().phase,'pending');assert.equal(h.flow.getSnapshot().storeConfirmed,false);
+ assert.doesNotMatch(h.flow.getSnapshot().message,/purchase.*saved|purchase.*succeeded/);
+ verified=true;await h.flow.check();
+ assert.equal(detects,1);assert.equal(h.flow.getSnapshot().phase,'complete');assert.equal(h.flow.getSnapshot().source,'purchase');
+});
+test('checking existing access uses the server even when the native SDK is stalled',async()=>{
+ const h=harness({detect:()=>new Promise(()=>{})});
+ await h.flow.check();
+ assert.equal(h.calls.verify,1);assert.equal(h.calls.purchase,0);assert.equal(h.flow.getSnapshot().phase,'complete');assert.equal(h.flow.getSnapshot().source,'paywall');
+});
+test('an unsuccessful access check never claims a purchase was received',async()=>{
+ const h=harness({verify:async()=>{throw Error('Activation unavailable');}});
+ await h.flow.check();
+ assert.equal(h.flow.getSnapshot().phase,'recovery');assert.equal(h.flow.getSnapshot().storeConfirmed,false);
+ assert.match(h.flow.getSnapshot().message,/restore purchases/);assert.doesNotMatch(h.flow.getSnapshot().message,/purchase.*succeeded|purchase.*saved/);
+});
+
+test('sandbox enrollment errors survive activation and status recovery without another purchase',async()=>{
+ const issue={kind:'sandbox_restricted',message:'TestFlight testing account needs enrollment. No real charge.'};
+ for(const verified of [false,true]) {
+  const h=harness({verify:async()=>{throw issue;},hasVerifiedAccess:()=>verified});
+  await h.flow.purchase(plan);
+  assert.equal(h.flow.getSnapshot().phase,'recovery');assert.equal(h.flow.getSnapshot().message,issue.message);
+  const purchases=h.calls.purchase;
+  await h.flow.retry();assert.equal(h.calls.purchase,purchases);assert.equal(h.flow.getSnapshot().message,issue.message);
+ }
+ const check=harness({verify:async()=>{throw issue;}});
+ await check.flow.check();assert.equal(check.flow.getSnapshot().message,issue.message);
+});
+test('expired subscribers can buy either cadence once and are told restoring does not renew',async()=>{
+ for(const billing of ['monthly','annual']) {
+  const h=harness({detect:async()=>({hasCrittrPro:false,customerInfo:{entitlements:{active:{},all:{crittr_pro:{isActive:false}}}}})});
+  await h.flow.purchase({...plan,billing});
+  assert.equal(h.calls.purchase,1);assert.equal(h.flow.getSnapshot().phase,'complete');
+ }
+ const expired=harness({restore:async()=>({...paid,hasCrittrPro:false})});
+ await expired.flow.restore();assert.match(expired.flow.getSnapshot().message,/expired.*Review plans/);assert.equal(expired.calls.purchase,0);
+});
+test('receipt ownership conflicts direct account recovery and never repurchase on retry',async()=>{
+ const h=harness({purchase:async()=>{h.calls.purchase++;throw {kind:'account_conflict',message:'Sign in to the original Crittr account.'};},verify:async()=>{throw Error('Not active');}});
+ await h.flow.purchase(plan);assert.match(h.flow.getSnapshot().message,/original Crittr account/);
+ await h.flow.retry();assert.equal(h.calls.purchase,1);
 });

@@ -4,7 +4,7 @@ import {
 } from "@/constants/petTypeIcons";
 import { useCoCarersForPetQuery } from "@/hooks/queries/useCoCareQuery";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { Pet, PetRole } from "@/types/database";
 import {
@@ -19,6 +19,8 @@ export type PetFeatureVariant = "orange" | "dark" | "memorial";
 type Props = { pet: Pet; variant: PetFeatureVariant; role?: PetRole };
 
 export default function PetFeatureCard({ pet, variant, role }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const memorial = variant === "memorial";
   const { data: carers } = useCoCarersForPetQuery(
@@ -166,7 +168,7 @@ export default function PetFeatureCard({ pet, variant, role }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     borderRadius: 28,
     paddingHorizontal: 20,
@@ -273,4 +275,4 @@ const styles = StyleSheet.create({
     borderColor: Colors.memorialGoldSoft,
     backgroundColor: Colors.memorialLavenderDeep,
   },
-});
+}));

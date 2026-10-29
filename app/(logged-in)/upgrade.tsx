@@ -5,7 +5,7 @@ import * as WebBrowser from "expo-web-browser";
 import Purchases from "react-native-purchases";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
-import { ProFlowPage, ProLink, ProNotice, flowStyles } from "@/components/pro/flow/ProFlowUi";
+import { ProFlowPage, ProLink, ProNotice, getFlowStyles } from "@/components/pro/flow/ProFlowUi";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
 import { trackPaywallViewed } from "@/lib/analytics";
@@ -15,9 +15,11 @@ import { PLAY_REDEEM_URL } from "@/lib/iap/storeTerms";
 import { suppressProCelebrationsUntil } from "@/lib/proEngagementPersistence";
 import { useAuthStore } from "@/stores/authStore";
 import { sessionGeneration } from "@/lib/sessionGeneration";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 
 export default function UpgradeScreen() {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ fromOnboarding?: string; returnTo?: string; billing?: string; source?: string }>();
   const [billing, setBilling] = useState<"annual" | "monthly">(params.billing === "monthly" ? "monthly" : "annual");
@@ -69,7 +71,7 @@ export default function UpgradeScreen() {
       if (mounted.current) setPromoError("We couldn’t open code redemption. Check your connection and try again.");
     }
   };
-  return <ProFlowPage onBack={leave} compactFooter footer={<>
+  return <ProFlowPage showPurchaseEnvironment onBack={leave} compactFooter footer={<>
     {promoError ? <ProNotice message={promoError} /> : null}
     <OrangeButton onPress={() => checkout()} disabled={!pricing.resolved || checkingExisting} loading={checkingExisting}>{pricing.resolved ? `Continue with ${billing}` : "Loading prices…"}</OrangeButton>
     <Text style={[flowStyles.finePrint, { fontSize: 11, lineHeight: 14 }]}>{pricing.resolved && pricing[billing].trial ? `${pricing[billing].trial?.durationLabel} free trial, then ${pricing[billing].formatted}/${billing === "annual" ? "year" : "month"}. ` : `Billed ${billing === "annual" ? "annually" : "monthly"}. `}Cancel anytime.</Text>

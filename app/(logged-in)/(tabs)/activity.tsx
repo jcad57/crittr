@@ -1,9 +1,10 @@
+import AdBanner from "@/components/ads/AdBanner";
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import ScheduleDateSelector from "@/components/ui/schedule/ScheduleDateSelector";
 import ScheduleDaySkeleton from "@/components/ui/schedule/ScheduleDaySkeleton";
 import SchedulePeriodSection from "@/components/ui/schedule/SchedulePeriodSection";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   useActivitiesOnDayQuery,
@@ -64,6 +65,8 @@ function formatScheduleHeaderDate(
 }
 
 export default function ScheduleScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
@@ -224,12 +227,7 @@ export default function ScheduleScreen() {
             />
           </View>
 
-          <ScheduleDateSelector
-            selectedYmd={selectedYmd}
-            todayYmd={todayYmd}
-            signupYmd={signupYmd}
-            onSelectYmd={selectDay}
-          />
+          <AdBanner placement="schedule_top" />
         </View>
       </View>
 
@@ -248,6 +246,14 @@ export default function ScheduleScreen() {
           />
         }
       >
+        <View style={styles.calendar}>
+          <ScheduleDateSelector
+            selectedYmd={selectedYmd}
+            todayYmd={todayYmd}
+            signupYmd={signupYmd}
+            onSelectYmd={selectDay}
+          />
+        </View>
         {hasNoPets ? (
           <View style={styles.emptyBlock}>
             <Text style={styles.emptyText}>
@@ -310,10 +316,10 @@ export default function ScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   headerBar: {
     backgroundColor: Colors.cream,
@@ -348,6 +354,9 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     flexGrow: 1,
   },
+  calendar: {
+    marginBottom: 18,
+  },
   periods: {
     gap: 16,
     overflow: "visible",
@@ -372,4 +381,4 @@ const styles = StyleSheet.create({
     color: Colors.orange,
     textAlign: "center",
   },
-});
+}));

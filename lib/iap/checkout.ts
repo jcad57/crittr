@@ -324,21 +324,27 @@ const DETECT_ENTITLEMENT_TIMEOUT_MS = 8_000;
  * device receipts that do not belong to this account, which used to trap the
  * paywall on "Activating Crittr Pro…".
  *
- * Returns `hasCrittrPro: false` when RC isn't configured, the SDK fails, or
- * the lookup times out so callers fall back to the regular paywall.
+ * Browsing can fall back to the regular paywall when the lookup fails.
+ * Purchase preflight uses strict mode: unavailable data must not mean Free.
  */
-export async function detectExistingCrittrProEntitlement(): Promise<
+export async function detectExistingCrittrProEntitlement(options: { strict?: boolean } = {}): Promise<
   | { hasCrittrPro: true; customerInfo: CustomerInfo }
   | { hasCrittrPro: false; customerInfo: CustomerInfo | null }
 > {
   const user = await lookupAuthUser();
-  if (!user) return { hasCrittrPro: false, customerInfo: null };
+  if (!user) {
+    if (options.strict) throw new Error("We couldn’t verify your account. Check your connection and sign in before purchasing.");
+    return { hasCrittrPro: false, customerInfo: null };
+  }
 
   const info = await withTimeout(
     getIdentifiedRevenueCatCustomerInfo(user.id),
     DETECT_ENTITLEMENT_TIMEOUT_MS,
   );
-  if (!info) return { hasCrittrPro: false, customerInfo: null };
+  if (!info) {
+    if (options.strict) throw new Error("We couldn’t check your existing subscription. Check your connection and try again before starting another purchase.");
+    return { hasCrittrPro: false, customerInfo: null };
+  }
   return {
     hasCrittrPro: customerInfoHasCrittrPro(info),
     customerInfo: info,
@@ -424,7 +430,7 @@ async function executeProPackagePurchase(
     ingestRevenueCatCustomerInfo(result.customerInfo);
     trackPurchase({
       ...commercial,
-      transactionId: result.productIdentifier,
+      transactionId: result.transaction?.transactionIdentifier,
     });
     return {
       customerInfo: result.customerInfo,
@@ -456,6 +462,7 @@ async function executeProPackagePurchase(
  * is the recovery path on Play after a reinstall or account switch.
  */
 export async function restoreProPurchases(): Promise<ProPurchaseResult> {
+  const generation = sessionGeneration();
   const user = await lookupAuthUser();
   if (!user) {
     throw new ProPurchaseException({
@@ -465,6 +472,10 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
   }
 
   await configureRevenueCat();
+  if (generation !== sessionGeneration()) throw new ProPurchaseException({
+    userCancelled: false,
+    message: "Your account changed. Sign in to restore your purchases.",
+  });
   if (!isRevenueCatConfigured()) {
     throw new ProPurchaseException({
       userCancelled: false,
@@ -514,14 +525,18 @@ export async function waitForProActivation(options?: {
   if (!user || generation !== sessionGeneration())
     throw new Error(ACTIVATION_SYNC_ERROR);
   let nextSyncAt = 0;
+  let syncInFlight = false;
+  let syncIssue: unknown = null;
   while (Date.now() < deadline) {
     ensureActive();
-    if (Date.now() >= nextSyncAt) {
-      await withTimeout(
-        runEntitlementSync(user.id, options?.source ?? "purchase"),
-        remaining(),
-      );
-      nextSyncAt = Date.now() + 5000;
+    if (syncIssue) throw syncIssue;
+    if (!syncInFlight && Date.now() >= nextSyncAt) {
+      syncInFlight = true;
+      // Webhooks can confirm access while this request is waiting for a lease
+      // or RevenueCat. Poll the authoritative profile without waiting on it.
+      void runEntitlementSync(user.id, options?.source ?? "purchase")
+        .catch((error: unknown) => { syncIssue = error; })
+        .finally(() => { syncInFlight = false; nextSyncAt = Date.now() + 1500; });
     }
     if (generation !== sessionGeneration())
       throw new Error("Your account changed. Sign in to check your purchase.");
@@ -529,20 +544,19 @@ export async function waitForProActivation(options?: {
       Promise.resolve(
         supabase.from("profiles").select("*").eq("id", user.id).single(),
       ),
-      remaining(),
+      Math.min(5_000, remaining()),
     );
-    if (!response) break;
-    const { data, error } = response;
     if (generation !== sessionGeneration())
       throw new Error("Your account changed");
-    if (error) throw error;
     ensureActive();
-    if (data) {
+    if (syncIssue) throw syncIssue;
+    const { data, error } = response ?? {};
+    if (data && !error) {
       ingestProfileMirror(data);
       queryClient.setQueryData(profileQueryKey(user.id), data);
       if (isCrittrProFromProfile(data)) return;
     }
-    await sleep(Math.min(1000, remaining()));
+    await sleep(Math.min(500, remaining()));
   }
   throw new Error(ACTIVATION_SYNC_ERROR);
 }
@@ -551,9 +565,16 @@ async function runEntitlementSync(
   userId: string,
   source: ProActivationSource,
 ): Promise<void> {
-  if (source === "restore") await syncCrittrProAfterRestore(userId);
-  else if (source === "paywall") await syncCrittrProForPaywall();
-  else await syncCrittrProAfterCheckout();
+  const result = source === "restore"
+    ? await syncCrittrProAfterRestore(userId)
+    : source === "paywall"
+      ? await syncCrittrProForPaywall()
+      : await syncCrittrProAfterCheckout();
+  if (result === "sandbox_restricted") throw new ProPurchaseException({
+    userCancelled: false,
+    kind: "sandbox_restricted",
+    message: "This is a test purchase. Your Crittr account needs to be enabled for subscription testing; contact Crittr support with your account email. TestFlight purchases never charge you. For a real subscription, install Crittr from the App Store.",
+  });
 }
 
 async function lookupAuthUser(): Promise<{ id: string } | null> {

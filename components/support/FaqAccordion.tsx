@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import type { HelpCenterFaq } from "@/content/helpCenterFaqs";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,6 +26,8 @@ export function FaqAccordionItem({
   onToggle,
   isLast,
 }: FaqAccordionItemProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [contentHeight, setContentHeight] = useState(0);
   const openHeight = useSharedValue(0);
   const chevronTurn = useSharedValue(0);
@@ -98,6 +100,7 @@ export default function FaqAccordion({
   expandedId,
   onExpandedChange,
 }: FaqAccordionProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View>
       <View style={styles.card}>
@@ -117,7 +120,7 @@ export default function FaqAccordion({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -168,4 +171,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-});
+}));

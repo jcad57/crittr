@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import type { ExercisePlanFormEntry, PetExercisePlan } from "@/types/database";
 
 export type PetExercisePlanInput = {
+  /** Existing plan identity, preserved when editing the combined care section. */
+  id?: string;
   label: string;
   days_of_week: number[];
   /** Postgres `time` as `HH:MM:SS`. */

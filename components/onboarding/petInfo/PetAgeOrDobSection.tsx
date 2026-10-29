@@ -1,6 +1,6 @@
 import FormInput from "@/components/ui/form/FormInput";
 import PetDateOfBirthField from "@/components/onboarding/petInfo/PetDateOfBirthField";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { StyleSheet, Text, View } from "react-native";
@@ -26,6 +26,7 @@ export default function PetAgeOrDobSection({
   onClearDate,
   ageOrDobError,
 }: PetAgeOrDobSectionProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.section}>
       <Text
@@ -63,7 +64,7 @@ export default function PetAgeOrDobSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   section: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
@@ -90,4 +91,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 10,
   },
-});
+}));

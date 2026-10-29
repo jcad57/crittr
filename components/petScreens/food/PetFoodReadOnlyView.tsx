@@ -1,5 +1,6 @@
+import { useThemeValues } from "@/theme/colors";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -20,6 +21,7 @@ export default function PetFoodReadOnlyView({
   bottomPadding,
   onBack,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const treat = isTreatFood(existing);
   return (

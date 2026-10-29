@@ -1,5 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
-import { Colors } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
@@ -21,6 +21,8 @@ export default function PetFoodMealScheduleSection({
   onEditPortion,
   onRemovePortion,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   return (
     <>

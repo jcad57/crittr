@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -11,6 +11,8 @@ type PetManagementProps = {
 };
 
 export default function PetManagement({ pets, onAddPet }: PetManagementProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.container}>
       <SectionLabel>My pets</SectionLabel>
@@ -47,7 +49,7 @@ const AVATAR_SIZE = 80;
 const ADD_SIZE = 56;
 const ADD_TOP_OFFSET = (AVATAR_SIZE - ADD_SIZE) / 2;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     marginBottom: 0,
   },
@@ -70,4 +72,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -19,6 +19,7 @@ export default function SocialCircleButton({
   onPress?: () => void;
   disabled?: boolean;
 }) {
+  const styles = useThemeValues(getStyles);
   const translateY = useSharedValue(0);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -48,7 +49,7 @@ export default function SocialCircleButton({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   socialCircleWrapper: {
     width: SOCIAL_CIRCLE_SIZE,
     height: SOCIAL_CIRCLE_SIZE + SOCIAL_SHADOW_OFFSET,
@@ -80,4 +81,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: Colors.white,
   },
-});
+}));

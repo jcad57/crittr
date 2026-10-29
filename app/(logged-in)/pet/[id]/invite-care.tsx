@@ -3,7 +3,7 @@ import { useTierLimitGate } from "@/hooks/useTierLimitGate";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   coCarersForPetKey,
@@ -39,6 +39,8 @@ const ORANGE_BUTTON_WRAPPER_HEIGHT = 55;
 const BOTTOM_BAR_PADDING_TOP = 8;
 
 export default function PetInviteCareScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { push, replace, router } = useNavigationCooldown();
@@ -270,8 +272,8 @@ export default function PetInviteCareScreen() {
 
 const AVATAR_SIZE = 36;
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.cream },
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.screenBackground },
   centered: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   body: {
@@ -351,4 +353,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.error,
   },
-});
+}));

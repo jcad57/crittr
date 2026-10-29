@@ -1,5 +1,6 @@
+import { useThemeValues } from "@/theme/colors";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ScrollView, Text, View } from "react-native";
 
@@ -14,6 +15,7 @@ export default function PetFoodNoPermissionAddView({
   bottomPadding,
   onBack,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
       <ScreenHeader title="Add food" onBack={onBack} titleLines={2} />

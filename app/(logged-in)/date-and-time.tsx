@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { profileQueryKey, useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -37,6 +37,8 @@ const DATE_OPTIONS: { id: UserDateDisplay; label: string }[] = [
 ];
 
 export default function DateAndTimeScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollBottom = useFloatingNavScrollInset();
@@ -225,10 +227,10 @@ export default function DateAndTimeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -332,4 +334,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-});
+}));

@@ -4,7 +4,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { usePetDetailsQuery, usePetVetVisitsQuery } from "@/hooks/queries";
 import {
   allActivitiesKey,
@@ -42,9 +42,11 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 
 export default function EditVetVisitScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();

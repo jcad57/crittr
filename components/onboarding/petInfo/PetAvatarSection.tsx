@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { AVATAR_SIZE } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,6 +13,8 @@ export default function PetAvatarSection({
   avatarUri,
   onPickImage,
 }: PetAvatarSectionProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.avatarSection}>
       <TouchableOpacity style={styles.avatarCircle} onPress={onPickImage}>
@@ -29,7 +31,7 @@ export default function PetAvatarSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   avatarSection: {
     alignItems: "center",
     gap: 10,
@@ -61,4 +63,4 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
   },
-});
+}));

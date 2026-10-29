@@ -1,7 +1,7 @@
 import CrittrAiWelcomeCard from "@/components/crittr-ai/CrittrAiWelcomeCard";
 import CrittrAiAssistantTypingReveal from "@/components/crittr-ai/CrittrAiAssistantTypingReveal";
 import { TypingBubble } from "@/components/screens/crittr-ai/TypingBubble";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { CRITTR_AI_WELCOME_ASSISTANT_TEXT } from "@/constants/crittrAiCopy";
 import { useCrittrAiThreadQuery } from "@/hooks/queries";
 import { crittrAiThreadKey } from "@/lib/query/keys";
@@ -35,9 +35,11 @@ import Reanimated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/crittr-ai.styles";
+import { getStyles } from "@/screen-styles/crittr-ai.styles";
 
 export default function CrittrAiScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();

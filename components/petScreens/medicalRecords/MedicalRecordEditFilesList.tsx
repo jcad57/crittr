@@ -1,9 +1,9 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { formatBytes, mimeKind } from "@/utils/fileAttachmentDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
 
 type Props = {
   files: PetMedicalRecordFile[];
@@ -23,6 +23,8 @@ export default function MedicalRecordEditFilesList({
   onShareFile,
   sharingFileId,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   if (files.length === 0) {
     return (
       <Text style={styles.emptyFiles}>

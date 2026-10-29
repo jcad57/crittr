@@ -1,7 +1,7 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OtpDigitsInput, { OTP_LENGTH } from "@/components/auth/OtpDigitsInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   requestPasswordResetOtp,
@@ -47,6 +47,8 @@ function mapOtpError(message: string): string {
 }
 
 export default function ResetPasswordVerifyScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { email: emailParam, fromGuest: fromGuestParam } = useLocalSearchParams<{
@@ -209,10 +211,10 @@ export default function ResetPasswordVerifyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: {
     flex: 1,
@@ -269,4 +271,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.orange,
   },
-});
+}));

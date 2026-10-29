@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import FormInput from "@/components/ui/form/FormInput";
 import { DOSAGE_TYPES } from "@/constants/medicationEditForm";
@@ -21,6 +22,7 @@ export default function PetMedicationDosageRow({
   dosageAmountError,
   dosageTypeError,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const dosageLabelError = Boolean(dosageAmountError || dosageTypeError);
   return (
     <>

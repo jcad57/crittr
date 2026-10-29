@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
     if (body.appUserId && body.appUserId !== user.id) {
       return json({ error: "subscriber_identity_mismatch" }, 400);
     }
-    const { before, after } = await reconcileCrittrProForUser(
+    const { before, after, verification } = await reconcileCrittrProForUser(
       supabaseAdmin,
       user.id,
       {
@@ -89,7 +89,7 @@ Deno.serve(async (req: Request) => {
       },
     );
 
-    return json({ ok: true, crittr_pro_until: after, previous: before }, 200);
+    return json({ ok: true, crittr_pro_until: after, previous: before, verification }, 200);
   } catch (e) {
     if (e instanceof ReconciliationBusyError)
       return json({ error: "sync_in_progress" }, 429);

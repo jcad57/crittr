@@ -1,8 +1,8 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
-export const stepStyles = StyleSheet.create({
+export const getStepStyles = createThemeValues((Colors) => StyleSheet.create({
   typeRow: {
     flexDirection: "row",
     gap: 10,
@@ -188,4 +188,4 @@ export const stepStyles = StyleSheet.create({
     color: Colors.error,
     fontFamily: Font.uiSemiBold,
   },
-});
+}));

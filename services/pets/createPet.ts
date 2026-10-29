@@ -24,6 +24,7 @@ import type { Pet, PetFormData } from "@/types/database";
 import { dosagesFromFormEntry } from "@/utils/medicationDosageDraft";
 import { buildMedicationSavePayload } from "@/utils/medicationEditForm";
 import { frequencyDraftFromFormEntry } from "@/utils/medicationFrequency";
+import { normalizePottyTimes } from "@/utils/pottySchedule";
 
 export type CreatePetOptions = {
   /**
@@ -111,6 +112,7 @@ export async function createPet(
     color: petData.color || null,
     about: petData.about || null,
     energy_level: petData.energyLevel || null,
+    potty_times: normalizePottyTimes(petData.pottyTimes ?? []),
     exercises_per_day:
       petData.exercisePlans.length > 0
         ? petData.exercisePlans.length

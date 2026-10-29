@@ -1,5 +1,5 @@
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   clampDateToRange,
@@ -35,6 +35,8 @@ export default function ExpiryDateField({
   minimumDate: minimumDateProp,
   maximumDate: maximumDateProp,
 }: ExpiryDateFieldProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const resolvedMinimumDate = minimumDateProp ?? PICKER_MIN_DATE;
@@ -109,7 +111,7 @@ export default function ExpiryDateField({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   datePickerButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -143,4 +145,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-});
+}));

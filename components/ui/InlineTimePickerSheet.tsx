@@ -1,8 +1,8 @@
 import CrittrDateTimePicker, {
   type DateTimePickerEvent,
 } from "@/components/ui/pickers/CrittrDateTimePicker";
-import { Colors } from "@/theme/colors";
-import { iosSpinnerPickerStyle } from "@/theme/dateTimePicker";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
+import { getIosSpinnerPickerStyle } from "@/theme/dateTimePicker";
 import { Font } from "@/theme/typography";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -35,6 +35,9 @@ export default function InlineTimePickerSheet({
   onCancel,
   onConfirm,
 }: InlineTimePickerSheetProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const iosSpinnerPickerStyle = useThemeValues(getIosSpinnerPickerStyle);
   if (!visible) return null;
 
   if (Platform.OS === "android") {
@@ -89,7 +92,7 @@ export default function InlineTimePickerSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "flex-end",
@@ -145,4 +148,4 @@ const styles = StyleSheet.create({
     color: Colors.black,
     textAlign: "center",
   },
-});
+}));

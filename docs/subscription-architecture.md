@@ -2,6 +2,8 @@
 
 Reviewed and deployed October 26, 2026. Scope is subscription identity, verification, synchronization, billing presentation, and regression coverage. The Supabase billing deployment below is complete. RevenueCat/Apple/Google dashboard settings and the updated app's device/release validation remain separate from this backend deployment.
 
+The subsequent [October 29 upgrade audit](upgrade-production-readiness-audit-2026-10-29.md) documents additional checkout/error-handling fixes and the external release checklist. Its shared provider-metadata guard was [deployed October 29](billing-functions-deployment-2026-10-29.md): sync version 30, webhook version 10, and reconciliation worker version 3. The deployment record includes source readback and live authorization checks; mobile release and store acceptance testing remain separate.
+
 ## Production deployment completed
 
 Project: `crittr` (`slnmfelxigtlrdyogsjn`). Deployed through the authenticated local Supabase CLI, using explicit function names and a staged directory containing only billing source.

@@ -1,5 +1,5 @@
 import ScheduleActivityCard from "@/components/ui/schedule/ScheduleActivityCard";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { PetScheduleItem } from "@/types/database";
 import { StyleSheet, Text, View } from "react-native";
@@ -31,6 +31,7 @@ export default function SchedulePeriodSection({
   onToggleComplete,
   onEdit,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   if (items.length === 0) return null;
 
   return (
@@ -64,7 +65,7 @@ export default function SchedulePeriodSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   section: {
     gap: 12,
     overflow: "visible",
@@ -79,4 +80,4 @@ const styles = StyleSheet.create({
     gap: 14,
     overflow: "visible",
   },
-});
+}));

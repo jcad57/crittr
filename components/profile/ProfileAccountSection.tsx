@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { Profile } from "@/types/database";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -18,6 +18,7 @@ export default function ProfileAccountSection({
   email,
   onEditAccount,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <ProfileSectionHeader
@@ -72,7 +73,7 @@ export default function ProfileAccountSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -107,4 +108,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray100,
     marginLeft: 56,
   },
-});
+}));

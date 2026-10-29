@@ -4,8 +4,9 @@ import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import ExercisePlanEditorModal from "@/components/pet/ExercisePlanEditorModal";
 import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
+import PottyScheduleSection from "@/components/pet/PottyScheduleSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import {
@@ -39,6 +40,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ExerciseRequirementsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
@@ -60,6 +63,7 @@ export default function ExerciseRequirementsScreen() {
     "",
   );
   const [plans, setPlans] = useState<ExercisePlanDraft[]>([]);
+  const [pottyTimes, setPottyTimes] = useState<string[]>([]);
   const [attempted, setAttempted] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("Add activity");
@@ -70,6 +74,7 @@ export default function ExerciseRequirementsScreen() {
 
   useEffect(() => {
     if (!details?.id) return;
+    setPottyTimes(details.potty_times ?? []);
     setEnergyLevel(
       details.energy_level === "low" ||
         details.energy_level === "medium" ||
@@ -86,7 +91,7 @@ export default function ExerciseRequirementsScreen() {
         notes: p.notes?.trim() ?? "",
       })),
     );
-  }, [details?.id, details?.exercise_plans, details?.energy_level]);
+  }, [details?.id, details?.exercise_plans, details?.energy_level, details?.potty_times]);
 
   const showActivities = details
     ? shouldShowExerciseField(details.pet_type ?? "")
@@ -106,8 +111,10 @@ export default function ExerciseRequirementsScreen() {
     try {
       await updateMut.mutateAsync({
         energy_level: energyLevel as "low" | "medium" | "high",
+        potty_times: pottyTimes,
         exercise_plans: showActivities
           ? plans.map((p) => ({
+              id: p.key.startsWith("new-") ? undefined : p.key,
               label: p.label.trim(),
               days_of_week: [...p.daysOfWeek].sort((a, b) => a - b),
               scheduled_time: dateToPgTime(p.scheduledTime),
@@ -126,6 +133,7 @@ export default function ExerciseRequirementsScreen() {
     energyLevel,
     showActivities,
     plans,
+    pottyTimes,
     updateMut,
     router,
   ]);
@@ -191,7 +199,7 @@ export default function ExerciseRequirementsScreen() {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
         <ScreenHeader
-          title="Exercise requirements"
+          title="Exercise & Potty"
           onBack={() => router.back()}
         />
         <ScrollView
@@ -225,6 +233,7 @@ export default function ExerciseRequirementsScreen() {
               value="Not tracked for this species"
             />
           )}
+          <PottyScheduleSection times={details.potty_times ?? []} readOnly />
         </ScrollView>
       </View>
     );
@@ -233,7 +242,7 @@ export default function ExerciseRequirementsScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <ScreenHeader
-        title="Exercise requirements"
+        title="Exercise & Potty"
         onBack={() => router.back()}
       />
 
@@ -254,8 +263,7 @@ export default function ExerciseRequirementsScreen() {
         >
           <View>
             <Text style={styles.lead}>
-              Energy and planned activities power daily progress and the
-              schedule tab. Update them anytime.
+              Plan activities and daily potty breaks for your pet. Update them anytime.
             </Text>
 
             <PetEnergyLevelToggle
@@ -278,6 +286,7 @@ export default function ExerciseRequirementsScreen() {
                 Scheduled activities aren&apos;t tracked for this species.
               </Text>
             )}
+            <PottyScheduleSection times={pottyTimes} onChange={setPottyTimes} disabled={updateMut.isPending} />
 
             {attempted && (!energyOk || activitiesError) ? (
               <Text style={styles.formError}>
@@ -315,10 +324,10 @@ export default function ExerciseRequirementsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -362,4 +371,4 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 0,
   },
-});
+}));

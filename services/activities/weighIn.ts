@@ -7,6 +7,7 @@
 import { supabase } from "@/lib/supabase";
 import { requestRemoteCoCarerActivityPush } from "@/services/coCarerActivityPush";
 import { trackActivityLogged } from "@/lib/analytics";
+import { parseWeighInWeight } from "@/utils/weighInWeight";
 import type {
   PetActivity,
   WeighInActivityFormData,
@@ -21,12 +22,11 @@ const WEIGH_IN_DEFAULT_LABEL = "Weigh-in";
  * Throws with a user-facing message when the input cannot be saved.
  */
 function parseWeightOrThrow(raw: string): number {
-  const cleaned = raw.replace(",", ".").trim();
-  const value = Number(cleaned);
-  if (!Number.isFinite(value) || value <= 0) {
+  const value = parseWeighInWeight(raw);
+  if (value === null) {
     throw new Error("Enter a valid weight greater than 0.");
   }
-  return Math.round(value * 100) / 100;
+  return value;
 }
 
 /** ISO `date` (YYYY-MM-DD) for `pet_weight_entries.recorded_at`, in local calendar. */
@@ -52,6 +52,7 @@ async function saveWeighIn(
   activityId?: string,
 ): Promise<PetActivity> {
   const recordedAt = localDateOnly(new Date(loggedAt));
+  if (!Number.isFinite(Date.parse(loggedAt))) throw new Error("Choose a valid weigh-in date.");
   const { data, error } = await supabase.rpc("save_pet_weigh_in", {
     p_pet_id: petId,
     p_recorded_at: recordedAt,

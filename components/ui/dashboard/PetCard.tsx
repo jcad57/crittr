@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -21,6 +21,8 @@ function resolveAvatarUri(pet: PetCardProps["pet"]): string | null {
 }
 
 export default function PetCard({ pet }: PetCardProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const avatarUri = resolveAvatarUri(pet);
 
@@ -53,7 +55,7 @@ export default function PetCard({ pet }: PetCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     alignItems: "center",
     gap: 4,
@@ -87,4 +89,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
-});
+}));

@@ -1,7 +1,7 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
@@ -18,6 +18,8 @@ export default function PetMedicationReminderField({
   reminderDates,
   setReminderDates,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
 

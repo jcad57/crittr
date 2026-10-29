@@ -2,13 +2,15 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useActivityFormStore } from "@/stores/activityFormStore";
+import { parseWeighInWeight, weighInSaveErrorMessage } from "@/utils/weighInWeight";
 import {
   forwardRef,
   useCallback,
   useImperativeHandle,
+  useRef,
   useState,
 } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -37,23 +39,32 @@ const WeighInDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
     const form = useActivityFormStore((s) => s.weighInForm);
     const update = useActivityFormStore((s) => s.updateWeighIn);
     const [saving, setSaving] = useState(false);
     const [attempted, setAttempted] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const saveInFlight = useRef(false);
 
-    const parsedWeight = parseFloat(form.weight.replace(",", "."));
-    const weightOk = Number.isFinite(parsedWeight) && parsedWeight > 0;
+    const weightOk = parseWeighInWeight(form.weight) !== null;
 
     const handleSave = useCallback(async () => {
+      if (saveInFlight.current) return;
       if (!weightOk) {
         setAttempted(true);
         return;
       }
+      saveInFlight.current = true;
+      setSaveError(null);
       setSaving(true);
       try {
         await onSave();
+      } catch (error) {
+        setSaveError(weighInSaveErrorMessage(error));
+        if (__DEV__) console.warn("[weigh-in] save failed", error);
       } finally {
+        saveInFlight.current = false;
         setSaving(false);
       }
     }, [weightOk, onSave]);
@@ -148,6 +159,8 @@ const WeighInDetailStep = forwardRef<ActivityDetailStepRef, Props>(
           containerStyle={blockSpacing}
         />
 
+        {saveError ? <Text style={[styles.inlineError, blockSpacing]} accessibilityRole="alert" accessibilityLiveRegion="polite">{saveError}</Text> : null}
+
         {!embeddedInScreen || !hideEmbeddedSave ? (
           <View style={embeddedInScreen ? styles.spacerEmbedded : styles.spacer} />
         ) : null}
@@ -174,7 +187,7 @@ const WeighInDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default WeighInDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   spacing: { marginBottom: 12 },
@@ -248,4 +261,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-});
+}));

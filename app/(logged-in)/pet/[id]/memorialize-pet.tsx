@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   useMemorializePetMutation,
@@ -22,6 +22,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MemorializePetScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
@@ -154,10 +156,10 @@ export default function MemorializePetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -185,4 +187,4 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 8,
   },
-});
+}));

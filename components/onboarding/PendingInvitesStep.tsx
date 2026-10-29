@@ -1,6 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   pendingInvitesKey,
@@ -27,6 +27,9 @@ import {
 } from "react-native";
 
 export default function PendingInvitesStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const session = useAuthStore((s) => s.session);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const { nextStep, prevStep, skippedPendingInvitesEmpty, setSkippedPendingInvitesEmpty } =
@@ -223,7 +226,7 @@ export default function PendingInvitesStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   centered: { justifyContent: "center", alignItems: "center" },
   iconCenter: { alignItems: "center", marginBottom: 16, marginTop: 12 },
@@ -281,4 +284,4 @@ const styles = StyleSheet.create({
     color: Colors.orange,
   },
   backButton: { alignSelf: "center", paddingVertical: 16 },
-});
+}));

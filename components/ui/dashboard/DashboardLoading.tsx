@@ -1,9 +1,11 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DashboardLoading() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
 
   return (
@@ -16,10 +18,10 @@ export default function DashboardLoading() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   content: {
     flex: 1,
@@ -34,4 +36,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
-});
+}));

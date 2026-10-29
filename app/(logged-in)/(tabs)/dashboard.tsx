@@ -5,14 +5,12 @@ import PostOnboardingPushPrompt from "@/components/push/PostOnboardingPushPrompt
 import PullToRefreshScrollView from "@/components/ui/PullToRefreshScrollView";
 import ActivityFeed from "@/components/ui/dashboard/ActivityFeed";
 import ActivityFeedSkeleton from "@/components/ui/dashboard/ActivityFeedSkeleton";
-import DailyProgress from "@/components/ui/dashboard/DailyProgress";
-import DailyProgressSkeleton from "@/components/ui/dashboard/DailyProgressSkeleton";
+import DailyProgressCard from "@/components/ui/dashboard/DailyProgressCard";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import HealthSection from "@/components/ui/dashboard/HealthSection";
 import HealthSectionSkeleton from "@/components/ui/dashboard/HealthSectionSkeleton";
 import PetManagement from "@/components/ui/dashboard/PetManagement";
-import SectionLabel from "@/components/ui/dashboard/SectionLabel";
 import type { ProSoftPaywallKind } from "@/constants/proCopy";
 import {
   useActivitiesSinceForPetIdsQuery,
@@ -35,11 +33,10 @@ import {
 } from "@/hooks/useResponsiveUi";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import type { ActivityType, PetType } from "@/types/database";
 import type { DailyProgressCategory, MedicationSummary } from "@/types/ui";
 import { useScheduleDayQuery } from "@/hooks/queries/useScheduleQuery";
-import { isScheduleDayComplete } from "@/utils/scheduleDayComplete";
 import { isDailyProgressComplete } from "@/utils/dailyProgressComplete";
 import { buildDailyProgressRings } from "@/utils/dailyProgressRings";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
@@ -66,6 +63,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const DASHBOARD_SCROLL_PADDING_H = 16;
 
 export default function Dashboard() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { windowWidth } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -114,8 +112,7 @@ export default function Dashboard() {
   } = usePetVetVisitsQuery(activePetId ?? undefined);
 
   const localYmd = useLocalCalendarYmd();
-  const { data: todaySchedule, refetch: refetchTodaySchedule } = useScheduleDayQuery(activePetId, localYmd);
-  const allScheduledTasksComplete = isScheduleDayComplete(todaySchedule, activePetId, localYmd);
+  const { refetch: refetchTodaySchedule } = useScheduleDayQuery(activePetId, localYmd);
   const householdOwnerId = activePetDetails?.owner_id ?? null;
   const householdCatIds = useMemo(
     () => householdActiveCatIds(dbPets ?? [], householdOwnerId),
@@ -384,26 +381,13 @@ export default function Dashboard() {
           <View style={styles.petDataBlock}>
             <AdBanner placement="dashboard_top" />
             <View style={[styles.sectionBlock, dailyProgressSectionWidthStyle]}>
-              <View
-                style={[
-                  styles.progressCard,
-                  allScheduledTasksComplete && styles.progressCardComplete,
-                ]}
-              >
-                <SectionLabel style={styles.sectionLabelFlush}>
-                  Daily progress
-                </SectionLabel>
-                {showDailyProgressSkeleton ? (
-                  <DailyProgressSkeleton />
-                ) : (
-                  <DailyProgress
-                    categories={dailyProgress}
-                    petType={activePetDetails?.pet_type ?? null}
-                    allComplete={dailyProgressAllComplete}
-                    animationKey={activePetId ?? ""}
-                  />
-                )}
-              </View>
+              <DailyProgressCard
+                categories={dailyProgress}
+                petType={activePetDetails?.pet_type ?? null}
+                allComplete={dailyProgressAllComplete}
+                loading={showDailyProgressSkeleton}
+                animationKey={activePetId ?? ""}
+              />
             </View>
 
             {showActivitySkeleton ? (
@@ -470,14 +454,14 @@ export default function Dashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   headerBar: {
     backgroundColor: Colors.cream,
@@ -499,23 +483,7 @@ const styles = StyleSheet.create({
   sectionBlock: {
     gap: 10,
   },
-  sectionLabelFlush: {
-    marginBottom: 0,
-  },
-  progressCard: {
-    backgroundColor: Colors.peach,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: "transparent",
-    gap: 14,
-  },
-  progressCardComplete: {
-    backgroundColor: Colors.successLight,
-    borderColor: "rgba(22, 163, 74, 0.22)",
-  },
   petDataBlock: {
     gap: 20,
   },
-});
+}));

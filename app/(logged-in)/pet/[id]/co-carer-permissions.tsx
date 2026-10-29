@@ -1,7 +1,7 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { CO_CARE_PERMISSION_ROWS } from "@/constants/coCarePermissionRows";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   useCoCarersForPetQuery,
@@ -28,6 +28,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CoCarerPermissionsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId, userId: rawUserId } = useLocalSearchParams<{
     id: string;
     userId: string;
@@ -217,8 +219,8 @@ export default function CoCarerPermissionsScreen() {
 
 const AVATAR_SIZE = 64;
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.cream },
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.screenBackground },
   centered: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 8 },
@@ -318,4 +320,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.error,
   },
-});
+}));

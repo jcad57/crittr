@@ -1,5 +1,5 @@
 import type { RecordsNavItem } from "@/components/ui/pet/RecordsNavCard";
-import { Colors } from "@/theme/colors";
+import { DEFAULT_COLORS, type ThemeColors } from "@/theme/seasonalThemes";
 import type { PetProfile } from "@/types/ui";
 import type { Href } from "expo-router";
 
@@ -17,6 +17,7 @@ export const PET_PROFILE_RECORD_ICONS = {
 export function buildRecordsItems(
   profile: PetProfile,
   push: (href: Href) => void,
+  Colors: ThemeColors = DEFAULT_COLORS,
 ): RecordsNavItem[] {
   const insSub = (() => {
     if (profile.isInsured === true) {
@@ -90,6 +91,7 @@ export function buildManageItems(
     onCoCarePress: () => void;
     handleLeaveCoCare: () => void;
   },
+  Colors: ThemeColors = DEFAULT_COLORS,
 ): RecordsNavItem[] {
   const {
     roleLoading,

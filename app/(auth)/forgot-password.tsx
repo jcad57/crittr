@@ -1,7 +1,7 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import FormInput from "@/components/ui/form/FormInput";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { requestPasswordResetOtp } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
@@ -29,6 +29,7 @@ function mapResetRequestError(message: string): string {
 }
 
 export default function ForgotPasswordScreen() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const sessionEmail = useAuthStore((s) => s.session?.user?.email ?? "").trim();
@@ -166,10 +167,10 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: {
     flex: 1,
@@ -203,4 +204,4 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 16,
   },
-});
+}));

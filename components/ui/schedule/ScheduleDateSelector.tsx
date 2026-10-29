@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { dateLocaleFor } from "@/utils/userDateTimeFormat";
@@ -38,6 +38,8 @@ export default function ScheduleDateSelector({
   signupYmd,
   onSelectYmd,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { width } = useWindowDimensions();
   const { dateDisplay } = useUserDateTimePrefs();
   const [measuredWidth, setMeasuredWidth] = useState(0);
@@ -193,7 +195,7 @@ export default function ScheduleDateSelector({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   panel: { borderRadius: 24, backgroundColor: Colors.peach, padding: 12 },
   monthRow: {
     flexDirection: "row",
@@ -237,4 +239,4 @@ const styles = StyleSheet.create({
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "transparent" },
   todayDot: { backgroundColor: Colors.peachDark },
   selectedDot: { backgroundColor: Colors.white },
-});
+}));

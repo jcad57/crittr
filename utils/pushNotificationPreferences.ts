@@ -10,6 +10,7 @@ export type NotificationCategoryPrefs = {
   notify_medications: boolean;
   notify_vet_visits: boolean;
   notify_vaccinations: boolean;
+  notify_potty_breaks: boolean;
 };
 
 export const NOTIFICATION_PREF_KEYS = [
@@ -18,6 +19,7 @@ export const NOTIFICATION_PREF_KEYS = [
   "notify_medications",
   "notify_vet_visits",
   "notify_vaccinations",
+  "notify_potty_breaks",
 ] as const satisfies readonly (keyof NotificationCategoryPrefs)[];
 
 export type NotificationPrefColumnKey = (typeof NOTIFICATION_PREF_KEYS)[number];
@@ -77,6 +79,7 @@ export function defaultNotificationCategoryPrefs(): NotificationCategoryPrefs {
     notify_medications: true,
     notify_vet_visits: true,
     notify_vaccinations: true,
+    notify_potty_breaks: true,
   };
 }
 
@@ -93,6 +96,9 @@ export function notificationPrefsFromProfile(
     notify_vaccinations: p.notify_vaccinations == null
       ? !(p.notify_meals_treats === false && p.notify_co_care_activities === false && p.notify_medications === false && p.notify_vet_visits === false)
       : p.notify_vaccinations !== false,
+    notify_potty_breaks: p.notify_potty_breaks == null
+      ? !(p.notify_meals_treats === false && p.notify_co_care_activities === false && p.notify_medications === false && p.notify_vet_visits === false && p.notify_vaccinations !== true)
+      : p.notify_potty_breaks !== false,
   };
 }
 

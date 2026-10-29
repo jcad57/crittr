@@ -4,7 +4,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import VetVisitLocationFields from "@/components/ui/health/VetVisitLocationFields";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import {
@@ -57,6 +57,8 @@ function startOfToday(): Date {
 }
 
 export default function AddVetVisitScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
@@ -323,13 +325,13 @@ export default function AddVetVisitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   keyboardRoot: {
     flex: 1,
   },
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centeredFull: {
     flex: 1,
@@ -399,4 +401,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-});
+}));

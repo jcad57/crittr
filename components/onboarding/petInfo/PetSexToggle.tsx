@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import type { PetFormData } from "@/types/database";
@@ -15,6 +15,7 @@ export default function PetSexToggle({
   onChange,
   error,
 }: PetSexToggleProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <Text style={[styles.fieldLabel, error && styles.fieldLabelError]}>
@@ -60,7 +61,7 @@ export default function PetSexToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   fieldLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
@@ -101,4 +102,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

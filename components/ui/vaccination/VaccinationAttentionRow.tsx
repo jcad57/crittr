@@ -1,5 +1,5 @@
 import HealthTrafficBadge from "@/components/ui/health/HealthTrafficBadge";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { PetVaccination } from "@/types/database";
@@ -33,6 +33,8 @@ export default function VaccinationAttentionRow({
   isLast,
   onPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const t = vaccinationTraffic(vaccination);
   const subline = formatSubline(vaccination);
 
@@ -73,7 +75,7 @@ export default function VaccinationAttentionRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   rowWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -116,4 +118,4 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     lineHeight: 18,
   },
-});
+}));

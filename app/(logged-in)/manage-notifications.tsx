@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { usePushNotificationPreferences } from "@/hooks/usePushNotificationPreferences";
@@ -29,18 +29,22 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** Matches native two-state UISwitch styling: saturated “on”, neutral “off”—no pastel track that reads as disabled. */
-const NOTIF_SWITCH_TRACK = {
+const getNotifSwitchTrack = createThemeValues((Colors) => ({
   false: Colors.gray200,
   true: Colors.orange,
-} as const;
+} as const));
 
-const NOTIF_SWITCH_IOS_BG =
-  Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {};
+const getNotifSwitchIosBg = createThemeValues((Colors) => (Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {}));
 
 /** White knob on fills—reads clearly on/off; avoids pastel track + tinted thumb blending as “disabled”. */
-const NOTIF_SWITCH_THUMB = Colors.white;
+const getNotifSwitchThumb = createThemeValues((Colors) => (Colors.white));
 
 export default function ManageNotificationsScreen() {
+  const Colors = useThemeColors();
+  const NOTIF_SWITCH_TRACK = useThemeValues(getNotifSwitchTrack);
+  const NOTIF_SWITCH_IOS_BG = useThemeValues(getNotifSwitchIosBg);
+  const NOTIF_SWITCH_THUMB = useThemeValues(getNotifSwitchThumb);
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -91,7 +95,8 @@ export default function ManageNotificationsScreen() {
     prefs.notify_co_care_activities &&
     prefs.notify_medications &&
     prefs.notify_vet_visits &&
-    prefs.notify_vaccinations;
+    prefs.notify_vaccinations &&
+    prefs.notify_potty_breaks;
 
   const setAll = (on: boolean) => {
     void updatePrefs({
@@ -100,6 +105,7 @@ export default function ManageNotificationsScreen() {
       notify_medications: on,
       notify_vet_visits: on,
       notify_vaccinations: on,
+      notify_potty_breaks: on,
     });
   };
 
@@ -275,6 +281,23 @@ export default function ManageNotificationsScreen() {
 
             <View style={styles.card}>
               <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Potty breaks</Text>
+                <Text style={styles.cardSub}>
+                  A daily reminder at each potty time in your pet&apos;s schedule
+                </Text>
+              </View>
+              <Switch
+                value={prefs.notify_potty_breaks}
+                onValueChange={(v) => void updatePrefs({ notify_potty_breaks: v })}
+                accessibilityLabel="Potty break reminders"
+                trackColor={NOTIF_SWITCH_TRACK}
+                thumbColor={NOTIF_SWITCH_THUMB}
+                {...NOTIF_SWITCH_IOS_BG}
+              />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>Exercise & co-care activities</Text>
                 <Text style={styles.cardSub}>
                   Reminders at scheduled exercise times, plus updates about who
@@ -350,10 +373,10 @@ export default function ManageNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -434,4 +457,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.orange,
   },
-});
+}));

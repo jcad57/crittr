@@ -12,6 +12,7 @@ export const AD_FREE_LOGGED_IN_PATH_SEGMENTS = [
   "upgrade",
   "pro-checkout",
   "welcome-to-pro",
+  "make-pro-yours",
 ] as const;
 
 /** Auth and recovery screens — never request ads here even if a session exists. */

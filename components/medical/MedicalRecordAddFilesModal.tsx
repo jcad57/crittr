@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   captureMedicalPhoto,
@@ -72,6 +72,8 @@ export default function MedicalRecordAddFilesModal({
   isSubmitting,
   onFullyDismissed,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const [recordName, setRecordName] = useState("");
   const [pending, setPending] = useState<PendingMedicalFile[]>([]);
@@ -521,7 +523,7 @@ export default function MedicalRecordAddFilesModal({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "flex-end",
@@ -688,4 +690,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 18,
   },
-});
+}));

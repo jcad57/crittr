@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -13,6 +13,7 @@ export default function PetSterilizationToggle({
   value,
   onChange,
 }: PetSterilizationToggleProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>Spayed or neutered?</Text>
@@ -61,7 +62,7 @@ export default function PetSterilizationToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
@@ -97,4 +98,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

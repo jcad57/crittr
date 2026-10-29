@@ -1,4 +1,5 @@
-import { IOS_LIGHT_PICKER_PROPS } from "@/theme/dateTimePicker";
+import { useThemeValues } from "@/theme/colors";
+import { getIosLightPickerProps } from "@/theme/dateTimePicker";
 import { resolvePickerBounds } from "@/utils/dateTimePickerBounds";
 import DateTimePicker, {
   type DateTimePickerEvent,
@@ -45,6 +46,7 @@ export default function CrittrDateTimePicker({
   maximumDate,
   ...rest
 }: CrittrDateTimePickerProps) {
+  const IOS_LIGHT_PICKER_PROPS = useThemeValues(getIosLightPickerProps);
   const bounds = useMemo(
     () => resolvePickerBounds({ value, minimumDate, maximumDate }),
     [value, minimumDate, maximumDate],

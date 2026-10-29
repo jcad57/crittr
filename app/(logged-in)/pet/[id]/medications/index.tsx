@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   useDeleteMedicationMutation,
@@ -30,6 +30,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetMedicationsListScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push, router } = useNavigationCooldown();
@@ -164,10 +166,10 @@ export default function PetMedicationsListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -219,4 +221,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

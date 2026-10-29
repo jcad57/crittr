@@ -2,7 +2,7 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import type { PetInsuranceFile, PetWithDetails } from "@/types/database";
 import { formatBytes, mimeKind } from "@/utils/fileAttachmentDisplay";
 import { insuranceStatusLabel } from "@/utils/insuranceScreenHelpers";
@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/insurance.styles";
 
 type Props = {
   details: PetWithDetails;
@@ -36,6 +36,8 @@ export default function InsuranceReadOnlyView({
   openFile,
   onAfterSwitchPet,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const st = insuranceStatusLabel(details.is_insured ?? null);
   return (

@@ -1,5 +1,5 @@
 import SectionLabel from "@/components/ui/dashboard/SectionLabel";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { shouldShowExerciseField } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -8,6 +8,7 @@ import {
   formatExercisePlanSubline,
 } from "@/utils/exercisePlans";
 import { formatEnergyLabel } from "@/utils/petDisplay";
+import { formatFeedTimeLabel } from "@/utils/petFoodTime";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -15,6 +16,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 type RowProps = { label: string; value: string; isLast?: boolean };
 
 function SummaryRow({ label, value, isLast }: RowProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.infoRow, isLast && styles.infoRowLast]}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -35,6 +37,7 @@ export default function PetExerciseRequirementsBlock({
   details,
   canEdit = true,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const { timeDisplay } = useUserDateTimePrefs();
   const showActivities = shouldShowExerciseField(details.pet_type ?? "");
@@ -44,7 +47,7 @@ export default function PetExerciseRequirementsBlock({
     <>
       <View style={styles.sectionHeaderRow}>
         <SectionLabel style={styles.sectionLabelInline}>
-          Exercise requirements
+          Exercise &amp; Potty
         </SectionLabel>
         {canEdit ? (
           <TouchableOpacity
@@ -65,32 +68,30 @@ export default function PetExerciseRequirementsBlock({
         <SummaryRow
           label="Energy level"
           value={formatEnergyLabel(details.energy_level)}
-          isLast={!showActivities}
         />
         {showActivities ? (
           plans.length > 0 ? (
-            plans.map((p, i) => (
+            plans.map((p) => (
               <SummaryRow
                 key={p.id}
                 label={p.label}
                 value={formatExercisePlanSubline(p, timeDisplay)}
-                isLast={i === plans.length - 1}
               />
             ))
           ) : (
             <SummaryRow
               label="Activities"
               value="—"
-              isLast
             />
           )
         ) : null}
+        <SummaryRow label="Potty breaks" value={(details.potty_times ?? []).map((time) => formatFeedTimeLabel(time, timeDisplay)).join(", ") || "Not scheduled"} isLast />
       </View>
     </>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -149,4 +150,4 @@ const styles = StyleSheet.create({
     textAlign: "right",
     flex: 1,
   },
-});
+}));

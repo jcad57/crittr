@@ -4,7 +4,7 @@ import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
@@ -50,6 +50,7 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
   const form = useActivityFormStore((s) => s.medicationForm);
   const update = useActivityFormStore((s) => s.updateMedication);
   const medicationExtraPetIds = useActivityFormStore(
@@ -63,6 +64,10 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
   );
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const [otherSelected, setOtherSelected] = useState(false);
+  // Existing one-off activities hydrate with a name and no profile medication ID.
+  const isOtherMedication =
+    !form.medicationId && (otherSelected || form.medicationName.length > 0);
 
   const activePetId = usePetStore((s) => s.activePetId);
   const { data: petDetails } = usePetDetailsQuery(activePetId);
@@ -88,11 +93,16 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
   const medOptions = useMemo(() => {
     if (!petDetails) return [];
-    return petDetails.medications.map((m) => ({ id: m.id, name: m.name }));
+    return petDetails.medications.map((m) => ({
+      id: m.id,
+      name: m.name,
+      label: m.name === "Other" ? "Other (saved)" : m.name,
+    }));
   }, [petDetails]);
 
   const isValid =
-    form.medicationId.length > 0 &&
+    (form.medicationId.length > 0 || isOtherMedication) &&
+    form.medicationName.trim().length > 0 &&
     form.amount.trim().length > 0 &&
     form.unit.length > 0;
 
@@ -124,7 +134,10 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     : styles.fieldLabel;
   const blockSpacing = embeddedInScreen ? styles.spacingScreen : styles.spacing;
 
-  const medicationSelectError = attempted && !form.medicationId;
+  const medicationSelectError =
+    attempted && !form.medicationId && !isOtherMedication;
+  const medicationNameMissing =
+    attempted && isOtherMedication && !form.medicationName.trim();
   const amountMissing = attempted && !form.amount.trim();
   const unitMissing = attempted && !form.unit;
   const amountRowInvalid = amountMissing || unitMissing;
@@ -151,16 +164,42 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
       >
         <DropdownSelect
           placeholder="Select medication"
-          value={medOptions.find((o) => o.id === form.medicationId)?.name ?? ""}
-          options={medOptions.map((o) => o.name)}
-          onSelect={(name) => {
-            const match = medOptions.find((o) => o.name === name);
-            if (match)
+          value={
+            isOtherMedication
+              ? "Other"
+              : medOptions.find((o) => o.id === form.medicationId)?.label ?? ""
+          }
+          options={[...medOptions.map((o) => o.label), "Other"]}
+          onSelect={(label) => {
+            if (label === "Other") {
+              setOtherSelected(true);
+              update({
+                medicationId: "",
+                medicationName: isOtherMedication ? form.medicationName : "",
+              });
+              return;
+            }
+            const match = medOptions.find((o) => o.label === label);
+            if (match) {
+              setOtherSelected(false);
               update({ medicationId: match.id, medicationName: match.name });
+            }
           }}
           error={medicationSelectError}
         />
       </View>
+
+      {isOtherMedication && (
+        <FormInput
+          label="Medication name"
+          required
+          placeholder="Enter medication name"
+          value={form.medicationName}
+          onChangeText={(name) => update({ medicationName: name })}
+          containerStyle={blockSpacing}
+          error={medicationNameMissing}
+        />
+      )}
 
       <Text
         style={[fieldLabelStyle, amountRowInvalid && styles.fieldLabelError]}
@@ -239,7 +278,7 @@ const MedicationDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default MedicationDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   title: {
@@ -290,4 +329,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-});
+}));

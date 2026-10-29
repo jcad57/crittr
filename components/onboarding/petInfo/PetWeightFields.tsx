@@ -1,5 +1,5 @@
 import FormInput from "@/components/ui/form/FormInput";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import type { PetFormData } from "@/types/database";
@@ -20,6 +20,7 @@ export default function PetWeightFields({
   onWeightUnitChange,
   weightError,
 }: PetWeightFieldsProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <Text style={[styles.fieldLabel, weightError && styles.fieldLabelError]}>
@@ -75,7 +76,7 @@ export default function PetWeightFields({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   fieldLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
@@ -124,4 +125,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

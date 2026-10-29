@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -10,6 +10,8 @@ type Props = {
 };
 
 export default function ProfileSignOutRow({ onSignOut }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -37,7 +39,7 @@ export default function ProfileSignOutRow({ onSignOut }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   signOutCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -69,4 +71,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.signOutCoral,
   },
-});
+}));

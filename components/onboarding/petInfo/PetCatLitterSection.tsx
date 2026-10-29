@@ -1,6 +1,6 @@
 import FormInput from "@/components/ui/form/FormInput";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import type { LitterCleaningPeriod } from "@/types/database";
@@ -29,6 +29,8 @@ export default function PetCatLitterSection({
   periodError,
   cleaningsError,
 }: Props) {
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const periodLabel =
     litterCleaningPeriod === "week"
       ? "week"
@@ -85,7 +87,7 @@ export default function PetCatLitterSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   block: {
     marginBottom: 8,
   },
@@ -141,4 +143,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
-});
+}));

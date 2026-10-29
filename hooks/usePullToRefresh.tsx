@@ -1,5 +1,5 @@
 import { runWhenIdle } from "@/lib/runWhenIdle";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import {
   Platform,
@@ -7,7 +7,7 @@ import {
   type RefreshControlProps,
 } from "react-native";
 
-const DEFAULT_ANDROID_COLORS = [Colors.orange];
+const getDefaultAndroidColors = createThemeValues((Colors) => ([Colors.orange]));
 
 export type UsePullToRefreshOptions = {
   /** Spinner / tint (defaults to brand orange). */
@@ -43,6 +43,8 @@ export function usePullToRefresh(
   onRefresh: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 } {
+  const Colors = useThemeColors();
+  const DEFAULT_ANDROID_COLORS = useThemeValues(getDefaultAndroidColors);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {

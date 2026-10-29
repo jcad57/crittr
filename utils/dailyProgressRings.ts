@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { DEFAULT_COLORS as Colors } from "@/theme/seasonalThemes";
 import type { PetActivity, PetWithDetails } from "@/types/database";
 import type { DailyProgressCategory } from "@/types/ui";
 import { dailyProgressExerciseTarget } from "@/utils/exercisePlans";
@@ -107,6 +107,16 @@ export function buildDailyProgressRings({
     ringColor: Colors.progressMeds,
     trackColor: Colors.progressMedsTrack,
   };
+  const pottyTimes = new Set((details?.potty_times ?? []).map((time) => time.slice(0, 5)));
+  const pottyRings: DailyProgressCategory[] = pottyTimes.size > 0 ? [{
+    id: "potty",
+    label: "Potty",
+    icon: "dog",
+    current: activities.filter((activity) => activity.activity_type === "potty" && activity.pet_id === (details?.id ?? activePetId)).length,
+    total: pottyTimes.size,
+    ringColor: Colors.progressTraining,
+    trackColor: Colors.progressTrainingTrack,
+  }] : [];
 
   if (!isCatProgress) {
     return [
@@ -122,6 +132,7 @@ export function buildDailyProgressRings({
         trackColor: Colors.progressTreatsTrack,
       },
       medsRing,
+      ...pottyRings,
     ];
   }
 
@@ -138,5 +149,6 @@ export function buildDailyProgressRings({
       trackColor: Colors.progressTreatsTrack,
     },
     medsRing,
+    ...pottyRings,
   ];
 }

@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -19,6 +19,8 @@ export default function ProfileAccountRow({
   label,
   value,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.cardRow}>
       <View style={[styles.iconTile, styles.iconTileAccount]}>
@@ -46,7 +48,7 @@ export default function ProfileAccountRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   cardRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -89,4 +91,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "right",
   },
-});
+}));

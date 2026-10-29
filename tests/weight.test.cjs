@@ -64,3 +64,42 @@ test("daily weigh-ins are conflict-safe, atomic, permission checked, and keep th
   await db.exec("RESET ROLE");
   assert.equal((await db.query("SELECT count(*) AS n FROM pet_weight_entry_revisions")).rows[0].n, 2);
 });
+
+test('weight validation rejects partial numbers and values that round to zero before saving', () => {
+  const {parseWeighInWeight} = loadTS('utils/weighInWeight.ts');
+  for (const raw of ['12abc','1,2,3','Infinity','NaN','0','-2','0.001','1000000','1e2','']) assert.equal(parseWeighInWeight(raw),null,raw);
+  assert.equal(parseWeighInWeight(' 24,5 '),24.5);
+  assert.equal(parseWeighInWeight('24.567'),24.57);
+  assert.equal(parseWeighInWeight('.5'),0.5);
+});
+test('weigh-in Save catches backend errors, preserves input and prevents duplicate taps', async () => {
+  const runtime = require('react/jsx-runtime');
+  let state = [], cursor = 0, currentSubmit, release, calls = 0;
+  const pending = new Promise(resolve => { release = resolve; });
+  const weight = loadTS('utils/weighInWeight.ts');
+  const {default: Step} = loadTS('components/activity/WeighInDetailStep.tsx', {
+    'react/jsx-runtime':runtime,
+    react: {
+      forwardRef:fn=>fn,useCallback:fn=>fn,
+      useState:initial=>{const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],next=>{state[i]=next;}];},
+      useRef:initial=>{const i=cursor++;return state[i]??(state[i]={current:initial});},
+      useImperativeHandle:(_ref,factory)=>{currentSubmit=factory().submit;},
+    },
+    'react-native':{StyleSheet:{create:x=>x},Pressable:'press',Text:'text',View:'view'},
+    '@/components/activity/ActivityOccurredTimeRow':{default:'time'},
+    '@/components/ui/form/FormInput':{__esModule:true,default:'input'},
+    '@/components/ui/buttons/OrangeButton':{default:'button'},
+    '@/theme/colors':require('./theme-mocks.cjs'),'@/theme/typography':{Font:{}},
+    '@/utils/weighInWeight':weight,
+    '@/stores/activityFormStore':{useActivityFormStore:select=>select({weighInForm:{weight:'24.5',weightUnit:'lbs',label:'',notes:''},updateWeighIn(){}})},
+  });
+  const render=()=>{cursor=0;return Step({onSave:async()=>{calls++;await pending;throw {code:'42883'};},onBack(){},embeddedInScreen:true,hideEmbeddedSave:true},{});};
+  render();currentSubmit();currentSubmit();assert.equal(calls,1);
+  release();await new Promise(setImmediate);
+  const tree=render();
+  const flatten=node=>!node||typeof node!=='object'?[]:[node,...(Array.isArray(node.props?.children)?node.props.children:[node.props?.children]).flatMap(flatten)];
+  const alert=flatten(tree).find(node=>node.props?.accessibilityRole==='alert');
+  assert.ok(alert);assert.match(alert.props.children,/temporarily unavailable/);
+  assert.equal(flatten(tree).find(node=>node.type==='input').props.value,'24.5');
+  assert.equal(state[0],false);
+});

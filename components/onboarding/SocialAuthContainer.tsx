@@ -1,6 +1,6 @@
 import { mapNativeSocialError } from "@/lib/auth/nativeSocial";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -44,6 +44,8 @@ export default function SocialAuthContainer({
   onError,
   onBeforeSignIn,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithApple = useAuthStore((s) => s.signInWithApple);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -116,6 +118,8 @@ function SocialAuthButton({
   onPress: () => void;
   children: ReactNode;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const translateY = useSharedValue(0);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -170,7 +174,7 @@ function SocialAuthButton({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     width: "100%",
     marginTop: 8,
@@ -245,4 +249,4 @@ const styles = StyleSheet.create({
   btnLabelGoogle: {
     color: Colors.textPrimary,
   },
-});
+}));

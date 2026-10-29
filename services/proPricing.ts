@@ -2,6 +2,7 @@ import { fetchCurrentProPackages } from "@/lib/iap/checkout";
 import { loginRevenueCatUser } from "@/lib/iap/revenueCat";
 import { supabase } from "@/lib/supabase";
 import { withTimeout } from "@/lib/iap/withTimeout";
+import { sessionGeneration } from "@/lib/sessionGeneration";
 import {
   iosEligibilityKindFromStatus,
   resolveStoreTrialOffer,
@@ -125,6 +126,11 @@ async function resolveTrials(
   return trials;
 }
 
+/** Recheck the current store account immediately before presenting payment. */
+export async function fetchProTrialForPackage(pkg: PurchasesPackage): Promise<StoreTrialOffer | null> {
+  return (await resolveTrials([pkg])).get(pkg.identifier) ?? null;
+}
+
 function packageToTier(
   pkg: PurchasesPackage,
   trial: StoreTrialOffer | null,
@@ -151,24 +157,30 @@ function packageToTier(
  * `PRO_PRICING_FALLBACK` until the user's connection / IAP setup catches up).
  */
 export async function fetchProPricing(): Promise<ProPricing | null> {
+  const generation = sessionGeneration();
   /**
    * Identify the Supabase user before the iOS eligibility probe so StoreKit
    * is not answering against an anonymous RC identity. Eligibility itself is
    * Apple-ID-scoped; login just keeps offerings / receipts aligned.
    */
   try {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      await withTimeout(loginRevenueCatUser(data.user.id), 8_000);
+    const auth = await withTimeout(supabase.auth.getUser(), 5_000);
+    if (generation !== sessionGeneration()) return null;
+    if (auth?.data.user) {
+      await withTimeout(loginRevenueCatUser(auth.data.user.id), 8_000);
     }
   } catch {
     /* offerings still load; trial copy stays conservative */
   }
 
-  const { monthly, annual } = await fetchCurrentProPackages();
+  if (generation !== sessionGeneration()) return null;
+  const packages = await withTimeout(fetchCurrentProPackages(), 8_000);
+  if (!packages || generation !== sessionGeneration()) return null;
+  const { monthly, annual } = packages;
   if (!monthly || !annual) return null;
 
   const trials = await resolveTrials([monthly, annual]);
+  if (generation !== sessionGeneration()) return null;
 
   const monthlyTier = {
     ...packageToTier(monthly, trials.get(monthly.identifier) ?? null),

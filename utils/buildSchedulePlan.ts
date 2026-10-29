@@ -402,6 +402,16 @@ export function buildPlannedScheduleForDay(
     }
   }
 
+  // Potty times repeat daily and keep one stable identity per wall-clock time.
+  for (const time of [...new Set(details.potty_times ?? [])]) {
+    const { hour, minute } = parseScheduleTime(time);
+    items.push({
+      pet_id: petId, local_date: localYmd, scheduled_time: toPgTime(hour, minute),
+      activity_type: "potty", source_kind: "potty", source_id: petId, source_slot: time.slice(0, 5),
+      label: "Potty break", detail_line: null, quantity_line: null, notes: null, meta: {},
+    });
+  }
+
   // ── Vet visits on this local day ─────────────────────────────────────────
   for (const visit of vetVisits) {
     const visitDate = new Date(visit.visit_at);

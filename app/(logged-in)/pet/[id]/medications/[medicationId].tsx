@@ -16,8 +16,8 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
-import { Colors } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { getErrorMessage } from "@/utils/errorMessage";
 import {
   isMedicationDosagesValid,
@@ -46,6 +46,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetMedicationScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { replace, router } = useNavigationCooldown();
   const { id: rawPetId, medicationId: rawMedId } = useLocalSearchParams<{

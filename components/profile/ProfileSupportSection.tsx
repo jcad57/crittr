@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
 import ProfileSectionHeader from "./ProfileSectionHeader";
 import ProfileSupportRow from "./ProfileSupportRow";
@@ -17,6 +17,8 @@ export default function ProfileSupportSection({
   onPrivacy,
   onTerms,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <ProfileSectionHeader label="Support" />
@@ -53,7 +55,7 @@ export default function ProfileSupportSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   whiteCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -72,4 +74,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray100,
     marginLeft: 56,
   },
-});
+}));

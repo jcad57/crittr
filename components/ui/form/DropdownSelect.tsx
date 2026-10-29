@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
@@ -33,6 +33,8 @@ export default function DropdownSelect({
   containerStyle,
   error,
 }: DropdownSelectProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [isOpen, setIsOpen] = useState(false);
 
   const dismiss = useCallback(() => {
@@ -123,7 +125,7 @@ export default function DropdownSelect({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrapper: {
     position: "relative",
     zIndex: 50,
@@ -218,4 +220,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

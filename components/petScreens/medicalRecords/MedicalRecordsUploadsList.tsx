@@ -1,11 +1,11 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { recordSubtitle } from "@/utils/medicalRecordsListFormat";
 import type { PetMedicalRecord } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medical-records.styles";
 
 type Props = {
   loading: boolean;
@@ -26,6 +26,8 @@ export default function MedicalRecordsUploadsList({
   petId,
   push,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <HealthListCard>
       {loading ? (

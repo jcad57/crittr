@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import type {
   ExtractedMedication,
   ExtractedVaccination,
@@ -24,7 +24,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScanMedicationReviewCard } from "@/components/medical/scanRecord/ScanMedicationReviewCard";
 import { ScanVaccinationReviewCard } from "@/components/medical/scanRecord/ScanVaccinationReviewCard";
-import { styles } from "@/components/medical/scanRecord/ScanRecordReviewSheet.styles";
+import { getStyles } from "@/components/medical/scanRecord/ScanRecordReviewSheet.styles";
 import { useScanRecordSheetAnimation } from "@/components/medical/scanRecord/useScanRecordSheetAnimation";
 
 const SHEET_HEIGHT_RATIO = 0.9;
@@ -62,6 +62,8 @@ export default function ScanRecordReviewSheet({
   onConfirm,
   isApplying,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const sheetMaxHeight = Math.round(
     Dimensions.get("window").height * SHEET_HEIGHT_RATIO,

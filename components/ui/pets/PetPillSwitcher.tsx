@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { PetSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,6 +32,8 @@ export default function PetPillSwitcher({
   activePetId,
   onSwitchPet,
 }: PetPillSwitcherProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   if (pets.length === 0) return null;
 
   return (
@@ -88,7 +90,7 @@ export default function PetPillSwitcher({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   pillScroll: {
     marginTop: 0,
   },
@@ -112,7 +114,8 @@ const styles = StyleSheet.create({
   },
   petPillActive: {
     backgroundColor: Colors.peach,
-    borderColor: "#F4B98C",
+    borderWidth: 2,
+    borderColor: Colors.orange,
   },
   pillAvatar: {
     width: AVATAR_IN_PILL,
@@ -139,4 +142,4 @@ const styles = StyleSheet.create({
   petPillLabelActive: {
     color: Colors.peachDark,
   },
-});
+}));

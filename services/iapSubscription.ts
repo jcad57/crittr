@@ -161,11 +161,11 @@ async function priceLabelForProduct(
      * returns one product per base plan — so we query wide and pick the plan
      * the user actually holds.
      */
-    const products = await Purchases.getProducts([
+    const products = await withTimeout(Purchases.getProducts([
       baseProductId(storeProductId),
-    ]);
+    ]), 8_000);
     const product =
-      products.find((p) => p.identifier === storeProductId) ?? products[0];
+      products?.find((p) => p.identifier === storeProductId) ?? products?.[0];
     if (product) {
       const period = fallbackInterval === "year" ? "year" : "month";
       const formatted = product.priceString

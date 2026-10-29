@@ -3,14 +3,14 @@ import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import SocialAuthContainer from "@/components/onboarding/SocialAuthContainer";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import FormInput from "@/components/ui/form/FormInput";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import {
   getAuthFlowColumnOuterWidth,
   welcomeAuthLayoutScale,
 } from "@/hooks/useResponsiveUi";
 import { getSigninMethodHint } from "@/services/auth";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -67,6 +67,9 @@ function oauthPasswordHint(hint: "google" | "apple"): string {
 }
 
 export default function SignIn() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { uiScale, verticalTight } = welcomeAuthLayoutScale(
@@ -256,7 +259,7 @@ export default function SignIn() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   peekSection: {
     width: "100%",
     alignItems: "center",
@@ -294,4 +297,4 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 12,
   },
-});
+}));

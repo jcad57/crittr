@@ -24,14 +24,14 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
-import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medical-records.styles";
 import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
 import {
   defaultTitleFromFileName,
   randomUploadId,
 } from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -53,6 +53,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN = false;
 
 export default function PetMedicalRecordsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawPetId } = useLocalSearchParams<{ id: string | string[] }>();
   const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId;
   const { push, replace, router } = useNavigationCooldown();

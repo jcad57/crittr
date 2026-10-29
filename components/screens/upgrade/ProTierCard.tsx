@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { ProBenefitGrid, ProIllustration, flowStyles } from "@/components/pro/flow/ProFlowUi";
-import { Colors } from "@/theme/colors";
+import { ProBenefitGrid, ProIllustration, getFlowStyles } from "@/components/pro/flow/ProFlowUi";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { ProPricing } from "@/services/proPricing";
 
@@ -11,6 +11,9 @@ export function ProTierCard({ pricing, billing, onBillingChange, onCta, busy = f
   pricing: ProPricing; billing: BillingPeriod; onBillingChange: (b: BillingPeriod) => void;
   onCta: () => void; busy?: boolean; showCta?: boolean;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const flowStyles = useThemeValues(getFlowStyles);
   const { height } = useWindowDimensions();
   const compact = height < 1000;
   return <View style={{ gap: compact ? 8 : 17 }}>
@@ -46,7 +49,7 @@ export function ProTierCard({ pricing, billing, onBillingChange, onCta, busy = f
     <Text style={flowStyles.finePrint}>{pricing.resolved && pricing[billing].trial ? `No charge during your ${pricing[billing].trial?.durationLabel} trial. ` : ""}Billed {billing === "annual" ? "annually" : "monthly"}. Cancel anytime.</Text></> : null}
   </View>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   plan: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: Colors.creamDark, paddingHorizontal: 13, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 12 },
   selected: { backgroundColor: Colors.featureDark, borderColor: Colors.featureDark },
   planHeading: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
@@ -58,4 +61,4 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: Font.uiBold, fontSize: 10, color: "#63401C" },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: "#99948D", alignItems: "center", justifyContent: "center" },
   radioSelected: { borderColor: Colors.white, backgroundColor: Colors.white }, radioDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.orange },
-});
+}));

@@ -1,8 +1,9 @@
+import { useThemeValues } from "@/theme/colors";
 import FormInput from "@/components/ui/form/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
-import { petCareStyles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
@@ -19,6 +20,8 @@ function hasVetDetails(p: {
 }
 
 export default function PetVetClinicStep() {
+  const petCareStyles = useThemeValues(getPetCareStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({

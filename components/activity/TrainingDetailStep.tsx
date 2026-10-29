@@ -2,7 +2,7 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import {
@@ -32,6 +32,7 @@ const TrainingDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
     const form = useActivityFormStore((s) => s.trainingForm);
     const update = useActivityFormStore((s) => s.updateTraining);
     const [saving, setSaving] = useState(false);
@@ -145,7 +146,7 @@ const TrainingDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default TrainingDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   fieldLabel: {
@@ -179,4 +180,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-});
+}));

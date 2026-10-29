@@ -27,6 +27,10 @@ export function configureRevenueCat(appUserId?: string | null): Promise<void> {
   if (configured) return Promise.resolve();
 
   const apiKey = platformApiKey();
+  if (!__DEV__ && apiKey.startsWith("test_")) {
+    console.error("[RevenueCat] Test Store keys are not allowed in release builds. Configure the platform SDK key before releasing.");
+    return Promise.resolve();
+  }
   if (!apiKey) {
     if (__DEV__) {
       console.warn(

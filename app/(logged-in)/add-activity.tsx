@@ -8,7 +8,7 @@ import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { addActivityNavTitle } from "@/constants/activityWizardTitles";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   useLogExerciseMutation,
   useLogFoodMutation,
@@ -24,7 +24,7 @@ import {
   useScheduleDayQuery,
   useToggleScheduleItemMutation,
 } from "@/hooks/queries";
-import { useCanShowAds } from "@/hooks/useCanShowAds";
+import { useNonProInterstitial } from "@/hooks/useNonProInterstitial";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
@@ -32,11 +32,6 @@ import { useActivityFormStore } from "@/stores/activityFormStore";
 import { usePetStore } from "@/stores/petStore";
 import type { ActivityType, PetScheduleItem } from "@/types/database";
 import { foodActivityFormForPet } from "@/utils/foodActivityMerge";
-import {
-  discardPreloadedInterstitial,
-  preloadNonProInterstitial,
-  showNonProInterstitialThen,
-} from "@/lib/showNonProInterstitial";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
@@ -57,12 +52,14 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView, type KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/add-activity.styles";
+import { getStyles } from "@/screen-styles/add-activity.styles";
 
 const SAVE_LABEL = "Save";
 const CONTINUE_LABEL = "Continue";
 
 export default function AddActivityScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const { type: typeParam, petId: rawPetIdParam } = useLocalSearchParams<{
     type?: string;
@@ -115,7 +112,7 @@ export default function AddActivityScreen() {
   const activePetId = usePetStore((s) => s.activePetId);
   const setActivePetMutation = useSetActivePetMutation();
   const { data: allPets } = usePetsQuery();
-  const canShowAds = useCanShowAds();
+  const { canShowAds, preload, discard, showThen } = useNonProInterstitial("activity_logged");
 
   const resolvedPetId = useMemo(() => {
     if (petIdParam && (allPets ?? []).some((p) => p.id === petIdParam)) {
@@ -198,18 +195,18 @@ export default function AddActivityScreen() {
   /** Preload interstitial on the details step so it can show right after save. */
   useEffect(() => {
     if (step !== "details") {
-      discardPreloadedInterstitial();
+      discard();
       return;
     }
     if (!canShowAds) {
-      discardPreloadedInterstitial();
+      discard();
       return;
     }
-    preloadNonProInterstitial();
+    preload();
     return () => {
-      discardPreloadedInterstitial();
+      discard();
     };
-  }, [step, canShowAds]);
+  }, [step, canShowAds, preload, discard]);
 
   const goBack = useCallback(() => {
     if (isCompleting) return;
@@ -230,12 +227,8 @@ export default function AddActivityScreen() {
       reset();
       router.back();
     };
-    if (!canShowAds) {
-      go();
-      return;
-    }
-    await showNonProInterstitialThen(go);
-  }, [canShowAds, reset, router]);
+    await showThen(go);
+  }, [showThen, reset, router]);
 
   const cancelDetails = useCallback(() => {
     if (isCompleting) return;
@@ -300,18 +293,12 @@ export default function AddActivityScreen() {
     (item: PetScheduleItem) => {
       if (completingMatchId || isCompleting) return;
       setCompletingMatchId(item.id);
-      toggleScheduleItem.mutate(
-        { item, completed: true },
-        {
-          onError: () => {
-            setCompletingMatchId(null);
-          },
-        },
-      );
-      setMatchModalVisible(false);
-      setMatchModalItems([]);
       setIsCompleting(true);
-      void finish().catch(() => {
+      void toggleScheduleItem.mutateAsync({ item, completed: true }).then(async () => {
+        setMatchModalVisible(false);
+        setMatchModalItems([]);
+        await finish();
+      }).catch(() => {
         setIsCompleting(false);
         setCompletingMatchId(null);
       });

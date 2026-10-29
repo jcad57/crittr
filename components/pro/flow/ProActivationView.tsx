@@ -2,11 +2,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeInDown, interpolateColor, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withTiming, cancelAnimation } from "react-native-reanimated";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { ProIllustration, flowStyles } from "./ProFlowUi";
+import { ProIllustration, getFlowStyles } from "./ProFlowUi";
 
 function ActivationStep({ index, stage, title, body, last }: { index: number; stage: number; title: string; body: string; last: boolean }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const complete = index < stage;
   const active = index === stage;
   const pulse = useSharedValue(0);
@@ -37,6 +39,8 @@ function ActivationStep({ index, stage, title, body, last }: { index: number; st
 }
 
 export function ProActivationView({ stage, restored = false }: { stage: 1 | 2 | 3; restored?: boolean }) {
+  const styles = useThemeValues(getStyles);
+  const flowStyles = useThemeValues(getFlowStyles);
   const { height } = useWindowDimensions();
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
@@ -60,7 +64,7 @@ export function ProActivationView({ stage, restored = false }: { stage: 1 | 2 | 
     </View>
   </View>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   body: { flex: 1, justifyContent: "center", paddingBottom: 28 },
   steps: { marginTop: 34, marginBottom: 10 }, step: { flexDirection: "row", minHeight: 82, gap: 15 },
   rail: { width: 34, alignItems: "center", position: "relative" },
@@ -70,4 +74,4 @@ const styles = StyleSheet.create({
   connector: { position: "absolute", top: 31, bottom: 5, width: 1.5, backgroundColor: "#D9D4CB" },
   stepCopy: { flex: 1, paddingTop: 3 }, stepTitle: { fontFamily: Font.uiBold, fontSize: 16, color: Colors.textPrimary },
   stepBody: { fontFamily: Font.uiRegular, fontSize: 13, lineHeight: 19, color: "#70716C", marginTop: 5 },
-});
+}));

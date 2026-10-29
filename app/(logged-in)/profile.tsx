@@ -10,7 +10,7 @@ import {
   formatMemberSince,
   initialsFromProfile,
 } from "@/components/profile";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { normalizeProBannerThemeId } from "@/constants/proBannerThemes";
 import {
   profileQueryKey,
@@ -44,6 +44,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const PROFILE_SCROLL_PADDING_H = 20;
 
 export default function UserProfileScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { windowWidth, isTablet } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -254,10 +256,10 @@ export default function UserProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -273,4 +275,4 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     gap: 0,
   },
-});
+}));

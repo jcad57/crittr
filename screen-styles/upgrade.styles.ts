@@ -1,8 +1,8 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const getStyles = createThemeValues((Colors) => StyleSheet.create({
   gradient: {
     flex: 1,
   },
@@ -356,4 +356,4 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 4,
   },
-});
+}));

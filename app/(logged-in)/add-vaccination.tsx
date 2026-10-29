@@ -1,5 +1,5 @@
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  * `/(logged-in)/pet/[id]/vaccinations/[vaccinationId]`.
  */
 export default function AddVaccinationRedirectScreen() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { petId: petIdParam } = useLocalSearchParams<{ petId?: string }>();
   const { data: petsData } = usePetsQuery();
@@ -47,6 +48,8 @@ export default function AddVaccinationRedirectScreen() {
 }
 
 function AddVaccinationWithPermission({ petId }: { petId: string }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const canManage = useCanPerformAction(petId, "can_manage_vaccinations");
 
@@ -76,10 +79,10 @@ function AddVaccinationWithPermission({ petId }: { petId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -93,4 +96,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-});
+}));

@@ -1,5 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import SeasonalThemeSetting from "@/components/theme/SeasonalThemeSetting";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useProfileQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -17,6 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const BILLING_ICON = require("@/assets/icons/billing-icon.png");
 
 export default function SettingsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const { push } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
@@ -170,6 +173,8 @@ export default function SettingsScreen() {
           />
         </Pressable>
 
+        <SeasonalThemeSetting />
+
         <Text style={[styles.sectionLabel, styles.sectionSpaced]}>
           Subscription & billing
         </Text>
@@ -268,10 +273,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -351,4 +356,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.error,
   },
-});
+}));

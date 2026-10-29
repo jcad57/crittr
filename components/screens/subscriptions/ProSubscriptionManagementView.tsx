@@ -2,13 +2,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { SubscriptionDetailsView } from "@/components/screens/subscriptions/SubscriptionDetailsView";
-import { ProBenefitGrid, ProLink, ProNotice, flowStyles, type ProIcon } from "@/components/pro/flow/ProFlowUi";
+import { ProBenefitGrid, ProLink, ProNotice, getFlowStyles, type ProIcon } from "@/components/pro/flow/ProFlowUi";
 import type { SubscriptionDetails } from "@/services/iapSubscription";
 import { storeLabel } from "@/lib/iap/storeTerms";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 
 function ManagementAction({ icon, title, body, onPress, busy }: { icon: ProIcon; title: string; body: string; onPress: () => void; busy?: boolean }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return <Pressable onPress={onPress} disabled={busy} accessibilityRole="button" style={({ pressed }) => [styles.action, pressed && { opacity: 0.65 }]}>
     <View style={[styles.actionIcon, icon === "apple" && { backgroundColor: "#2791EA" }]}><MaterialCommunityIcons name={icon} size={27} color={icon === "apple" ? Colors.white : Colors.textPrimary} /></View>
     <View style={{ flex: 1 }}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionBody}>{body}</Text></View>
@@ -24,6 +26,9 @@ export function ProSubscriptionManagementView({ sub, loading, failed, checking, 
   sub: SubscriptionDetails | null | undefined; loading?: boolean; failed?: boolean; checking?: boolean; managing?: boolean; manageError?: string | null; showManageCta?: boolean;
   onManage: () => void; onRestore: () => void; onRefresh: () => void;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const flowStyles = useThemeValues(getFlowStyles);
   const canManage = canManageStoreSubscription(sub);
   return <>
     <Text accessibilityRole="header" style={[flowStyles.title, { marginTop: 12 }]}>Your subscription</Text>
@@ -42,11 +47,11 @@ export function ProSubscriptionManagementView({ sub, loading, failed, checking, 
     <ProLink onPress={onRefresh} disabled={checking}>{checking ? "Refreshing subscription…" : "Refresh subscription"}</ProLink>
   </>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 60 },
   action: { minHeight: 65, borderWidth: 1, borderColor: Colors.creamDark, borderRadius: 20, flexDirection: "row", alignItems: "center", padding: 11, gap: 12 },
   actionIcon: { width: 37, height: 37, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   actionTitle: { fontFamily: Font.uiBold, color: Colors.textPrimary, fontSize: 15 }, actionBody: { fontFamily: Font.uiRegular, color: "#686A63", fontSize: 12, lineHeight: 17, marginTop: 4 },
   sectionTitle: { fontFamily: Font.displayBold, fontSize: 20, color: Colors.textPrimary, marginTop: 18, marginBottom: 10 },
   note: { fontFamily: Font.uiRegular, fontSize: 13, lineHeight: 20, color: "#6E6E65", marginTop: 16 },
-});
+}));

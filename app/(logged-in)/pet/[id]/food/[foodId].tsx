@@ -6,7 +6,7 @@ import PetFoodNoPermissionAddView from "@/components/petScreens/food/PetFoodNoPe
 import PetFoodReadOnlyView from "@/components/petScreens/food/PetFoodReadOnlyView";
 import PetFoodTypeToggle from "@/components/petScreens/food/PetFoodTypeToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { foodBrandInputPlaceholder } from "@/constants/petFoodFormConstants";
 import {
   useInsertPetFoodMutation,
@@ -45,12 +45,14 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 
 const TREAT_DEFAULT_UNIT = "Piece(s)";
 const MEAL_DEFAULT_UNIT = "Cups";
 
 export default function EditPetFoodScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawPetId, foodId: rawFoodId } = useLocalSearchParams<{
     id: string;
     foodId: string;

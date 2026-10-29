@@ -1,10 +1,10 @@
 import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
-  ACTIVITY_ROW_ICONS,
+  getActivityRowIcons,
   resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetScheduleItem } from "@/types/database";
@@ -39,6 +39,9 @@ export default function ScheduleActivityCard({
   onToggleComplete,
   onEdit,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const ACTIVITY_ROW_ICONS = useThemeValues(getActivityRowIcons);
   const { timeDisplay } = useUserDateTimePrefs();
   const completed = !!item.completed_at;
   const isTreat =
@@ -165,7 +168,7 @@ export default function ScheduleActivityCard({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -266,4 +269,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

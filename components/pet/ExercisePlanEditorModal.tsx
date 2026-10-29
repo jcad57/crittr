@@ -1,7 +1,7 @@
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import InlineTimePickerSheet from "@/components/ui/InlineTimePickerSheet";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import {
@@ -40,6 +40,8 @@ export default function ExercisePlanEditorModal({
   onClose,
   onSave,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const is24Hour = timeDisplay === "24h";
   const [label, setLabel] = useState("");
@@ -264,7 +266,7 @@ export default function ExercisePlanEditorModal({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   modalRoot: { flex: 1 },
   overlay: {
     flex: 1,
@@ -353,4 +355,4 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   saveBtn: { marginTop: 4, marginBottom: 4 },
-});
+}));

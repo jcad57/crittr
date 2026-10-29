@@ -1,5 +1,6 @@
-import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
-import { stepStyles } from "@/components/onboarding/PetFoodStep.styles";
+import { useThemeValues } from "@/theme/colors";
+import { getPetCareStyles as getStyles } from "@/components/onboarding/petCareStyles";
+import { getStepStyles } from "@/components/onboarding/PetFoodStep.styles";
 import { Pressable, Text, View } from "react-native";
 
 type Props = {
@@ -13,6 +14,8 @@ export default function PetFoodTypeToggle({
   onSelectMeal,
   onSelectTreat,
 }: Props) {
+  const styles = useThemeValues(getStyles);
+  const stepStyles = useThemeValues(getStepStyles);
   return (
     <>
       <Text style={styles.fieldLabel}>Type</Text>

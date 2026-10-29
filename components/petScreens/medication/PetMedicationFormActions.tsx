@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { Pressable, Text, View } from "react-native";
 
@@ -17,6 +18,7 @@ export default function PetMedicationFormActions({
   onSave,
   onCancel,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       {showErrorHint ? (

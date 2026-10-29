@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -46,6 +46,8 @@ export default function AutocompleteInput({
   label,
   required,
 }: AutocompleteInputProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [query, setQuery] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -160,7 +162,7 @@ export default function AutocompleteInput({
   return body;
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   fieldLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
@@ -251,4 +253,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textPrimary,
   },
-});
+}));

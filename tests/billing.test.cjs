@@ -115,3 +115,21 @@ test("transfers reconcile both verified account UUIDs", () => {
     [a, b],
   );
 });
+
+test('sandbox restrictions are reported without granting access or retrying a permanent policy decision', async () => {
+  for (const enrolled of [false,true]) {
+    let committed, fetches=0;
+    const admin={
+      rpc:async(name,args)=>{if(name==='commit_billing_reconciliation')committed=args.snapshot;return {data:name==='begin_billing_reconciliation'?'fence':true};},
+      from:table=>({select:()=>({eq:()=>({single:async()=>({data:{crittr_pro_until:null}}),maybeSingle:async()=>({data:enrolled?{user_id:'caller'}:null})})})}),
+    };
+    const expires=new Date(Date.now()+86400000).toISOString();
+    const {reconcileCrittrProForUser}=loadTS('supabase/functions/_shared/revenueCatEntitlement.ts',{
+      './evaluateCrittrProEntitlement.ts':loadTS('supabase/functions/_shared/evaluateCrittrProEntitlement.ts'),
+    },{Deno:{env:{get:()=> 'fixture'}},fetch:async()=>{fetches++;return Response.json({subscriber:{entitlements:{crittr_pro:{product_identifier:'monthly',expires_date:expires}},subscriptions:{monthly:{store:'app_store',is_sandbox:true,expires_date:expires}}}});}});
+    const result=await reconcileCrittrProForUser(admin,'caller',{checkout:true});
+    assert.equal(result.verification,enrolled?'active':'sandbox_restricted');
+    assert.equal(committed.isActive,enrolled);assert.equal(fetches,1);
+    assert.equal(committed.environment,enrolled?'sandbox':null);
+  }
+});

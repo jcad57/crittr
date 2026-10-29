@@ -1,5 +1,9 @@
 # Weight and notification rollout
 
+The [October 29 potty schedule rollout](potty-schedules-2026-10-29.md) adds daily
+potty reminders, an independent notification preference, and scheduled break
+completion to the existing server reminder system.
+
 The newer [October 28 care notification audit](push-notification-audit-2026-10-28.md)
 documents per-task server reminders, shared completion suppression and the rollout
 that supersedes the local-reminder and invitation-only limitations below.
@@ -66,7 +70,7 @@ email inbox delivery remain separate from these server/configuration checks.
 - Reminder rebuilds preserve installed reminders when fetching fails. The iOS plan reserves slots within its pending-notification limit, keeps recurring reminders and nearest dated reminders, and replenishes on resume/reconnect/pet changes. At capacity, obsolete requests must be retired to make room; far-future interval dates require a later app refresh. This is local scheduling, not an unlimited server reminder service.
 - Shared-care notifications enqueue per-device jobs inside the transaction creating the inbox notification. A worker checks tickets and receipts, retries network/429/5xx/provider failures, removes invalid device registrations, expires stale alerts after 24 hours, rechecks preferences/access, and leases jobs to prevent overlapping workers from sending the same job concurrently. Receipt success confirms handoff to APNs/FCM, not that a person saw the banner.
 - The legacy one-token table remains compatible with existing app versions; its writes mirror into the new multi-device table. Realtime refreshes the inbox and badge; remote OS banners come from the queue to avoid double presentation.
-- `ADS_ENABLED` in `config/featureFlags.ts` is false. All banner, app-open, interstitial, SDK initialization, and ad-consent paths honor this switch. Native integrations and placement configuration remain intact.
+- `ADS_ENABLED` in `config/featureFlags.ts` is true. Banner and interstitial placements are restricted to eligible Free-tier users and wait for advertising consent. App-open ads have been removed.
 
 ## Install the missing billing helper
 

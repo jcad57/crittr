@@ -1,8 +1,8 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { Platform, StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   dim: {
     ...StyleSheet.absoluteFill,
@@ -195,4 +195,4 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.white,
   },
-});
+}));

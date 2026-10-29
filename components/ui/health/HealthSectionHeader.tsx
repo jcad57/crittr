@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -8,6 +8,7 @@ type Props = {
 };
 
 export default function HealthSectionHeader({ title, onAddPress }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
@@ -20,7 +21,7 @@ export default function HealthSectionHeader({ title, onAddPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -40,4 +41,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.orange,
   },
-});
+}));

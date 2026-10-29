@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/food/[foodId].styles";
 import { Pressable, Text, View } from "react-native";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
 };
 
 export default function PetFoodTypeToggle({ isTreat, onChange }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <Text style={styles.fieldLabel}>Type</Text>

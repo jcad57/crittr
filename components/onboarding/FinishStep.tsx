@@ -1,5 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { useNonProInterstitial } from "@/hooks/useNonProInterstitial";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { healthSnapshotKey, petsQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/query/client";
 import {
@@ -11,13 +12,13 @@ import {
 import { updateProfile } from "@/services/profiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { UPGRADE_HREF, UPGRADE_FROM_ONBOARDING_HREF } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -33,6 +34,9 @@ import { useShallow } from "zustand/react/shallow";
 const HIGH_FIVE = require("@/assets/images/high-five.png");
 
 export default function FinishStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { pets, editPetAtIndex, reset, petFlowMode, profileData } =
@@ -49,9 +53,16 @@ export default function FinishStep() {
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const refreshAuthSession = useAuthStore((s) => s.refreshAuthSession);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { canShowAds, preload, discard, showThen } = useNonProInterstitial(
+    "pet_added", petFlowMode === "add-pet",
+  );
+  useEffect(() => {
+    if (canShowAds) preload();
+    return discard;
+  }, [canShowAds, preload, discard]);
 
   const handleFinish = async () => {
-    if (!session) return;
+    if (!session || isSubmitting) return;
     setIsSubmitting(true);
     /**
      * Tracks any *non-fatal* warning we want to surface to the user without
@@ -188,19 +199,22 @@ export default function FinishStep() {
        * succeeded. If anything above threw we'd have skipped this and the
        * user could retry without re-typing their pet.
        */
-      reset();
-
-      if (postCreateWarning) {
-        Alert.alert("Heads up", postCreateWarning);
-      }
-
+      const complete = () => {
+        reset();
+        if (postCreateWarning) Alert.alert("Heads up", postCreateWarning);
+        if (petFlowMode === "add-pet" && createdIds.length > 0) {
+          const lastId = createdIds[createdIds.length - 1];
+          router.replace(`/(logged-in)/pet/${lastId}` as Href);
+        } else if (petFlowMode === "onboarding") {
+          router.replace(UPGRADE_FROM_ONBOARDING_HREF as Href);
+        } else {
+          router.replace("/(logged-in)/dashboard" as Href);
+        }
+      };
       if (petFlowMode === "add-pet" && createdIds.length > 0) {
-        const lastId = createdIds[createdIds.length - 1];
-        router.replace(`/(logged-in)/pet/${lastId}` as Href);
-      } else if (petFlowMode === "onboarding") {
-        router.replace(UPGRADE_FROM_ONBOARDING_HREF as Href);
+        await showThen(complete);
       } else {
-        router.replace("/(logged-in)/dashboard" as Href);
+        complete();
       }
     } catch (error: unknown) {
       if ((error as { code?: string })?.code === "42501" &&
@@ -303,7 +317,7 @@ export default function FinishStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   outer: {
     flex: 1,
     width: "100%",
@@ -392,4 +406,4 @@ const styles = StyleSheet.create({
   finishCta: {
     marginTop: 28,
   },
-});
+}));

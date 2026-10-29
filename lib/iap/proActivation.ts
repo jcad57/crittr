@@ -2,10 +2,8 @@ export type ProActivationSource = "purchase" | "restore" | "paywall";
 
 /**
  * Hard ceiling for any "Activating Crittr Pro…" UI. Past this the screen
- * must recover (navigate if the SDK already unlocked Pro, otherwise error).
- *
- * Apple / Google already charged the user. Waiting on a backend mirror is
- * not part of a successful checkout.
+ * must recover. Only independently verified server access permits success;
+ * a native receipt alone cannot unlock paid database/API features.
  */
 export const PRO_ACTIVATION_UI_WATCHDOG_MS = 12_000;
 
@@ -18,9 +16,8 @@ export const PRO_ACTIVATION_PAYWALL_WAIT_MS = 8_000;
 /**
  * How long the UI may block after a store success.
  *
- * If RevenueCat CustomerInfo already has Crittr Pro, the answer is zero —
- * client access is unlocked and the Supabase `profiles` mirror is a
- * background write for CrittrAI / co-care, not a gate.
+ * Legacy scheduling hint for callers that already hold purchase metadata.
+ * This helper never authorizes access or replaces server verification.
  */
 export function resolveProActivationWaitMs(opts: {
   source: ProActivationSource;

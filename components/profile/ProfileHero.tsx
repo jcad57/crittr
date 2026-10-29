@@ -2,7 +2,7 @@ import {
   type ProBannerThemeId,
   resolveProBannerTheme,
 } from "@/constants/proBannerThemes";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -45,6 +45,8 @@ export default function ProfileHero({
   onAvatarPress,
   centerIdentitySection = false,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const bannerTheme = resolveProBannerTheme(proBannerThemeId);
   const avatarBlock = (
     <Pressable
@@ -179,7 +181,7 @@ export default function ProfileHero({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   heroCard: {
     backgroundColor: Colors.profileHeroDark,
     borderRadius: HERO_RADIUS,
@@ -313,4 +315,4 @@ const styles = StyleSheet.create({
   heroMemberPro: {
     color: "rgba(248,250,252,0.58)",
   },
-});
+}));

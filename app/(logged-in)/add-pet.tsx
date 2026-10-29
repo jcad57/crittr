@@ -4,7 +4,7 @@ import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import StepIndicator from "@/components/onboarding/StepIndicator";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   FINISH_STEP_INDEX,
   PET_TYPE_STEP_INDEX,
@@ -17,6 +17,8 @@ import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from "react-na
 const ADD_PET_STEP_COUNT = FINISH_STEP_INDEX - PET_TYPE_STEP_INDEX + 1;
 
 export default function AddPetScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const { canAddPetOrUpgrade } = useTierLimitGate();
   const { replaceWithUpgrade } = useProGateNavigation();
@@ -109,11 +111,11 @@ export default function AddPetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   boot: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.background,
   },
-});
+}));

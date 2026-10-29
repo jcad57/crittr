@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -21,6 +21,8 @@ export default function ProfileSupportRow({
   iconBg,
   onPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -54,7 +56,7 @@ export default function ProfileSupportRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   cardRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -82,4 +84,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textPrimary,
   },
-});
+}));

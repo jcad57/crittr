@@ -1,5 +1,5 @@
 import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -22,6 +22,8 @@ export default function PetFoodProfileCard({
   isTreat,
   petType = null,
 }: PetFoodProfileCardProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const mealIcon = getMealsActivityIcon(petType);
   return (
     <View style={styles.card}>
@@ -66,7 +68,7 @@ const treatText = "#C2410C";
 const mealBg = "#E6F4EA";
 const mealText = "#1E854A";
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -132,4 +134,4 @@ const styles = StyleSheet.create({
   badgeTextMeal: {
     color: mealText,
   },
-});
+}));

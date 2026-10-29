@@ -1,31 +1,28 @@
-import {
-  ensureTrackingConsent,
-  type TrackingConsentResult,
-} from "@/lib/ads/trackingConsent";
+import type { TrackingConsentResult } from "@/lib/ads/trackingConsent";
+import { ensureMobileAdsInitialized } from "@/lib/ads/initialize";
 import { PermissionStatus } from "expo-tracking-transparency";
 import { useEffect, useState } from "react";
 
 const DEFAULT: TrackingConsentResult = {
-  canRequestAds: true,
+  canRequestAds: false,
   personalizedAds: false,
   attStatus: PermissionStatus.UNDETERMINED,
 };
 
 /**
- * Reactive view of the cached UMP+ATT result. Falls back to non-personalized ads
- * until the gate completes so we never request IDFA before the user accepted.
+ * Ads stay blocked until UMP, ATT, and SDK initialization have completed.
  */
 export function useTrackingConsent(): TrackingConsentResult {
   const [state, setState] = useState<TrackingConsentResult>(DEFAULT);
 
   useEffect(() => {
     let cancelled = false;
-    void ensureTrackingConsent()
+    void ensureMobileAdsInitialized()
       .then((result) => {
         if (!cancelled) setState(result);
       })
       .catch(() => {
-        /* keep DEFAULT (non-personalized) */
+        /* Keep ads blocked when initialization fails. */
       });
     return () => {
       cancelled = true;

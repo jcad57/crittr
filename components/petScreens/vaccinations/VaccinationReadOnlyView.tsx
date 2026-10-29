@@ -1,8 +1,9 @@
+import { useThemeValues } from "@/theme/colors";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
 import type { PetVaccination, PetWithDetails } from "@/types/database";
 import { ScrollView, View } from "react-native";
 
@@ -21,6 +22,7 @@ export default function VaccinationReadOnlyView({
   onBack,
   onAfterSwitchPet,
 }: VaccinationReadOnlyViewProps) {
+  const styles = useThemeValues(getStyles);
   const fmt = (d: string | null | undefined) =>
     d
       ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", {

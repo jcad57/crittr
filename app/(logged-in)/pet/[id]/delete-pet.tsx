@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useDeletePetMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -17,6 +17,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DeletePetScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
@@ -106,10 +108,10 @@ export default function DeletePetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -151,4 +153,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.white,
   },
-});
+}));

@@ -5,15 +5,15 @@ import {
   MEALS_ACTIVITY_ICON_DOG,
   getMealsActivityIcon,
 } from "@/constants/activityTypeProgressIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, getThemeColors } from "@/theme/colors";
 import type { ActivityDisplayCategory } from "@/data/activityHistory";
 import type { ImageSource } from "expo-image";
 
 /** Shared with Activity tab rows and dashboard activity feed — same assets and ring/track colors. */
-export const ACTIVITY_ROW_ICONS: Record<
+export const getActivityRowIcons = createThemeValues((Colors) : Record<
   ActivityDisplayCategory,
   { source: ImageSource; ring: string; track: string }
-> = {
+> => ({
   exercise: {
     source: EXERCISE_ACTIVITY_ICON_DOG,
     ring: Colors.progressExercise,
@@ -45,7 +45,7 @@ export const ACTIVITY_ROW_ICONS: Record<
     track: Colors.progressExerciseTrack,
   },
   potty: {
-    source: require("@/assets/icons/dog-bone-icon.png"),
+    source: ACTIVITY_TYPE_LOG_ICONS.potty,
     ring: Colors.progressTreats,
     track: Colors.progressTreatsTrack,
   },
@@ -59,13 +59,14 @@ export const ACTIVITY_ROW_ICONS: Record<
     ring: Colors.skyDark,
     track: Colors.sky,
   },
-};
+}));
 
 /** Row icon PNG — cats use toy for exercise and bowl for meals; maintenance matches {@link ACTIVITY_TYPE_LOG_ICONS}. */
 export function resolveActivityRowIconSource(
   category: ActivityDisplayCategory,
   petType: string | null | undefined,
 ): ImageSource {
+  const ACTIVITY_ROW_ICONS = getActivityRowIcons(getThemeColors());
   if (category === "exercise") {
     return getExerciseActivityIcon(petType);
   }

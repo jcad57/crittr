@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
@@ -36,6 +36,8 @@ export default function ScreenHeader({
   topInset,
   accessibilityLabel = "Go back",
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.nav, topInset != null && { paddingTop: topInset }]}>
       <View style={styles.side}>
@@ -71,7 +73,7 @@ export default function ScreenHeader({
 
 const SIDE_WIDTH = 44;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   nav: {
     flexDirection: "row",
     alignItems: "center",
@@ -94,4 +96,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginHorizontal: 8,
   },
-});
+}));

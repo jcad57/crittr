@@ -7,7 +7,7 @@ import {
   readLocalImageUriAsArrayBuffer,
 } from "@/services/localImageUpload";
 import type { PetExercisePlanInput } from "@/services/petExercisePlans";
-import { replacePetExercisePlans } from "@/services/petExercisePlans";
+import { normalizePottyTimes } from "@/utils/pottySchedule";
 import type { Pet, PetWithDetails } from "@/types/database";
 import { yearsMonthsFromBirthDate } from "@/utils/petAge";
 import { parseDateOnlyYmd } from "@/utils/petDisplay";
@@ -100,6 +100,7 @@ export type UpdatePetExerciseRequirementsInput = {
   energy_level: "low" | "medium" | "high";
   /** Full replace of planned activities; empty clears plans. */
   exercise_plans: PetExercisePlanInput[];
+  potty_times: string[];
 };
 
 export async function updatePetDetails(
@@ -141,20 +142,14 @@ export async function updatePetExerciseRequirements(
   petId: string,
   fields: UpdatePetExerciseRequirementsInput,
 ): Promise<{ pet: Pet; exercise_plans: PetWithDetails["exercise_plans"] }> {
-  const plans = await replacePetExercisePlans(petId, fields.exercise_plans);
-
-  const { data, error } = await supabase
-    .from("pets")
-    .update({
-      energy_level: fields.energy_level,
-      exercises_per_day: plans.length > 0 ? plans.length : null,
-    })
-    .eq("id", petId)
-    .select()
-    .single();
-
+  const { data, error } = await supabase.rpc("save_pet_exercise_and_potty", {
+    p_pet_id: petId,
+    p_energy_level: fields.energy_level,
+    p_exercise_plans: fields.exercise_plans,
+    p_potty_times: normalizePottyTimes(fields.potty_times),
+  });
   if (error) throw error;
-  return { pet: data as Pet, exercise_plans: plans };
+  return data as { pet: Pet; exercise_plans: PetWithDetails["exercise_plans"] };
 }
 
 export async function updatePetAvatar(

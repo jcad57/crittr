@@ -1,7 +1,7 @@
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useDismissCoCareRemovedMutation } from "@/hooks/queries";
 import { useAuthStore } from "@/stores/authStore";
@@ -17,6 +17,9 @@ import {
 } from "react-native";
 
 export default function CoCareRemovedScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const startAddPetFlow = useOnboardingStore((s) => s.startAddPetFlow);
@@ -72,7 +75,7 @@ export default function CoCareRemovedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   inner: {
     flex: 1,
     minHeight: 360,
@@ -100,4 +103,4 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 24,
   },
-});
+}));

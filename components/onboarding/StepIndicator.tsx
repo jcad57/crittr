@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 type StepIndicatorProps = {
@@ -13,6 +13,7 @@ export default function StepIndicator({
   currentStep,
   style,
 }: StepIndicatorProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.container, style]}>
       {Array.from({ length: totalSteps }, (_, i) => (
@@ -27,7 +28,7 @@ export default function StepIndicator({
 
 const DOT_SIZE = 8;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flexDirection: "row",
     justifyContent: "center",
@@ -45,4 +46,4 @@ const styles = StyleSheet.create({
     width: 24,
     borderRadius: 4,
   },
-});
+}));

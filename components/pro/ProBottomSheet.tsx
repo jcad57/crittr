@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -35,6 +35,7 @@ export function ProBottomSheet({
   children,
   contentPaddingBottom = 12,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -141,7 +142,7 @@ export function ProBottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "flex-end",
@@ -165,4 +166,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
     marginBottom: 16,
   },
-});
+}));

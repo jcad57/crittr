@@ -1,5 +1,5 @@
 import { ACTIVITY_ROW_ICON_BOX } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useSkeletonPulse } from "@/hooks/useSkeletonPulse";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
@@ -13,6 +13,7 @@ function SkeletonActivityRow({
 }: {
   pulseStyle: AnimatedStyle<ViewStyle>;
 }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.card}>
       <Animated.View
@@ -31,6 +32,7 @@ function SkeletonActivityRow({
 }
 
 export default function ActivityFeedSkeleton() {
+  const styles = useThemeValues(getStyles);
   const pulseStyle = useSkeletonPulse();
 
   return (
@@ -50,7 +52,7 @@ export default function ActivityFeedSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     marginBottom: 8,
   },
@@ -117,4 +119,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
     width: 52,
   },
-});
+}));

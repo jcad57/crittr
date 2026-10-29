@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
@@ -8,6 +8,7 @@ type SectionLabelProps = {
 };
 
 export default function SectionLabel({ children, style }: SectionLabelProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.wrap, style]}>
       <Text style={styles.text}>{children}</Text>
@@ -15,7 +16,7 @@ export default function SectionLabel({ children, style }: SectionLabelProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: 10,
   },
@@ -26,4 +27,4 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     textTransform: "none",
   },
-});
+}));

@@ -2,7 +2,7 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import PetCatLitterSection from "@/components/onboarding/petInfo/PetCatLitterSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
 import { useProfileLitterMaintenanceMutation } from "@/hooks/mutations/useProfileLitterMaintenanceMutation";
@@ -26,6 +26,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HouseholdLitterMaintenanceScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -217,10 +219,10 @@ export default function HouseholdLitterMaintenanceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -241,4 +243,4 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 8,
   },
-});
+}));

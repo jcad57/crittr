@@ -1,6 +1,6 @@
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import FormInput from "@/components/ui/form/FormInput";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/theme/typography";
 import { usePetDetailsQuery } from "@/hooks/queries";
@@ -33,6 +33,8 @@ export default function FoodPetFieldsRow({
   onChange,
   onRemove,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { data: petDetails } = usePetDetailsQuery(row.petId);
 
   const foodOptions = useMemo(() => {
@@ -169,7 +171,7 @@ export default function FoodPetFieldsRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginTop: 8,
     paddingTop: 16,
@@ -242,4 +244,4 @@ const styles = StyleSheet.create({
     fontFamily: "InstrumentSans-Bold",
     color: Colors.orange,
   },
-});
+}));

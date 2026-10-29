@@ -1,65 +1,75 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useSkeletonPulse } from "@/hooks/useSkeletonPulse";
+import { useDailyProgressLayout } from "@/hooks/useDailyProgressLayout";
+import type { dailyProgressLayout } from "@/utils/dailyProgressLayout";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
 
-const RING_SIZE = 68;
-const PLACEHOLDER_COUNT = 4;
-
 function SkeletonRingColumn({
   pulseStyle,
+  compact = false,
+  layout,
 }: {
   pulseStyle: AnimatedStyle<ViewStyle>;
+  compact?: boolean;
+  layout: ReturnType<typeof dailyProgressLayout>;
 }) {
+  const styles = useThemeValues(getStyles);
   return (
-    <View style={styles.item}>
-      <Animated.View style={[styles.ring, pulseStyle]} />
-      <Animated.View style={[styles.labelBar, pulseStyle]} />
-      <Animated.View style={[styles.fractionBar, pulseStyle]} />
+    <View style={[styles.item, { gap: layout.itemGap }]}>
+      <Animated.View style={[styles.ring, compact && styles.compactRing, { width: layout.ringSize, height: layout.ringSize, borderRadius: layout.ringSize / 2, ...(compact ? { borderWidth: layout.strokeWidth } : {}) }, pulseStyle]} />
+      {!compact && <Animated.View style={[styles.labelBar, { width: Math.min(52, layout.columnWidth * 0.9) }, pulseStyle]} />}
+      {!compact && <Animated.View style={[styles.fractionBar, { width: Math.min(36, layout.columnWidth * 0.75) }, pulseStyle]} />}
     </View>
   );
 }
 
-/** Matches {@link DailyProgress} layout: four ring columns with label + fraction lines. */
-export default function DailyProgressSkeleton() {
+/** Matches the active pet's four/five-column progress layout. */
+export default function DailyProgressSkeleton({ compact = false, count = 4 }: { compact?: boolean; count?: number }) {
+  const styles = useThemeValues(getStyles);
   const pulseStyle = useSkeletonPulse();
+  const { layout, onLayout, measured } = useDailyProgressLayout(count, compact);
 
   return (
-    <View style={styles.row}>
-      {Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => (
-        <SkeletonRingColumn key={i} pulseStyle={pulseStyle} />
+    <View onLayout={onLayout} style={[styles.row, compact && styles.compactRow, { gap: layout.gap, opacity: measured ? 1 : 0 }]}>
+      {Array.from({ length: count }, (_, i) => (
+        <SkeletonRingColumn key={i} pulseStyle={pulseStyle} compact={compact} layout={layout} />
       ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
+    width: "100%",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
   },
   item: {
+    flex: 1,
+    minWidth: 0,
     alignItems: "center",
-    gap: 6,
+  },
+  compactRow: {
+    flex: 1,
+    alignItems: "center",
+  },
+  compactRing: {
+    borderColor: Colors.gray200,
+    backgroundColor: "transparent",
   },
   ring: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
     backgroundColor: Colors.gray200,
   },
   labelBar: {
     height: 11,
     borderRadius: 5,
-    width: 52,
     backgroundColor: Colors.gray200,
     marginTop: 2,
   },
   fractionBar: {
     height: 13,
     borderRadius: 5,
-    width: 36,
     backgroundColor: Colors.gray200,
   },
-});
+}));

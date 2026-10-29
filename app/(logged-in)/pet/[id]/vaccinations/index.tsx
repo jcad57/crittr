@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import VaccinationListRow from "@/components/ui/vaccination/VaccinationListRow";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   useDeletePetVaccinationMutation,
@@ -39,6 +39,8 @@ function formatVaccinationSubline(v: PetVaccination): string {
 }
 
 export default function PetVaccinationsListScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push, router } = useNavigationCooldown();
@@ -179,10 +181,10 @@ export default function PetVaccinationsListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -244,4 +246,4 @@ const styles = StyleSheet.create({
   softPaywallWrap: {
     marginTop: 16,
   },
-});
+}));

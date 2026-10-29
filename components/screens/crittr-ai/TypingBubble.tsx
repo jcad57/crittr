@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/crittr-ai.styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/crittr-ai.styles";
 import { useEffect } from "react";
 import { View } from "react-native";
 import Reanimated, {
@@ -12,6 +13,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 
 export function TypingBubble() {
+  const styles = useThemeValues(getStyles);
   const a0 = useSharedValue(0.35);
   const a1 = useSharedValue(0.35);
   const a2 = useSharedValue(0.35);

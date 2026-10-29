@@ -1,6 +1,6 @@
-import AppOpenAdManager from "@/components/ads/AppOpenAdManager";
+import LoginInterstitialManager from "@/components/ads/LoginInterstitialManager";
 import ScreenViewTracker from "@/components/analytics/ScreenViewTracker";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useSeasonalTheme, useThemeValues } from "@/theme/colors";
 import { FONT_FACES } from "@/theme/fonts";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { proPricingQueryKey } from "@/lib/query/keys";
@@ -20,6 +20,8 @@ import { Pressable, Text, StyleSheet, View } from "react-native";
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SessionGate() {
+  const { hydrated: themeHydrated } = useSeasonalTheme();
+  const styles = useThemeValues(getStyles);
   const isAuthLoading = useAuthStore((s) => s.isLoading);
   const initialize = useAuthStore((s) => s.initialize);
   const [fontsLoaded, fontError] = useFonts(FONT_FACES);
@@ -40,7 +42,7 @@ export default function SessionGate() {
     void configureRevenueCat();
   }, []);
 
-  const isReady = (fontsLoaded || !!fontError) && !isAuthLoading;
+  const isReady = themeHydrated && (fontsLoaded || !!fontError) && !isAuthLoading;
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
@@ -80,16 +82,16 @@ export default function SessionGate() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppOpenAdManager />
+      <LoginInterstitialManager />
       <ScreenViewTracker />
       <Slot />
     </QueryClientProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   bootPlaceholder: {
     flex: 1,
     backgroundColor: Colors.splashBackground,
   },
-});
+}));

@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors } from "@/theme/colors";
 import { Tabs } from "expo-router";
 
 /**
@@ -9,6 +9,7 @@ import { Tabs } from "expo-router";
 export const unstable_settings = { initialRouteName: "dashboard" };
 
 export default function LoggedInTabsLayout() {
+  const Colors = useThemeColors();
   return (
     <Tabs
       tabBar={() => null}
@@ -17,7 +18,7 @@ export default function LoggedInTabsLayout() {
         // Mount each screen on first visit to keep sign-in lightweight.
         lazy: true,
         freezeOnBlur: true,
-        sceneStyle: { backgroundColor: Colors.cream },
+        sceneStyle: { backgroundColor: Colors.screenBackground },
       }}
     >
       {/*

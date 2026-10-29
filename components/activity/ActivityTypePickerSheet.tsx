@@ -1,5 +1,5 @@
 import ActivityTypeStep from "@/components/activity/ActivityTypeStep";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { ActivityType, PetType } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -33,6 +33,8 @@ export default function ActivityTypePickerSheet({
   onClose,
   onSelect,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(false);
@@ -167,7 +169,7 @@ export default function ActivityTypePickerSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   backdrop: { backgroundColor: "rgba(16,23,25,0.35)" },
   sheet: {
@@ -206,4 +208,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   content: { paddingBottom: 10 },
-});
+}));

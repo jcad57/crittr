@@ -1,9 +1,9 @@
-import { Colors } from "@/theme/colors";
+import { getThemeColors, useThemeColors, useThemeValues } from "@/theme/colors";
 import type { ExtractedMedication } from "@/services/medicalRecordParser";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import { ScanRecordModeToggle } from "./ScanRecordModeToggle";
-import { styles } from "./ScanRecordReviewSheet.styles";
+import { getStyles } from "./ScanRecordReviewSheet.styles";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -31,6 +31,7 @@ function medScheduleLabel(m: ExtractedMedication): string {
 function confidenceChip(
   confidence: "low" | "medium" | "high",
 ): { label: string; color: string; bg: string } {
+  const Colors = getThemeColors();
   if (confidence === "high")
     return {
       label: "High",
@@ -53,6 +54,8 @@ export function ScanMedicationReviewCard({
   onChangeMode: (next: "skip" | "insert" | "update") => void;
   disabled?: boolean;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const chip = confidenceChip(extracted.confidence);
   const hasExisting = Boolean(extracted.duplicate_of_id);
   return (

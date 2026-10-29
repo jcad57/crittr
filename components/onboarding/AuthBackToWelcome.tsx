@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -16,6 +16,7 @@ type AuthBackToWelcomeProps = {
 export default function AuthBackToWelcome({
   onBeforeNavigate,
 }: AuthBackToWelcomeProps) {
+  const Colors = useThemeColors();
   const router = useRouter();
 
   return (

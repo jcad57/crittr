@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import {
   AUTH_STACK_HORIZONTAL_PADDING,
@@ -55,6 +55,8 @@ export default function OnboardingCard({
   centerContent = false,
   welcomeBackground = false,
 }: OnboardingCardProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const welcomeBgHeight = welcomeBackground
@@ -244,7 +246,7 @@ export default function OnboardingCard({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
   },
@@ -293,4 +295,4 @@ const styles = StyleSheet.create({
   bodyFill: {
     flex: 1,
   },
-});
+}));

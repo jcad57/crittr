@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import FaqAccordion from "@/components/support/FaqAccordion";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { HelpCenterFaq, helpCenterFaqs } from "@/content/helpCenterFaqs";
 import { Font } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -10,6 +10,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HelpCenterScreen() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
@@ -59,10 +60,10 @@ export default function HelpCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   faqTitle: {
     flex: 1,
@@ -88,4 +89,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 16,
   },
-});
+}));

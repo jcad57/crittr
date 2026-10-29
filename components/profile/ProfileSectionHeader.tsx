@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -10,6 +10,7 @@ type Props = {
 };
 
 export default function ProfileSectionHeader({ label, action }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={action != null ? styles.wrapWithAction : styles.wrapSimple}>
       <Text style={styles.sectionLabel}>{label}</Text>
@@ -18,7 +19,7 @@ export default function ProfileSectionHeader({ label, action }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrapSimple: {
     marginBottom: 10,
     marginTop: 8,
@@ -37,4 +38,4 @@ const styles = StyleSheet.create({
     color: Colors.sectionLabel,
     textTransform: "uppercase",
   },
-});
+}));

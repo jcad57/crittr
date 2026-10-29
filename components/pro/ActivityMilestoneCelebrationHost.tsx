@@ -1,6 +1,6 @@
 import { ProBottomSheet } from "@/components/pro/ProBottomSheet";
 import { ProUpgradeCTA } from "@/components/pro/ProUpgradeCTA";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { milestoneCelebrationCopy } from "@/constants/proCopy";
 import { useActivityMilestoneCelebration } from "@/hooks/useActivityMilestoneCelebration";
@@ -11,6 +11,7 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export function ActivityMilestoneCelebrationHost() {
+  const styles = useThemeValues(getStyles);
   const { offer, dismiss, completeShown } = useActivityMilestoneCelebration();
   const { push } = useNavigationCooldown();
   const copy = offer
@@ -66,7 +67,7 @@ export function ActivityMilestoneCelebrationHost() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
@@ -122,4 +123,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-});
+}));

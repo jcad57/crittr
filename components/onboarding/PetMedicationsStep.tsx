@@ -1,5 +1,6 @@
+import { useThemeValues } from "@/theme/colors";
 import OptInStep from "@/components/onboarding/OptInStep";
-import { petCareStyles as onboardingStyles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles as getOnboardingStyles } from "@/components/onboarding/petCareStyles";
 import MedicationDosageEditorModal from "@/components/pet/MedicationDosageEditorModal";
 import PetMedicationDosageScheduleSection from "@/components/petScreens/medication/PetMedicationDosageScheduleSection";
 import PetMedicationFrequencySection from "@/components/petScreens/medication/PetMedicationFrequencySection";
@@ -7,9 +8,9 @@ import PetMedicationLastGivenSection from "@/components/petScreens/medication/Pe
 import PetMedicationNotesSection from "@/components/petScreens/medication/PetMedicationNotesSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import FormInput from "@/components/ui/form/FormInput";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { DEFAULT_DOSAGE_TYPE } from "@/constants/medicationEditForm";
-import { styles as medStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { getStyles as getMedStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { MedicationFormEntry } from "@/types/database";
 import {
@@ -35,6 +36,9 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 
 export default function PetMedicationsStep() {
+  const onboardingStyles = useThemeValues(getOnboardingStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
+  const medStyles = useThemeValues(getMedStyles);
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({

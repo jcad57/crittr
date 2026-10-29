@@ -5,7 +5,7 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { CO_CARE_PERMISSION_ROWS } from "@/constants/coCarePermissionRows";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, useSendInviteMutation } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -28,6 +28,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function InviteCoCarerScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { replace, router } = useNavigationCooldown();
@@ -202,8 +204,8 @@ export default function InviteCoCarerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.cream },
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.screenBackground },
   centered: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 8 },
@@ -276,4 +278,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   sendBtn: { marginTop: 20 },
-});
+}));

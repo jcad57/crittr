@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,6 +18,8 @@ export default function ProfilePetsSection({
   activePetId,
   onPetPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <ProfileSectionHeader label="My pets" />
@@ -74,7 +76,7 @@ export default function ProfilePetsSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   petsEmptyCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -158,4 +160,4 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.white,
   },
-});
+}));

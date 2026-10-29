@@ -2,7 +2,7 @@ import type { ActivityDetailStepRef } from "@/components/activity/ActivityDetail
 import ActivityOccurredTimeRow from "@/components/activity/ActivityOccurredTimeRow";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import {
   forwardRef,
@@ -31,6 +31,7 @@ const MaintenanceDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
     const form = useActivityFormStore((s) => s.maintenanceForm);
     const update = useActivityFormStore((s) => s.updateMaintenance);
     const [saving, setSaving] = useState(false);
@@ -113,7 +114,7 @@ const MaintenanceDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default MaintenanceDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   spacing: { marginBottom: 12 },
@@ -128,4 +129,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-});
+}));

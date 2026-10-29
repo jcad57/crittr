@@ -1,7 +1,7 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
-import { styles } from "./ScanRecordReviewSheet.styles";
+import { getStyles } from "./ScanRecordReviewSheet.styles";
 
 export function ScanRecordModeToggle({
   value,
@@ -14,6 +14,8 @@ export function ScanRecordModeToggle({
   hasExisting: boolean;
   disabled?: boolean;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const addMode: "insert" | "update" = hasExisting ? "update" : "insert";
   const isAdd = value === addMode;
   const toggleAdd = () => onChange(isAdd ? "skip" : addMode);

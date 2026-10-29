@@ -48,7 +48,7 @@ export const termsOfServiceSections: TermsSection[] = [
     paragraphs: [
       "Paid plans are billed through the app store shown at checkout (Apple App Store on iOS, Google Play on Android). Fees, renewal periods, taxes, free trials, and cancellation rights are governed by the relevant app store and any additional terms presented at purchase.",
       "Unless stated otherwise at checkout, subscriptions renew automatically until cancelled in your platform account settings.",
-      "Where ads are shown (including app-open and interstitial formats), third-party advertising networks may collect identifiers subject to their policies and your device settings. Ad-supported experiences may not appear for Crittr Pro subscribers as implemented in the current version of the app.",
+      "Where ads are shown (including banner and interstitial formats), third-party advertising networks may collect identifiers subject to their policies and your device settings. Ad-supported experiences may not appear for Crittr Pro subscribers as implemented in the current version of the app.",
     ],
   },
   {

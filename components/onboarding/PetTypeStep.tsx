@@ -1,6 +1,6 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetFlowExitOnBack } from "@/hooks/usePetFlowExitOnBack";
 import {
@@ -29,6 +29,9 @@ import {
 } from "react-native";
 
 export default function PetTypeStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const {
     pets,
     currentPetIndex,
@@ -150,7 +153,7 @@ export default function PetTypeStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -229,4 +232,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 16,
   },
-});
+}));

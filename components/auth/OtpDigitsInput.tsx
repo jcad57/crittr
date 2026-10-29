@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useCallback, useRef, useState, type ComponentRef } from "react";
 import {
@@ -26,6 +26,7 @@ export default function OtpDigitsInput({
   error,
   disabled,
 }: OtpDigitsInputProps) {
+  const styles = useThemeValues(getStyles);
   const inputsRef = useRef<(ComponentRef<typeof TextInput> | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
 
@@ -102,7 +103,7 @@ export default function OtpDigitsInput({
 
 const CELL = 48;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     flexDirection: "row",
     justifyContent: "center",
@@ -132,4 +133,4 @@ const styles = StyleSheet.create({
   cellDisabled: {
     opacity: 0.5,
   },
-});
+}));

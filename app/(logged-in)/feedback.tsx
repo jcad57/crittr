@@ -1,8 +1,7 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import type { FeedbackCategory } from "@/services/feedback";
 import { submitFeedback } from "@/services/feedback";
 import { useRouter } from "expo-router";
@@ -25,8 +24,9 @@ const CATEGORIES: { id: FeedbackCategory; label: string }[] = [
 ];
 
 export default function FeedbackScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
-  const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
   const [category, setCategory] = useState<FeedbackCategory>("general");
   const [subject, setSubject] = useState("");
@@ -83,7 +83,7 @@ export default function FeedbackScreen() {
         contentContainerStyle={[
           styles.body,
           styles.bodyGrow,
-          { paddingBottom: scrollInsetBottom + 28 },
+          { paddingBottom: Math.max(insets.bottom, 16) },
         ]}
         bottomOffset={24}
         keyboardShouldPersistTaps="handled"
@@ -162,10 +162,10 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -241,4 +241,4 @@ const styles = StyleSheet.create({
     minHeight: 160,
     paddingTop: 12,
   },
-});
+}));

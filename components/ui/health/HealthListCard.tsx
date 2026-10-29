@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
 
 type Props = {
@@ -7,10 +7,11 @@ type Props = {
 
 /** White rounded container for grouped health rows. */
 export default function HealthListCard({ children }: Props) {
+  const styles = useThemeValues(getStyles);
   return <View style={styles.card}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     backgroundColor: Colors.warmWhite,
     borderRadius: 22,
@@ -23,4 +24,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 0,
   },
-});
+}));

@@ -2,7 +2,7 @@ import { ProUpgradeCTA } from "@/components/pro/ProUpgradeCTA";
 import { softPaywallCopy, type ProSoftPaywallKind } from "@/constants/proCopy";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { trackProEvent } from "@/lib/proEvents";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ type Props = {
 };
 
 export function ProSoftPaywallCard({ kind, petName, compact }: Props) {
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const copy = softPaywallCopy(kind, petName);
 
@@ -49,7 +50,7 @@ export function ProSoftPaywallCard({ kind, petName, compact }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     borderRadius: 24,
     borderWidth: 1,
@@ -86,4 +87,4 @@ const styles = StyleSheet.create({
   cta: {
     alignSelf: "stretch",
   },
-});
+}));

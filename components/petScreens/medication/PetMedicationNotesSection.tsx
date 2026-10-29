@@ -1,6 +1,6 @@
 import MedicationSectionHeader from "@/components/petScreens/medication/MedicationSectionHeader";
 import { MEDICATION_NOTES_MAX_LENGTH } from "@/constants/medicationEditForm";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -15,6 +15,8 @@ export default function PetMedicationNotesSection({
   value,
   onChangeText,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const safeName = petName.trim() || "your pet";
   const maxLen = Math.max(MEDICATION_NOTES_MAX_LENGTH, value.length);
 
@@ -43,7 +45,7 @@ export default function PetMedicationNotesSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: 8,
   },
@@ -71,4 +73,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.gray400,
   },
-});
+}));

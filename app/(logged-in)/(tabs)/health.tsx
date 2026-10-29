@@ -1,3 +1,4 @@
+import AdBanner from "@/components/ads/AdBanner";
 import HealthActionBanner from "@/components/ui/health/HealthActionBanner";
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import HealthMedicationRow from "@/components/ui/health/HealthMedicationRow";
@@ -8,7 +9,7 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { useLogMedicationMutation } from "@/hooks/mutations/useLogActivityMutation";
 import {
@@ -51,6 +52,8 @@ function filterByPet<T extends { pet_id: string }>(
 }
 
 export default function HealthScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
@@ -187,7 +190,7 @@ export default function HealthScreen() {
           push(`/(logged-in)/pet/${effectivePetId}/medical-records`),
       },
     ];
-  }, [effectivePetId, push]);
+  }, [effectivePetId, push, Colors.orangeLight, Colors.skyLight]);
 
   const openAddVisit = () => {
     if (!effectivePetId) return;
@@ -275,6 +278,7 @@ export default function HealthScreen() {
           />
         ) : null}
 
+        <AdBanner placement="health_medications" />
         <HealthSectionHeader
           title="Medications"
           onAddPress={
@@ -381,10 +385,10 @@ export default function HealthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     alignItems: "center",
@@ -448,4 +452,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-});
+}));

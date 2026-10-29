@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { userPetPermissionsKey } from "@/lib/query/keys";
 import { usePetsQuery } from "@/hooks/queries";
@@ -33,6 +33,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  * Choosing a pet opens the add-vaccination form for that pet.
  */
 export default function SelectPetForVaccinationScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -156,10 +158,10 @@ export default function SelectPetForVaccinationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -219,4 +221,4 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     minWidth: 0,
   },
-});
+}));

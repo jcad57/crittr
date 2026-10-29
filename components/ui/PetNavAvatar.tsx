@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { PET_NAV_AVATAR_PET_SWITCH_ENABLED } from "@/config/featureFlags";
 import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
@@ -52,6 +52,8 @@ export default function PetNavAvatar({
   allowSwitch = true,
   onAfterSwitchPet,
 }: PetNavAvatarProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const activePetId = usePetStore((s) => s.activePetId);
   const setActivePetMutation = useSetActivePetMutation();
 
@@ -251,7 +253,7 @@ export default function PetNavAvatar({
 /** Width/height for the nav slot so titles stay centered next to the back button. */
 export const PET_NAV_AVATAR_SLOT_SIZE = RING_SIZE;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   slot: {
     width: RING_SIZE,
     height: RING_SIZE,
@@ -378,4 +380,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-});
+}));

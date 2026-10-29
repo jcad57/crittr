@@ -7,8 +7,8 @@ import PetSterilizationToggle from "@/components/onboarding/petInfo/PetSteriliza
 import PetWeightFields from "@/components/onboarding/petInfo/PetWeightFields";
 import TagInput from "@/components/ui/form/TagInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   getBreedLabelForPetType,
   PET_INFO_FIELD_MARGIN_BOTTOM,
@@ -39,6 +39,9 @@ import {
 } from "react-native";
 
 export default function PetDetailsStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const {
     pets,
     currentPetIndex,
@@ -266,7 +269,7 @@ export default function PetDetailsStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -311,4 +314,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 16,
   },
-});
+}));

@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import { NotificationRow } from "@/components/screens/notifications/NotificationRow";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   notificationsKey,
   unreadNotificationCountKey,
@@ -34,11 +34,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/notifications.styles";
+import { getStyles } from "@/screen-styles/notifications.styles";
 
 const HIGH_FIVE = require("@/assets/images/high-five.png");
 
 export default function NotificationsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { push, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();

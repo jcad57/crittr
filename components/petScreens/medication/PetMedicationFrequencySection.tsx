@@ -1,5 +1,5 @@
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { toLocalYmd } from "@/utils/medicationDueSchedule";
 import {
@@ -38,6 +38,8 @@ export default function PetMedicationFrequencySection({
   onChange,
   lastGivenOn,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { dateDisplay } = useUserDateTimePrefs();
   const [expanded, setExpanded] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
@@ -248,7 +250,7 @@ export default function PetMedicationFrequencySection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -412,4 +414,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingRight: 8,
   },
-});
+}));

@@ -1,6 +1,6 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
@@ -25,6 +25,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetFoodManagerScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { router } = useNavigationCooldown();
@@ -192,10 +194,10 @@ export default function PetFoodManagerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     alignItems: "center",
@@ -273,4 +275,4 @@ const styles = StyleSheet.create({
   softPaywallWrap: {
     marginTop: 16,
   },
-});
+}));

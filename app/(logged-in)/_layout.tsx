@@ -5,9 +5,10 @@ import RevenueCatProSync from "@/components/iap/RevenueCatProSync";
 import WebsiteUpgradeIntent from "@/components/iap/WebsiteUpgradeIntent";
 import { ActivityMilestoneCelebrationHost } from "@/components/pro/ActivityMilestoneCelebrationHost";
 import AppRatingPromptHost from "@/components/rating/AppRatingPromptHost";
+import SeasonalBackdrop from "@/components/theme/SeasonalBackdrop";
 import DashboardLoading from "@/components/ui/dashboard/DashboardLoading";
 import FloatingBottomNav from "@/components/ui/navigation/FloatingBottomNav";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
 import { useLoggedInQueryBootstrap } from "@/hooks/useLoggedInQueryBootstrap";
 import { Redirect, Stack, usePathname } from "expo-router";
@@ -19,6 +20,8 @@ function LoggedInQueryBootstrap() {
 }
 
 export default function LoggedInLayout() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { isLoggedIn, needsOnboarding, isHydrating } = useAuth();
   const pathname = usePathname() ?? "";
   const isAddPetRoute = pathname.includes("add-pet");
@@ -43,6 +46,7 @@ export default function LoggedInLayout() {
 
   return (
     <View style={styles.shell}>
+      <SeasonalBackdrop />
       <PushNotificationBootstrap />
       <PushNotificationNavigationListener />
       <ReminderNotificationSync />
@@ -57,7 +61,7 @@ export default function LoggedInLayout() {
           animation: "slide_from_right",
           gestureEnabled: true,
           fullScreenGestureEnabled: false,
-          contentStyle: { backgroundColor: Colors.splashBackground },
+          contentStyle: { backgroundColor: Colors.screenBackground },
         }}
       />
       <View style={styles.navOverlay} pointerEvents="box-none">
@@ -67,13 +71,13 @@ export default function LoggedInLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: Colors.splashBackground,
+    backgroundColor: Colors.cream,
   },
   navOverlay: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
   },
-});
+}));

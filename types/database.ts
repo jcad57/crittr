@@ -75,6 +75,7 @@ export type Profile = {
   notify_medications?: boolean;
   notify_vet_visits?: boolean;
   notify_vaccinations?: boolean;
+  notify_potty_breaks?: boolean;
   care_time_zone?: string | null;
   /** Clock style in lists, pickers, and labels: `12h` (default) or `24h`. */
   time_display_format?: "12h" | "24h";
@@ -109,6 +110,9 @@ export type Pet = {
   about: string | null;
   energy_level: "low" | "medium" | "high" | null;
   exercises_per_day: number | null;
+  /** Optional daily potty times, stored as minute-precision local `HH:MM:SS`. */
+  potty_times?: string[];
+  potty_schedule_updated_at?: string;
   allergies: string[];
   avatar_url: string | null;
   is_microchipped: boolean | null;
@@ -462,6 +466,7 @@ export type ScheduleSourceKind =
   | "food_treat"
   | "medication"
   | "exercise"
+  | "potty"
   | "vet_visit";
 
 /**
@@ -727,6 +732,7 @@ export type PetFormData = {
   /** @deprecated Prefer `exercisePlans`; kept for legacy reads during migration. */
   exercisesPerDay: string;
   exercisePlans: ExercisePlanFormEntry[];
+  pottyTimes: string[];
   allergies: string[];
   avatarUri: string | null;
   foods: FoodFormEntry[];
@@ -782,6 +788,7 @@ export function makeEmptyPetForm(): PetFormData {
     energyLevel: "",
     exercisesPerDay: "",
     exercisePlans: [],
+    pottyTimes: [],
     allergies: [],
     avatarUri: null,
     foods: [],
@@ -820,6 +827,7 @@ export const EMPTY_PET_FORM: PetFormData = {
   energyLevel: "",
   exercisesPerDay: "",
   exercisePlans: [],
+  pottyTimes: [],
   allergies: [],
   avatarUri: null,
   foods: [],

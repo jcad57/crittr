@@ -1,9 +1,10 @@
+import { getDashboardProgressColors } from "@/theme/dashboardProgressColors";
 import { getDailyProgressRingIcons } from "@/constants/activityTypeProgressIcons";
-import { DASHBOARD_PROGRESS_COLORS, DASHBOARD_PROGRESS_TRACK } from "@/theme/dashboardProgressColors";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { DailyProgressCategory } from "@/types/ui";
 import { Image } from "expo-image";
+import { useDailyProgressLayout } from "@/hooks/useDailyProgressLayout";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import ProgressRing from "./ProgressRing";
@@ -12,14 +13,13 @@ type DailyProgressProps = {
   categories: DailyProgressCategory[];
   /** Active pet species — cats use the play/exercise toy icon on the exercise ring. */
   petType?: string | null;
-  /** All categories with goals satisfied — unified green rings + celebratory styling. */
+  /** All categories with goals satisfied — celebratory label styling. */
   allComplete?: boolean;
   /** Changes with active pet so rings replay from 0 on each switch. */
   animationKey?: string;
+  /** Small rings only, for the collapsed card header. */
+  compact?: boolean;
 };
-
-const RING_SIZE = 68;
-const STROKE_WIDTH = 8;
 
 /** Progress rings only — parent supplies the section label and card chrome. */
 export default function DailyProgress({
@@ -27,64 +27,80 @@ export default function DailyProgress({
   petType = null,
   allComplete = false,
   animationKey,
+  compact = false,
 }: DailyProgressProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const ringColors = useThemeValues(getDashboardProgressColors);
+  const { layout, onLayout, measured } = useDailyProgressLayout(categories.length, compact);
   const ringIcons = useMemo(
     () => getDailyProgressRingIcons(petType),
     [petType],
   );
 
   return (
-    <View style={styles.row}>
+    <View onLayout={onLayout} style={[styles.row, compact && styles.compactRow, { gap: layout.gap, opacity: measured ? 1 : 0 }]}>
       {categories.map((cat) => {
         const notTracked = cat.total <= 0;
         const progress = cat.total > 0 ? cat.current / cat.total : 0;
         const iconSource = ringIcons[cat.id];
         const targetMet = cat.total > 0 && cat.current >= cat.total;
-        const ringColor = allComplete && !notTracked
+        const ringColor = targetMet
           ? Colors.progressCompleteRing
-          : DASHBOARD_PROGRESS_COLORS[cat.id] ?? cat.ringColor;
-        const trackColor = allComplete && !notTracked
+          : ringColors[cat.id] ?? cat.ringColor;
+        const trackColor = targetMet
           ? Colors.progressCompleteTrack
-          : DASHBOARD_PROGRESS_TRACK;
+          : Colors.dashboardTrack;
         return (
           <View
             key={cat.id}
-            style={[styles.item, notTracked && styles.itemNotTracked]}
-            accessible={notTracked}
-            accessibilityLabel={notTracked ? `${cat.label}, not tracked` : undefined}
+            style={[styles.item, { gap: layout.itemGap }, notTracked && styles.itemNotTracked]}
+            accessible
+            accessibilityLabel={notTracked ? `${cat.label}, not tracked` : `${cat.label}, ${cat.current} of ${cat.total}`}
           >
-            <ProgressRing
-              size={RING_SIZE}
-              strokeWidth={STROKE_WIDTH}
+            {layout.ringSize > 0 && <ProgressRing
+              size={layout.ringSize}
+              strokeWidth={layout.strokeWidth}
               progress={progress}
               color={ringColor}
               trackColor={trackColor}
               animationKey={animationKey}
             >
-              {iconSource ? (
-                <Image source={iconSource} style={styles.icon} />
+              {!compact && iconSource ? (
+                <Image source={iconSource} style={{ width: layout.iconSize, height: layout.iconSize }} />
               ) : null}
-            </ProgressRing>
-            <Text
-              style={[
-                styles.label,
-                allComplete && !notTracked && styles.labelAllComplete,
-              ]}
-            >
-              {cat.label}
-            </Text>
-            <Text
-              style={[
-                styles.fraction,
-                allComplete && !notTracked
-                  ? styles.fractionAllComplete
-                  : targetMet
-                    ? styles.fractionComplete
-                    : styles.fractionIncomplete,
-              ]}
-            >
-              {cat.current}/{cat.total}
-            </Text>
+            </ProgressRing>}
+            {!compact && (
+              <>
+                <Text
+                  style={[
+                    styles.label,
+                    { fontSize: layout.labelSize, lineHeight: Math.ceil(layout.labelSize * 1.45) },
+                    allComplete && !notTracked && styles.labelAllComplete,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.65}
+                >
+                  {cat.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.fraction,
+                    { fontSize: layout.fractionSize, lineHeight: Math.ceil(layout.fractionSize * 1.4) },
+                    allComplete && !notTracked
+                      ? styles.fractionAllComplete
+                      : targetMet
+                        ? styles.fractionComplete
+                        : styles.fractionIncomplete,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {cat.current}/{cat.total}
+                </Text>
+              </>
+            )}
           </View>
         );
       })}
@@ -92,33 +108,38 @@ export default function DailyProgress({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
+    width: "100%",
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   item: {
+    flex: 1,
+    minWidth: 0,
     alignItems: "center",
-    gap: 6,
+  },
+  compactRow: {
+    flex: 1,
+    alignItems: "center",
   },
   itemNotTracked: {
     opacity: 0.42,
   },
-  icon: {
-    width: 26,
-    height: 26,
-  },
   label: {
+    width: "100%",
+    textAlign: "center",
     fontFamily: Font.uiSemiBold,
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
   },
   labelAllComplete: {
-    color: Colors.successDark,
+    color: Colors.progressCompleteRing,
   },
   fraction: {
+    width: "100%",
+    textAlign: "center",
     fontSize: 14,
   },
   /** Progress still open — muted numerator/denominator. */
@@ -129,11 +150,11 @@ const styles = StyleSheet.create({
   /** Target reached (e.g. all meals logged) — emphasize the count. */
   fractionComplete: {
     fontFamily: Font.uiBold,
-    color: Colors.textPrimary,
+    color: Colors.progressCompleteRing,
   },
   /** Entire card completed — counts match ring green. */
   fractionAllComplete: {
     fontFamily: Font.uiBold,
-    color: Colors.successDark,
+    color: Colors.progressCompleteRing,
   },
-});
+}));

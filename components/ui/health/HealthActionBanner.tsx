@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -25,6 +25,8 @@ export default function HealthActionBanner({
   loading = false,
   disabled = false,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const blocked = disabled || loading;
   return (
     <View style={styles.banner}>
@@ -56,7 +58,7 @@ export default function HealthActionBanner({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   banner: {
     flexDirection: "row",
     alignItems: "center",
@@ -107,4 +109,4 @@ const styles = StyleSheet.create({
   markDoneDisabled: {
     opacity: 0.45,
   },
-});
+}));

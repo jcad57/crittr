@@ -1,7 +1,8 @@
+import { useThemeValues } from "@/theme/colors";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
-import { styles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/vet-visits/[visitId].styles";
 import type { PetVetVisit } from "@/types/database";
 import { ScrollView, View } from "react-native";
 
@@ -18,6 +19,7 @@ export default function VetVisitReadOnlyView({
   scrollInsetBottom,
   onBack,
 }: VetVisitReadOnlyViewProps) {
+  const styles = useThemeValues(getStyles);
   const whenReadOnly = new Date(visit.visit_at).toLocaleString("en-US", {
     weekday: "short",
     month: "short",

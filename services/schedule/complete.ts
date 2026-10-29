@@ -6,10 +6,11 @@ import type { PetScheduleItem } from "@/types/database";
 export async function completeScheduleItem(
   itemId: string,
   _userId: string,
+  pottyOutcome?: { pee: boolean; poo: boolean },
 ): Promise<PetScheduleItem> {
-  const { data, error } = await supabase.rpc("set_pet_schedule_item_completed", {
-    p_item_id: itemId, p_completed: true,
-  });
+  const { data, error } = pottyOutcome
+    ? await supabase.rpc("complete_pet_potty_schedule_item", { p_item_id: itemId, p_pee: pottyOutcome.pee, p_poo: pottyOutcome.poo })
+    : await supabase.rpc("set_pet_schedule_item_completed", { p_item_id: itemId, p_completed: true });
   if (error) throw error;
   const item = data as PetScheduleItem | null;
   if (!item) throw new Error("Could not complete this task. Please try again.");

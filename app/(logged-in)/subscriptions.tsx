@@ -5,16 +5,18 @@ import { ActivityIndicator, AppState, StyleSheet, Text, View } from "react-nativ
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { ProSubscriptionManagementView, canManageStoreSubscription } from "@/components/screens/subscriptions/ProSubscriptionManagementView";
 import { ProFreePlanView } from "@/components/pro/flow/ProFreePlanView";
-import { ProFlowPage, flowStyles } from "@/components/pro/flow/ProFlowUi";
+import { ProFlowPage, getFlowStyles } from "@/components/pro/flow/ProFlowUi";
 import { profileQueryKey, subscriptionDetailsQueryKey, useProfileQuery, useSubscriptionDetailsQuery } from "@/hooks/queries";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { syncCrittrProForSession } from "@/lib/iap/entitlementSync";
 import { storeLabel } from "@/lib/iap/storeTerms";
 import { openManageSubscriptions } from "@/services/iapSubscription";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 
 export default function SubscriptionsScreen() {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   const router = useRouter();
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -60,7 +62,7 @@ export default function SubscriptionsScreen() {
   const failed = details.isError || syncFailed;
   const loadingFree = !isPro && (checking || details.isLoading || profileLoading);
   const showFree = !isPro && !failed && sub?.status !== "billing_issue" && !sub?.cancelAtPeriodEnd;
-  return <ProFlowPage onBack={exit} brand={false} footer={!loadingFree && !showFree && canManageStoreSubscription(sub) ? <OrangeButton onPress={() => void manage()} loading={managing}>{sub?.status === "billing_issue" ? "Update payment method" : sub?.cancelAtPeriodEnd ? "Manage or renew subscription" : "Manage subscription"}</OrangeButton> : undefined} refreshing={checking && isPro ? <ActivityIndicator size="small" color={Colors.orange} /> : undefined}>
+  return <ProFlowPage showPurchaseEnvironment onBack={exit} brand={false} footer={!loadingFree && !showFree && canManageStoreSubscription(sub) ? <OrangeButton onPress={() => void manage()} loading={managing}>{sub?.status === "billing_issue" ? "Update payment method" : sub?.cancelAtPeriodEnd ? "Manage or renew subscription" : "Manage subscription"}</OrangeButton> : undefined} refreshing={checking && isPro ? <ActivityIndicator size="small" color={Colors.orange} /> : undefined}>
     {loadingFree ? <View style={styles.centered}><ActivityIndicator color={Colors.orange} /><Text style={flowStyles.subtitle}>Checking your subscription…</Text></View> : showFree ? <ProFreePlanView onExit={() => router.replace("/(logged-in)/(tabs)/pets")} onUpgrade={() => router.push("/(logged-in)/upgrade?returnTo=subscriptions")} onRestore={restore} /> : <ProSubscriptionManagementView showManageCta={false} sub={sub} loading={details.isLoading} failed={failed} checking={checking} managing={managing} manageError={manageError} onManage={() => void manage()} onRestore={restore} onRefresh={() => void refresh()} />}
   </ProFlowPage>;
 }

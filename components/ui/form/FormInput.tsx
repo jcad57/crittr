@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -40,6 +40,8 @@ export default function FormInput({
   accessibilityState,
   ...rest
 }: FormInputProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const isMultiline = Boolean(multiline);
   const isDisabled = Boolean(disabled);
   const effectiveEditable = isDisabled ? false : editable;
@@ -111,7 +113,7 @@ export default function FormInput({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   fieldLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
@@ -183,4 +185,4 @@ const styles = StyleSheet.create({
     marginTop: 6,
     alignSelf: "stretch",
   },
-});
+}));

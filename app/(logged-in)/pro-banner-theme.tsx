@@ -1,7 +1,7 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import ProHeroWithShine from "@/components/profile/ProHeroWithShine";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   PRO_BANNER_THEME_ORDER,
   type ProBannerThemeId,
@@ -32,6 +32,8 @@ const ORANGE_BUTTON_WRAPPER_HEIGHT = 55;
 const BOTTOM_BAR_PADDING_TOP = 8;
 
 export default function ProBannerThemeScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: profile, isLoading: isProfileLoading } = useProfileQuery();
@@ -203,10 +205,10 @@ export default function ProBannerThemeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -294,4 +296,4 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.creamDark,
   },
-});
+}));

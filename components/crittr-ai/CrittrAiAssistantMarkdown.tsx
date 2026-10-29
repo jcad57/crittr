@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { openBrowserAsync } from "expo-web-browser";
 import { useCallback } from "react";
@@ -12,7 +12,7 @@ import {
  * Tight block spacing + trailing margin stripped (allowTrailingMargin false)
  * so assistant bubbles don’t show a large gap under the last line.
  */
-const assistantMarkdownStyle: MarkdownStyle = {
+const getAssistantMarkdownStyle = createThemeValues((Colors) : MarkdownStyle => ({
   paragraph: {
     fontFamily: Font.uiRegular,
     fontSize: 15,
@@ -151,7 +151,7 @@ const assistantMarkdownStyle: MarkdownStyle = {
     borderRadius: 8,
     height: 180,
   },
-};
+}));
 
 type Props = {
   markdown: string;
@@ -162,6 +162,7 @@ export default function CrittrAiAssistantMarkdown({
   markdown,
   containerStyle,
 }: Props) {
+  const assistantMarkdownStyle = useThemeValues(getAssistantMarkdownStyle);
   const onLinkPress = useCallback(({ url }: { url: string }) => {
     if (!url?.trim()) return;
     void openBrowserAsync(url).catch(() => undefined);

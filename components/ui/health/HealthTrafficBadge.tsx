@@ -1,16 +1,16 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { HealthTrafficKind } from "@/types/ui";
 import { StyleSheet, Text, View } from "react-native";
 
-const PALETTE: Record<
+const getPalette = createThemeValues((Colors) : Record<
   HealthTrafficKind,
   { bg: string; text: string }
-> = {
+> => ({
   due_today: { bg: Colors.signOutCoralIconBg, text: Colors.signOutCoral },
   due_soon: { bg: Colors.progressMedsTrack, text: Colors.amberDark },
   current: { bg: Colors.successLight, text: Colors.successDark },
-};
+}));
 
 type Props = {
   kind: HealthTrafficKind;
@@ -18,6 +18,7 @@ type Props = {
 };
 
 export default function HealthTrafficBadge({ kind, label }: Props) {
+  const PALETTE = useThemeValues(getPalette);
   const p = PALETTE[kind];
   return (
     <View style={[styles.badge, { backgroundColor: p.bg }]}>

@@ -1,9 +1,9 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.cream },
+export const getStyles = createThemeValues((Colors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.screenBackground },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   markAllText: {
     fontFamily: Font.uiSemiBold,
@@ -120,4 +120,4 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.orange,
     marginTop: 6,
   },
-});
+}));

@@ -4,8 +4,9 @@ import type { ComponentProps, ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
+import { PurchaseEnvironmentNotice } from "./PurchaseEnvironmentNotice";
 
 export type ProIcon = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -34,13 +35,18 @@ export function OrganicSurface({ children, color, style, variant = "tile" }: {
 }
 
 export function ProWordmark({ orange = false }: { orange?: boolean }) {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   return <Text style={[flowStyles.wordmark, orange && { color: Colors.orange }]} accessibilityLabel="Crittr Pro">Crittr<Text style={{ color: Colors.orange }}> Pro</Text></Text>;
 }
 
-export function ProFlowPage({ children, footer, onBack, brand = true, refreshing, scroll = true, compactFooter = false, footerContentStyle }: {
+export function ProFlowPage({ children, footer, onBack, brand = true, refreshing, scroll = true, compactFooter = false, footerContentStyle, showPurchaseEnvironment = false }: {
   children: ReactNode; footer?: ReactNode; onBack?: () => void; brand?: boolean;
   refreshing?: ReactNode; scroll?: boolean; compactFooter?: boolean; footerContentStyle?: StyleProp<ViewStyle>;
+  showPurchaseEnvironment?: boolean;
 }) {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   const insets = useSafeAreaInsets();
   return (
     <View style={[flowStyles.page, { paddingTop: insets.top }]}>
@@ -53,6 +59,7 @@ export function ProFlowPage({ children, footer, onBack, brand = true, refreshing
         {brand ? <ProWordmark /> : <View />}
         <View style={flowStyles.headerSide}>{refreshing}</View>
       </View>
+      {showPurchaseEnvironment ? <PurchaseEnvironmentNotice /> : null}
       {scroll ? <ScrollView style={{ flex: 1 }} contentContainerStyle={[flowStyles.content, { paddingBottom: footer ? 12 : insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView> : <View style={[flowStyles.content, { flex: 1 }]}>{children}</View>}
@@ -68,23 +75,28 @@ const ART = {
   pending: require("@/assets/images/pro/pending.png"),
   receipt: require("@/assets/images/pro/receipt.png"),
 };
-export function ProIllustration({ kind = "companions", height = 180, color = Colors.sage, style }: {
+export function ProIllustration({ kind = "companions", height = 180, color, style }: {
   kind?: ProArtKind; height?: number; color?: string; style?: StyleProp<ViewStyle>;
 }) {
+  const flowStyles = useThemeValues(getFlowStyles);
+  const Colors = useThemeColors();
   return <View style={[flowStyles.art, { height }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-    <View style={[StyleSheet.absoluteFill, { top: "8%", left: "12%", right: "12%", bottom: "4%" }]}><OrganicBackdrop color={color} /></View>
+    <View style={[StyleSheet.absoluteFill, { top: "8%", left: "12%", right: "12%", bottom: "4%" }]}><OrganicBackdrop color={color ?? Colors.sage} /></View>
     <Image source={ART[kind]} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
   </View>;
 }
 
-export const PRO_FLOW_BENEFITS: { icon: ProIcon; title: string; body: string; color: string; inline?: boolean }[] = [
+export const getProFlowBenefits = createThemeValues((Colors) : { icon: ProIcon; title: string; body: string; color: string; inline?: boolean }[] => ([
   { icon: "paw", title: "Unlimited pets", body: "Care for as many pets as you love.", color: Colors.sage },
   { icon: "account-group-outline", title: "Unlimited co-carers", body: "Invite family and friends to help care.", color: Colors.lavenderLight },
   { icon: "file-document-outline", title: "Medical record storage", body: "Keep important documents safe.", color: Colors.skyLight },
   { icon: "creation-outline", title: "CrittrAI", body: "Extra help with your pet’s care and routines.", color: Colors.lavenderLight },
   { icon: "advertisements-off", title: "No ads", body: "Focus on your pets, without ads.", color: Colors.orangeLight, inline: true },
-];
+]));
 export function ProBenefitGrid({ compact = false, iconsOnly = false, dense = false }: { compact?: boolean; iconsOnly?: boolean; dense?: boolean }) {
+  const Colors = useThemeColors();
+  const PRO_FLOW_BENEFITS = useThemeValues(getProFlowBenefits);
+  const flowStyles = useThemeValues(getFlowStyles);
   return <View style={flowStyles.grid}>{PRO_FLOW_BENEFITS.map((b) => (
     b.inline ? <OrganicSurface key={b.title} color={b.color} style={flowStyles.inlineBenefit}>
       <MaterialCommunityIcons name={b.icon} size={20} color={Colors.textPrimary} />
@@ -102,20 +114,24 @@ export function ProBenefitGrid({ compact = false, iconsOnly = false, dense = fal
 export function ProLink({ children, onPress, disabled = false, style, compact = false }: {
   children: ReactNode; onPress: () => void; disabled?: boolean; style?: StyleProp<ViewStyle>; compact?: boolean;
 }) {
+  const flowStyles = useThemeValues(getFlowStyles);
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" hitSlop={compact ? 6 : undefined} style={({ pressed }) => [flowStyles.linkButton, compact && { minHeight: 32, paddingHorizontal: 4 }, (pressed || disabled) && { opacity: 0.55 }, style]}><Text style={[flowStyles.link, compact && { fontSize: 12, lineHeight: 16 }]}>{children}</Text></Pressable>;
 }
 export function ProOutlineButton({ children, onPress, disabled = false }: { children: ReactNode; onPress: () => void; disabled?: boolean }) {
+  const flowStyles = useThemeValues(getFlowStyles);
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={({ pressed }) => [flowStyles.outline, (pressed || disabled) && { opacity: 0.55 }]}><Text style={flowStyles.outlineText}>{children}</Text></Pressable>;
 }
 export function ProNotice({ title, message, tone = "error" }: { title?: string; message: string; tone?: "error" | "info" }) {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   return <View style={[flowStyles.notice, { backgroundColor: tone === "error" ? "#FCE6E2" : Colors.skyLight }]} accessibilityLiveRegion="polite" accessibilityRole={tone === "error" ? "alert" : "text"}>
     <MaterialCommunityIcons name={tone === "error" ? "alert-circle-outline" : "information-outline"} size={21} color={tone === "error" ? "#A33626" : Colors.skyDark} />
     <View style={{ flex: 1 }}>{title ? <Text style={[flowStyles.noticeTitle, tone === "info" && { color: Colors.skyDark }]}>{title}</Text> : null}<Text style={[flowStyles.noticeBody, tone === "info" && { color: Colors.skyDark }]}>{message}</Text></View>
   </View>;
 }
 
-export const flowStyles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: Colors.cream },
+export const getFlowStyles = createThemeValues((Colors) => StyleSheet.create({
+  page: { flex: 1, backgroundColor: Colors.screenBackground },
   header: { width: "100%", maxWidth: 540, alignSelf: "center", flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 52, paddingHorizontal: 14 },
   headerSide: { width: 54, alignItems: "center" }, back: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   wordmark: { fontFamily: Font.displayBold, fontSize: 23, color: Colors.textPrimary },
@@ -138,4 +154,4 @@ export const flowStyles = StyleSheet.create({
   notice: { borderRadius: 19, padding: 15, flexDirection: "row", alignItems: "flex-start", gap: 10 },
   noticeTitle: { fontFamily: Font.uiBold, color: "#A33626", fontSize: 14, lineHeight: 20 },
   noticeBody: { fontFamily: Font.uiRegular, color: "#943D30", fontSize: 13, lineHeight: 19 },
-});
+}));

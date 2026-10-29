@@ -1,7 +1,7 @@
 import MedicationSectionHeader from "@/components/petScreens/medication/MedicationSectionHeader";
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   clampDateToRange,
@@ -33,6 +33,7 @@ export default function PetMedicationLastGivenSection({
   helperText,
   maximumDate,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const { dateDisplay } = useUserDateTimePrefs();
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -103,7 +104,7 @@ export default function PetMedicationLastGivenSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: 8,
   },
@@ -147,4 +148,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-});
+}));

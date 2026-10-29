@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
@@ -7,6 +7,8 @@ import { StyleSheet, Text, View } from "react-native";
  * Shown when a co-carer opens a management screen without the matching permission.
  */
 export default function CoCareReadOnlyNotice() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.box} accessibilityRole="alert">
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -25,7 +27,7 @@ export default function CoCareReadOnlyNotice() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   box: {
     backgroundColor: Colors.lavenderLight,
     borderRadius: 14,
@@ -50,4 +52,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 20,
   },
-});
+}));

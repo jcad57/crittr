@@ -1,8 +1,8 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const getStyles = createThemeValues((Colors) => StyleSheet.create({
   nameBlock: {
     marginBottom: 8,
   },
@@ -32,7 +32,7 @@ export const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -194,4 +194,4 @@ export const styles = StyleSheet.create({
     color: Colors.orange,
     textAlign: "center",
   },
-});
+}));

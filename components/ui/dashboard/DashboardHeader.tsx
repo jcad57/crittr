@@ -1,5 +1,5 @@
 import PetPillSwitcher from "@/components/ui/pets/PetPillSwitcher";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   PRO_GRADIENT_END,
   PRO_GRADIENT_START,
@@ -53,6 +53,8 @@ export default function DashboardHeader({
   onProfilePress,
   unreadNotificationCount = 0,
 }: DashboardHeaderProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { width: windowWidth } = useWindowDimensions();
   const { data: profile } = useProfileQuery();
   const profileAvatarUri = profile?.avatar_url?.trim() || null;
@@ -188,7 +190,7 @@ export default function DashboardHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     paddingBottom: 14,
   },
@@ -289,4 +291,4 @@ const styles = StyleSheet.create({
     color: Colors.white,
     lineHeight: 14,
   },
-});
+}));

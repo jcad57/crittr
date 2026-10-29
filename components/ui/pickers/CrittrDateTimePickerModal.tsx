@@ -1,5 +1,5 @@
-import { Colors } from "@/theme/colors";
-import { MODAL_DATETIME_PICKER_PROPS } from "@/theme/dateTimePicker";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
+import { getModalDatetimePickerProps } from "@/theme/dateTimePicker";
 import { resolvePickerBounds } from "@/utils/dateTimePickerBounds";
 import { useMemo } from "react";
 import { Platform } from "react-native";
@@ -31,6 +31,8 @@ export default function CrittrDateTimePickerModal({
   confirmTextIOS = "Save",
   ...rest
 }: CrittrDateTimePickerModalProps) {
+  const Colors = useThemeColors();
+  const MODAL_DATETIME_PICKER_PROPS = useThemeValues(getModalDatetimePickerProps);
   const bounds = useMemo(
     () => resolvePickerBounds({ value: date, minimumDate, maximumDate }),
     [date, minimumDate, maximumDate],

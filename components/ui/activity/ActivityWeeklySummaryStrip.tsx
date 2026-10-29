@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { WeeklyActivitySummary } from "@/data/activityHistory";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,15 +11,19 @@ type Props = {
 };
 
 const greenFooter = "#15803D";
-const greyFooter = Colors.gray500;
-const coralNudge = Colors.signOutCoral;
+const getGreyFooter = createThemeValues((Colors) => (Colors.gray500));
+const getCoralNudge = createThemeValues((Colors) => (Colors.signOutCoral));
 /** Worse than last week — fewer walks */
-const negativeDelta = Colors.error;
+const getNegativeDelta = createThemeValues((Colors) => (Colors.error));
 
 export default function ActivityWeeklySummaryStrip({
   summary,
   variant = "default",
 }: Props) {
+  const greyFooter = useThemeValues(getGreyFooter);
+  const coralNudge = useThemeValues(getCoralNudge);
+  const negativeDelta = useThemeValues(getNegativeDelta);
+  const styles = useThemeValues(getStyles);
   const treatsOver =
     variant !== "cat" && summary.treats > summary.weeklyTreatLimit;
   const treatFooter = treatsOver
@@ -129,7 +133,7 @@ export default function ActivityWeeklySummaryStrip({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 10,
@@ -173,4 +177,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     fontSize: 11,
   },
-});
+}));

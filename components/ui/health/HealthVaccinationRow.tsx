@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { VaccinationWithPet } from "@/services/health";
@@ -28,6 +28,8 @@ export default function HealthVaccinationRow({
   isLast,
   onPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const t = vaccinationTraffic(item);
   const iconName =
     t.kind === "due_today" || t.kind === "due_soon"
@@ -64,7 +66,7 @@ export default function HealthVaccinationRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -99,4 +101,4 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     lineHeight: 18,
   },
-});
+}));

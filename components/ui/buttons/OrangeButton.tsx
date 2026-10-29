@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import * as Haptics from "expo-haptics";
 import {
@@ -48,6 +48,8 @@ export default function OrangeButton({
   accessibilityLabel,
   accessibilityHint,
 }: OrangeButtonProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const translateY = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -88,7 +90,7 @@ export default function OrangeButton({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrapper: {
     width: "100%",
     height: BUTTON_HEIGHT + SHADOW_OFFSET,
@@ -122,4 +124,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.white,
   },
-});
+}));

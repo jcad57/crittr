@@ -4,7 +4,7 @@ import {
   saveLocalMedicalRecord,
   shareLocalMedicalRecord,
 } from "@/services/medicalRecordFileActions";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { medicalRecordPreviewKind } from "@/utils/medicalRecordFiles";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -41,6 +41,8 @@ export default function MedicalRecordFilePreviewModal({
   filename,
   onClose,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [action, setAction] = useState<"save" | "share" | "open" | null>(null);
   const actionGuard = useRef(false);
@@ -240,8 +242,8 @@ export default function MedicalRecordFilePreviewModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.cream },
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.screenBackground },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
@@ -342,4 +344,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
-});
+}));

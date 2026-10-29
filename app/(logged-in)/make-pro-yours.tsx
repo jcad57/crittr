@@ -5,18 +5,21 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { displayNameFromProfile, initialsFromProfile } from "@/components/profile/profileHelpers";
-import { OrganicSurface, ProFlowPage, ProLink, flowStyles, type ProIcon } from "@/components/pro/flow/ProFlowUi";
+import { OrganicSurface, ProFlowPage, ProLink, getFlowStyles, type ProIcon } from "@/components/pro/flow/ProFlowUi";
 import { usePetsQuery, useProfileQuery } from "@/hooks/queries";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { trackProEvent } from "@/lib/proEvents";
 import { markProOnboardingCompleted } from "@/lib/proEngagementPersistence";
 import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import type { Href } from "expo-router";
 
 export default function MakeProYoursScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const flowStyles = useThemeValues(getFlowStyles);
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { data: profile } = useProfileQuery();
@@ -57,10 +60,10 @@ export default function MakeProYoursScreen() {
     {isError ? <ProLink onPress={() => void refetch()}>Couldn’t load your pets. Try again</ProLink> : selected ? <ProLink onPress={() => open(`/(logged-in)/pet/${selected.id}/invite-care`)}>Invite your care team</ProLink> : null}
   </ProFlowPage>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   identity: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 23, borderWidth: 1, borderColor: Colors.creamDark, padding: 17, marginTop: 22, marginBottom: 22 },
   avatar: { width: 64, height: 64, borderRadius: 32 }, initials: { backgroundColor: Colors.peach, alignItems: "center", justifyContent: "center" }, initialsText: { fontFamily: Font.displayBold, fontSize: 24, color: Colors.peachDark },
   name: { fontFamily: Font.displayBold, fontSize: 23, color: Colors.textPrimary }, member: { fontFamily: Font.uiRegular, fontSize: 14, color: "#696A64", marginTop: 3 },
   actionCard: { minHeight: 104, flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 18, paddingHorizontal: 18 },
   actionTitle: { fontFamily: Font.uiBold, fontSize: 16, color: Colors.textPrimary }, actionBody: { fontFamily: Font.uiRegular, fontSize: 13, lineHeight: 19, color: "#62645F", marginTop: 6 },
-});
+}));

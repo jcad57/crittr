@@ -193,7 +193,7 @@ test("live profile changes refresh Pro and billing details without a webhook fee
   assert.equal(timers.size, 0);
 });
 
-function subscriptionService(getInfo) {
+function subscriptionService(getInfo, { withTimeout = (promise) => promise, getProducts } = {}) {
   let lookups = 0,
     opened;
   const model = loadTS("lib/crittrPro.ts");
@@ -201,7 +201,7 @@ function subscriptionService(getInfo) {
     "@/lib/iap/revenueCat": { getIdentifiedRevenueCatCustomerInfo: getInfo },
     "@/lib/crittrPro": model,
     "@/lib/sessionGeneration": { sessionGeneration: () => 1 },
-    "@/lib/iap/withTimeout": { withTimeout: (promise) => promise },
+    "@/lib/iap/withTimeout": { withTimeout },
     "@/lib/iap/crittrProRevenueCat": loadTS("lib/iap/crittrProRevenueCat.ts", {
       "@/lib/crittrPro": model,
     }),
@@ -209,10 +209,10 @@ function subscriptionService(getInfo) {
     "react-native-purchases": {
       __esModule: true,
       default: {
-        getProducts: async () => {
+        getProducts: getProducts ?? (async () => {
           lookups++;
           return [];
-        },
+        }),
         showManageSubscriptions: async () => {},
       },
     },
@@ -341,7 +341,7 @@ test("production SDK configuration can retry after a native initialization error
     },
     {
       process: {
-        env: { EXPO_PUBLIC_REVENUECAT_API_KEY_IOS: "test_public_key" },
+        env: { EXPO_PUBLIC_REVENUECAT_API_KEY_IOS: "appl_fixture_public_key" },
       },
     },
   );
@@ -378,7 +378,7 @@ test("an account switch fences a pending native login before any purchase can ru
     },
     {
       process: {
-        env: { EXPO_PUBLIC_REVENUECAT_API_KEY_IOS: "test_public_key" },
+        env: { EXPO_PUBLIC_REVENUECAT_API_KEY_IOS: "appl_fixture_public_key" },
       },
     },
   );
@@ -397,4 +397,47 @@ test("an account switch fences a pending native login before any purchase can ru
   });
   assert.equal(purchases, 1);
   assert.equal(nativeId, "new-account");
+});
+
+test("release builds reject Test Store keys before configuring the native SDK", async () => {
+  for (const platform of ["ios", "android"]) {
+    let configured = 0;
+    const sdk = loadTS("lib/iap/revenueCat.ts", {
+      "@/lib/sessionGeneration": { sessionGeneration: () => 1 },
+      "react-native": { Platform: { OS: platform } },
+      "react-native-purchases": { __esModule: true, default: { configure() { configured++; } } },
+    }, { process: { env: {
+      EXPO_PUBLIC_REVENUECAT_API_KEY_IOS: "test_fixture",
+      EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID: "test_fixture",
+    } } });
+    await sdk.configureRevenueCat();
+    assert.equal(configured, 0);assert.equal(sdk.isRevenueCatConfigured(), false);
+  }
+});
+
+test("a stalled store price lookup does not hold subscription management open indefinitely", async () => {
+  const price = new Promise(() => {});
+  const ent = { isActive: true, productIdentifier: "annual", expirationDate: new Date(Date.now()+86400000).toISOString(), store: "APP_STORE", willRenew: true };
+  const fixture = subscriptionService(async () => ({
+    entitlements: { active: { crittr_pro: ent }, all: { crittr_pro: ent } }, subscriptionsByProductIdentifier: {}, managementURL: null,
+  }), { getProducts: () => price, withTimeout: (promise) => promise === price ? Promise.resolve(undefined) : promise });
+  const details = await fixture.service.fetchSubscriptionDetails("account");
+  assert.equal(details.status, "active");assert.equal(details.priceFormatted, "—");
+});
+
+test("auth and server request timeouts return failed sync results instead of hanging callers", async () => {
+  for (const stage of ["session", "request"]) {
+    const stalled = new Promise(() => {});let invokes=0;
+    const sync = loadTS("lib/iap/entitlementSync.ts", {
+      "@/lib/iap/revenueCat": { loginRevenueCatUser: async () => null },
+      "@/lib/iap/withTimeout": { withTimeout: (promise) => promise === stalled ? Promise.resolve(undefined) : promise },
+      "@/lib/sessionGeneration": { sessionGeneration: () => 1 },
+      "@/lib/supabase": { supabase: {
+        auth: { getSession: () => stage === "session" ? stalled : Promise.resolve({ data: { session: { user: { id: "account" } } } }) },
+        functions: { invoke: () => { invokes++;return stalled; } },
+      } }, "react-native-purchases": {},
+    });
+    assert.equal(await sync.syncCrittrProForSession("account"), "failed");
+    assert.equal(invokes, stage === "session" ? 0 : 1);
+  }
 });

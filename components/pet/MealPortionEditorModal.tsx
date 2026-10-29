@@ -1,7 +1,7 @@
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import InlineTimePickerSheet from "@/components/ui/InlineTimePickerSheet";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -36,6 +36,8 @@ export default function MealPortionEditorModal({
   onClose,
   onSave,
 }: MealPortionEditorModalProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const is24Hour = timeDisplay === "24h";
   const [portionSize, setPortionSize] = useState("");
@@ -239,7 +241,7 @@ export default function MealPortionEditorModal({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   modalRoot: {
     flex: 1,
   },
@@ -349,4 +351,4 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 4,
   },
-});
+}));

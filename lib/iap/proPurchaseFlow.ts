@@ -1,5 +1,6 @@
 import type { ProPurchaseResult, ProBillingParam, OfferingFetchFailure } from "@/lib/iap/checkout";
 import type { PurchasesPackage } from "react-native-purchases";
+import type { StoreTrialOffer } from "@/lib/iap/trialEligibility";
 
 export type PurchaseFlowPhase = "review" | "purchasing" | "activating" | "complete" | "pending" | "recovery";
 export type PurchaseFlowSource = "purchase" | "restore" | "paywall";
@@ -10,16 +11,18 @@ export type PurchaseFlowSnapshot = {
   storeConfirmed: boolean;
   purchaseUnresolved: boolean;
   nativeRequestPending: boolean;
+  requiresPlanReview: boolean;
   source: PurchaseFlowSource;
   working: boolean;
 };
-export type ReviewedPlan = { billing: ProBillingParam; productId: string; amount: number; currency: string };
+export type ReviewedPlan = { billing: ProBillingParam; productId: string; amount: number; currency: string; trial: StoreTrialOffer | null };
 type ExistingResult = { hasCrittrPro: boolean; customerInfo: ProPurchaseResult["customerInfo"] | null };
 type Outcome = { ok: true; result: ProPurchaseResult } | { ok: false; error: unknown };
 type Dependencies = {
   sessionKey: () => string;
   detect: () => Promise<ExistingResult>;
   offering: (billing: ProBillingParam) => Promise<{ ok: true; package: PurchasesPackage } | { ok: false; reason: OfferingFetchFailure }>;
+  trial: (pkg: PurchasesPackage) => Promise<StoreTrialOffer | null>;
   purchase: (pkg: PurchasesPackage) => Promise<ProPurchaseResult>;
   outstandingPurchase?: () => Promise<ProPurchaseResult> | null;
   restore: () => Promise<ProPurchaseResult>;
@@ -33,9 +36,13 @@ type Dependencies = {
 export const PURCHASE_CALLBACK_TIMEOUT_MS = 30_000;
 export const STORE_RETURN_GRACE_MS = 2_500;
 const STAGE_TIMEOUT_MS = 15_000;
-const INITIAL: PurchaseFlowSnapshot = { phase: "review", activationStage: 1, message: null, storeConfirmed: false, purchaseUnresolved: false, nativeRequestPending: false, source: "purchase", working: false };
+const INITIAL: PurchaseFlowSnapshot = { phase: "review", activationStage: 1, message: null, storeConfirmed: false, purchaseUnresolved: false, nativeRequestPending: false, requiresPlanReview: false, source: "purchase", working: false };
 const ACTIVATION_DELAY_MESSAGE = "Your purchase is saved, but confirming Pro is taking longer than expected. Check your connection and retry activation. This won’t charge you again.";
 const UNKNOWN_RESULT_MESSAGE = "Close any open store sheet, then check access. If the store stays unresponsive, restart Crittr and check again.";
+const isActionableBillingError = (error: unknown) => {
+  const kind = (error as { kind?: string } | null)?.kind;
+  return kind === "sandbox_restricted" || kind === "account_conflict";
+};
 
 export function offeringFailureMessage(reason: OfferingFetchFailure, store: string): string {
   switch (reason) {
@@ -108,6 +115,9 @@ export function createProPurchaseFlow(deps: Dependencies) {
       } else if (raw?.kind === "already_owned") {
         recovery = "check";
         update({ phase: "recovery", purchaseUnresolved: false, storeConfirmed: true, message: "Your store account already owns this plan. Check access or restore purchases to finish activating Pro." });
+      } else if (raw?.kind === "sandbox_restricted" || raw?.kind === "account_conflict") {
+        recovery = "check";
+        update({ phase: "recovery", purchaseUnresolved: false, message });
       } else if (raw?.kind === "result_unknown") {
         recovery = "check";
         update({ phase: "recovery", purchaseUnresolved: true, message: UNKNOWN_RESULT_MESSAGE });
@@ -127,7 +137,7 @@ export function createProPurchaseFlow(deps: Dependencies) {
     update({ phase: "activating", activationStage: 1, purchaseUnresolved: false, storeConfirmed: true, message: null, source });
     if (!verified) {
       try { await bounded(deps.verify(result, source, signal), signal, ACTIVATION_DELAY_MESSAGE); }
-      catch (error) { if (!live() || !deps.hasVerifiedAccess()) throw error; }
+      catch (error) { if (!live() || isActionableBillingError(error) || !deps.hasVerifiedAccess()) throw error; }
     }
     if (!live()) return;
     update({ activationStage: 2 });
@@ -208,7 +218,7 @@ export function createProPurchaseFlow(deps: Dependencies) {
     lastPlan = plan;
     recovery = "purchase";
     return run(async (live, signal) => {
-      update({ phase: "purchasing", message: null, source: "purchase" });
+      update({ phase: "purchasing", message: null, source: "purchase", requiresPlanReview: false });
       if (deps.hasVerifiedAccess()) { await activate(null, "paywall", live, signal); return; }
       const existing = await bounded(deps.detect(), signal, "We couldn’t check your subscription. Check your connection and try again.");
       if (!live()) return;
@@ -218,8 +228,16 @@ export function createProPurchaseFlow(deps: Dependencies) {
       if (!offering.ok) throw new Error(offeringFailureMessage(offering.reason, deps.storeName));
       const product = offering.package.product;
       if (product.identifier !== plan.productId || Math.round(product.price * 100) !== plan.amount || product.currencyCode.toLowerCase() !== plan.currency.toLowerCase()) {
+        update({ requiresPlanReview: true });
         deps.pricesChanged();
         throw new Error("The store updated this plan’s price. Go back to review the current price before subscribing.");
+      }
+      const trial = await bounded(deps.trial(offering.package), signal, "We couldn’t confirm this plan’s trial terms. Please review the plan and try again.");
+      if (!live()) return;
+      if (trial?.durationLabel !== plan.trial?.durationLabel || trial?.iso8601 !== plan.trial?.iso8601) {
+        update({ requiresPlanReview: true });
+        deps.pricesChanged();
+        throw new Error("Your trial offer changed. Go back to review the current terms before subscribing.");
       }
       await awaitNative(deps.purchase(offering.package), live, signal);
     });
@@ -232,7 +250,7 @@ export function createProPurchaseFlow(deps: Dependencies) {
       update({ phase: "purchasing", message: null, source: "restore" });
       const result = await bounded(deps.restore(), signal, "Restoring took longer than expected. Check your connection and try again.");
       if (!live()) return;
-      if (!result.hasCrittrPro) throw new Error(`We couldn’t find an active Crittr Pro subscription. Make sure you’re using the ${deps.storeName} account that made the purchase.`);
+      if (!result.hasCrittrPro) throw new Error(`We couldn’t find an active Crittr Pro subscription. Make sure you’re using the ${deps.storeName} account that made the purchase. If your subscription expired, choose Review plans to subscribe again. Restoring an expired subscription won’t renew it.`);
       await activate(result, "restore", live, signal);
     });
   };
@@ -245,21 +263,36 @@ export function createProPurchaseFlow(deps: Dependencies) {
       // with our server directly; do not enqueue another purchase or restore.
       if (state.purchaseUnresolved) {
         try { await bounded(deps.verify(lastResult, "purchase", signal), signal, UNKNOWN_RESULT_MESSAGE); }
-        catch (error) { if (!live() || !deps.hasVerifiedAccess()) throw error; }
+        catch (error) { if (!live() || isActionableBillingError(error) || !deps.hasVerifiedAccess()) throw error; }
         if (live()) await activate(lastResult, "purchase", live, signal, true);
         return;
       }
-      if (wasPending) update({ message: "Checking your payment with the store…" });
-      else update({ phase: state.storeConfirmed ? "activating" : "purchasing", message: null, source: state.storeConfirmed ? state.source : "paywall" });
-      if (deps.hasVerifiedAccess()) { await activate(lastResult, state.storeConfirmed || wasPending ? state.source : "paywall", live, signal); return; }
-      const existing = await bounded(deps.detect(), signal, "Checking access took too long. Please try again.");
-      if (!live()) return;
-      if (wasPending && !existing.hasCrittrPro && !deps.hasVerifiedAccess()) {
-        update({ phase: "pending", message: "Your payment is still pending. You can return to Crittr while the store finishes processing it." });
+      if (wasPending) {
+        update({ message: "Checking your payment with the store…" });
+        try { await bounded(deps.verify(lastResult, "purchase", signal), signal, "Payment confirmation is taking longer than expected."); }
+        catch (error) {
+          if (!live()) return;
+          if (isActionableBillingError(error)) throw error;
+          if (!deps.hasVerifiedAccess()) {
+            update({ phase: "pending", message: "We haven’t received payment confirmation yet. Check your connection and check again shortly. Checking won’t start another purchase." });
+            return;
+          }
+        }
+        if (live()) await activate(lastResult, "purchase", live, signal, true);
         return;
       }
-      if (!existing.hasCrittrPro && !state.storeConfirmed && !deps.hasVerifiedAccess()) throw new Error("We couldn’t verify an active subscription. Restore purchases with the store account used to subscribe.");
-      await activate(asResult(existing) ?? lastResult, state.storeConfirmed ? state.source : "paywall", live, signal);
+      update({ phase: state.storeConfirmed ? "activating" : "purchasing", message: null, source: state.storeConfirmed ? state.source : "paywall" });
+      const source = state.storeConfirmed ? state.source : "paywall";
+      try { await bounded(deps.verify(lastResult, source, signal), signal, "Checking access took too long. Please try again."); }
+      catch (error) {
+        if (!live()) return;
+        if (isActionableBillingError(error)) throw error;
+        if (!deps.hasVerifiedAccess()) {
+          if (!state.storeConfirmed) throw new Error("We couldn’t verify an active subscription. Check your connection or restore purchases with the store account used to subscribe.");
+          throw error;
+        }
+      }
+      if (live()) await activate(lastResult, source, live, signal, true);
     });
   };
   return {

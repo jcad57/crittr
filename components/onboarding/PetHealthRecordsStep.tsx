@@ -1,13 +1,13 @@
 import OptInStep from "@/components/onboarding/OptInStep";
-import { petCareStyles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles } from "@/components/onboarding/petCareStyles";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
 import PetMicrochipToggle from "@/components/onboarding/petInfo/PetMicrochipToggle";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import FormInput from "@/components/ui/form/FormInput";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { PetFormData } from "@/types/database";
 import { useState } from "react";
@@ -25,6 +25,9 @@ function hasHealthDetails(pet: PetFormData) {
 }
 
 export default function PetHealthRecordsStep() {
+  const styles = useThemeValues(getStyles);
+  const petCareStyles = useThemeValues(getPetCareStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({
@@ -144,7 +147,7 @@ export default function PetHealthRecordsStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   proCallout: {
     width: "100%",
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM + 4,
@@ -183,4 +186,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 16,
   },
-});
+}));

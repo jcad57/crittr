@@ -1,7 +1,7 @@
 import OtpDigitsInput, { OTP_LENGTH } from "@/components/auth/OtpDigitsInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useAuthStore } from "@/stores/authStore";
 import {
@@ -47,6 +47,9 @@ function mapOtpError(message: string): string {
 }
 
 export default function VerifyEmailStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { accountData, goToStep, setEmailVerificationPending, setProfileBackAfterProfile } =
     useOnboardingStore(
       useShallow((s) => ({
@@ -206,7 +209,7 @@ export default function VerifyEmailStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
     width: "100%",
@@ -254,4 +257,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.orange,
   },
-});
+}));

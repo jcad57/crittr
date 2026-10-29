@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useProfilesByIdsQuery } from "@/hooks/queries";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
@@ -52,6 +52,8 @@ export default function ActivityFeed({
   showLogActivity = true,
   animationKey = "",
 }: ActivityFeedProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const currentUserId = useAuthStore((s) => s.session?.user?.id);
   const [expanded, setExpanded] = useState(false);
@@ -197,7 +199,7 @@ export default function ActivityFeed({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     marginBottom: 8,
   },
@@ -289,4 +291,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
-});
+}));

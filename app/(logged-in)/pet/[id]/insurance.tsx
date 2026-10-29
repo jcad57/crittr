@@ -5,7 +5,7 @@ import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceTogg
 import InsurancePolicyDocsSection from "@/components/petScreens/petInsurance/InsurancePolicyDocsSection";
 import InsuranceReadOnlyView from "@/components/petScreens/petInsurance/InsuranceReadOnlyView";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   useDeletePetInsuranceFileMutation,
   usePetDetailsQuery,
@@ -38,9 +38,11 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/pet/[id]/insurance.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/insurance.styles";
 
 export default function PetInsuranceScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { replace, router } = useNavigationCooldown();

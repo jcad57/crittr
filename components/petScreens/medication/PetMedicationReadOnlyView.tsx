@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
@@ -30,6 +31,7 @@ export default function PetMedicationReadOnlyView({
   onBack,
   onAfterSwitchPet,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
   const dosages = hydrateDosagesFromMed(med);
   const frequencyLabel = frequencyLabelForDraft(frequencyDraftFromMed(med));

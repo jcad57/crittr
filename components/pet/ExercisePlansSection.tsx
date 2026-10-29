@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import {
@@ -28,6 +28,8 @@ export default function ExercisePlansSection({
   sectionTitle = "Activities",
   helperText,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
 
   return (
@@ -110,7 +112,7 @@ export default function ExercisePlansSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   sectionTitle: {
     fontFamily: Font.uiSemiBold,
     fontSize: 14,
@@ -184,4 +186,4 @@ const styles = StyleSheet.create({
     color: Colors.orange,
   },
   addBtnTextError: { color: Colors.error },
-});
+}));

@@ -4,7 +4,7 @@ import AlsoLogForPetsSection from "@/components/activity/AlsoLogForPetsSection";
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
@@ -48,6 +48,7 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
   const hideExerciseType = petType === "cat";
   const form = useActivityFormStore((s) => s.exerciseForm);
   const update = useActivityFormStore((s) => s.updateExercise);
@@ -259,7 +260,7 @@ const ExerciseDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default ExerciseDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   title: {
@@ -302,4 +303,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-});
+}));

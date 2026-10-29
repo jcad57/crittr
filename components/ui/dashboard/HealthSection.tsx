@@ -1,6 +1,6 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { MedicationSummary, VetVisitSummary } from "@/types/ui";
 import type { PetVaccination } from "@/types/database";
@@ -47,6 +47,8 @@ export default function HealthSection({
   maintenanceCard,
   vetVisitPetName,
 }: HealthSectionProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const hasMeds = medications.length > 0;
   const hasVisits = vetVisits.length > 0;
   const vacs = attentionVaccinations ?? [];
@@ -159,7 +161,7 @@ export default function HealthSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     marginBottom: 8,
   },
@@ -246,4 +248,4 @@ const styles = StyleSheet.create({
     color: Colors.orange,
     marginTop: 4,
   },
-});
+}));

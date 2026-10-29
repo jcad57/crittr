@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -27,6 +27,8 @@ type RecordsNavCardProps = {
 };
 
 export default function RecordsNavCard({ items }: RecordsNavCardProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.wrap}>
       {items.map((item, index) => {
@@ -89,7 +91,7 @@ export default function RecordsNavCard({ items }: RecordsNavCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     backgroundColor: Colors.warmWhite,
     borderRadius: 22,
@@ -156,4 +158,4 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     lineHeight: 18,
   },
-});
+}));

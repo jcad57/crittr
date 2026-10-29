@@ -1,7 +1,7 @@
 import MedicationSectionHeader from "@/components/petScreens/medication/MedicationSectionHeader";
 import { MAX_MEDICATION_DOSAGES } from "@/constants/medicationEditForm";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { MedicationDosageDraft } from "@/utils/medicationDosageDraft";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
@@ -29,6 +29,8 @@ export default function PetMedicationDosageScheduleSection({
   dosageRowAmountMissing,
   hint = "These times appear on the schedule when this medication is due.",
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const canAdd = dosages.length < MAX_MEDICATION_DOSAGES;
 
@@ -132,7 +134,7 @@ export default function PetMedicationDosageScheduleSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: 8,
   },
@@ -212,4 +214,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 19,
   },
-});
+}));

@@ -4,7 +4,7 @@ import ActivityDetailStepSwitch from "@/components/activity/ActivityDetailStepSw
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { manageActivityNavTitle } from "@/constants/activityWizardTitles";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   useDeleteActivityMutation,
   useUpdateExerciseActivityMutation,
@@ -49,11 +49,13 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "@/screen-styles/manage-activity-item/[id].styles";
+import { getStyles } from "@/screen-styles/manage-activity-item/[id].styles";
 
 const SAVE_LABEL = "Save changes";
 
 export default function ManageActivityItemScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();

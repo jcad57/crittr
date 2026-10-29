@@ -1,5 +1,5 @@
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { VET_VISIT_LOCATION_OTHER } from "@/utils/vetVisitLocationUi";
 import { useMemo } from "react";
@@ -21,6 +21,8 @@ export default function VetVisitLocationFields({
   onChoiceChange,
   onOtherTextChange,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const primary = primaryVetClinic?.trim() ?? "";
   const hasPrimary = primary.length > 0;
 
@@ -80,7 +82,7 @@ export default function VetVisitLocationFields({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     gap: 0,
   },
@@ -119,4 +121,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-});
+}));

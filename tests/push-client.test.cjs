@@ -85,7 +85,7 @@ test("foreground alerts honor each preference and reject a different or signed-o
     assert.equal(prefs.shouldPresentNotification(data, "other", { id: "other" }), false);
     assert.equal(prefs.shouldPresentNotification(data, undefined, null), false);
   }
-  assert.equal(prefs.NOTIFICATION_PREF_KEYS.length, 5);
+  assert.equal(prefs.NOTIFICATION_PREF_KEYS.length, 6);
   assert.equal(prefs.notificationPrefsFromProfile({ id: "user", notify_meals_treats: false, notify_medications: false, notify_co_care_activities: false, notify_vet_visits: false }).notify_vaccinations, false);
   const oldAllOff = { id: "user", notify_meals_treats: false, notify_medications: false, notify_co_care_activities: false, notify_vet_visits: false };
   assert.equal(prefs.mergeNotificationColumnsPreferLiveCache({ ...oldAllOff, notify_vaccinations: false }, oldAllOff).notify_vaccinations, false);

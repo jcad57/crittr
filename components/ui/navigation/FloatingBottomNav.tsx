@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   FLOATING_NAV_BAR_HEIGHT,
   FLOATING_NAV_HORIZONTAL_MARGIN_PERCENT,
@@ -120,6 +120,8 @@ function resolveActiveTab(pathname: string, segments: string[]): TabId {
 }
 
 export default function FloatingBottomNav() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const safeBottomInset = Number.isFinite(insets.bottom) ? insets.bottom : 0;
   const router = useRouter();
@@ -201,7 +203,7 @@ export default function FloatingBottomNav() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   outer: {
     backgroundColor: "transparent",
     width: "100%",
@@ -247,4 +249,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.isSemiBold,
     color: Colors.peachDark,
   },
-});
+}));

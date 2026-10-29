@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { VetVisitWithPet } from "@/services/health";
@@ -26,6 +26,8 @@ export function HealthVisitSummaryRow({
   isLast?: boolean;
   onPress?: () => void;
 }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <Pressable
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -81,7 +83,7 @@ export default function HealthVisitRow({ item, isLast, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -124,4 +126,4 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 2,
   },
-});
+}));

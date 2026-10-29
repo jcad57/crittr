@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { PET_INFO_FIELD_MARGIN_BOTTOM } from "@/constants/petInfo";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -16,6 +16,7 @@ export default function PetInsuranceToggle({
   onChange,
   containerStyle,
 }: PetInsuranceToggleProps) {
+  const styles = useThemeValues(getStyles);
   /** Unset / skipped during add-pet reads as “No” for display. */
   const yesActive = value === true;
   const noActive = value === false || value === null;
@@ -55,7 +56,7 @@ export default function PetInsuranceToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrap: {
     marginBottom: PET_INFO_FIELD_MARGIN_BOTTOM,
   },
@@ -92,4 +93,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

@@ -3,7 +3,7 @@ import { ProUpgradeCTA } from "@/components/pro/ProUpgradeCTA";
 import { softPaywallCopy, type ProSoftPaywallKind } from "@/constants/proCopy";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { trackProEvent } from "@/lib/proEvents";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -34,6 +34,8 @@ export function ProSoftPaywallSheet({
   petName,
   onClose,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { push } = useNavigationCooldown();
   const copy = kind ? softPaywallCopy(kind, petName) : null;
 
@@ -81,7 +83,7 @@ export function ProSoftPaywallSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   iconWrap: {
     width: 48,
     height: 48,
@@ -120,4 +122,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.white,
   },
-});
+}));

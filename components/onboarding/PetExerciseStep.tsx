@@ -1,10 +1,12 @@
-import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
+import { useThemeValues } from "@/theme/colors";
+import { getPetCareStyles as getStyles } from "@/components/onboarding/petCareStyles";
 import PetEnergyLevelToggle from "@/components/onboarding/petInfo/PetEnergyLevelToggle";
 import ExercisePlanEditorModal from "@/components/pet/ExercisePlanEditorModal";
 import ExercisePlansSection from "@/components/pet/ExercisePlansSection";
+import PottyScheduleSection from "@/components/pet/PottyScheduleSection";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getExerciseActivityIcon } from "@/constants/activityTypeProgressIcons";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { shouldShowExerciseField } from "@/constants/petInfo";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { ExercisePlanFormEntry } from "@/types/database";
@@ -49,6 +51,8 @@ function draftsToFormEntries(
 }
 
 export default function PetExerciseStep() {
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { pets, currentPetIndex, updateCurrentPet, goToStep, petFlowMode } =
     useOnboardingStore(
       useShallow((s) => ({
@@ -66,6 +70,7 @@ export default function PetExerciseStep() {
   const [plans, setPlans] = useState<ExercisePlanDraft[]>(() =>
     formEntriesToDrafts(pet.exercisePlans ?? []),
   );
+  const [pottyTimes, setPottyTimes] = useState<string[]>(() => pet.pottyTimes ?? []);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("Add activity");
   const [editorDraft, setEditorDraft] = useState<ExercisePlanDraft | null>(
@@ -76,6 +81,7 @@ export default function PetExerciseStep() {
   useEffect(() => {
     setEnergyLevel(pet.energyLevel);
     setPlans(formEntriesToDrafts(pet.exercisePlans ?? []));
+    setPottyTimes(pet.pottyTimes ?? []);
   }, [pet.clientRequestId, currentPetIndex]);
 
   const energyOk =
@@ -135,11 +141,12 @@ export default function PetExerciseStep() {
       updateCurrentPet({
         energyLevel: energyOk ? energyLevel : "",
         exercisePlans: entries,
+        pottyTimes,
         exercisesPerDay: showActivities ? String(entries.length) : "",
       });
       goToStep(nextStepIndex);
     },
-    [plans, energyOk, energyLevel, showActivities, updateCurrentPet, goToStep],
+    [plans, pottyTimes, energyOk, energyLevel, showActivities, updateCurrentPet, goToStep],
   );
 
   const handleContinue = useCallback(() => {
@@ -155,6 +162,7 @@ export default function PetExerciseStep() {
     updateCurrentPet({
       energyLevel: energyOk ? energyLevel : pet.energyLevel,
       exercisePlans: entries,
+      pottyTimes,
       exercisesPerDay: showActivities ? String(entries.length) : "",
     });
     if (
@@ -170,6 +178,7 @@ export default function PetExerciseStep() {
     }
   }, [
     plans,
+    pottyTimes,
     energyOk,
     energyLevel,
     pet.energyLevel,
@@ -185,7 +194,7 @@ export default function PetExerciseStep() {
     <View style={styles.container}>
       <View>
         <Text style={[authOnboardingStyles.screenTitle, { marginBottom: 12 }]}>
-          Exercise requirements
+          Exercise &amp; Potty
         </Text>
 
         <View style={styles.iconCenter}>
@@ -223,6 +232,7 @@ export default function PetExerciseStep() {
             Scheduled activities aren&apos;t tracked for this species.
           </Text>
         )}
+        <PottyScheduleSection times={pottyTimes} onChange={setPottyTimes} />
       </View>
 
       <View style={styles.spacer} />

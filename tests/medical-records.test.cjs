@@ -501,7 +501,7 @@ test("viewer exposes Close, Save and Share during a preview and keeps Close enab
         },
         openLocalMedicalRecord: async () => {},
       },
-      "@/theme/colors": { Colors: {} },
+      "@/theme/colors": require("./theme-mocks.cjs"),
       "@/theme/typography": { Font: {} },
       "@/utils/medicalRecordFiles": files,
       "@expo/vector-icons": { MaterialCommunityIcons: "Icon" },

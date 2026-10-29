@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
@@ -33,6 +33,8 @@ export default function TagInput({
   suggestions,
   containerStyle,
 }: TagInputProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -152,7 +154,7 @@ export default function TagInput({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   wrapper: {
     position: "relative",
     zIndex: 50,
@@ -252,4 +254,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.orange,
   },
-});
+}));

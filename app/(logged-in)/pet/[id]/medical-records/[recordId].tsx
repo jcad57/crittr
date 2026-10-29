@@ -8,7 +8,7 @@ import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
 import type { ProSoftPaywallKind } from "@/constants/proCopy";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   useDeleteMedicalRecordFileMutation,
   useDeletePetMedicalRecordMutation,
@@ -22,7 +22,7 @@ import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useMedicalRecordPreview } from "@/hooks/useMedicalRecordPreview";
-import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
 import { shareMedicalRecordFile } from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
@@ -42,6 +42,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditMedicalRecordScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();

@@ -4,10 +4,9 @@ import {
   getMealsActivityIcon,
 } from "@/constants/activityTypeProgressIcons";
 import { Font } from "@/theme/typography";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, getThemeColors, useThemeValues } from "@/theme/colors";
 import type { ActivityType } from "@/types/database";
 import { Image } from "expo-image";
-import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Option = {
@@ -19,6 +18,7 @@ type Option = {
 };
 
 function midOptions(petType: string | null | undefined): Option[] {
+  const Colors = getThemeColors();
   return [
     {
       type: "food",
@@ -38,6 +38,7 @@ function midOptions(petType: string | null | undefined): Option[] {
 }
 
 function exerciseOption(petType: string | null | undefined): Option {
+  const Colors = getThemeColors();
   return {
     type: "exercise",
     label: "Exercise",
@@ -47,7 +48,7 @@ function exerciseOption(petType: string | null | undefined): Option {
   };
 }
 
-const DOG_EXTRA: Option[] = [
+const getDogExtra = createThemeValues((Colors) : Option[] => ([
   {
     type: "training",
     label: "Training",
@@ -62,9 +63,9 @@ const DOG_EXTRA: Option[] = [
     color: Colors.progressTreats,
     bg: Colors.progressTreatsTrack,
   },
-];
+]));
 
-const CAT_EXTRA: Option[] = [
+const getCatExtra = createThemeValues((Colors) : Option[] => ([
   {
     type: "maintenance",
     label: "Maintenance",
@@ -72,17 +73,20 @@ const CAT_EXTRA: Option[] = [
     color: Colors.progressTreats,
     bg: Colors.progressTreatsTrack,
   },
-];
+]));
 
-const WEIGH_IN_OPTION: Option = {
+const getWeighInOption = createThemeValues((Colors) : Option => ({
   type: "weigh_in",
   label: "Weigh-in",
   iconSource: ACTIVITY_TYPE_LOG_ICONS.weigh_in,
   color: Colors.skyDark,
   bg: Colors.sky,
-};
+}));
 
 function optionsForPetType(petType: string | null | undefined): Option[] {
+  const DOG_EXTRA = getDogExtra(getThemeColors());
+  const CAT_EXTRA = getCatExtra(getThemeColors());
+  const WEIGH_IN_OPTION = getWeighInOption(getThemeColors());
   const exercise = exerciseOption(petType);
   const mid = midOptions(petType);
   if (petType === "cat") {
@@ -108,7 +112,8 @@ export default function ActivityTypeStep({
   showTitle = true,
   disabled = false,
 }: Props) {
-  const options = useMemo(() => optionsForPetType(petType), [petType]);
+  const styles = useThemeValues(getStyles);
+  const options = optionsForPetType(petType);
 
   return (
     <View style={styles.container}>
@@ -150,7 +155,7 @@ export default function ActivityTypeStep({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     width: "100%",
   },
@@ -193,4 +198,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textPrimary,
   },
-});
+}));

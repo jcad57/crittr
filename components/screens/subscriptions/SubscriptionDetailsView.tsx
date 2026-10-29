@@ -4,7 +4,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { OrganicSurface } from "@/components/pro/flow/ProFlowUi";
 import type { SubscriptionDetails } from "@/services/iapSubscription";
 import { formatSubscriptionDate as formatDate, formatStatus } from "@/utils/subscriptionDisplay";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 
 export function subscriptionRenewalCopy(sub: SubscriptionDetails): string {
@@ -17,6 +17,8 @@ export function subscriptionRenewalCopy(sub: SubscriptionDetails): string {
   return `${sub.status === "trialing" ? "Trial ends" : "Next renewal"} · ${formatDate(sub.currentPeriodEnd)}`;
 }
 export function SubscriptionDetailsView({ sub }: { sub: SubscriptionDetails }) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const compact = useWindowDimensions().height < 900;
   const cadence = sub.isLifetime ? "Lifetime" : sub.isPromotional ? "Complimentary" : sub.planLabel === "annual" ? "Annual" : "Monthly";
   const price = sub.isLifetime || sub.isPromotional ? cadence : `${cadence}${sub.priceFormatted !== "—" ? ` · ${sub.priceFormatted}` : ""}`;
@@ -30,7 +32,7 @@ export function SubscriptionDetailsView({ sub }: { sub: SubscriptionDetails }) {
     <Text style={styles.renewal}>{subscriptionRenewalCopy(sub)}</Text>
   </OrganicSurface>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   hero: { padding: 23, paddingTop: 27, paddingBottom: 24, marginTop: 22 },
   top: { minHeight: 65, flexDirection: "row", alignItems: "flex-start" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   brand: { fontFamily: Font.displayBold, fontSize: 26, color: Colors.warmWhite }, tagline: { fontFamily: Font.uiRegular, fontSize: 11, lineHeight: 16, color: "#DDD5CB", marginTop: 6, maxWidth: 220 },
@@ -39,4 +41,4 @@ const styles = StyleSheet.create({
   subline: { fontFamily: Font.uiRegular, fontSize: 12, color: "#CCC5BD", marginTop: 5 },
   status: { backgroundColor: "#DDE8C2", borderRadius: 13, paddingVertical: 4, paddingHorizontal: 11 }, statusText: { fontFamily: Font.uiBold, fontSize: 11, color: "#34452B" },
   rule: { height: StyleSheet.hairlineWidth, backgroundColor: "#62594E", marginVertical: 17 }, renewal: { fontFamily: Font.uiRegular, fontSize: 13, lineHeight: 20, color: "#E5DED5" },
-});
+}));

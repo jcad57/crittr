@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
@@ -6,7 +6,7 @@ import { StyleSheet } from "react-native";
  * Shared typography + surfaces for auth stack and onboarding steps.
  * Aligns with logged-in UI: cream context, Fraunces display titles, DM Sans body.
  */
-export const authOnboardingStyles = StyleSheet.create({
+export const getAuthOnboardingStyles = createThemeValues((Colors) => StyleSheet.create({
   screenTitle: {
     fontFamily: Font.displayBold,
     fontSize: 24,
@@ -124,4 +124,4 @@ export const authOnboardingStyles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

@@ -1,7 +1,8 @@
+import AdBanner from "@/components/ads/AdBanner";
 import PetFeatureCard from "@/components/ui/pets/PetFeatureCard";
 import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
 import type { ProSoftPaywallKind } from "@/constants/proCopy";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -12,7 +13,7 @@ import type { PetWithRole } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import type { Href } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -24,6 +25,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetsScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
@@ -94,12 +97,14 @@ export default function PetsScreen() {
                 ? "orange"
                 : "dark";
             return (
-              <PetFeatureCard
-                key={pet.id}
-                pet={pet}
-                variant={variant}
-                role={(pet as PetWithRole).role}
-              />
+              <Fragment key={pet.id}>
+                <PetFeatureCard
+                  pet={pet}
+                  variant={variant}
+                  role={(pet as PetWithRole).role}
+                />
+                {index === 0 && <AdBanner placement="pets_after_first" />}
+              </Fragment>
             );
           })}
         </ScrollView>
@@ -114,10 +119,10 @@ export default function PetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   headerRow: {
     flexDirection: "row",
@@ -170,4 +175,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 48,
   },
-});
+}));

@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import PetMedicationNavHeader from "@/components/petScreens/medication/PetMedicationNavHeader";
 import { ScrollView, Text, View } from "react-native";
@@ -12,6 +13,7 @@ export default function PetMedicationNoPermissionAddView({
   topInset,
   onBack,
 }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.screen, { paddingTop: topInset + 8 }]}>
       <PetMedicationNavHeader

@@ -1,4 +1,5 @@
-import { styles } from "@/screen-styles/subscriptions.styles";
+import { useThemeValues } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/subscriptions.styles";
 import { Text, View } from "react-native";
 
 export function SubscriptionRow({
@@ -8,6 +9,7 @@ export function SubscriptionRow({
   label: string;
   value: string;
 }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>

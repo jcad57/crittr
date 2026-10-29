@@ -1,9 +1,10 @@
+import { useThemeValues } from "@/theme/colors";
 import ExpiryDateField from "@/components/ui/form/ExpiryDateField";
 import FormInput from "@/components/ui/form/FormInput";
 import OptInStep from "@/components/onboarding/OptInStep";
-import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles as getStyles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
 import type { VaccinationFormEntry } from "@/types/database";
@@ -16,6 +17,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 export default function PetVaccinationsStep() {
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { pets, currentPetIndex, updateCurrentPet, nextStep, prevStep } =
     useOnboardingStore(
       useShallow((s) => ({

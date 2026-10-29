@@ -1,11 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { OrganicSurface, ProIllustration, ProLink, flowStyles, type ProIcon } from "./ProFlowUi";
+import { OrganicSurface, ProIllustration, ProLink, getFlowStyles, type ProIcon } from "./ProFlowUi";
 
 export function ProFreePlanView({ onUpgrade, onExit, onRestore }: { onUpgrade: () => void; onExit: () => void; onRestore: () => void }) {
+  const Colors = useThemeColors();
+  const flowStyles = useThemeValues(getFlowStyles);
   const included: { icon: ProIcon; title: string; body: string }[] = [
     { icon: "paw-outline", title: "3 pets", body: "Includes memorialized pets" },
     { icon: "account-group-outline", title: "1 co-carer per pet", body: "Invite a friend or family member" },

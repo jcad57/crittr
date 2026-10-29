@@ -1,5 +1,5 @@
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { PICKER_MIN_DATE } from "@/utils/dateTimePickerBounds";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -27,6 +27,8 @@ export default function PetDateOfBirthField({
   onClearDate,
   error,
 }: PetDateOfBirthFieldProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [pickerVisible, setPickerVisible] = useState(false);
   /** Stable ref so the date picker does not receive a new `maximumDate` object every render (can contribute to update loops). */
   const maximumDateRef = useRef(new Date());
@@ -97,7 +99,7 @@ export default function PetDateOfBirthField({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   datePickerButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -137,4 +139,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-});
+}));

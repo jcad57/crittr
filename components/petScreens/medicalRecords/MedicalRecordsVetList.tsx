@@ -1,10 +1,10 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { vetKindIcon } from "@/utils/medicalRecordsListFormat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/medical-records.styles";
 
 export type VetRow = {
   key: string;
@@ -22,6 +22,8 @@ type Props = {
 };
 
 export default function MedicalRecordsVetList({ loading, vetRows, push }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <HealthListCard>
       {loading ? (

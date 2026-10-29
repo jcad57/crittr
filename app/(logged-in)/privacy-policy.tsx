@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { privacyPolicySections } from "@/content/privacyPolicy";
 import { Font } from "@/theme/typography";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
@@ -8,6 +8,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PrivacyPolicyScreen() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const router = useRouter();
@@ -42,10 +43,10 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   scroll: { flex: 1 },
   body: {
@@ -68,4 +69,4 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginBottom: 10,
   },
-});
+}));

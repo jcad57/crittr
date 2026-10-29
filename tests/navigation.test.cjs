@@ -16,7 +16,7 @@ function loadTabLayout() {
   const Tabs = Object.assign(() => null, { Screen: () => null });
   return loadTS("app/(logged-in)/(tabs)/_layout.tsx", {
     "react/jsx-runtime": require("react/jsx-runtime"),
-    "@/theme/colors": { Colors: {} },
+    "@/theme/colors": require("./theme-mocks.cjs"),
     "expo-router": { Tabs },
   }).default();
 }
@@ -28,7 +28,7 @@ function renderNav(pathname) {
     {
       "react/jsx-runtime": require("react/jsx-runtime"),
       react: { useEffect() {} },
-      "@/theme/colors": { Colors: {} },
+      "@/theme/colors": require("./theme-mocks.cjs"),
       "@/theme/typography": { Font: {} },
       "@/lib/navigation/floatingNav": loadTS("lib/navigation/floatingNav.ts"),
       "@expo/vector-icons": { MaterialCommunityIcons: () => null },

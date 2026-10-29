@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -6,6 +6,7 @@ type Props = { label: string; value: string };
 
 /** Label + value row for co-carer read-only detail screens. */
 export function ReadOnlyFieldRow({ label, value }: Props) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
@@ -14,7 +15,7 @@ export function ReadOnlyFieldRow({ label, value }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     backgroundColor: Colors.white,
     borderRadius: 14,
@@ -38,4 +39,4 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     lineHeight: 22,
   },
-});
+}));

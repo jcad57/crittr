@@ -1,10 +1,10 @@
 import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
-  ACTIVITY_ROW_ICONS,
+  getActivityRowIcons,
   resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { ActivityHistoryEntry } from "@/data/activityHistory";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -23,6 +23,9 @@ export default function ActivityHistoryRow({
   petType = null,
   onPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const ACTIVITY_ROW_ICONS = useThemeValues(getActivityRowIcons);
   const cfg = ACTIVITY_ROW_ICONS[entry.category];
   const iconSource = resolveActivityRowIconSource(entry.category, petType);
   const showChevron = !!onPress;
@@ -96,7 +99,7 @@ export default function ActivityHistoryRow({
   return <View style={styles.card}>{row}</View>;
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -174,4 +177,4 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginLeft: -2,
   },
-});
+}));

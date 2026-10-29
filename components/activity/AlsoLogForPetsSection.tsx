@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { Pet } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -43,6 +43,8 @@ export default function AlsoLogForPetsSection({
   onRemovePet,
   fieldLabelStyle,
 }: AlsoLogForPetsSectionProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const [pickPetOpen, setPickPetOpen] = useState(false);
 
   if (selectablePets.length === 0 && extraPetIds.length === 0) {
@@ -137,7 +139,7 @@ export default function AlsoLogForPetsSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   batchSection: {
     marginBottom: 12,
   },
@@ -231,4 +233,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-});
+}));

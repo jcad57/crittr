@@ -1,6 +1,6 @@
 import { runWhenIdle } from "@/lib/runWhenIdle";
 import { trackAppRatingPromptShown } from "@/lib/analytics";
-import { APP_OPEN_LAST_SHOWN_STORAGE_KEY } from "@/lib/appOpenAdLastShown";
+import { wasFullScreenAdShownRecently } from "@/lib/ads/fullScreenAdState";
 import {
   ensureAppRatingFirstOpenRecorded,
   loadAppRatingState,
@@ -14,14 +14,13 @@ import {
   shouldShowAppRatingPrompt,
   type AppRatingState,
 } from "@/utils/appRatingSchedule";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 
-/** Let the dashboard paint (and app-open ads settle) before interrupting. */
+/** Let the dashboard paint (and full-screen ads settle) before interrupting. */
 const EVALUATE_DELAY_MS = 2800;
-const RECENT_APP_OPEN_AD_MS = 45_000;
+const RECENT_FULL_SCREEN_AD_MS = 45_000;
 
 const BLOCKED_PATH_PARTS = [
   "upgrade",
@@ -42,17 +41,6 @@ let nativeReviewClaimedThisProcess = false;
 
 function pathIsBlocked(pathname: string): boolean {
   return BLOCKED_PATH_PARTS.some((part) => pathname.includes(part));
-}
-
-async function appOpenAdShownRecently(): Promise<boolean> {
-  try {
-    const raw = await AsyncStorage.getItem(APP_OPEN_LAST_SHOWN_STORAGE_KEY);
-    const ts = raw ? Number(raw) : NaN;
-    if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts < RECENT_APP_OPEN_AD_MS;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -126,11 +114,11 @@ export function useAppRatingPrompt(): void {
     }
 
     if (!shouldShowAppRatingPrompt(state, Date.now())) return;
-    if (await appOpenAdShownRecently()) {
+    if (await wasFullScreenAdShownRecently()) {
       clearTimer();
       timerRef.current = setTimeout(() => {
         void evaluateRef.current();
-      }, RECENT_APP_OPEN_AD_MS);
+      }, RECENT_FULL_SCREEN_AD_MS);
       return;
     }
 

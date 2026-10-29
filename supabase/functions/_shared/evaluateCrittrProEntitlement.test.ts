@@ -55,6 +55,7 @@ describe("evaluateEntitlement", () => {
           crittr_pro_monthly: {
             expires_date: future,
             store: "app_store",
+            is_sandbox: false,
           },
         },
       }),
@@ -78,6 +79,9 @@ describe("evaluateEntitlement", () => {
             purchase_date: "2026-08-01T00:00:00.000Z",
           },
         },
+        subscriptions: {
+          crittr_pro_annual: { expires_date: future, store: "app_store", is_sandbox: false },
+        },
       }),
       now,
     );
@@ -98,6 +102,7 @@ describe("evaluateEntitlement", () => {
           crittr_pro_monthly: {
             expires_date: future,
             store: "app_store",
+            is_sandbox: false,
             unsubscribe_detected_at: "2026-08-05T00:00:00.000Z",
           },
         },
@@ -126,6 +131,7 @@ describe("evaluateEntitlement", () => {
           crittr_pro_monthly: {
             expires_date: past,
             store: "app_store",
+            is_sandbox: false,
           },
         },
       }),
@@ -195,6 +201,7 @@ describe("evaluateEntitlement", () => {
           crittr_pro_annual: {
             expires_date: future,
             store: "app_store",
+            is_sandbox: false,
             ownership_type: "FAMILY_SHARED",
           },
         },
@@ -231,6 +238,7 @@ describe("evaluateEntitlement", () => {
           crittr_pro_annual: {
             expires_date: future,
             store: "play_store",
+            is_sandbox: false,
             unsubscribe_detected_at: "2026-08-05T00:00:00.000Z",
           },
         },
@@ -326,6 +334,7 @@ describe("evaluateEntitlement", () => {
         monthly: {
           expires_date: past,
           store: "app_store",
+          is_sandbox: false,
           grace_period_expires_date: future,
           billing_issues_detected_at: past,
         },
@@ -357,9 +366,10 @@ describe("evaluateEntitlement", () => {
           "pro:old": {
             expires_date: past,
             store: "play_store",
+            is_sandbox: false,
             refunded_at: past,
           },
-          "pro:annual": { expires_date: future, store: "play_store" },
+          "pro:annual": { expires_date: future, store: "play_store", is_sandbox: false },
         },
       }),
       now,
@@ -422,5 +432,18 @@ describe("evaluateEntitlement", () => {
       ).kind,
       "confirmed_inactive",
     );
+  });
+
+  it("does not classify a receipt with missing store/environment as production", () => {
+    const data = payload({ entitlements: { crittr_pro: {
+      expires_date: future, product_identifier: "annual", purchase_date: past,
+    } } });
+    assert.equal(evaluateEntitlement(data, now, { allowSandbox: false }).kind, "unknown");
+    data.subscriber.subscriptions = { annual: { expires_date: future, store: "app_store" } };
+    assert.equal(evaluateEntitlement(data, now, { allowSandbox: false }).kind, "unknown");
+    data.subscriber.subscriptions.annual.is_sandbox = true;
+    assert.equal(evaluateEntitlement(data, now, { allowSandbox: false }).kind, "confirmed_inactive");
+    data.subscriber.subscriptions.annual.is_sandbox = false;
+    assert.equal(evaluateEntitlement(data, now, { allowSandbox: false }).kind, "active");
   });
 });

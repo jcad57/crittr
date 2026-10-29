@@ -1,7 +1,8 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
 
 export default function Divider({ spacing }: { spacing?: number }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.divider}>
       <View
@@ -11,7 +12,7 @@ export default function Divider({ spacing }: { spacing?: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
@@ -23,4 +24,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
     maxWidth: "80%",
   },
-});
+}));

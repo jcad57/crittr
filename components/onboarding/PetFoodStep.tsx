@@ -1,11 +1,12 @@
+import { useThemeValues } from "@/theme/colors";
 import FormInput from "@/components/ui/form/FormInput";
-import { petCareStyles as styles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles as getStyles } from "@/components/onboarding/petCareStyles";
 import PetFoodMealScheduleSection from "@/components/onboarding/petFood/PetFoodMealScheduleSection";
 import PetFoodTypeToggle from "@/components/onboarding/petFood/PetFoodTypeToggle";
 import MealPortionEditorModal from "@/components/pet/MealPortionEditorModal";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { getMealsActivityIcon } from "@/constants/activityTypeProgressIcons";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { foodBrandInputPlaceholder } from "@/constants/petFoodFormConstants";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
@@ -26,6 +27,8 @@ const TREAT_DEFAULT_UNIT = "Piece(s)";
 const MEAL_DEFAULT_UNIT = "Cups";
 
 export default function PetFoodStep() {
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const {
     pets,
     currentPetIndex,

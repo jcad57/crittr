@@ -19,6 +19,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { confirmPottyBreak, type PottyBreakOutcome } from "@/hooks/mutations/confirmPottyBreak";
 
 export function useScheduleDayQuery(
   petId: string | null | undefined,
@@ -92,6 +93,7 @@ type ToggleVars = {
   completed: boolean;
   /** Set in `onMutate` so `mutationFn` registers the same generation. */
   generation?: number;
+  pottyOutcome?: PottyBreakOutcome;
 };
 
 type ToggleContext = {
@@ -110,7 +112,7 @@ export function useToggleScheduleItemMutation() {
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   return useMutation({
-    mutationFn: ({ item, completed, generation }: ToggleVars) => {
+    mutationFn: ({ item, completed, generation, pottyOutcome }: ToggleVars) => {
       if (!userId) throw new Error("Not signed in");
       if (generation == null) {
         throw new Error("Missing toggle generation");
@@ -121,10 +123,16 @@ export function useToggleScheduleItemMutation() {
         petId: item.pet_id,
         completed,
         generation,
+        pottyOutcome,
       });
     },
     onMutate: async (vars): Promise<ToggleContext> => {
       const { item, completed } = vars;
+      if (item.activity_type === "potty" && completed) {
+        const outcome = await confirmPottyBreak(item.id);
+        if (!outcome || !userId || useAuthStore.getState().session?.user?.id !== userId) throw new Error("Potty break cancelled");
+        vars.pottyOutcome = outcome;
+      }
       const key = scheduleDayKey(item.pet_id, item.local_date);
       const generation = beginScheduleItemToggle(item.id);
       vars.generation = generation;

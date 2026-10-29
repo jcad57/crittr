@@ -5,7 +5,7 @@ import FoodPetFieldsRow from "@/components/activity/FoodPetFieldsRow";
 import DropdownSelect from "@/components/ui/form/DropdownSelect";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { PORTION_UNITS } from "@/constants/petFoodFormConstants";
 import { Font } from "@/theme/typography";
 import { usePetDetailsQuery, usePetsQuery } from "@/hooks/queries";
@@ -48,6 +48,7 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
     },
     ref,
   ) {
+  const styles = useThemeValues(getStyles);
   const form = useActivityFormStore((s) => s.foodForm);
   const update = useActivityFormStore((s) => s.updateFood);
   const foodExtraRows = useActivityFormStore((s) => s.foodExtraRows);
@@ -377,7 +378,7 @@ const FoodDetailStep = forwardRef<ActivityDetailStepRef, Props>(
 
 export default FoodDetailStep;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: { flex: 1 },
   containerEmbedded: { width: "100%" },
   title: {
@@ -495,4 +496,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
-});
+}));

@@ -1,10 +1,10 @@
 import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
-  ACTIVITY_ROW_ICONS,
+  getActivityRowIcons,
   resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { displayCategory, pottyBreakSummary } from "@/data/activityHistory";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -67,6 +67,9 @@ export default function ActivityItem({
   petType = null,
   onPress,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const ACTIVITY_ROW_ICONS = useThemeValues(getActivityRowIcons);
   const { timeDisplay } = useUserDateTimePrefs();
   const category = displayCategory(activity);
   const iconCfg = ACTIVITY_ROW_ICONS[category];
@@ -142,7 +145,7 @@ export default function ActivityItem({
   return <View style={styles.card}>{row}</View>;
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -213,4 +216,4 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginLeft: -2,
   },
-});
+}));

@@ -3,7 +3,7 @@ import CoCareReadOnlyNotice from "@/components/coCare/CoCareReadOnlyNotice";
 import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { petDetailsQueryKey, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
@@ -26,19 +26,23 @@ import {
 } from "react-native";
 
 /** Same as notification toggles on Manage notifications: saturated on, neutral off. */
-const MICROCHIP_SWITCH_TRACK = {
+const getMicrochipSwitchTrack = createThemeValues((Colors) => ({
   false: Colors.gray200,
   true: Colors.orange,
-} as const;
+} as const));
 
-const MICROCHIP_SWITCH_IOS_BG =
-  Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {};
+const getMicrochipSwitchIosBg = createThemeValues((Colors) => (Platform.OS === "ios" ? { ios_backgroundColor: Colors.gray200 } : {}));
 
-const MICROCHIP_SWITCH_THUMB = Colors.white;
+const getMicrochipSwitchThumb = createThemeValues((Colors) => (Colors.white));
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PetMicrochipScreen() {
+  const Colors = useThemeColors();
+  const MICROCHIP_SWITCH_TRACK = useThemeValues(getMicrochipSwitchTrack);
+  const MICROCHIP_SWITCH_IOS_BG = useThemeValues(getMicrochipSwitchIosBg);
+  const MICROCHIP_SWITCH_THUMB = useThemeValues(getMicrochipSwitchThumb);
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { replace, router } = useNavigationCooldown();
@@ -223,10 +227,10 @@ export default function PetMicrochipScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -294,4 +298,4 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 0,
   },
-});
+}));

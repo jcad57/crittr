@@ -1,10 +1,10 @@
 import {
   ACTIVITY_ROW_ICON_BOX,
   ACTIVITY_ROW_ICON_IMG,
-  ACTIVITY_ROW_ICONS,
+  getActivityRowIcons,
   resolveActivityRowIconSource,
 } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { PetScheduleItem } from "@/types/database";
@@ -48,6 +48,9 @@ export default function MatchScheduleTaskModal({
   onLogNewTask,
   onClose,
 }: MatchScheduleTaskModalProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const ACTIVITY_ROW_ICONS = useThemeValues(getActivityRowIcons);
   const { timeDisplay } = useUserDateTimePrefs();
   const displayName = petName.trim() || "your pet";
   const busy = completingItemId != null;
@@ -173,7 +176,7 @@ export default function MatchScheduleTaskModal({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -261,4 +264,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.orange,
   },
-});
+}));

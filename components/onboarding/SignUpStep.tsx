@@ -1,7 +1,7 @@
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useAuthStore } from "@/stores/authStore";
 import { ONBOARDING_STEPS, useOnboardingStore } from "@/stores/onboardingStore";
@@ -13,6 +13,8 @@ import { useShallow } from "zustand/react/shallow";
 import SocialAuthContainer from "./SocialAuthContainer";
 
 export default function SignUpStep() {
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const router = useRouter();
   const {
     accountData,
@@ -196,7 +198,7 @@ export default function SignUpStep() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -253,4 +255,4 @@ const styles = StyleSheet.create({
   termsPressable: {
     alignSelf: "center",
   },
-});
+}));

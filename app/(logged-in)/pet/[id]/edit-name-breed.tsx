@@ -4,7 +4,7 @@ import { ReadOnlyFieldRow } from "@/components/coCare/ReadOnlyFieldRow";
 import AutocompleteInput from "@/components/ui/form/AutocompleteInput";
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { getBreedLabelForPetType } from "@/constants/petInfo";
 import { Font } from "@/theme/typography";
 import {
@@ -28,6 +28,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditPetNameAndBreedScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
@@ -172,10 +174,10 @@ export default function EditPetNameAndBreedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     justifyContent: "center",
@@ -208,4 +210,4 @@ const styles = StyleSheet.create({
   field: {
     marginBottom: 16,
   },
-});
+}));

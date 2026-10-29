@@ -169,6 +169,10 @@ function evaluateCandidate(
   const store =
     transaction?.store ??
     (ent.product_identifier.startsWith("rc_promo_") ? "promotional" : null);
+  // Incomplete provider data cannot prove the store/environment. Preserve the
+  // previous verification rather than treating an unclassified receipt as production.
+  if (store === null || (store !== "promotional" && typeof transaction?.is_sandbox !== "boolean"))
+    return { kind: "unknown" };
   // Promotional grants are production access even on a sandbox test device.
   const isSandbox = store !== "promotional" && transaction?.is_sandbox === true;
   if (

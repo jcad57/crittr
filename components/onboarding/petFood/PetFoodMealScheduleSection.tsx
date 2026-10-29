@@ -1,6 +1,6 @@
-import { petCareStyles as pcStyles } from "@/components/onboarding/petCareStyles";
-import { stepStyles } from "@/components/onboarding/PetFoodStep.styles";
-import { Colors } from "@/theme/colors";
+import { getPetCareStyles as getPcStyles } from "@/components/onboarding/petCareStyles";
+import { getStepStyles } from "@/components/onboarding/PetFoodStep.styles";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import type { MealPortionDraft } from "@/utils/petFood";
 import { formatUserTime } from "@/utils/userDateTimeFormat";
@@ -30,6 +30,9 @@ export default function PetFoodMealScheduleSection({
   addPortionButtonError,
   portionRowAmountMissing,
 }: Props) {
+  const Colors = useThemeColors();
+  const pcStyles = useThemeValues(getPcStyles);
+  const stepStyles = useThemeValues(getStepStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   return (
     <>

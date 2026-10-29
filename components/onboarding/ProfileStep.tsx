@@ -1,7 +1,7 @@
 import FormInput from "@/components/ui/form/FormInput";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
-import { Colors } from "@/theme/colors";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { profileQueryKey } from "@/hooks/queries";
 import { queryClient } from "@/lib/query/client";
@@ -22,6 +22,9 @@ import {
 } from "react-native";
 
 export default function ProfileStep() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const {
     profileData,
     setProfileData,
@@ -217,7 +220,7 @@ export default function ProfileStep() {
 
 const AVATAR_SIZE = 100;
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -288,4 +291,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 16,
   },
-});
+}));

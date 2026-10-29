@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import {
   ENERGY_OPTIONS,
   PET_INFO_FIELD_MARGIN_BOTTOM,
@@ -18,6 +18,7 @@ export default function PetEnergyLevelToggle({
   onChange,
   error,
 }: PetEnergyLevelToggleProps) {
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <Text style={[styles.sectionTitle, error && styles.sectionTitleError]}>
@@ -49,7 +50,7 @@ export default function PetEnergyLevelToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   sectionTitle: {
     fontFamily: Font.uiBold,
     fontSize: 16,
@@ -90,4 +91,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiBold,
     color: Colors.orange,
   },
-});
+}));

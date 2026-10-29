@@ -1,5 +1,5 @@
 import { ACTIVITY_ROW_ICON_BOX } from "@/constants/activityRowIcons";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useSkeletonPulse } from "@/hooks/useSkeletonPulse";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
@@ -13,6 +13,7 @@ const SECTIONS = [
 ];
 
 function SkeletonCard({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle> }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.card}>
       <Animated.View style={[styles.iconSkel, pulseStyle]} />
@@ -33,6 +34,7 @@ function SkeletonCard({ pulseStyle }: { pulseStyle: AnimatedStyle<ViewStyle> }) 
  * pets, where the surrounding chrome never changes.
  */
 export default function ScheduleDaySkeleton() {
+  const styles = useThemeValues(getStyles);
   const pulseStyle = useSkeletonPulse();
 
   return (
@@ -55,7 +57,7 @@ export default function ScheduleDaySkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     gap: 22,
     paddingTop: 10,
@@ -116,4 +118,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
     flexShrink: 0,
   },
-});
+}));

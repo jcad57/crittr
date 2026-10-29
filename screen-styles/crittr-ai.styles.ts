@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
@@ -7,10 +7,10 @@ export const INPUT_LINE_HEIGHT = 22;
 export const INPUT_MAX_VISIBLE_LINES = 6;
 export const INPUT_MAX_HEIGHT = INPUT_LINE_HEIGHT * INPUT_MAX_VISIBLE_LINES + 20;
 
-export const styles = StyleSheet.create({
+export const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   header: {
     flexDirection: "row",
@@ -138,4 +138,4 @@ export const styles = StyleSheet.create({
   },
   sendBtnPressed: { opacity: 0.88 },
   sendBtnDisabled: { opacity: 0.45 },
-});
+}));

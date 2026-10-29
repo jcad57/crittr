@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { VetVisitSummary } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,6 +18,8 @@ export default function UpcomingVisitFeatureCard({
   onPress,
   empty,
 }: UpcomingVisitFeatureCardProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   if (empty || !visit) {
     const inner = (
       <View style={styles.emptyInner}>
@@ -110,7 +112,7 @@ export default function UpcomingVisitFeatureCard({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     borderRadius: 26,
     backgroundColor: Colors.peach,
@@ -191,4 +193,4 @@ const styles = StyleSheet.create({
     color: Colors.peachDark,
     lineHeight: 18,
   },
-});
+}));

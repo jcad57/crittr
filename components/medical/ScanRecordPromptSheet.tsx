@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
@@ -49,6 +49,8 @@ export default function ScanRecordPromptSheet({
   isScanning,
   onFullyDismissed,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(false);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -176,7 +178,7 @@ export default function ScanRecordPromptSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   dim: {
     ...StyleSheet.absoluteFill,
@@ -241,4 +243,4 @@ const styles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.7,
   },
-});
+}));

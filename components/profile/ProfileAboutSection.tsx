@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { Profile } from "@/types/database";
 import {
@@ -32,6 +32,8 @@ export default function ProfileAboutSection({
   onCancelEdit,
   onSaveBio,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <>
       <ProfileSectionHeader
@@ -117,7 +119,7 @@ export default function ProfileAboutSection({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -204,4 +206,4 @@ const styles = StyleSheet.create({
   bioBtnDisabled: {
     opacity: 0.65,
   },
-});
+}));

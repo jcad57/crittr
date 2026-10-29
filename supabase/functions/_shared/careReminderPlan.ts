@@ -66,15 +66,17 @@ export function buildDueCareReminders(input: CareReminderInput, now = new Date()
       if (item.completed_at) continue;
       const food = item.activity_type === "food";
       const med = item.activity_type === "medication";
+      const potty = item.activity_type === "potty";
       const treat = item.source_kind === "food_treat";
-      const source = med ? pet.medications.find((m) => m.id === item.source_id)
+      const source = potty ? { created_at: pet.potty_schedule_updated_at ?? pet.created_at }
+        : med ? pet.medications.find((m) => m.id === item.source_id)
         : food ? pet.foods.find((f) => f.id === item.meta.food_id)
         : pet.exercise_plans.find((p) => p.id === item.source_id) ?? pet.exercise ?? pet;
       accept({
         local_date: date, source_kind: item.source_kind, source_id: item.source_id, source_slot: item.source_slot,
         reminder_key: "due", scheduled_at: careWallTimeToDate(date, item.scheduled_time, zone).toISOString(),
-        category: food ? "notify_meals_treats" : med ? "notify_medications" : "notify_co_care_activities",
-        title: med ? "Medication reminder" : food ? treat ? "Treat reminder" : "Meal reminder" : "Exercise reminder",
+        category: potty ? "notify_potty_breaks" : food ? "notify_meals_treats" : med ? "notify_medications" : "notify_co_care_activities",
+        title: potty ? "Potty break reminder" : med ? "Medication reminder" : food ? treat ? "Treat reminder" : "Meal reminder" : "Exercise reminder",
         body: `${pet.name}: it's time for ${item.label}${food && item.detail_line ? ` (${item.detail_line})` : ""}.`,
         href: `/(logged-in)/add-activity?petId=${pet.id}&type=${item.activity_type}`,
       }, source?.created_at);

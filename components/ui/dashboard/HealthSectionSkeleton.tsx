@@ -1,5 +1,5 @@
 import HealthListCard from "@/components/ui/health/HealthListCard";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useSkeletonPulse } from "@/hooks/useSkeletonPulse";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
@@ -14,6 +14,7 @@ function SkeletonMedRow({
   pulseStyle: AnimatedStyle<ViewStyle>;
   isLast: boolean;
 }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={[styles.medRowWrap, !isLast && styles.medRowBorder]}>
       <View style={styles.medRowMain}>
@@ -34,6 +35,7 @@ function SkeletonVisitRow({
 }: {
   pulseStyle: AnimatedStyle<ViewStyle>;
 }) {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.visitRowWrap}>
       <View style={styles.visitRowMain}>
@@ -50,6 +52,7 @@ function SkeletonVisitRow({
 
 /** Mirrors {@link HealthSection}: medications list + peach visit cards with a date tile. */
 export default function HealthSectionSkeleton() {
+  const styles = useThemeValues(getStyles);
   const pulseStyle = useSkeletonPulse();
 
   return (
@@ -72,7 +75,7 @@ export default function HealthSectionSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     marginBottom: 8,
   },
@@ -178,4 +181,4 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: Colors.gray200,
   },
-});
+}));

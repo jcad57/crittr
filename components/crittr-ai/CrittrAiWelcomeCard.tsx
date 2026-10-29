@@ -1,9 +1,10 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 
 /** Only shown before a conversation starts. Keep the welcome free of decoration. */
 export default function CrittrAiWelcomeCard() {
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.card}>
       <Text style={styles.title}>
@@ -13,7 +14,7 @@ export default function CrittrAiWelcomeCard() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   card: {
     backgroundColor: Colors.lavenderLight,
     borderRadius: 26,
@@ -28,4 +29,4 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   accent: { color: Colors.lavenderDark },
-});
+}));

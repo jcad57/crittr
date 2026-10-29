@@ -1,8 +1,9 @@
+import { useThemeValues } from "@/theme/colors";
 import PetCatLitterSection from "@/components/onboarding/petInfo/PetCatLitterSection";
-import { petCareStyles } from "@/components/onboarding/petCareStyles";
+import { getPetCareStyles } from "@/components/onboarding/petCareStyles";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { ACTIVITY_TYPE_LOG_ICONS } from "@/constants/activityTypeProgressIcons";
-import { authOnboardingStyles } from "@/constants/authOnboardingStyles";
+import { getAuthOnboardingStyles } from "@/constants/authOnboardingStyles";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import type { LitterCleaningPeriod } from "@/types/database";
 import {
@@ -15,6 +16,8 @@ import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function PetLitterMaintenanceStep() {
+  const petCareStyles = useThemeValues(getPetCareStyles);
+  const authOnboardingStyles = useThemeValues(getAuthOnboardingStyles);
   const { profileData, setProfileData, goToStep } = useOnboardingStore(
     useShallow((s) => ({
       profileData: s.profileData,

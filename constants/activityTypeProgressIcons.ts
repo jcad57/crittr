@@ -40,7 +40,7 @@ export const ACTIVITY_TYPE_LOG_ICONS: Record<
   food: MEALS_ACTIVITY_ICON_DOG,
   medication: require("@/assets/icons/medicine-icon.png"),
   training: require("@/assets/icons/dumbbell-icon.png"),
-  potty: require("@/assets/icons/dog-bone-icon.png"),
+  potty: require("@/assets/icons/dog-pee.png"),
   maintenance: require("@/assets/icons/litter-box-icon.png"),
   weigh_in: require("@/assets/icons/weight-scale-icon.png"),
 };
@@ -52,8 +52,9 @@ export function getDailyProgressRingIcons(
   return {
     exercise: getExerciseActivityIcon(petType),
     meals: getMealsActivityIcon(petType),
-    treats: ACTIVITY_TYPE_LOG_ICONS.potty,
+    treats: require("@/assets/icons/dog-bone-icon.png"),
     meds: ACTIVITY_TYPE_LOG_ICONS.medication,
     maintenance: ACTIVITY_TYPE_LOG_ICONS.maintenance,
+    potty: ACTIVITY_TYPE_LOG_ICONS.potty,
   };
 }

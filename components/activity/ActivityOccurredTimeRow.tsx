@@ -1,5 +1,5 @@
 import ReminderTimePickerSheet from "@/components/ui/ReminderTimePickerSheet";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { useActivityFormStore } from "@/stores/activityFormStore";
 import { mergeWallClockOntoToday } from "@/utils/mergeWallClockOntoToday";
@@ -25,6 +25,8 @@ type Props = {
 };
 
 export default function ActivityOccurredTimeRow({ containerStyle }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { timeDisplay } = useUserDateTimePrefs();
   const activityOccurredAt = useActivityFormStore((s) => s.activityOccurredAt);
   const setActivityOccurredAt = useActivityFormStore(
@@ -76,7 +78,7 @@ export default function ActivityOccurredTimeRow({ containerStyle }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   /** Matches `FormInput` `fieldLabel`. */
   fieldLabel: {
     fontFamily: "InstrumentSans-SemiBold",
@@ -106,4 +108,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textPrimary,
   },
-});
+}));

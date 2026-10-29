@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
@@ -23,6 +23,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 const WAIT_MS = 20_000;
 
 export default function OAuthCallback() {
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const routedRef = useRef(false);
 
@@ -76,11 +77,11 @@ export default function OAuthCallback() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   shell: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: Colors.splashBackground,
   },
-});
+}));

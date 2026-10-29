@@ -1,5 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/theme/colors";
+import { useThemeColors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable } from "react-native";
 
@@ -10,6 +10,7 @@ type Props = {
 };
 
 export default function ProfileNavBar({ title, onBack, onSettingsPress }: Props) {
+  const Colors = useThemeColors();
   return (
     <ScreenHeader
       title={title}

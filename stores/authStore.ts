@@ -93,6 +93,7 @@ const loggedOutState = {
   isLoggedIn: false,
   needsOnboarding: false,
   isHydrating: false,
+  pendingLoginAdUserId: null,
 } as const;
 
 let logoutInFlight: Promise<void> | null = null;
@@ -130,6 +131,8 @@ type AuthState = {
    * "Loading your dashboard…".
    */
   isHydrating: boolean;
+  /** In-memory intent from explicit sign-in only; session restore never queues an ad. */
+  pendingLoginAdUserId: string | null;
 
   initialize: () => Promise<void>;
   signUp: (
@@ -218,6 +221,13 @@ async function completeNativeSocialSession(
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
+  const queueExistingUserLoginAd = (session: Session) => {
+    const state = get();
+    if (state.session?.user.id === session.user.id && state.isLoggedIn &&
+        !state.needsOnboarding && !isRecentlyCreatedAuthUser(session)) {
+      set({ pendingLoginAdUserId: session.user.id });
+    }
+  };
   const clearAuxiliarySessionState = (preserveReminderUserId?: string) => {
     void cancelCrittrScheduledNotifications(preserveReminderUserId).catch((error) => console.warn("[notifications] clear schedule", error));
     advanceSessionGeneration();
@@ -388,6 +398,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     isLoggedIn: false,
     needsOnboarding: false,
     isHydrating: false,
+    pendingLoginAdUserId: null,
 
     initialize: () => {
       if (initializationInFlight) return initializationInFlight;
@@ -532,6 +543,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
        * mounts with cache instead of a stuck full-page spinner.
        */
       await get().whenDashboardReady();
+      if (session) queueExistingUserLoginAd(session);
     },
 
     signInWithGoogle: async () => {
@@ -540,6 +552,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const r = await signInWithGoogleNative();
       if (r.status === "cancelled") return;
       await completeNativeSocialSession(get, r.session, "google");
+      queueExistingUserLoginAd(r.session);
     },
 
     signInWithApple: async () => {
@@ -548,6 +561,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const r = await signInWithAppleNative();
       if (r.status === "cancelled") return;
       await completeNativeSocialSession(get, r.session, "apple");
+      queueExistingUserLoginAd(r.session);
     },
 
     whenDashboardReady: () => dashboardReadyWait,

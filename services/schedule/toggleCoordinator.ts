@@ -26,6 +26,7 @@ type ToggleIntent = {
   completed: boolean;
   userId: string;
   petId: string;
+  pottyOutcome?: { pee: boolean; poo: boolean };
 };
 
 const intents = new Map<string, ToggleIntent>();
@@ -119,7 +120,7 @@ async function runLoop(itemId: string): Promise<void> {
 
       try {
         const result = completed
-          ? await completeScheduleItem(itemId, userId)
+          ? await completeScheduleItem(itemId, userId, intent.pottyOutcome)
           : await uncompleteScheduleItem(itemId);
 
         if (!isLatestScheduleItemToggle(itemId, generation)) {
@@ -182,6 +183,7 @@ export function syncScheduleItemCompletion(args: {
   petId: string;
   completed: boolean;
   generation: number;
+  pottyOutcome?: { pee: boolean; poo: boolean };
 }): Promise<PetScheduleItem | null> {
   const { itemId, userId, petId, completed, generation } = args;
 
@@ -199,6 +201,7 @@ export function syncScheduleItemCompletion(args: {
     completed,
     userId,
     petId,
+    pottyOutcome: args.pottyOutcome,
   });
   resolveSupersededWaiters(itemId, generation);
 

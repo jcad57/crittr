@@ -3,7 +3,7 @@ import { useActivityMonthCountQuery } from "@/hooks/queries/useActivityMonthCoun
 import { usePetsQuery } from "@/hooks/queries/usePetsQuery";
 import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
-import { APP_OPEN_LAST_SHOWN_STORAGE_KEY } from "@/lib/appOpenAdLastShown";
+import { wasFullScreenAdShownRecently } from "@/lib/ads/fullScreenAdState";
 import { trackProEvent } from "@/lib/proEvents";
 import {
   isCelebrationSuppressed,
@@ -15,7 +15,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { usePetStore } from "@/stores/petStore";
 import { pickUncelebratedMilestone } from "@/utils/activityMilestones";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
@@ -23,7 +22,6 @@ import { AppState } from "react-native";
 /** Don't celebrate more often than this, even across different pets. */
 const MIN_GAP_MS = 14 * 24 * 60 * 60 * 1000;
 const EVALUATE_DELAY_MS = 2800;
-const RECENT_APP_OPEN_AD_MS = 45_000;
 
 const BLOCKED_PATH_PARTS = [
   "upgrade",
@@ -45,17 +43,6 @@ export type ActivityMilestoneOffer = {
 
 function pathIsBlocked(pathname: string): boolean {
   return BLOCKED_PATH_PARTS.some((part) => pathname.includes(part));
-}
-
-async function appOpenAdShownRecently(): Promise<boolean> {
-  try {
-    const raw = await AsyncStorage.getItem(APP_OPEN_LAST_SHOWN_STORAGE_KEY);
-    const ts = raw ? Number(raw) : NaN;
-    if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts < RECENT_APP_OPEN_AD_MS;
-  } catch {
-    return false;
-  }
 }
 
 export function useActivityMilestoneCelebration(): {
@@ -148,7 +135,7 @@ export function useActivityMilestoneCelebration(): {
     if (milestone == null) return;
 
     let cancelled = false;
-    void appOpenAdShownRecently().then((recentAd) => {
+    void wasFullScreenAdShownRecently().then((recentAd) => {
       if (cancelled || recentAd) return;
       if (shownThisSession.current) return;
       shownThisSession.current = true;

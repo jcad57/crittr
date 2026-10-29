@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -17,6 +17,8 @@ type PetStatChipsProps = {
 };
 
 export default function PetStatChips({ items }: PetStatChipsProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.row}>
       {items.map((item, index) => {
@@ -66,7 +68,7 @@ export default function PetStatChips({ items }: PetStatChipsProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 10,
@@ -108,4 +110,4 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     textAlign: "center",
   },
-});
+}));

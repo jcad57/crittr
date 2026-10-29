@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors } from "@/theme/colors";
 import { useAuth } from "@/context/auth";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import {
@@ -10,6 +10,7 @@ import {
 } from "expo-router";
 
 export default function AuthLayout() {
+  const Colors = useThemeColors();
   const { isLoggedIn, needsOnboarding, isHydrating } = useAuth();
   const emailVerificationPending = useOnboardingStore(
     (s) => s.emailVerificationPending,

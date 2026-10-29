@@ -1,5 +1,5 @@
-import { styles } from "@/screen-styles/notifications.styles";
-import { Colors } from "@/theme/colors";
+import { getStyles } from "@/screen-styles/notifications.styles";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import type { AppNotification } from "@/types/database";
 import { notificationIcon, timeAgo } from "@/utils/notificationDisplay";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +28,8 @@ export function NotificationRow({
   onAccept,
   onDecline,
 }: NotificationRowProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const inviteId = (n.data as Record<string, unknown>)?.invite_id as
     | string
     | undefined;

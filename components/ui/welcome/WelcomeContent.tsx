@@ -1,6 +1,4 @@
 import StepIndicator from "@/components/onboarding/StepIndicator";
-import { Colors } from "@/theme/colors";
-import { Font } from "@/theme/typography";
 import {
   getWelcomeCarouselSlideWidth,
   getWelcomeColumnOuterWidth,
@@ -9,6 +7,8 @@ import {
   WELCOME_SCREEN_WRAPPER_PADDING_H,
   welcomeAuthLayoutScale,
 } from "@/hooks/useResponsiveUi";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
+import { Font } from "@/theme/typography";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,7 +29,7 @@ import OrangeButton from "../buttons/OrangeButton";
 const FEATURES = [
   {
     id: "1",
-    text: "Crittr is a platform that helps you track your pet's health and activities.",
+    text: "Crittr is a platform that simplifies pet care no matter how complex it is.",
   },
   {
     id: "2",
@@ -67,6 +67,7 @@ const PAWS_ASPECT =
     : 1;
 
 export default function WelcomeContent() {
+  const styles = useThemeValues(getStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -197,7 +198,7 @@ export default function WelcomeContent() {
                 },
               ]}
             >
-              Co-care for your best friend
+              Every pet, simply cared for
             </Text>
 
             <View
@@ -279,13 +280,13 @@ export default function WelcomeContent() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   root: {
     flex: 1,
     width: "100%",
     position: "relative",
     overflow: "hidden",
-    backgroundColor: Colors.splashBackground,
+    backgroundColor: Colors.screenBackground,
   },
   screenLayer: {
     flex: 1,
@@ -365,4 +366,4 @@ const styles = StyleSheet.create({
   pawsImage: {
     alignSelf: "center",
   },
-});
+}));

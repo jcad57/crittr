@@ -1,5 +1,5 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useAuthStore } from "@/stores/authStore";
 import { isFromGuestParam } from "@/utils/passwordResetParams";
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const HIGH_FIVE = require("@/assets/images/high-five.png");
 
 export default function ResetPasswordSuccessScreen() {
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { fromGuest: fromGuestParam } = useLocalSearchParams<{
@@ -80,10 +81,10 @@ export default function ResetPasswordSuccessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
     paddingHorizontal: 24,
   },
   body: {
@@ -117,4 +118,4 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 16,
   },
-});
+}));

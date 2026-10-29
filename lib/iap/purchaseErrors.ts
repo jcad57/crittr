@@ -28,6 +28,10 @@ export type PurchaseFailureKind =
   | "pending"
   /** This account already owns Crittr Pro. Activate instead of purchasing. */
   | "already_owned"
+  /** Store receipt belongs to another Crittr login; retrying cannot fix ownership. */
+  | "account_conflict"
+  /** Verified test purchase on an account not enrolled for sandbox access. */
+  | "sandbox_restricted"
   /** Purchases are unavailable on this device / account right now. */
   | "billing_unavailable"
   /** The store result may be incomplete; check access before another purchase. */
@@ -56,6 +60,9 @@ function messageForCode(code: string | undefined): string | null {
       return `Your purchase is waiting on ${storePhrase()} to confirm payment. Crittr Pro unlocks automatically as soon as it clears — you won't be charged twice.`;
     case PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR:
       return "This account already has Crittr Pro. We'll restore it instead of charging you again.";
+    case PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR:
+    case PURCHASES_ERROR_CODE.RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR:
+      return "This Apple or Google purchase is linked to another Crittr account. Sign in to the Crittr account used for the original purchase, or contact support to recover access.";
     case PURCHASES_ERROR_CODE.PURCHASE_NOT_ALLOWED_ERROR:
       return `Purchases aren't available on this device. Make sure you're signed in to ${storePhrase()} and that purchases aren't restricted for your ${storeAccountLabel()}.`;
     case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
@@ -86,8 +93,10 @@ function kindForCode(
     case PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR:
       return "pending";
     case PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR:
-    case PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR:
       return "already_owned";
+    case PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR:
+    case PURCHASES_ERROR_CODE.RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR:
+      return "account_conflict";
     case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
     case PURCHASES_ERROR_CODE.OPERATION_ALREADY_IN_PROGRESS_ERROR:
       return "result_unknown";

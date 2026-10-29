@@ -13,12 +13,12 @@ function renderMake({pets,loading=false,error=false}={}) {
   'react-native':{StyleSheet:{create:x=>x},Pressable:'pressable',Text:'text',View:'view'},
   '@/components/ui/buttons/OrangeButton':{default:'button'},
   '@/components/profile/profileHelpers':{displayNameFromProfile:()=> 'Person Name',initialsFromProfile:()=> 'PN'},
-  '@/components/pro/flow/ProFlowUi':{OrganicSurface:'surface',ProFlowPage:'page',ProLink:'link',flowStyles:{}},
+  '@/components/pro/flow/ProFlowUi':{OrganicSurface:'surface',ProFlowPage:'page',ProLink:'link',getFlowStyles:()=>({})},
   '@/hooks/queries':{useProfileQuery:()=>({data:{avatar_url:'user-avatar'}}),usePetsQuery:()=>({data:pets,isLoading:loading,isError:error,refetch(){}})},
   '@/hooks/useProGateNavigation':{useProGateNavigation:()=>({runWithProOrUpgrade:allow=>allow()})},
   '@/lib/proEvents':{trackProEvent(){}},'@/lib/proEngagementPersistence':{markProOnboardingCompleted:async()=>{}},
   '@/stores/authStore':{useAuthStore:Object.assign(selector=>selector({session:{user:{email:'person@example.invalid'}}}),{getState:()=>({session:{user:{id:'person'}}})})},
-  '@/theme/colors':{Colors:{}},'@/theme/typography':{Font:{}},'@/utils/petParticipation':{isPetActiveForDashboard:p=>!p.is_archived&&!p.is_memorialized},
+  "@/theme/colors": require("./theme-mocks.cjs"),'@/theme/typography':{Font:{}},'@/utils/petParticipation':{isPetActiveForDashboard:p=>!p.is_archived&&!p.is_memorialized},
  });
  return {tree:module.default(),destinations};
 }
@@ -57,7 +57,7 @@ test('management copy distinguishes renewal, cancellation, family access and gra
  const {subscriptionRenewalCopy}=loadTS('components/screens/subscriptions/SubscriptionDetailsView.tsx',{
   'react/jsx-runtime':runtime,'@expo/vector-icons':{MaterialCommunityIcons:'icon'},'expo-image':{Image:'image'},
   'react-native':{StyleSheet:{create:x=>x},Text:'text',View:'view'},'@/components/pro/flow/ProFlowUi':{OrganicSurface:'surface'},
-  '@/theme/colors':{Colors:{}},'@/theme/typography':{Font:{}},'@/utils/subscriptionDisplay':{formatSubscriptionDate:x=>x,formatStatus:x=>x},
+  "@/theme/colors": require("./theme-mocks.cjs"),'@/theme/typography':{Font:{}},'@/utils/subscriptionDisplay':{formatSubscriptionDate:x=>x,formatStatus:x=>x},
  });
  const sub={status:'active',currentPeriodEnd:'2027-10-28',cancelAtPeriodEnd:false,isLifetime:false,isPromotional:false,isFamilyShared:false};
  assert.match(subscriptionRenewalCopy(sub),/Next renewal/);
@@ -71,14 +71,18 @@ test('management copy distinguishes renewal, cancellation, family access and gra
 test('recovery primary actions distinguish status checks, activation, purchase retry and restore',()=>{
  const {ProRecoveryView}=loadTS('components/pro/flow/ProRecoveryView.tsx',{
   'react/jsx-runtime':runtime,'react-native':{Text:'text',View:'view'},
-  '@/components/ui/buttons/OrangeButton':{__esModule:true,default:'primary'},'@/theme/colors':{Colors:{}},
-  './ProFlowUi':{ProIllustration:'art',ProLink:'link',ProNotice:'notice',ProOutlineButton:'outline',flowStyles:{}},
+  '@/components/ui/buttons/OrangeButton':{__esModule:true,default:'primary'},"@/theme/colors": require("./theme-mocks.cjs"),
+  './ProFlowUi':{ProIllustration:'art',ProLink:'link',ProNotice:'notice',ProOutlineButton:'outline',getFlowStyles:()=>({})},
  });
- for(const [variant,expected] of [[{uncertain:true,nativeRequestPending:true},'retry'],[{uncertain:true},'retry'],[{pending:true},'retry'],[{confirmed:true},'retry'],[{purchaseFailed:true},'retry'],[{},'restore']]) {
+ for(const [variant,expected] of [[{reviewRequired:true,purchaseFailed:true},'review'],[{uncertain:true,nativeRequestPending:true},'retry'],[{uncertain:true},'retry'],[{pending:true},'retry'],[{confirmed:true},'retry'],[{purchaseFailed:true},'retry'],[{},'restore']]) {
   const calls=[];
-  const tree=ProRecoveryView({...variant,message:'Connection unavailable',onRetry:()=>calls.push('retry'),onRestore:()=>calls.push('restore'),onExit(){}});
+  const tree=ProRecoveryView({...variant,message:'Connection unavailable',onRetry:()=>calls.push('retry'),onRestore:()=>calls.push('restore'),onChangePlan:()=>calls.push('review'),onExit(){}});
   flatten(tree).find(n=>n?.type==='primary').props.onPress();
   assert.deepEqual(calls,[expected]);
+  if(variant.confirmed) {
+   const restore=flatten(tree).find(n=>n?.type==='outline'&&textOf(n).includes('Restore purchases'));
+   assert.ok(restore);restore.props.onPress();assert.equal(calls.at(-1),'restore');
+  }
   if(variant.uncertain) {
    assert.match(textOf(tree),/Check purchase status/);
    assert.equal(flatten(tree).some(n=>n?.type==='outline'),!variant.nativeRequestPending);

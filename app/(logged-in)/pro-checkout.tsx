@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import { ProActivationView } from "@/components/pro/flow/ProActivationView";
 import { ProRecoveryView } from "@/components/pro/flow/ProRecoveryView";
-import { OrganicSurface, ProFlowPage, ProIllustration, ProLink, ProNotice, ProOutlineButton, PRO_FLOW_BENEFITS, flowStyles } from "@/components/pro/flow/ProFlowUi";
+import { OrganicSurface, ProFlowPage, ProIllustration, ProLink, ProNotice, ProOutlineButton, getProFlowBenefits, getFlowStyles } from "@/components/pro/flow/ProFlowUi";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
 import { useProPricingQuery } from "@/hooks/queries";
@@ -15,14 +15,19 @@ import { createProPurchaseFlow } from "@/lib/iap/proPurchaseFlow";
 import { PRO_ACTIVATION_UI_WATCHDOG_MS } from "@/lib/iap/proActivation";
 import { clientHasUnlockedPro } from "@/lib/iap/crittrProClientState";
 import { storeLabel } from "@/lib/iap/storeTerms";
+import { fetchProTrialForPackage } from "@/services/proPricing";
 import { profileQueryKey, subscriptionDetailsQueryKey, proPricingQueryKey } from "@/lib/query/keys";
 import { sessionGeneration } from "@/lib/sessionGeneration";
 import { useAuthStore } from "@/stores/authStore";
 import { postPurchaseHref, proWelcomeHref } from "@/utils/proUpgradePaths";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 
 export default function ProCheckoutScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
+  const PRO_FLOW_BENEFITS = useThemeValues(getProFlowBenefits);
+  const flowStyles = useThemeValues(getFlowStyles);
   const router = useRouter();
   const { height: screenHeight } = useWindowDimensions();
   const queryClient = useQueryClient();
@@ -33,8 +38,9 @@ export default function ProCheckoutScreen() {
   const tier = pricing[billing];
   const [flow] = useState(() => createProPurchaseFlow({
     sessionKey: () => `${useAuthStore.getState().session?.user?.id ?? ""}:${sessionGeneration()}`,
-    detect: detectExistingCrittrProEntitlement,
+    detect: () => detectExistingCrittrProEntitlement({ strict: true }),
     offering: fetchProPackageForBillingDetailed,
+    trial: fetchProTrialForPackage,
     purchase: purchaseProPackage,
     outstandingPurchase: getOutstandingProPurchase,
     restore: async () => {
@@ -95,16 +101,16 @@ export default function ProCheckoutScreen() {
   };
   const subscribe = () => {
     if (!pricing.resolved) return;
-    void flow.purchase({ billing, productId: tier.priceId, amount: tier.unitAmount, currency: tier.currency });
+    void flow.purchase({ billing, productId: tier.priceId, amount: tier.unitAmount, currency: tier.currency, trial: tier.trial });
   };
 
-  if (state.phase === "activating" || state.phase === "complete") return <ProFlowPage onBack={exit}><ProActivationView stage={state.activationStage} restored={state.source !== "purchase"} /></ProFlowPage>;
-  if (state.phase === "pending" || state.phase === "recovery") return <ProFlowPage onBack={exit} brand={false}>
-    <ProRecoveryView pending={state.phase === "pending"} confirmed={state.storeConfirmed} uncertain={state.purchaseUnresolved} nativeRequestPending={state.nativeRequestPending} purchaseFailed={state.source === "purchase" && !state.storeConfirmed} message={state.message} busy={state.working} onRetry={() => void flow.retry()} onRestore={() => void flow.restore()} onExit={exit} onChangePlan={changePlan} />
+  if (state.phase === "activating" || state.phase === "complete") return <ProFlowPage showPurchaseEnvironment onBack={exit}><ProActivationView stage={state.activationStage} restored={state.source !== "purchase"} /></ProFlowPage>;
+  if (state.phase === "pending" || state.phase === "recovery") return <ProFlowPage showPurchaseEnvironment onBack={exit} brand={false}>
+    <ProRecoveryView pending={state.phase === "pending"} confirmed={state.storeConfirmed} uncertain={state.purchaseUnresolved} nativeRequestPending={state.nativeRequestPending} reviewRequired={state.requiresPlanReview} purchaseFailed={state.source === "purchase" && !state.storeConfirmed} message={state.message} busy={state.working} onRetry={() => void flow.retry()} onRestore={() => void flow.restore()} onExit={exit} onChangePlan={changePlan} />
   </ProFlowPage>;
-  if (state.phase === "purchasing" && state.source !== "purchase") return <ProFlowPage onBack={exit}><View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 20 }}><ProIllustration kind="receipt" color={Colors.skyLight} height={220} /><Text style={[flowStyles.title, flowStyles.center]}>Finding your Pro access.</Text><Text style={[flowStyles.subtitle, flowStyles.center]}>Checking your purchases with {storeLabel()}…</Text><ActivityIndicator color={Colors.orange} /></View></ProFlowPage>;
+  if (state.phase === "purchasing" && state.source !== "purchase") return <ProFlowPage showPurchaseEnvironment onBack={exit}><View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 20 }}><ProIllustration kind="receipt" color={Colors.skyLight} height={220} /><Text style={[flowStyles.title, flowStyles.center]}>Finding your Pro access.</Text><Text style={[flowStyles.subtitle, flowStyles.center]}>Checking your purchases with {storeLabel()}…</Text><ActivityIndicator color={Colors.orange} /></View></ProFlowPage>;
 
-  return <ProFlowPage onBack={state.working ? undefined : changePlan} compactFooter footerContentStyle={{ gap: 8 }} footer={<>
+  return <ProFlowPage showPurchaseEnvironment onBack={state.working ? undefined : changePlan} compactFooter footerContentStyle={{ gap: 8 }} footer={<>
     <OrangeButton onPress={subscribe} loading={state.working} disabled={!pricing.resolved}>
       {!pricing.resolved ? "Loading prices…" : tier.trial ? `Start ${tier.trial.durationLabel} free trial` : `Subscribe for ${tier.formatted}/${billing === "annual" ? "year" : "month"}`}
     </OrangeButton>
@@ -121,11 +127,11 @@ export default function ProCheckoutScreen() {
     {!pricing.resolved && !pricingQuery.isFetching ? <><ProNotice tone="info" message="We couldn’t load current store pricing. Reload prices before subscribing." /><ProLink onPress={() => void pricingQuery.refetch()}>Reload prices</ProLink></> : null}
   </ProFlowPage>;
 }
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   summary: { padding: 18, paddingTop: 35, paddingBottom: 27, marginTop: 4, gap: 9 }, summaryTop: { flexDirection: "row", justifyContent: "space-between", gap: 10, marginBottom: 3 },
   brandLight: { fontFamily: Font.displayBold, color: Colors.warmWhite, fontSize: 25 }, plan: { fontFamily: Font.uiRegular, color: "#E5E0D8", fontSize: 15, marginTop: 2 },
   summaryPrice: { fontFamily: Font.uiBold, color: Colors.warmWhite, fontSize: 15, marginTop: 5 }, summaryMeta: { fontFamily: Font.uiRegular, color: "#C7C1BA", fontSize: 12, marginTop: 5 },
   feature: { flexDirection: "row", alignItems: "center", gap: 12 }, featureText: { fontFamily: Font.uiRegular, fontSize: 14, color: Colors.warmWhite, flex: 1 },
   due: { backgroundColor: "#F0ECE3", borderRadius: 20, padding: 16, marginTop: 14, marginBottom: 6 }, dueTop: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   dueTitle: { fontFamily: Font.uiBold, fontSize: 16, color: Colors.textPrimary }, dueBody: { fontFamily: Font.uiRegular, fontSize: 12, lineHeight: 18, color: "#66665F", marginTop: 4 },
-});
+}));

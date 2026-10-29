@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
@@ -17,6 +17,8 @@ export default function MedicationSectionHeader({
   right,
   error,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const tint = error ? Colors.error : Colors.sectionLabel;
   return (
     <View style={styles.row}>
@@ -29,7 +31,7 @@ export default function MedicationSectionHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -54,4 +56,4 @@ const styles = StyleSheet.create({
   labelError: {
     color: Colors.error,
   },
-});
+}));

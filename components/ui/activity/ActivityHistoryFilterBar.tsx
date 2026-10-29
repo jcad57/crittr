@@ -1,5 +1,5 @@
 import CrittrDateTimePickerModal from "@/components/ui/pickers/CrittrDateTimePickerModal";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { ActivityFilterCategory } from "@/data/activityHistory";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
@@ -70,6 +70,8 @@ export default function ActivityHistoryFilterBar({
   dateFilterYmd,
   onDateFilterChange,
 }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { dateDisplay } = useUserDateTimePrefs();
   const { width: windowWidth } = useWindowDimensions();
   const [menu, setMenu] = useState<Menu>(null);
@@ -357,7 +359,7 @@ export default function ActivityHistoryFilterBar({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   outer: {
     width: "100%",
   },
@@ -467,4 +469,4 @@ const styles = StyleSheet.create({
     fontFamily: Font.uiSemiBold,
     color: Colors.orangeDark,
   },
-});
+}));

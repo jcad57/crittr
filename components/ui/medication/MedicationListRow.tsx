@@ -1,5 +1,5 @@
 import HealthTrafficBadge from "@/components/ui/health/HealthTrafficBadge";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import type { HealthTrafficKind } from "@/types/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -34,6 +34,8 @@ export default function MedicationListRow({
   isLast,
   variant = "grouped",
 }: MedicationListRowProps) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const showChevron = Boolean(onPress) && !onDeletePress;
   const isStandalone = variant === "standalone";
 
@@ -110,7 +112,7 @@ export default function MedicationListRow({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   rowWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -189,4 +191,4 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     lineHeight: 18,
   },
-});
+}));

@@ -3,7 +3,7 @@ import ActivityHistoryFilterBar from "@/components/ui/activity/ActivityHistoryFi
 import ActivityHistoryRow from "@/components/ui/activity/ActivityHistoryRow";
 import ActivityWeeklySummaryStrip from "@/components/ui/activity/ActivityWeeklySummaryStrip";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font, MANAGE_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import {
   computeWeeklySummary,
@@ -50,6 +50,8 @@ type Section = {
  * Reached from the pet profile “Activity history” row.
  */
 export default function PetActivityHistoryScreen() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const insets = useSafeAreaInsets();
   const { push, replace, router } = useNavigationCooldown();
   const { timeDisplay, dateDisplay } = useUserDateTimePrefs();
@@ -286,10 +288,10 @@ export default function PetActivityHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.screenBackground,
   },
   centered: {
     flex: 1,
@@ -359,4 +361,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
-});
+}));

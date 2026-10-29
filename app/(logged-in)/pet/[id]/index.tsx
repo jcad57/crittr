@@ -1,3 +1,4 @@
+import AdBanner from "@/components/ads/AdBanner";
 import CoCarerBanner from "@/components/petScreens/petProfile/CoCarerBanner";
 import InfoRow from "@/components/petScreens/petProfile/InfoRow";
 import PetProfileNavBar from "@/components/petScreens/petProfile/PetProfileNavBar";
@@ -14,7 +15,7 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import {
   petDetailsQueryKey,
   petsQueryKey,
@@ -56,11 +57,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/index.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/index.styles";
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function PetProfilePage() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { push, replace, router } = useNavigationCooldown();
   const scrollInsetBottom = useFloatingNavScrollInset();
@@ -176,8 +179,8 @@ export default function PetProfilePage() {
 
   const recordsItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
-    return buildRecordsItems(profile, push);
-  }, [profile, push]);
+    return buildRecordsItems(profile, push, Colors);
+  }, [profile, push, Colors]);
 
   const manageItems = useMemo((): RecordsNavItem[] => {
     if (!profile) return [];
@@ -190,8 +193,9 @@ export default function PetProfilePage() {
         push(`/(logged-in)/pet/${profile.id}/invite-care` as Href);
       },
       handleLeaveCoCare,
-    });
+    }, Colors);
   }, [
+    Colors,
     profile,
     push,
     isOwner,
@@ -233,6 +237,7 @@ export default function PetProfilePage() {
       >
         {isCoCarer && <CoCarerBanner />}
 
+        <AdBanner placement="pet_profile_top" />
         <PetProfileHero
           name={profile.name}
           subline={profileSubline(profile)}

@@ -1,4 +1,4 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues, useThemeColors, useThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
   formatChartDateLabel,
@@ -75,6 +75,8 @@ function buildLabels(points: WeightChartPoint[]): (string | undefined)[] {
  * render so gifted-charts can safely scribble on them.
  */
 export default function PetWeightLineChart({ points, unitLabel }: Props) {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   "use no memo";
 
   const [width, setWidth] = useState<number>(0);
@@ -205,7 +207,7 @@ export default function PetWeightLineChart({ points, unitLabel }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -244,4 +246,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.white,
   },
-});
+}));

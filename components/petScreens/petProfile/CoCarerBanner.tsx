@@ -1,9 +1,11 @@
-import { Colors } from "@/theme/colors";
+import { useThemeColors, useThemeValues } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
-import { styles } from "@/screen-styles/pet/[id]/index.styles";
+import { getStyles } from "@/screen-styles/pet/[id]/index.styles";
 
 export default function CoCarerBanner() {
+  const Colors = useThemeColors();
+  const styles = useThemeValues(getStyles);
   return (
     <View style={styles.coCarerBanner}>
       <MaterialCommunityIcons

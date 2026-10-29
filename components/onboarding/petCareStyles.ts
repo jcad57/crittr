@@ -1,9 +1,9 @@
-import { Colors } from "@/theme/colors";
+import { createThemeValues } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { StyleSheet } from "react-native";
 
 /** Shared list / food / med / vac UI from the former single Pet Care step. */
-export const petCareStyles = StyleSheet.create({
+export const getPetCareStyles = createThemeValues((Colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -250,4 +250,4 @@ export const petCareStyles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 16,
   },
-});
+}));
