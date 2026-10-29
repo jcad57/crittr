@@ -110,7 +110,7 @@ export default function ProCheckoutScreen() {
     </OrangeButton>
     <ProOutlineButton onPress={changePlan} disabled={state.working}>Change plan</ProOutlineButton>
   </>}>
-    <ProIllustration height={screenHeight < 900 ? 125 : 160} />
+    <ProIllustration height={screenHeight < 900 ? 105 : 160} />
     <Text style={[flowStyles.title, flowStyles.center, { marginTop: 14 }]}>Your care,{'\n'}upgraded.</Text>
     <Text style={[flowStyles.subtitle, flowStyles.center, { fontSize: 14, marginBottom: 14 }]}>More pets. More people. More peace of mind.</Text>
     <OrganicSurface color={Colors.featureDark} variant="hero" style={styles.summary}>

@@ -4,7 +4,7 @@ Reviewed October 12, 2026. This description is based on the repository's app scr
 
 **A description you can share**
 
-Crittr is a mobile pet-care organizer for people caring for dogs and cats. It brings each pet's profile, feeding routine, exercise goals, medication schedule, vaccinations, vet appointments, weight history, and daily care logs into one place. Its dashboard shows the care logged so far and the tasks that still need attention. Free includes three owned pets and one co-carer per pet. Crittr Pro adds unlimited pets and co-carers, medical-document uploads, and an AI assistant that uses saved pet information to answer care questions.
+Crittr is a mobile pet-care organizer for people caring for dogs and cats. It brings each pet's profile, feeding routine, exercise goals, medication schedule, vaccinations, vet appointments, weight history, and daily care logs into one place. Its dashboard shows the care logged so far and the tasks that still need attention. Free includes three owned pets and one co-carer per pet. Crittr Pro adds unlimited pets and co-carers, medical-document uploads, an AI assistant that uses saved pet information to answer care questions, and an ad-free experience.
 
 **1. Accounts and guided setup**
 
@@ -239,7 +239,7 @@ The current context builder does not fetch the general exercise/food/potty activ
 - Review plan, store, subscription status, price, renewal/access dates, trial details, and cancellation state.
 - Open Apple/Google subscription settings to manage billing or cancel.
 - Recognize shared Apple subscription ownership in the subscription display when RevenueCat reports it.
-- Remove ads for Pro members; Free includes configured banner and full-screen ad placements.
+- Keep Pro members ad-free. Ad delivery is currently disabled globally; configured banner and full-screen placements remain available for a future Free-tier rollout.
 - Personalize the Pro profile banner/crown with Slate, Gold, or Royal purple themes.
 
 The repository contains fallback display prices of $4.99 monthly and $39.99 annually. These are not verified live prices and should not be treated as a fixed public pricing promise.

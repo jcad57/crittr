@@ -4,7 +4,7 @@ Implemented October 28, 2026, using the approved screen references. Generated il
 
 ## Flow and behavior
 
-1. **Upgrade:** cream paywall, generated dog/cat artwork, four benefit tiles, localized annual/monthly plans, live trial eligibility and pinned Continue action. Trial disclosure and restore/terms/privacy/redeem links use a compact footer so both plan options remain visible. The Free-plan summary banner is omitted.
+1. **Upgrade:** cream paywall, generated dog/cat artwork, four benefit tiles and a compact No ads benefit row, localized annual/monthly plans, live trial eligibility and pinned Continue action. Trial disclosure and restore/terms/privacy/redeem links use a compact footer so both plan options remain visible. The Free-plan summary banner is omitted.
 2. **Purchase review:** selected plan, full billing cadence, amount due today and eligible trial terms. The dark SVG card has extra top breathing room. Subscribe and Change plan are anchored above the bottom safe area; the payment attribution caption is removed. No purchase starts automatically when this screen opens.
 3. **Native payment sheet:** the existing RevenueCat purchase function invokes Apple's or Google's native sheet. Crittr does not draw or collect payment credentials.
 4. **Getting Pro ready:** store receipt acknowledgement, server access verification, then animated ready/completed states. The pulsing current step respects the system's Reduce Motion preference; state changes are announced to assistive technology. The ready state is reached only after verified access. A short completion transition leads into welcome.

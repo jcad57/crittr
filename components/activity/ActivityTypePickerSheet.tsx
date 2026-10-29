@@ -130,7 +130,7 @@ export default function ActivityTypePickerSheet({
         >
           <View style={styles.handle} accessibilityElementsHidden />
           <View style={styles.header}>
-            <Text style={styles.title}>Log an activity</Text>
+            <Text style={styles.title}>What kind of activity did you do?</Text>
             <Pressable
               onPress={onClose}
               style={styles.close}
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: Font.displayBold,
-    fontSize: 26,
+    fontSize: 18,
     color: Colors.textPrimary,
   },
   close: {

@@ -77,14 +77,20 @@ export function ProIllustration({ kind = "companions", height = 180, color = Col
   </View>;
 }
 
-export const PRO_FLOW_BENEFITS: { icon: ProIcon; title: string; body: string; color: string }[] = [
+export const PRO_FLOW_BENEFITS: { icon: ProIcon; title: string; body: string; color: string; inline?: boolean }[] = [
   { icon: "paw", title: "Unlimited pets", body: "Care for as many pets as you love.", color: Colors.sage },
   { icon: "account-group-outline", title: "Unlimited co-carers", body: "Invite family and friends to help care.", color: Colors.lavenderLight },
   { icon: "file-document-outline", title: "Medical record storage", body: "Keep important documents safe.", color: Colors.skyLight },
   { icon: "creation-outline", title: "CrittrAI", body: "Extra help with your pet’s care and routines.", color: Colors.lavenderLight },
+  { icon: "advertisements-off", title: "No ads", body: "Focus on your pets, without ads.", color: Colors.orangeLight, inline: true },
 ];
 export function ProBenefitGrid({ compact = false, iconsOnly = false, dense = false }: { compact?: boolean; iconsOnly?: boolean; dense?: boolean }) {
   return <View style={flowStyles.grid}>{PRO_FLOW_BENEFITS.map((b) => (
+    b.inline ? <OrganicSurface key={b.title} color={b.color} style={flowStyles.inlineBenefit}>
+      <MaterialCommunityIcons name={b.icon} size={20} color={Colors.textPrimary} />
+      <Text style={flowStyles.benefitTitle}>{b.title}</Text>
+      <Text style={[flowStyles.benefitBody, { flex: 1, fontSize: 11, lineHeight: 15 }]}>{b.body}</Text>
+    </OrganicSurface> :
     <OrganicSurface key={b.title} color={iconsOnly ? "transparent" : b.color} style={[flowStyles.benefit, compact && { padding: 11, minHeight: 94 }, iconsOnly && { alignItems: "center", paddingVertical: 12 }, dense && { minHeight: 78, padding: 10, gap: 3 }]}>
       {iconsOnly ? <OrganicSurface color={b.color} style={flowStyles.benefitIcon}><MaterialCommunityIcons name={b.icon} size={33} color={Colors.textPrimary} /></OrganicSurface> : <MaterialCommunityIcons name={b.icon} size={dense ? 20 : compact ? 22 : 26} color={Colors.textPrimary} />}
       <Text style={[flowStyles.benefitTitle, dense && { fontSize: 12, lineHeight: 15 }, iconsOnly && { textAlign: "center" }]}>{b.title}</Text>
@@ -120,6 +126,7 @@ export const flowStyles = StyleSheet.create({
   center: { textAlign: "center" }, art: { alignSelf: "center", width: "100%", maxWidth: 320, position: "relative" },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 9 },
   benefit: { width: "48.4%", padding: 14, minHeight: 118, gap: 5 },
+  inlineBenefit: { width: "100%", minHeight: 36, paddingHorizontal: 12, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 },
   benefitTitle: { fontFamily: Font.uiBold, fontSize: 13, lineHeight: 17, color: Colors.textPrimary },
   benefitBody: { fontFamily: Font.uiRegular, fontSize: 12, lineHeight: 16, color: "#626260" },
   benefitIcon: { width: 70, height: 62, alignItems: "center", justifyContent: "center", marginBottom: 3 },

@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 import { FREE_TIER_SUMMARY, PRO_PAYWALL_BENEFITS, softPaywallCopy } from "../constants/proCopy.ts";
 
 describe("revised tier messaging", () => {
-  it("shows all four Pro benefits and the Free allowances", () => {
-    assert.deepEqual(PRO_PAYWALL_BENEFITS.map((b) => b.title), ["Unlimited pets", "Unlimited co-carers", "Medical record storage", "CrittrAI"]);
+  it("shows all five Pro benefits and the Free allowances", () => {
+    assert.deepEqual(PRO_PAYWALL_BENEFITS.map((b) => b.title), ["Unlimited pets", "Unlimited co-carers", "Medical record storage", "CrittrAI", "No ads"]);
     assert.match(FREE_TIER_SUMMARY, /3 pets, 1 co-carer per pet/);
     assert.match(FREE_TIER_SUMMARY, /unlimited activity logs, foods, medications, and vaccinations/);
   });

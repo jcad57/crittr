@@ -15,7 +15,7 @@ export const FREE_TIER_SUMMARY =
   "Free includes 3 pets, 1 co-carer per pet, and unlimited activity logs, foods, medications, and vaccinations.";
 
 export const PRO_PAYWALL_BENEFITS: {
-  icon: "heart-outline" | "paw" | "clipboard-text-outline" | "weather-sunny";
+  icon: "heart-outline" | "paw" | "clipboard-text-outline" | "weather-sunny" | "advertisements-off";
   title: string;
   subtitle: string;
 }[] = [
@@ -23,6 +23,7 @@ export const PRO_PAYWALL_BENEFITS: {
   { icon: "heart-outline", title: "Unlimited co-carers", subtitle: "Invite more than 1 co-carer per pet. They can join on Free." },
   { icon: "clipboard-text-outline", title: "Medical record storage", subtitle: "Upload and organize documents, photos, and insurance files." },
   { icon: "weather-sunny", title: "CrittrAI", subtitle: "Ask care questions with your pet’s saved profile as context." },
+  { icon: "advertisements-off", title: "No ads", subtitle: "Focus on your pets, without ads." },
 ];
 
 const FALLBACK_PET = "your pet";

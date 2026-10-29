@@ -13,6 +13,7 @@ This change is implemented in the local source. It has not been deployed to Supa
 | Saved foods, medications, vaccinations | Unlimited | Unlimited |
 | Medical and insurance document uploads | Upgrade required | Available, subject to pet permissions |
 | CrittrAI | Upgrade required | Available |
+| Ad-free experience | Ads may be enabled in a future release | No ads |
 
 Shared pets do not consume an invitee's owned-pet allowance. Pending invitations reserve a co-carer slot; declining or revoking an invitation frees it. The owner can manage permissions and remove co-carers on Free. Existing documents remain readable after downgrade under the existing retention policy. Document uploads still require the uploading account to have Pro and the relevant pet permission.
 
@@ -31,7 +32,9 @@ The dashboard and Pets screen gated the second living owned pet, excluding memor
 - **Insurance documents:** add Pro checks before file picking/capture and again before uploading; text-only insurance details remain available on Free.
 - **CrittrAI:** retain screen/navigation and Edge Function Pro verification.
 - **Foods, medications and vaccinations:** remove list, direct-route and dashboard restrictions. These features no longer show a Pro paywall.
-- **Upgrade screen and contextual messaging:** state the revised allowances and the four Pro benefits. Pro setup no longer presents additional medications as a paid feature.
+- **Upgrade screen and contextual messaging:** state the revised allowances and the five Pro benefits, including No ads added October 29. Pro setup no longer presents additional medications as a paid feature.
+
+The October 29 No ads update changes tier messaging in the app and landing page. Existing ad eligibility already excludes Pro accounts. The global ads flag remains disabled; this update does not re-enable ad delivery.
 - **Invitation notifications and onboarding acceptance:** Free recipients can accept normally. Pending legacy upgrade-only notifications are converted to actionable invitations by the migration; the client also handles the legacy type.
 
 ## Database enforcement and downgrade behavior
