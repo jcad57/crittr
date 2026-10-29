@@ -4,7 +4,7 @@ Reviewed October 12, 2026. This description is based on the repository's app scr
 
 **A description you can share**
 
-Crittr is a mobile pet-care organizer for people caring for dogs and cats. It brings each pet's profile, feeding routine, exercise goals, medication schedule, vaccinations, vet appointments, weight history, and daily care logs into one place. Its dashboard shows the care logged so far and the tasks that still need attention. Crittr Pro adds multiple pets, shared care with family members or sitters, medical-document uploads, and an AI assistant that uses saved pet information to answer care questions.
+Crittr is a mobile pet-care organizer for people caring for dogs and cats. It brings each pet's profile, feeding routine, exercise goals, medication schedule, vaccinations, vet appointments, weight history, and daily care logs into one place. Its dashboard shows the care logged so far and the tasks that still need attention. Free includes three owned pets and one co-carer per pet. Crittr Pro adds unlimited pets and co-carers, medical-document uploads, and an AI assistant that uses saved pet information to answer care questions.
 
 **1. Accounts and guided setup**
 
@@ -45,9 +45,9 @@ The profile acts as the pet's central reference page. It displays weight, birthd
 - Switch the active pet on the dashboard, activity screen, and many pet-related screens.
 - Keep each pet's activity history and care records separate.
 - View owned pets and pets shared through co-care, with role distinctions.
-- Add additional pets through a guided flow with Crittr Pro.
+- Add up to three owned pets on Free, or unlimited pets through the guided flow with Crittr Pro.
 
-Free is presented as a one-pet account; Pro is presented as unlimited pets. The data model also includes other species, but new-pet setup currently exposes dogs and cats only.
+Free includes three owned pets total, including memorialized pets; Pro includes unlimited pets. Shared pets do not consume the owned-pet limit. The data model also includes other species, but new-pet setup currently exposes dogs and cats only.
 
 **4. Dashboard and care progress**
 
@@ -169,20 +169,20 @@ Weight history is reached from the pet profile's weight chip. The current Health
 - Upload multiple files/photos in a selection.
 - View uploaded records and attachment counts.
 - Rename a record, add more files, remove individual files, or delete the whole record.
-- Preview supported files and share an individual uploaded medical file through the device's sharing tools.
+- Preview supported files with persistent Close, Save, and Share actions. Android PDFs offer an explicit native open action; iOS saves through Save to Files and Android saves to a selected folder.
 - Store microchip status and its identification number.
 - Store insurance status, provider, and policy/member number.
 - Attach insurance policy files or photos, open them, and remove them.
 - Apply pet-specific access controls to private document storage.
 
-Insurance attachments currently use profile-edit permissions and have no Pro entitlement check in the screen or supplied storage policies. Medical-record creation and additional uploads are gated through the Pro upgrade flow. The From your vet area currently has an empty data source; it does not receive records automatically from clinics.
+Insurance attachments require Pro and profile-edit permissions, with checks before file picking and upload and matching server policies. Medical-record creation and additional uploads are gated through the Pro upgrade flow at entry and submission. Existing medical records remain readable after downgrade. Uploads support retrying the remaining files in the same record and a 25 MB per-file limit. The From your vet area currently has an empty data source; it does not receive records automatically from clinics.
 
-**12. Shared care with co-carers — Pro**
+**12. Shared care with co-carers**
 
 - Invite someone by email to care for a specific pet.
 - Send registered users an in-app invitation and invite people without accounts by email.
-- Allow a non-Pro person to receive an invite with an upgrade path; accepting shared care requires Pro.
-- Require Pro for the owner sending the invitation and for the person accepting it.
+- Allow Free invitees to receive and accept shared-care invitations.
+- Include one co-carer per pet on Free; the owner needs Pro to add more. Pending invitations reserve a slot.
 - Choose the co-carer's permissions before sending the invitation.
 - Allow shared viewing of the pet profile and records, with separately controlled editing/contribution abilities.
 - Control seven permissions: log activities, edit the pet profile, manage food, manage medications, manage vaccinations, manage vet visits, and manage medical files.
@@ -265,20 +265,20 @@ The repository contains fallback display prices of $4.99 monthly and $39.99 annu
 
 | Capability | Free | Pro |
 |---|---|---|
-| Owned pets | Presented as one pet | Presented as unlimited |
-| Activity logging/history | No explicit log-count limit | No explicit log-count limit |
-| Saved meals/treats | Current editor permits one food entry total | Additional entries allowed |
-| Saved medications | First entry | Additional entries allowed |
-| Saved vaccinations | First entry | Additional entries allowed |
+| Owned pets | 3 total, including memorialized pets | Unlimited |
+| Activity logging/history | Unlimited | Unlimited |
+| Saved meals/treats | Unlimited | Unlimited |
+| Saved medications | Unlimited | Unlimited |
+| Saved vaccinations | Unlimited | Unlimited |
 | Medical-record uploads | Upgrade required | Available |
-| Co-care | Upgrade required for participation | Available; both participants require Pro |
+| Co-care | 1 co-carer per pet; invitees may be Free | Unlimited co-carers; invitees may be Free |
 | CrittrAI | Upgrade required | Available |
-| Advertising | Configured ads | Ad-free |
+| Advertising | Currently paused in feature flags | Ad-free |
 | Reminder settings/scheduling | No Pro gate found | Available |
-| Insurance attachments | No Pro gate found | Available |
+| Insurance attachments | Upgrade required for uploads | Available |
 | Pro banner themes | Unavailable | Available |
 
-The upgrade comparison says meals, treats, and medications are “1 each,” but the food manager counts all saved foods together. This needs to be reconciled before using that wording publicly.
+Tier rules and paywalls were revised October 28, 2026. See `revised-free-pro-tiers.md` for the agreed limits, entry points, downgrade policy and rollout requirements. These source changes require the corresponding database migration before release.
 
 **Implemented or described in the repository, but not a current available feature**
 
@@ -293,7 +293,7 @@ The upgrade comparison says meals, treats, and medications are “1 each,” but
 
 **Material lifecycle details to resolve before publishing product promises**
 
-- The Pro-expiration cleanup function deletes additional non-memorialized owned pets, keeping the oldest, and ends co-care relationships. It does not merely hide additional pets. This behavior should be communicated or reconsidered before presenting a downgrade as preserving all pet data.
+- Pro expiration retains all pet data and memberships. The oldest three owned pets and one valid co-carer per eligible pet remain usable on Free; excess access reactivates on renewal.
 - Account-deletion UI says a Pro subscription will be cancelled, but the deletion backend explicitly states that deleting the RevenueCat subscriber does not cancel an Apple/Google subscription. Store subscription management is a separate action.
 - Privacy policy and Terms source files identify their content as mock/draft text. Their presence is a feature, but their contents should not be described as a finalized legal policy.
 - Server deployment, provider configuration, store offerings, notification permissions, and OS behavior affect features such as AI, email feedback/invitations, purchases, and push delivery. This inventory verifies source behavior, not those operational prerequisites.
@@ -309,6 +309,6 @@ The upgrade comparison says meals, treats, and medications are “1 each,” but
 - [Reminder scheduling](/Users/jcadeichmann/Desktop/Pegasys/crittr/lib/reminderNotificationSchedule.ts)
 - [CrittrAI pet context](/Users/jcadeichmann/Desktop/Pegasys/crittr/supabase/functions/_shared/crittrAiPetContext.ts)
 - [Medical-record screen and disabled scan flag](/Users/jcadeichmann/Desktop/Pegasys/crittr/app/(logged-in)/pet/[id]/medical-records.tsx)
-- [Pro comparison copy](/Users/jcadeichmann/Desktop/Pegasys/crittr/constants/upgradeComparison.ts)
+- [Pro comparison copy](/Users/jcadeichmann/Desktop/Pegasys/crittr/constants/proCopy.ts)
 - [Pro-expiration cleanup](/Users/jcadeichmann/Desktop/Pegasys/crittr/supabase/functions/_shared/crittrProDowngradeCleanup.ts)
 - [Account deletion](/Users/jcadeichmann/Desktop/Pegasys/crittr/supabase/functions/delete-account/index.ts)

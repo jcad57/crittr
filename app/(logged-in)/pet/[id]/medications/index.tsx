@@ -1,6 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import MedicationListRow from "@/components/ui/medication/MedicationListRow";
-import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
@@ -10,7 +9,6 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
@@ -44,7 +42,6 @@ export default function PetMedicationsListScreen() {
   const canManageMeds = useCanPerformAction(petId, "can_manage_medications");
   const { data: todayActivities } = useTodayActivitiesQuery(petId ?? null);
   const deleteMut = useDeleteMedicationMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details || !petId) return [];
@@ -114,16 +111,14 @@ export default function PetMedicationsListScreen() {
               : "Tap a medication to view its details."}
           </Text>
 
-          {canManageMeds && (!isProfileReady || isPro || rows.length === 0) ? (
+          {canManageMeds ? (
             <Pressable
               style={({ pressed }) => [
                 styles.addBtn,
                 pressed && styles.addBtnPressed,
               ]}
               onPress={() =>
-                canAddAnotherOrUpgrade(details?.medications.length ?? 0, () =>
-                  push(`/(logged-in)/pet/${petId}/medications/new` as Href),
-                )
+                push(`/(logged-in)/pet/${petId}/medications/new` as Href)
               }
             >
               <MaterialCommunityIcons
@@ -163,15 +158,6 @@ export default function PetMedicationsListScreen() {
               ))}
             </View>
           )}
-
-          {canManageMeds && isProfileReady && !isPro && rows.length >= 1 ? (
-            <View style={{ marginTop: 16 }}>
-              <ProSoftPaywallCard
-                kind="medications"
-                petName={details?.name}
-              />
-            </View>
-          ) : null}
         </ScrollView>
       )}
     </View>

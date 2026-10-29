@@ -1,12 +1,19 @@
 import { supabase } from "@/lib/supabase";
-import { inferImageContentType } from "@/services/localImageUpload";
+import { shareLocalMedicalRecord } from "@/services/medicalRecordFileActions";
+import { runNativeFileTransfer } from "@/lib/nativeFileTransfer";
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import {
+  medicalRecordPreviewCacheDirectory,
+  pruneMedicalRecordPreviewCache,
+} from "@/lib/medicalRecordPreviewCache";
+import {
+  medicalRecordContentType,
+  medicalRecordFileName,
+  validateMedicalRecordFileSize,
+} from "@/utils/medicalRecordFiles";
 import { trackMedicalRecordAdded } from "@/lib/analytics";
-import type {
-  PetMedicalRecord,
-  PetMedicalRecordFile,
-} from "@/types/database";
+import type { PetMedicalRecord, PetMedicalRecordFile } from "@/types/database";
 import { randomUUID } from "expo-crypto";
-import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 
 export const MEDICAL_RECORDS_BUCKET = "medical-records";
@@ -29,24 +36,10 @@ export function randomUploadId(): string {
   return randomUUID();
 }
 
-function resolveUploadContentType(
-  uri: string,
-  mime: string | null,
+function extensionForUploadFilename(
   filename: string,
+  contentType: string,
 ): string {
-  if (mime?.trim()) return mime.trim();
-  const lower = filename.toLowerCase();
-  if (lower.endsWith(".pdf")) return "application/pdf";
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".heic") || lower.endsWith(".heif")) return "image/heic";
-  if (lower.endsWith(".doc")) return "application/msword";
-  if (lower.endsWith(".docx"))
-    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  return inferImageContentType(uri);
-}
-
-function extensionForUploadFilename(filename: string, contentType: string): string {
   const dot = filename.lastIndexOf(".");
   if (dot > 0 && dot < filename.length - 1) {
     return filename.slice(dot).toLowerCase();
@@ -109,13 +102,7 @@ async function safeDeleteCachedUpload(fileUri: string): Promise<void> {
   }
 }
 
-async function resolveUploadByteLength(
-  fileUri: string,
-  fileSizeHint: number | null,
-): Promise<number> {
-  if (typeof fileSizeHint === "number" && fileSizeHint > 0) {
-    return fileSizeHint;
-  }
+async function resolveUploadByteLength(fileUri: string): Promise<number> {
   const info = await FileSystem.getInfoAsync(fileUri);
   if (info.exists && typeof info.size === "number" && info.size > 0) {
     return info.size;
@@ -163,52 +150,48 @@ export async function fetchPetMedicalRecords(
 export async function fetchPetMedicalRecordFileCounts(
   petId: string,
 ): Promise<Map<string, number>> {
-  const { data: records, error: rErr } = await supabase
+  return (await fetchPetMedicalRecordsList(petId)).fileCounts;
+}
+
+/** One relational query; aggregate counts do not download every attachment row. */
+export async function fetchPetMedicalRecordsList(petId: string): Promise<{
+  records: PetMedicalRecord[];
+  fileCounts: Map<string, number>;
+}> {
+  const { data, error } = await supabase
     .from("pet_medical_records")
-    .select("id")
-    .eq("pet_id", petId);
-
-  if (rErr) throw rErr;
-  const ids = (records ?? []).map((r) => r.id as string);
-  if (ids.length === 0) return new Map();
-
-  const { data: rows, error: cErr } = await supabase
-    .from("pet_medical_record_files")
-    .select("medical_record_id")
-    .in("medical_record_id", ids);
-
-  if (cErr) throw cErr;
-  const counts = new Map<string, number>();
-  for (const id of ids) counts.set(id, 0);
-  for (const row of rows ?? []) {
-    const mid = row.medical_record_id as string;
-    counts.set(mid, (counts.get(mid) ?? 0) + 1);
+    .select("*, pet_medical_record_files(count)")
+    .eq("pet_id", petId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const records: PetMedicalRecord[] = [];
+  const fileCounts = new Map<string, number>();
+  for (const row of data ?? []) {
+    const { pet_medical_record_files: counts, ...record } = row;
+    records.push(record as PetMedicalRecord);
+    fileCounts.set(record.id, counts?.[0]?.count ?? 0);
   }
-  return counts;
+  return { records, fileCounts };
 }
 
 export async function fetchPetMedicalRecordDetail(
   recordId: string,
 ): Promise<{ record: PetMedicalRecord; files: PetMedicalRecordFile[] }> {
-  const { data: record, error: rErr } = await supabase
+  const { data, error } = await supabase
     .from("pet_medical_records")
-    .select("*")
+    .select("*, pet_medical_record_files(*)")
     .eq("id", recordId)
     .single();
 
-  if (rErr) throw rErr;
-
-  const { data: files, error: fErr } = await supabase
-    .from("pet_medical_record_files")
-    .select("*")
-    .eq("medical_record_id", recordId)
-    .order("created_at", { ascending: true });
-
-  if (fErr) throw fErr;
+  if (error) throw error;
+  const { pet_medical_record_files: files, ...record } = data;
 
   return {
     record: record as PetMedicalRecord,
-    files: (files ?? []) as PetMedicalRecordFile[],
+    files: ((files ?? []) as PetMedicalRecordFile[]).sort(
+      (a, b) =>
+        a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+    ),
   };
 }
 
@@ -216,6 +199,7 @@ export async function createPetMedicalRecord(
   petId: string,
   userId: string,
   title: string,
+  recordId?: string,
 ): Promise<PetMedicalRecord> {
   const trimmed = title.trim();
   if (!trimmed) throw new Error("Title is required");
@@ -223,6 +207,7 @@ export async function createPetMedicalRecord(
   const { data, error } = await supabase
     .from("pet_medical_records")
     .insert({
+      ...(recordId ? { id: recordId } : {}),
       pet_id: petId,
       created_by: userId,
       title: trimmed,
@@ -235,6 +220,8 @@ export async function createPetMedicalRecord(
 }
 
 export type UploadMedicalRecordFileInput = {
+  /** Stable picker ID makes retrying a lost response safe. */
+  fileId?: string;
   petId: string;
   medicalRecordId: string;
   userId: string;
@@ -260,14 +247,23 @@ export type UploadMedicalRecordFileInput = {
 export async function uploadFileToMedicalRecord(
   input: UploadMedicalRecordFileInput,
 ): Promise<PetMedicalRecordFile> {
-  const fileId = randomUUID();
+  const fileId = input.fileId ?? randomUUID();
+  if (input.fileId) {
+    const { data: existing, error } = await supabase
+      .from("pet_medical_record_files")
+      .select("*")
+      .eq("id", fileId)
+      .eq("medical_record_id", input.medicalRecordId)
+      .maybeSingle();
+    if (error) throw error;
+    if (existing) return existing as PetMedicalRecordFile;
+  }
   const safeName = sanitizeStorageFileName(input.originalFilename);
   const storagePath = `${input.petId}/${input.medicalRecordId}/${fileId}/${safeName}`;
 
-  const contentType = resolveUploadContentType(
-    input.localUri,
-    input.mimeType,
+  const contentType = medicalRecordContentType(
     input.originalFilename,
+    input.mimeType,
   );
 
   const { fileUri, copied } = await ensureLocalFileUri(
@@ -277,8 +273,19 @@ export async function uploadFileToMedicalRecord(
   );
 
   let storageObjectCreated = false;
+  let uploadAttempted = false;
 
   try {
+    const fileSizeBytes = await resolveUploadByteLength(fileUri);
+    validateMedicalRecordFileSize(fileSizeBytes);
+    // A previous upload may have reached Storage without its response reaching
+    // the device. The metadata lookup above confirmed this stable ID is unlinked.
+    if (input.fileId) {
+      const { error } = await supabase.storage
+        .from(MEDICAL_RECORDS_BUCKET)
+        .remove([storagePath]);
+      if (error) throw error;
+    }
     const { data: signed, error: signErr } = await supabase.storage
       .from(MEDICAL_RECORDS_BUCKET)
       .createSignedUploadUrl(storagePath, { upsert: false });
@@ -292,7 +299,7 @@ export async function uploadFileToMedicalRecord(
 
     let uploadResult: FileSystem.FileSystemUploadResult;
     try {
-      uploadResult = await FileSystem.uploadAsync(signed.signedUrl, fileUri, {
+      const task = FileSystem.createUploadTask(signed.signedUrl, fileUri, {
         httpMethod: "PUT",
         uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
         sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
@@ -301,6 +308,13 @@ export async function uploadFileToMedicalRecord(
           "Cache-Control": "max-age=3600",
         },
       });
+      uploadAttempted = true;
+      const result = await runNativeFileTransfer(
+        () => task.uploadAsync(),
+        () => task.cancelAsync(),
+      );
+      if (!result) throw new Error("Upload cancelled. Try again.");
+      uploadResult = result;
     } catch (e) {
       throw new Error(describeUploadFailure(e));
     }
@@ -314,11 +328,6 @@ export async function uploadFileToMedicalRecord(
       );
     }
     storageObjectCreated = true;
-
-    const fileSizeBytes = await resolveUploadByteLength(
-      fileUri,
-      input.fileSizeBytes,
-    );
 
     const { data: row, error: insErr } = await supabase
       .from("pet_medical_record_files")
@@ -339,7 +348,21 @@ export async function uploadFileToMedicalRecord(
 
     return row as PetMedicalRecordFile;
   } catch (err) {
-    if (storageObjectCreated) {
+    // An insert can commit even when its HTTP response is lost. Never delete a
+    // successfully linked object or re-upload it on the next attempt.
+    if (uploadAttempted) {
+      const { data: committed, error: lookupError } = await supabase
+        .from("pet_medical_record_files")
+        .select("*")
+        .eq("id", fileId)
+        .eq("medical_record_id", input.medicalRecordId)
+        .maybeSingle();
+      if (committed) return committed as PetMedicalRecordFile;
+      // If commit status is unknown, leave the bytes intact. Retry reconciles
+      // metadata before attempting removal so a saved file is never destroyed.
+      if (lookupError) throw err;
+    }
+    if (storageObjectCreated || uploadAttempted) {
       try {
         await supabase.storage
           .from(MEDICAL_RECORDS_BUCKET)
@@ -360,54 +383,101 @@ export async function createPetMedicalRecordWithFiles(
   petId: string,
   userId: string,
   recordTitle: string,
-  files: Omit<UploadMedicalRecordFileInput, "petId" | "medicalRecordId" | "userId">[],
+  files: Omit<
+    UploadMedicalRecordFileInput,
+    "petId" | "medicalRecordId" | "userId"
+  >[],
+  existingRecordId?: string,
 ): Promise<PetMedicalRecord> {
   if (files.length === 0) {
     throw new Error("Add at least one file.");
   }
   const title =
-    recordTitle.trim() ||
-    defaultTitleFromFileName(files[0]!.originalFilename);
-  const record = await createPetMedicalRecord(petId, userId, title);
-
-  /** Upload sequentially so an early failure leaves a deterministic state — partial
-   *  successes are preserved (the record + already-uploaded files stay) and the
-   *  caller surfaces the error so the user can retry the missing files. */
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i]!;
-    try {
-      await uploadFileToMedicalRecord({
-        petId,
-        medicalRecordId: record.id,
-        userId,
-        ...f,
-      });
-    } catch (e) {
-      const base = e instanceof Error ? e.message : "Upload failed.";
-      const remaining = files.length - i;
-      const which =
-        remaining > 1 ? ` (${remaining} files were not uploaded)` : "";
-      throw new Error(`${base}${which}`);
-    }
+    recordTitle.trim() || defaultTitleFromFileName(files[0]!.originalFilename);
+  let record: PetMedicalRecord;
+  if (existingRecordId) {
+    const { data, error } = await supabase
+      .from("pet_medical_records")
+      .select("*")
+      .eq("id", existingRecordId)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && data.pet_id !== petId)
+      throw new Error("This record belongs to another pet.");
+    record =
+      (data as PetMedicalRecord) ??
+      (await createPetMedicalRecord(petId, userId, title, existingRecordId));
+    if (record.title !== title)
+      await updatePetMedicalRecordTitle(record.id, title);
+  } else {
+    record = await createPetMedicalRecord(petId, userId, title);
   }
+  await uploadMedicalRecordFiles(petId, record.id, userId, files);
   trackMedicalRecordAdded(files.length);
   return record;
+}
+
+export class MedicalRecordUploadError extends Error {
+  constructor(
+    public recordId: string,
+    public uploadedFileIds: string[],
+    message: string,
+  ) {
+    super(message);
+    this.name = "MedicalRecordUploadError";
+  }
+}
+
+export async function uploadMedicalRecordFiles(
+  petId: string,
+  recordId: string,
+  userId: string,
+  files: Omit<
+    UploadMedicalRecordFileInput,
+    "petId" | "medicalRecordId" | "userId"
+  >[],
+): Promise<void> {
+  const uploadedFileIds: string[] = [];
+  for (const file of files) {
+    try {
+      const uploaded = await uploadFileToMedicalRecord({
+        ...file,
+        petId,
+        medicalRecordId: recordId,
+        userId,
+      });
+      uploadedFileIds.push(uploaded.id);
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "Upload failed. Check your connection.";
+      throw new MedicalRecordUploadError(
+        recordId,
+        uploadedFileIds,
+        `${reason} Your saved files are kept in this record. Retry to upload only the remaining files.`,
+      );
+    }
+  }
 }
 
 export async function deleteMedicalRecordFile(
   file: PetMedicalRecordFile,
 ): Promise<void> {
-  const { error: stErr } = await supabase.storage
-    .from(MEDICAL_RECORDS_BUCKET)
-    .remove([file.storage_path]);
-  if (stErr) throw stErr;
-
   const { error: delErr } = await supabase
     .from("pet_medical_record_files")
     .delete()
-    .eq("id", file.id);
+    .eq("id", file.id)
+    .select("id")
+    .single();
 
   if (delErr) throw delErr;
+  // The transaction queued a durable retry before any bytes are removed.
+  // A temporary storage failure must not restore a deleted attachment in the UI.
+  await supabase.storage
+    .from(MEDICAL_RECORDS_BUCKET)
+    .remove([file.storage_path])
+    .catch(() => {});
 }
 
 export async function deletePetMedicalRecord(recordId: string): Promise<void> {
@@ -419,19 +489,20 @@ export async function deletePetMedicalRecord(recordId: string): Promise<void> {
   if (fErr) throw fErr;
 
   const paths = (files ?? []).map((f) => f.storage_path as string);
-  if (paths.length > 0) {
-    const { error: stErr } = await supabase.storage
-      .from(MEDICAL_RECORDS_BUCKET)
-      .remove(paths);
-    if (stErr) throw stErr;
-  }
-
   const { error: delErr } = await supabase
     .from("pet_medical_records")
     .delete()
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("id")
+    .single();
 
   if (delErr) throw delErr;
+  for (let offset = 0; offset < paths.length; offset += 100) {
+    await supabase.storage
+      .from(MEDICAL_RECORDS_BUCKET)
+      .remove(paths.slice(offset, offset + 100))
+      .catch(() => {});
+  }
 }
 
 export async function updatePetMedicalRecordTitle(
@@ -444,7 +515,9 @@ export async function updatePetMedicalRecordTitle(
   const { error } = await supabase
     .from("pet_medical_records")
     .update({ title: trimmed })
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("id")
+    .single();
 
   if (error) throw error;
 }
@@ -454,84 +527,92 @@ function medicalRecordsServeUrl(): string {
   return `${base}/functions/v1/serve-medical-record-file`;
 }
 
-function viewerCacheFileExtension(
-  file: Pick<PetMedicalRecordFile, "mime_type" | "original_filename">,
-): string {
-  const name = file.original_filename?.trim() ?? "";
-  const match = /\.([a-zA-Z0-9]{1,12})$/.exec(name);
-  if (match) return `.${match[1].toLowerCase()}`;
-  const mime = file.mime_type?.toLowerCase() ?? "";
-  if (mime.includes("pdf")) return ".pdf";
-  if (mime.includes("png")) return ".png";
-  if (mime.includes("jpeg") || mime === "image/jpg") return ".jpg";
-  if (mime.includes("webp")) return ".webp";
-  if (mime.includes("heic")) return ".heic";
-  return "";
-}
-
 /**
  * Downloads via authenticated Edge Function (avoids opening a Supabase Storage URL in the browser)
  * and returns a local `file://` URI for the OS document/PDF preview.
  */
 export async function downloadMedicalRecordFileForOpening(
-  file: Pick<PetMedicalRecordFile, "id" | "mime_type" | "original_filename">,
+  file: Pick<PetMedicalRecordFile, "id" | "mime_type" | "original_filename"> &
+    Partial<Pick<PetMedicalRecordFile, "file_size_bytes">>,
 ): Promise<string> {
+  const generation = sessionGeneration();
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token;
   if (!token) throw new Error("Sign in required.");
 
-  const cacheDir = FileSystem.cacheDirectory;
-  if (!cacheDir) throw new Error("Device cache is unavailable.");
-
-  const ext = viewerCacheFileExtension(file);
-  const dest = `${cacheDir}medical-record-${file.id}${ext}`;
+  // Isolate each preview's read access and retain the filename in exported files.
+  // Concurrent downloads never overwrite a document currently open in another app.
+  await pruneMedicalRecordPreviewCache().catch(() => {});
+  const directory = `${medicalRecordPreviewCacheDirectory()}${Date.now()}-${randomUUID()}/`;
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+  const type = medicalRecordContentType(
+    file.original_filename ?? "",
+    file.mime_type,
+  );
+  const dest = `${directory}${encodeURIComponent(medicalRecordFileName(file.original_filename ?? "document", type))}`;
 
   const url = `${medicalRecordsServeUrl()}?file_id=${encodeURIComponent(file.id)}`;
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const result = await FileSystem.downloadAsync(url, dest, {
+  const task = FileSystem.createDownloadResumable(url, dest, {
+    sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: anonKey,
     },
   });
 
-  if (result.status !== 200) {
-    let message = `Could not load file (${result.status}).`;
-    try {
-      const txt = await FileSystem.readAsStringAsync(dest);
-      const parsed = JSON.parse(txt) as { message?: string; error?: string };
-      message =
-        (typeof parsed.message === "string" && parsed.message.trim()) ||
-        (typeof parsed.error === "string" && parsed.error.trim()) ||
-        message;
-    } catch {
-      /* ignore non-JSON error bodies */
+  try {
+    const result = await runNativeFileTransfer(
+      () => task.downloadAsync(),
+      () => task.cancelAsync(),
+    );
+    if (!result) throw new Error("Download cancelled. Try again.");
+    if (result.status !== 200) {
+      let message = `Could not load file (${result.status}).`;
+      try {
+        const txt = await FileSystem.readAsStringAsync(dest);
+        const parsed = JSON.parse(txt) as { message?: string; error?: string };
+        message =
+          (typeof parsed.message === "string" && parsed.message.trim()) ||
+          (typeof parsed.error === "string" && parsed.error.trim()) ||
+          message;
+      } catch {
+        /* ignore non-JSON error bodies */
+      }
+      throw new Error(message);
     }
-    await FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
-    throw new Error(message);
-  }
+    const info = await FileSystem.getInfoAsync(result.uri);
+    if (
+      !info.exists ||
+      !info.size ||
+      (file.file_size_bytes != null && info.size !== file.file_size_bytes)
+    ) {
+      throw new Error("The downloaded file is incomplete. Please try again.");
+    }
+    if (generation !== sessionGeneration())
+      throw new Error("Your account changed. Open this file again.");
 
-  return result.uri;
+    return result.uri;
+  } catch (error) {
+    await FileSystem.deleteAsync(directory, { idempotent: true }).catch(
+      () => {},
+    );
+    throw error;
+  }
 }
 
 /**
  * Opens the OS share sheet for a medical file (same downloaded copy used for preview).
  */
 export async function shareMedicalRecordFile(
-  file: Pick<
-    PetMedicalRecordFile,
-    "id" | "mime_type" | "original_filename"
-  >,
+  file: Pick<PetMedicalRecordFile, "id" | "mime_type" | "original_filename">,
 ): Promise<void> {
   const localUri = await downloadMedicalRecordFileForOpening(file);
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error("Sharing isn’t available on this device.");
-  }
-  await Sharing.shareAsync(localUri, {
-    mimeType: file.mime_type?.trim() || undefined,
-    dialogTitle: "Share document",
-  });
+  await shareLocalMedicalRecord(
+    localUri,
+    medicalRecordContentType(file.original_filename ?? "", file.mime_type),
+  );
 }
 
 export async function createSignedMedicalRecordUrl(

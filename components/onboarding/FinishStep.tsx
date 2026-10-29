@@ -13,7 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
-import { UPGRADE_FROM_ONBOARDING_HREF } from "@/utils/proUpgradePaths";
+import { UPGRADE_HREF, UPGRADE_FROM_ONBOARDING_HREF } from "@/utils/proUpgradePaths";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -97,13 +97,13 @@ export default function FinishStep() {
           if (createErr instanceof PetCreatedCoCareInviteFailedError) {
             /**
              * The pet itself was created — only the co-carer invite failed
-             * (typically because the user isn't Pro yet during onboarding).
+             * (for example, if sending the invitation fails).
              * Continue with the rest of the flow and warn after we land on
              * the next screen.
              */
             createdIds.push(createErr.pet.id);
             postCreateWarning =
-              "We couldn't send the co-carer invite during sign-up. You can re-send it from the pet's profile after upgrading to Pro.";
+              "We couldn't send the co-carer invite during sign-up. You can try again from the pet's profile.";
             continue;
           }
           throw createErr;
@@ -203,6 +203,11 @@ export default function FinishStep() {
         router.replace("/(logged-in)/dashboard" as Href);
       }
     } catch (error: unknown) {
+      if ((error as { code?: string })?.code === "42501" &&
+          (error as { message?: string }).message?.includes("unlimited pets")) {
+        router.push(UPGRADE_HREF);
+        return;
+      }
       const msg =
         error instanceof Error
           ? error.message

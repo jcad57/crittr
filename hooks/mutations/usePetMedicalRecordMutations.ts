@@ -6,6 +6,7 @@ import {
   type UploadMedicalRecordFileInput,
   updatePetMedicalRecordTitle,
   uploadFileToMedicalRecord,
+  uploadMedicalRecordFiles,
 } from "@/services/petMedicalRecords";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { useMutation } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ export function useCreatePetMedicalRecordWithFilesMutation(petId: string) {
     mutationFn: (input: {
       userId: string;
       recordTitle: string;
+      existingRecordId?: string;
       files: Omit<
         UploadMedicalRecordFileInput,
         "petId" | "medicalRecordId" | "userId"
@@ -29,10 +31,34 @@ export function useCreatePetMedicalRecordWithFilesMutation(petId: string) {
         input.userId,
         input.recordTitle,
         input.files,
+        input.existingRecordId,
       ),
-    onSuccess: () => {
+    onSettled: () => {
       void queryClient.invalidateQueries({
         queryKey: petMedicalRecordsQueryKey(petId),
+      });
+    },
+  });
+}
+
+export function useUploadMedicalRecordFilesMutation(
+  petId: string,
+  recordId: string,
+) {
+  return useMutation({
+    mutationFn: (input: {
+      userId: string;
+      files: Omit<
+        UploadMedicalRecordFileInput,
+        "petId" | "medicalRecordId" | "userId"
+      >[];
+    }) => uploadMedicalRecordFiles(petId, recordId, input.userId, input.files),
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: petMedicalRecordsQueryKey(petId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: petMedicalRecordDetailQueryKey(recordId),
       });
     },
   });
@@ -67,8 +93,7 @@ export function useDeleteMedicalRecordFileMutation(
   medicalRecordId: string,
 ) {
   return useMutation({
-    mutationFn: (file: PetMedicalRecordFile) =>
-      deleteMedicalRecordFile(file),
+    mutationFn: (file: PetMedicalRecordFile) => deleteMedicalRecordFile(file),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: petMedicalRecordsQueryKey(petId),
@@ -83,7 +108,10 @@ export function useDeleteMedicalRecordFileMutation(
 export function useDeletePetMedicalRecordMutation(petId: string) {
   return useMutation({
     mutationFn: (recordId: string) => deletePetMedicalRecord(recordId),
-    onSuccess: () => {
+    onSuccess: (_data, recordId) => {
+      queryClient.removeQueries({
+        queryKey: petMedicalRecordDetailQueryKey(recordId),
+      });
       void queryClient.invalidateQueries({
         queryKey: petMedicalRecordsQueryKey(petId),
       });

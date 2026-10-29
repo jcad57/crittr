@@ -11,7 +11,6 @@ import {
   type PendingInviteRow,
 } from "@/hooks/queries";
 import { queryClient } from "@/lib/query/client";
-import { CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useShallow } from "zustand/react/shallow";
@@ -90,9 +89,7 @@ export default function PendingInvitesStep() {
       } catch (err: any) {
         const msg = err.message ?? "Could not accept invite.";
         Alert.alert(
-          msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
-            ? "Crittr Pro required"
-            : "Error",
+          "Could not accept invitation",
           msg,
         );
       } finally {

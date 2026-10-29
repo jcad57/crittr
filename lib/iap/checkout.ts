@@ -1,3 +1,4 @@
+import { createNativePurchaseGuard } from "@/lib/iap/nativePurchaseGuard";
 import { sessionGeneration } from "@/lib/sessionGeneration";
 import { queryClient } from "@/lib/query/client";
 import { profileQueryKey } from "@/lib/query/keys";
@@ -349,9 +350,29 @@ export async function detectExistingCrittrProEntitlement(): Promise<
  * CustomerInfo from RC; throws `ProPurchaseException` on cancel / error so the
  * caller can react accordingly.
  */
-export async function purchaseProPackage(
+const nativePurchaseGuard = createNativePurchaseGuard<ProPurchaseResult>();
+const nativePurchaseSession = () => String(sessionGeneration());
+
+export function getOutstandingProPurchase(): Promise<ProPurchaseResult> | null {
+  return nativePurchaseGuard.pending(nativePurchaseSession());
+}
+
+export function purchaseProPackage(pkg: PurchasesPackage): Promise<ProPurchaseResult> {
+  const generation = sessionGeneration();
+  return nativePurchaseGuard.run(String(generation), () => executeProPackagePurchase(pkg, generation));
+}
+
+async function executeProPackagePurchase(
   pkg: PurchasesPackage,
+  generation: number,
 ): Promise<ProPurchaseResult> {
+  const ensureSession = () => {
+    if (generation !== sessionGeneration()) throw new ProPurchaseException({
+      userCancelled: false,
+      message: "Your account changed. Sign in to review your subscription before purchasing.",
+    });
+  };
+  ensureSession();
   const user = await lookupAuthUser();
   if (!user) {
     throw new ProPurchaseException({
@@ -361,6 +382,7 @@ export async function purchaseProPackage(
   }
 
   await configureRevenueCat();
+  ensureSession();
   /**
    * Ensure the StoreKit transaction is tied to this Supabase user before the
    * sheet completes. Without this, RC may still be anonymous and the backend
@@ -373,7 +395,7 @@ export async function purchaseProPackage(
     throw new ProPurchaseException({
       userCancelled: false,
       message:
-        "Subscriptions aren't available in this build. Check your RevenueCat API key.",
+        "Subscriptions aren't available in this build. Update Crittr or contact support.",
     });
   }
   const commercial = commercialFromPackage(pkg);
@@ -447,7 +469,7 @@ export async function restoreProPurchases(): Promise<ProPurchaseResult> {
     throw new ProPurchaseException({
       userCancelled: false,
       message:
-        "Subscriptions aren't available in this build. Check your RevenueCat API key.",
+        "Subscriptions aren't available in this build. Update Crittr or contact support.",
     });
   }
   try {
@@ -478,15 +500,22 @@ const ACTIVATION_SYNC_ERROR =
 export async function waitForProActivation(options?: {
   purchaseCustomerInfo?: CustomerInfo;
   source?: ProActivationSource;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }): Promise<void> {
+  const ensureActive = () => {
+    if (options?.signal?.aborted) throw new Error("Subscription check cancelled");
+  };
+  ensureActive();
   const generation = sessionGeneration(),
-    deadline = Date.now() + 45000;
+    deadline = Date.now() + (options?.timeoutMs ?? 45_000);
   const remaining = () => Math.max(1, deadline - Date.now());
   const user = await withTimeout(lookupAuthUser(), remaining());
   if (!user || generation !== sessionGeneration())
     throw new Error(ACTIVATION_SYNC_ERROR);
   let nextSyncAt = 0;
   while (Date.now() < deadline) {
+    ensureActive();
     if (Date.now() >= nextSyncAt) {
       await withTimeout(
         runEntitlementSync(user.id, options?.source ?? "purchase"),
@@ -507,6 +536,7 @@ export async function waitForProActivation(options?: {
     if (generation !== sessionGeneration())
       throw new Error("Your account changed");
     if (error) throw error;
+    ensureActive();
     if (data) {
       ingestProfileMirror(data);
       queryClient.setQueryData(profileQueryKey(user.id), data);

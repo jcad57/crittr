@@ -20,7 +20,7 @@ test("adding vaccinations preserves an existing All off and rerunning preserves 
 });
 
 test("new weight and push migrations run on the deployed schema before the billing rollout", async (t) => {
-  const db = await load({ skipMigrations: [earlierBilling, earlierSharing] });
+  const db = await load({ skipMigrations: [earlierBilling, earlierSharing, "20261028160000_revised_free_pro_tiers.sql"] });
   t.after(() => db.close());
   assert.equal((await db.query("SELECT to_regprocedure('public.account_has_verified_pro(uuid)') AS helper")).rows[0].helper, null);
   await db.query("INSERT INTO auth.users(id,email) VALUES($1,'legacy@example.invalid')", [owner]);

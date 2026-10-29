@@ -61,6 +61,7 @@ export default function OrangeButton({
         style={styles.hitArea}
         disabled={disabled || loading}
         accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
         accessibilityHint={accessibilityHint}
         onPress={onPress ?? undefined}
         onPressIn={(e) => {

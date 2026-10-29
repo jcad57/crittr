@@ -14,7 +14,6 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { styles } from "@/screen-styles/pet/[id]/vaccinations/[vaccinationId].styles";
 import { Colors } from "@/theme/colors";
 import { getErrorMessage } from "@/utils/errorMessage";
@@ -28,7 +27,6 @@ import { useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,7 +71,6 @@ export default function EditPetVaccinationScreen() {
   const insertMut = useInsertPetVaccinationMutation(petId ?? "");
   const updateMut = useUpdatePetVaccinationMutation(petId ?? "");
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
-  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const administeredMaximumDateRef = useRef(new Date());
   const vaccinationExpiryMinRef = useRef(startOfTomorrowLocal());
@@ -167,21 +164,6 @@ export default function EditPetVaccinationScreen() {
     );
   }, [petId, vaccinationId, isNew, deleteMut, router]);
 
-  useLayoutEffect(() => {
-    if (!isNew || !details) return;
-    if (canManageVaccinations !== true) return;
-    if (!isProfileReady) return;
-    if ((details.vaccinations?.length ?? 0) >= 1 && !isPro) {
-      replaceWithUpgrade();
-    }
-  }, [
-    isNew,
-    details,
-    isPro,
-    isProfileReady,
-    replaceWithUpgrade,
-    canManageVaccinations,
-  ]);
 
   if (isLoading && !details) {
     return (

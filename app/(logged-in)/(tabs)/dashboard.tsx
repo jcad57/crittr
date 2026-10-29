@@ -28,7 +28,7 @@ import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useLocalCalendarYmd } from "@/hooks/useLocalCalendarYmd";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useTierLimitGate } from "@/hooks/useTierLimitGate";
 import {
   AUTH_CONTENT_MAX_WIDTH,
   useResponsiveUi,
@@ -53,7 +53,6 @@ import {
 } from "@/utils/litterMaintenancePeriod";
 import { getMedicationBadgeDisplay } from "@/utils/medicationBadgeDisplay";
 import { buildMedicationDosageProgress } from "@/utils/medicationDosageProgress";
-import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import {
   isUpcomingVetVisit,
   mapPetVetVisitToDashboard,
@@ -71,7 +70,7 @@ export default function Dashboard() {
   const { windowWidth } = useResponsiveUi();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
-  const { runWithProOrUpgrade, isPro } = useProGateNavigation();
+  const { canAddPetOrUpgrade } = useTierLimitGate();
   const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
     null,
   );
@@ -85,32 +84,14 @@ export default function Dashboard() {
     refetch: refetchPets,
   } = usePetsQuery();
 
-  /**
-   * First pet is always free (free-tier limit is one pet). Pro is only
-   * required to add a *second* (or later) pet. This guards against the
-   * "limbo zero-pet" state where a Pro user with stale entitlement gets
-   * gated out of adding a replacement pet after a Pro -> Free transition
-   * cleared their old one.
-   */
-  const livingOwnedPetCount = useMemo(() => {
-    if (!dbPets) return 0;
-    return dbPets.filter(
-      (p) => p.role === "owner" && isPetActiveForDashboard(p),
-    ).length;
-  }, [dbPets]);
-
   const goToAddPet = useCallback(() => {
-    if (livingOwnedPetCount === 0) {
-      push("/(logged-in)/add-pet" as Href);
-      return;
-    }
-    void runWithProOrUpgrade(
+    void canAddPetOrUpgrade(
       () => {
         push("/(logged-in)/add-pet" as Href);
       },
       () => setSoftPaywall("pets"),
     );
-  }, [livingOwnedPetCount, runWithProOrUpgrade, push]);
+  }, [canAddPetOrUpgrade, push]);
 
   const { activePetId, pets, switchPet } = useActivePet();
   const { data: unreadCount = 0, refetch: refetchUnreadCount } =
@@ -284,13 +265,8 @@ export default function Dashboard() {
 
   const openAddMedication = useCallback(() => {
     if (!activePetId) return;
-    const count = activePetDetails?.medications?.length ?? 0;
-    if (!isPro && count >= 1) {
-      push(`/(logged-in)/pet/${activePetId}/medications` as Href);
-      return;
-    }
     push(`/(logged-in)/pet/${activePetId}/medications/new` as Href);
-  }, [push, activePetId, isPro, activePetDetails?.medications?.length]);
+  }, [push, activePetId]);
 
   const openVetVisitEditor = useCallback(
     (visitId: string) => {

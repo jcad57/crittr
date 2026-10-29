@@ -26,7 +26,8 @@ export default function LoggedInLayout() {
   const isUpgradeRoute =
     pathname.includes("upgrade") ||
     pathname.includes("pro-checkout") ||
-    pathname.includes("welcome-to-pro");
+    pathname.includes("welcome-to-pro") ||
+    pathname.includes("make-pro-yours");
 
   if (!isLoggedIn) {
     return <Redirect href="/(auth)/welcome" />;

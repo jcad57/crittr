@@ -68,6 +68,7 @@ test("sign-out fences pending hydration and auth listeners return synchronously"
     "@/stores/activityFormStore": { useActivityFormStore: storeStub },
     "@/services/profiles": { fetchProfile: async () => null },
     "@/lib/secureStorage": { secureStorage: { getItem: async () => null } },
+    "@/lib/medicalRecordPreviewCache": { clearMedicalRecordPreviewCache: async () => {} },
     "@/lib/supabase": {
       supabase,
       wipeSupabaseAuthFromDevice: async () => {},
@@ -200,6 +201,7 @@ test("cached account shell becomes ready before network validation", async () =>
     "@/lib/secureStorage": {
       secureStorage: { getItem: async () => JSON.stringify(cachedSession) },
     },
+    "@/lib/medicalRecordPreviewCache": { clearMedicalRecordPreviewCache: async () => {} },
     "@/lib/supabase": {
       supabase,
       wipeSupabaseAuthFromDevice: async () => {},

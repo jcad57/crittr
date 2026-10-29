@@ -27,6 +27,7 @@ const BLOCKED_PATH_PARTS = [
   "upgrade",
   "pro-checkout",
   "welcome-to-pro",
+  "make-pro-yours",
   "add-activity",
   "add-pet",
   "onboarding",

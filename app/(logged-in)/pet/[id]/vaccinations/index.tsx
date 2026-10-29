@@ -1,6 +1,5 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import VaccinationListRow from "@/components/ui/vaccination/VaccinationListRow";
-import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import {
@@ -9,7 +8,6 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { vaccinationTraffic } from "@/utils/healthTraffic";
 import type { PetVaccination } from "@/types/database";
@@ -53,7 +51,6 @@ export default function PetVaccinationsListScreen() {
     "can_manage_vaccinations",
   );
   const deleteMut = useDeletePetVaccinationMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const rows = useMemo(() => {
     if (!details?.vaccinations?.length) return [];
@@ -127,17 +124,14 @@ export default function PetVaccinationsListScreen() {
               : "Tap a vaccination to view its details."}
           </Text>
 
-          {canManageVaccinations &&
-          (!isProfileReady || isPro || rows.length === 0) ? (
+          {canManageVaccinations ? (
             <Pressable
               style={({ pressed }) => [
                 styles.addBtn,
                 pressed && styles.addBtnPressed,
               ]}
               onPress={() =>
-                canAddAnotherOrUpgrade(details?.vaccinations?.length ?? 0, () =>
-                  push(`/(logged-in)/pet/${petId}/vaccinations/new` as Href),
-                )
+                push(`/(logged-in)/pet/${petId}/vaccinations/new` as Href)
               }
             >
               <MaterialCommunityIcons
@@ -179,18 +173,6 @@ export default function PetVaccinationsListScreen() {
               ))}
             </View>
           )}
-
-          {canManageVaccinations &&
-          isProfileReady &&
-          !isPro &&
-          rows.length >= 1 ? (
-            <View style={styles.softPaywallWrap}>
-              <ProSoftPaywallCard
-                kind="vaccinations"
-                petName={details.name}
-              />
-            </View>
-          ) : null}
         </ScrollView>
       )}
     </View>

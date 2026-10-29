@@ -2,8 +2,8 @@
  * Display helpers for the in-app notifications screen.
  */
 
-export function notificationIcon(type: string, isPro: boolean): string {
-  if (type === "co_care_invite_requires_pro" && isPro) {
+export function notificationIcon(type: string, _isPro: boolean): string {
+  if (type === "co_care_invite_requires_pro") {
     return "account-plus-outline";
   }
   switch (type) {

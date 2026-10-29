@@ -26,18 +26,19 @@ test("migrations and authenticated subscription invariants", async (t) => {
   await as(owner);
   let first;
   await t.test(
-    "free account creates one living pet and cannot forge Pro",
+    "free account creates three pets and cannot forge Pro",
     async () => {
       first = await scalar(
         `INSERT INTO pets(owner_id,name) VALUES($1,'First') RETURNING id`,
         [owner],
       );
+      await db.query(`INSERT INTO pets(owner_id,name) VALUES($1,'Second'),($1,'Third')`, [owner]);
       await assert.rejects(
         () =>
-          db.query(`INSERT INTO pets(owner_id,name) VALUES($1,'Second')`, [
+          db.query(`INSERT INTO pets(owner_id,name) VALUES($1,'Fourth')`, [
             owner,
           ]),
-        /Additional pets/,
+        /Free includes 3 pets/,
       );
       await db.query(
         `UPDATE profiles SET crittr_pro_until=now()+interval '10 years',crittr_pro_last_synced_at=now(),subscription_environment='production' WHERE id=$1`,
@@ -66,7 +67,7 @@ test("migrations and authenticated subscription invariants", async (t) => {
         [owner],
       );
       await as(owner);
-      assert.equal(Number(await scalar("SELECT count(*) FROM pets")), 2);
+      assert.equal(Number(await scalar("SELECT count(*) FROM pets")), 4);
       assert.equal(
         Number(await scalar("SELECT count(*) FROM pet_medical_records")),
         1,
@@ -100,7 +101,7 @@ test("migrations and authenticated subscription invariants", async (t) => {
     },
   );
   await t.test(
-    "co-care access expires and restores without deleting membership",
+    "free invitees retain co-care when their own Pro expires",
     async () => {
       await pro(owner);
       await pro(carer);
@@ -117,7 +118,7 @@ test("migrations and authenticated subscription invariants", async (t) => {
         [carer],
       );
       await as(carer);
-      assert.equal(await scalar("SELECT can_access_pet($1)", [first]), false);
+      assert.equal(await scalar("SELECT can_access_pet($1)", [first]), true);
       await pro(carer);
       await as(carer);
       assert.equal(await scalar("SELECT can_access_pet($1)", [first]), true);
@@ -321,7 +322,7 @@ test("migrations and authenticated subscription invariants", async (t) => {
     },
   );
   await t.test(
-    "atomic co-care acceptance is idempotent and requires both verified subscriptions",
+    "atomic co-care acceptance is idempotent and respects the owner pet limit",
     async () => {
       await as(owner);
       const invite = await scalar(
@@ -336,7 +337,7 @@ test("migrations and authenticated subscription invariants", async (t) => {
       await as(carer);
       await assert.rejects(
         () => db.query("SELECT accept_co_care_invite($1)", [invite]),
-        /Both accounts/,
+        /Free includes 1 co-carer/,
       );
       assert.equal(
         await scalar("SELECT status FROM co_carer_invites WHERE id=$1", [

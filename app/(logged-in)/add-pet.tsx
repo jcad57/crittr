@@ -1,3 +1,6 @@
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { useTierLimitGate } from "@/hooks/useTierLimitGate";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { ONBOARDING_STEP_COMPONENTS } from "@/components/onboarding/onboardingStepRegistry";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import StepIndicator from "@/components/onboarding/StepIndicator";
@@ -7,14 +10,28 @@ import {
   PET_TYPE_STEP_INDEX,
   useOnboardingStore,
 } from "@/stores/onboardingStore";
-import { useRouter } from "expo-router";
-import { useEffect, useLayoutEffect } from "react";
-import { ActivityIndicator, BackHandler, StyleSheet, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from "react-native";
 
 const ADD_PET_STEP_COUNT = FINISH_STEP_INDEX - PET_TYPE_STEP_INDEX + 1;
 
 export default function AddPetScreen() {
   const router = useRouter();
+  const { canAddPetOrUpgrade } = useTierLimitGate();
+  const { replaceWithUpgrade } = useProGateNavigation();
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setAccessChecked(false);
+    setCheckingAccess(true);
+    void canAddPetOrUpgrade(
+      () => { if (active) setAccessChecked(true); },
+      () => { if (active) replaceWithUpgrade(); },
+    ).finally(() => { if (active) setCheckingAccess(false); });
+    return () => { active = false; };
+  }, [canAddPetOrUpgrade, replaceWithUpgrade]));
   const currentStep = useOnboardingStore((s) => s.currentStep);
   const petFlowMode = useOnboardingStore((s) => s.petFlowMode);
   const reset = useOnboardingStore((s) => s.reset);
@@ -57,10 +74,21 @@ export default function AddPetScreen() {
   const StepComponent =
     ONBOARDING_STEP_COMPONENTS[currentStep] ?? ONBOARDING_STEP_COMPONENTS[PET_TYPE_STEP_INDEX];
 
-  if (!ready) {
+  if (!ready || !accessChecked) {
     return (
       <View style={styles.boot}>
-        <ActivityIndicator size="large" color={Colors.orange} />
+        {checkingAccess || !ready ? (
+          <ActivityIndicator size="large" color={Colors.orange} />
+        ) : (
+          <>
+            <Text>Connect to the internet to check your pet limit.</Text>
+            <OrangeButton onPress={() => {
+              setCheckingAccess(true);
+              void canAddPetOrUpgrade(() => setAccessChecked(true), replaceWithUpgrade)
+                .finally(() => setCheckingAccess(false));
+            }}>Try again</OrangeButton>
+          </>
+        )}
       </View>
     );
   }

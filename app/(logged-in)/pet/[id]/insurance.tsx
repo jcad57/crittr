@@ -1,3 +1,4 @@
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
 import PetInsuranceToggle from "@/components/onboarding/petInfo/PetInsuranceToggle";
@@ -45,6 +46,7 @@ export default function PetInsuranceScreen() {
   const { replace, router } = useNavigationCooldown();
   const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
   const insets = useSafeAreaInsets();
+  const { runWithProOrUpgrade } = useProGateNavigation();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const userId = useAuthStore((s) => s.session?.user?.id);
@@ -127,8 +129,10 @@ export default function PetInsuranceScreen() {
 
   const onPickDocuments = useCallback(async () => {
     if (!petId || !userId || isInsured !== true) return;
+    if (!(await runWithProOrUpgrade(() => {}))) return;
     const picked = await pickMedicalDocuments();
     for (const a of picked) {
+      if (!(await runWithProOrUpgrade(() => {}))) return;
       await uploadMut.mutateAsync({
         localUri: a.uri,
         originalFilename: a.name,
@@ -136,12 +140,14 @@ export default function PetInsuranceScreen() {
         fileSizeBytes: a.size,
       });
     }
-  }, [petId, userId, isInsured, uploadMut]);
+  }, [petId, userId, isInsured, uploadMut, runWithProOrUpgrade]);
 
   const onPickPhoto = useCallback(async () => {
     if (!petId || !userId || isInsured !== true) return;
+    if (!(await runWithProOrUpgrade(() => {}))) return;
     const picked = await pickMedicalPhotosFromLibrary();
     for (const a of picked) {
+      if (!(await runWithProOrUpgrade(() => {}))) return;
       await uploadMut.mutateAsync({
         localUri: a.uri,
         originalFilename: a.name,
@@ -149,28 +155,30 @@ export default function PetInsuranceScreen() {
         fileSizeBytes: a.size,
       });
     }
-  }, [petId, userId, isInsured, uploadMut]);
+  }, [petId, userId, isInsured, uploadMut, runWithProOrUpgrade]);
 
   const onTakePhoto = useCallback(async () => {
     if (!petId || !userId || isInsured !== true) return;
+    if (!(await runWithProOrUpgrade(() => {}))) return;
     const a = await captureMedicalPhoto();
     if (!a) return;
+    if (!(await runWithProOrUpgrade(() => {}))) return;
     await uploadMut.mutateAsync({
       localUri: a.uri,
       originalFilename: a.name,
       mimeType: a.mimeType,
       fileSizeBytes: a.size,
     });
-  }, [petId, userId, isInsured, uploadMut]);
+  }, [petId, userId, isInsured, uploadMut, runWithProOrUpgrade]);
 
   const onAddFile = useCallback(() => {
-    Alert.alert("Add policy document", undefined, [
+    void runWithProOrUpgrade(() => Alert.alert("Add policy document", undefined, [
       { text: "Cancel", style: "cancel" },
       { text: "Choose file", onPress: () => void onPickDocuments() },
       { text: "Photo library", onPress: () => void onPickPhoto() },
       { text: "Take photo", onPress: () => void onTakePhoto() },
-    ]);
-  }, [onPickDocuments, onPickPhoto, onTakePhoto]);
+    ]));
+  }, [onPickDocuments, onPickPhoto, onTakePhoto, runWithProOrUpgrade]);
 
   const onSave = useCallback(async () => {
     if (!petId) return;

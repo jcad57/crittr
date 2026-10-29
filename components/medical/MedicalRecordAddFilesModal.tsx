@@ -6,11 +6,16 @@ import {
   pickMedicalPhotosFromLibrary,
   type PickedMedicalAsset,
 } from "@/lib/medicalRecordMedia";
-import { randomUploadId } from "@/services/petMedicalRecords";
+import {
+  MedicalRecordUploadError,
+  randomUploadId,
+} from "@/services/petMedicalRecords";
+import { validateMedicalRecordFileSize } from "@/utils/medicalRecordFiles";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -89,6 +94,12 @@ export default function MedicalRecordAddFilesModal({
   const closeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   /** True once user has opened the modal at least once this session (skip close anim on cold start). */
   const wasShownRef = useRef(false);
+  const dismissalPendingRef = useRef(false);
+  const completeDismissal = useCallback(() => {
+    if (!dismissalPendingRef.current) return;
+    dismissalPendingRef.current = false;
+    onFullyDismissed?.();
+  }, [onFullyDismissed]);
 
   /** Only reset modal state AFTER the sheet has fully closed. Clearing while
    *  `visible` flips to false can drop a pending selection during the
@@ -108,6 +119,7 @@ export default function MedicalRecordAddFilesModal({
 
   useEffect(() => {
     if (visible) {
+      dismissalPendingRef.current = false;
       wasShownRef.current = true;
       openAnimRef.current?.stop();
       closeAnimRef.current?.stop();
@@ -160,16 +172,34 @@ export default function MedicalRecordAddFilesModal({
     close.start(({ finished }) => {
       closeAnimRef.current = null;
       if (finished) {
+        dismissalPendingRef.current = true;
         setModalMounted(false);
-        onFullyDismissed?.();
+        // iOS must finish dismissing the native presenter before navigation or
+        // another Modal can be presented. Android has no native onDismiss event.
+        if (Platform.OS !== "ios") requestAnimationFrame(completeDismissal);
       }
     });
-  }, [visible, backdropOpacity, sheetTranslateY, onFullyDismissed]);
+  }, [visible, backdropOpacity, sheetTranslateY, completeDismissal]);
 
   const appendAssets = useCallback((assets: PickedMedicalAsset[]) => {
+    const accepted = assets.filter((asset) => {
+      if (asset.size == null) return true; // Actual size is checked before upload.
+      try {
+        validateMedicalRecordFileSize(asset.size);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (accepted.length !== assets.length) {
+      Alert.alert(
+        "Some files weren’t added",
+        "Choose nonempty files of 25 MB or smaller.",
+      );
+    }
     setPending((prev) => [
       ...prev,
-      ...assets.map((asset) => ({
+      ...accepted.map((asset) => ({
         key: randomUploadId(),
         asset,
       })),
@@ -189,6 +219,15 @@ export default function MedicalRecordAddFilesModal({
       } else {
         await onSubmit({ pending });
       }
+    } catch (error) {
+      if (error instanceof MedicalRecordUploadError) {
+        const uploaded = new Set(error.uploadedFileIds);
+        setPending((files) => files.filter((file) => !uploaded.has(file.key)));
+      }
+      Alert.alert(
+        "Could not upload all files",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       submitGuardRef.current = false;
       setSubmitBusy(false);
@@ -205,6 +244,11 @@ export default function MedicalRecordAddFilesModal({
     try {
       const assets = await pickMedicalDocuments();
       if (assets.length) appendAssets(assets);
+    } catch (error) {
+      Alert.alert(
+        "Could not open files",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       importGuardRef.current = false;
       setImportBusy(false);
@@ -218,6 +262,11 @@ export default function MedicalRecordAddFilesModal({
     try {
       const shot = await captureMedicalPhoto();
       if (shot) appendAssets([shot]);
+    } catch (error) {
+      Alert.alert(
+        "Could not open camera",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       importGuardRef.current = false;
       setImportBusy(false);
@@ -231,6 +280,11 @@ export default function MedicalRecordAddFilesModal({
     try {
       const shots = await pickMedicalPhotosFromLibrary();
       if (shots.length > 0) appendAssets(shots);
+    } catch (error) {
+      Alert.alert(
+        "Could not open photos",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       importGuardRef.current = false;
       setImportBusy(false);
@@ -254,6 +308,7 @@ export default function MedicalRecordAddFilesModal({
       animationType="none"
       transparent
       onRequestClose={handleClose}
+      onDismiss={completeDismissal}
     >
       <View style={styles.root}>
         <Animated.View
@@ -290,8 +345,8 @@ export default function MedicalRecordAddFilesModal({
             </Text>
             <Text style={styles.modalSub}>
               {mode === "create"
-                ? "Name this record, then add one or more files (photos, PDFs)."
-                : "Add photos or documents to this record."}
+                ? "Name this record, then add photos or documents up to 25 MB each."
+                : "Add photos or documents up to 25 MB each."}
             </Text>
 
             {mode === "create" ? (
@@ -361,7 +416,10 @@ export default function MedicalRecordAddFilesModal({
                     : `${pending.length} files selected`}
                 </Text>
                 <ScrollView
-                  style={[styles.pendingScroll, { maxHeight: PENDING_LIST_MAX_HEIGHT }]}
+                  style={[
+                    styles.pendingScroll,
+                    { maxHeight: PENDING_LIST_MAX_HEIGHT },
+                  ]}
                   contentContainerStyle={styles.pendingScrollContent}
                   showsVerticalScrollIndicator
                   nestedScrollEnabled
@@ -383,9 +441,7 @@ export default function MedicalRecordAddFilesModal({
                       </Text>
                       <Pressable
                         onPress={() =>
-                          setPending((p) =>
-                            p.filter((x) => x.key !== row.key),
-                          )
+                          setPending((p) => p.filter((x) => x.key !== row.key))
                         }
                         hitSlop={8}
                         disabled={sheetBlocked}

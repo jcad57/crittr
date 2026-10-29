@@ -61,9 +61,7 @@ export async function captureMedicalPhoto(): Promise<PickedMedicalAsset | null> 
 
   if (result.canceled || !result.assets[0]) return null;
   const asset = result.assets[0];
-  const name =
-    asset.fileName ??
-    `medical_${Date.now()}.jpg`;
+  const name = asset.fileName ?? `medical_${Date.now()}.jpg`;
   return {
     uri: asset.uri,
     name,
@@ -108,6 +106,10 @@ export async function pickMedicalPhotosFromLibrary(): Promise<
     });
   } catch (e) {
     if (__DEV__) console.warn("[pickMedicalPhotosFromLibrary]", e);
+    Alert.alert(
+      "Could not open photos",
+      "Please try choosing your photos again.",
+    );
     return [];
   }
 
@@ -155,14 +157,16 @@ export async function pickMedicalDocuments(): Promise<PickedMedicalAsset[]> {
   try {
     result = await DocumentPicker.getDocumentAsync({
       type: "*/*",
-      /** `true` copies every file on the native side before the promise resolves,
-       *  which freezes the UI after the user taps OK in SAF. Upload uses
-       *  `ensureLocalFileUri` anyway, so we defer copy until Create/upload. */
-      copyToCacheDirectory: false,
+      // Materialize iCloud/security-scoped files while the picker still grants access.
+      copyToCacheDirectory: true,
       multiple: true,
     });
   } catch (e) {
     if (__DEV__) console.warn("[pickMedicalDocuments]", e);
+    Alert.alert(
+      "Could not open files",
+      "Please try choosing your documents again.",
+    );
     return [];
   }
 

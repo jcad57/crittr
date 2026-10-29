@@ -61,6 +61,16 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: `Bearer ${jwt}` } },
   });
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseUser.auth.getUser(jwt);
+  if (authError || !user)
+    return json(
+      { error: "unauthorized", message: "Sign in again to view this file." },
+      401,
+    );
+
   const { data: row, error: rowErr } = await supabaseUser
     .from("pet_medical_record_files")
     .select("id, storage_path, mime_type, original_filename")
@@ -87,18 +97,33 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const { data: blob, error: dlErr } = await supabaseUser.storage
-    .from(MEDICAL_RECORDS_BUCKET)
-    .download(row.storage_path);
-
-  if (dlErr || !blob) {
-    console.error("[serve-medical-record-file] storage download", dlErr);
+  let download: Response;
+  try {
+    // Forward the user's JWT to Storage so both row and object policies apply.
+    // Stream the body instead of buffering the entire document into a Blob.
+    const path = row.storage_path.split("/").map(encodeURIComponent).join("/");
+    download = await fetch(
+      `${supabaseUrl}/storage/v1/object/authenticated/${MEDICAL_RECORDS_BUCKET}/${path}`,
+      {
+        headers: { Authorization: `Bearer ${jwt}`, apikey: anonKey },
+        signal: AbortSignal.timeout(150_000),
+      },
+    );
+  } catch (error) {
+    console.error("[serve-medical-record-file] storage download", error);
+    return json(
+      { error: "download_failed", message: "Could not read file. Try again." },
+      503,
+    );
+  }
+  if (!download.ok || !download.body) {
+    await download.body?.cancel();
     return json(
       {
         error: "download_failed",
-        message: dlErr?.message ?? "Could not read file.",
+        message: "File not found or access denied.",
       },
-      500,
+      download.status === 401 ? 401 : 404,
     );
   }
 
@@ -115,12 +140,13 @@ Deno.serve(async (req: Request) => {
     .replace(/[^\x20-\x7E]/g, "_")
     .replace(/"/g, "");
 
-  return new Response(blob, {
+  return new Response(download.body, {
     headers: {
       ...corsHeaders,
       "Content-Type": mime,
       "Content-Disposition": `inline; filename="${asciiName}"`,
       "Cache-Control": "private, max-age=0, no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 });

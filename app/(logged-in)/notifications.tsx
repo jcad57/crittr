@@ -14,10 +14,8 @@ import {
 import { useIsCrittrPro } from "@/hooks/useIsCrittrPro";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { UPGRADE_HREF } from "@/utils/proUpgradePaths";
 import { queryClient } from "@/lib/query/client";
 import {
-  CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE,
   CO_CARE_INVITE_UNAVAILABLE_MESSAGE,
 } from "@/services/coCare";
 import { useAuthStore } from "@/stores/authStore";
@@ -93,16 +91,8 @@ export default function NotificationsScreen() {
   /** Row tap: open pet for non-invite notifications only. Co-care invites use Accept/Decline only. */
   const handlePress = useCallback(
     (n: AppNotification) => {
-      if (n.type === "co_care_invite") return;
-      if (n.type === "co_care_invite_requires_pro" && isPro) return;
+      if (n.type === "co_care_invite" || n.type === "co_care_invite_requires_pro") return;
       if (!n.read) markRead.mutate(n.id);
-      if (n.type === "co_care_invite_requires_pro") {
-        const href = (n.data as Record<string, unknown>)?.href as
-          | string
-          | undefined;
-        push((href ?? UPGRADE_HREF) as Href);
-        return;
-      }
       if (n.type === "co_carer_activity_logged") {
         const href = (n.data as Record<string, unknown>)?.href as
           | string
@@ -119,7 +109,7 @@ export default function NotificationsScreen() {
         push(`/(logged-in)/pet/${petId}` as any);
       }
     },
-    [markRead, push, isPro],
+    [markRead, push],
   );
 
   const handleAcceptInvite = useCallback(
@@ -140,9 +130,7 @@ export default function NotificationsScreen() {
           Alert.alert(
             unavailable
               ? "Invitation unavailable"
-              : msg === CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE
-                ? "Crittr Pro required"
-                : "Error",
+              : "Could not accept invitation",
             msg,
           );
         },

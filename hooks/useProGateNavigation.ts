@@ -91,23 +91,6 @@ export function useProGateNavigation() {
     [resolveProFromServer, push],
   );
 
-  /**
-   * For “add another” flows: first item is free; additional rows require Pro.
-   */
-  const canAddAnotherOrUpgrade = useCallback(
-    async (
-      existingCount: number,
-      goAdd: () => void,
-      onDenied?: () => void,
-    ): Promise<boolean> => {
-      if (existingCount === 0) {
-        goAdd();
-        return true;
-      }
-      return runWithProOrUpgrade(goAdd, onDenied);
-    },
-    [runWithProOrUpgrade],
-  );
 
   return {
     isPro,
@@ -116,6 +99,5 @@ export function useProGateNavigation() {
     goToUpgrade,
     replaceWithUpgrade,
     runWithProOrUpgrade,
-    canAddAnotherOrUpgrade,
   };
 }

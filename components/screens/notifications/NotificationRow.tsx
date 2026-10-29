@@ -33,9 +33,7 @@ export function NotificationRow({
     | undefined;
   const showCoCareInviteActions =
     n.type === "co_care_invite" ||
-    (n.type === "co_care_invite_requires_pro" && isPro);
-  const isCoCareUpgradeNudge =
-    n.type === "co_care_invite_requires_pro" && !isPro;
+    n.type === "co_care_invite_requires_pro";
   const inviteSubmitting =
     showCoCareInviteActions &&
     !!inviteId &&
@@ -106,18 +104,6 @@ export function NotificationRow({
     );
   }
 
-  if (isCoCareUpgradeNudge) {
-    return (
-      <Pressable
-        style={[styles.row, !n.read && styles.rowUnread]}
-        onPress={() => onPress(n)}
-        accessibilityRole="button"
-        accessibilityLabel="Open Crittr Pro upgrade"
-      >
-        {rowInner}
-      </Pressable>
-    );
-  }
 
   return (
     <Pressable

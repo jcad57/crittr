@@ -12,9 +12,9 @@
  *   - `PRODUCT_ALREADY_PURCHASED_ERROR` — Play's ITEM_ALREADY_OWNED. Routine
  *     on Android after a reinstall or when a purchase landed under a
  *     different app login. The fix is to activate, never to charge again.
- *   - `PURCHASE_NOT_ALLOWED_ERROR` / `STORE_PROBLEM_ERROR` — usually
- *     BILLING_UNAVAILABLE: emulator without Play services, no Google account,
- *     or a work profile that blocks purchases.
+ *   - `PURCHASE_NOT_ALLOWED_ERROR` — the device/account cannot buy right now.
+ *   - `STORE_PROBLEM_ERROR` / `OPERATION_ALREADY_IN_PROGRESS_ERROR` — the
+ *     transaction outcome is uncertain. Check access before another purchase.
  */
 
 import { storeAccountLabel, storePhrase } from "@/lib/iap/storeTerms";
@@ -30,6 +30,8 @@ export type PurchaseFailureKind =
   | "already_owned"
   /** Purchases are unavailable on this device / account right now. */
   | "billing_unavailable"
+  /** The store result may be incomplete; check access before another purchase. */
+  | "result_unknown"
   /** Connectivity. Retrying is reasonable. */
   | "network"
   /** Anything else. */
@@ -42,7 +44,7 @@ export type MappedPurchaseFailure = {
 };
 
 type RawPurchasesError = {
-  code?: string;
+  code?: string | number;
   message?: string;
   userCancelled?: boolean | null;
   underlyingErrorMessage?: string;
@@ -57,9 +59,10 @@ function messageForCode(code: string | undefined): string | null {
     case PURCHASES_ERROR_CODE.PURCHASE_NOT_ALLOWED_ERROR:
       return `Purchases aren't available on this device. Make sure you're signed in to ${storePhrase()} and that purchases aren't restricted for your ${storeAccountLabel()}.`;
     case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
-      return `${storePhrase()} couldn't complete the purchase. Please try again in a moment.`;
+    case PURCHASES_ERROR_CODE.OPERATION_ALREADY_IN_PROGRESS_ERROR:
+      return `${storePhrase()} hasn’t confirmed the purchase result. Check access or restore purchases before trying again.`;
     case PURCHASES_ERROR_CODE.PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR:
-      return `${storePhrase()} couldn't sell this Crittr Pro plan on this device. On a debug Android build the Google account must be a Play license tester, and the Play products crittr_pro_monthly:monthly / crittr_pro_annual:annual must be active.`;
+      return `${storePhrase()} couldn't sell this Crittr Pro plan on this device. Make sure you’re signed into the store account you use for purchases, or try again on another device.`;
     case PURCHASES_ERROR_CODE.NETWORK_ERROR:
     case PURCHASES_ERROR_CODE.OFFLINE_CONNECTION_ERROR:
       return "We couldn't reach the network. Check your connection and try again.";
@@ -85,8 +88,10 @@ function kindForCode(
     case PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR:
     case PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR:
       return "already_owned";
-    case PURCHASES_ERROR_CODE.PURCHASE_NOT_ALLOWED_ERROR:
     case PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR:
+    case PURCHASES_ERROR_CODE.OPERATION_ALREADY_IN_PROGRESS_ERROR:
+      return "result_unknown";
+    case PURCHASES_ERROR_CODE.PURCHASE_NOT_ALLOWED_ERROR:
       return "billing_unavailable";
     case PURCHASES_ERROR_CODE.NETWORK_ERROR:
     case PURCHASES_ERROR_CODE.OFFLINE_CONNECTION_ERROR:
@@ -101,7 +106,7 @@ export function mapPurchasesError(
   fallbackMessage: string,
 ): MappedPurchaseFailure {
   const err = (raw ?? {}) as RawPurchasesError;
-  const code = typeof err.code === "string" ? err.code : undefined;
+  const code = typeof err.code === "string" || typeof err.code === "number" ? String(err.code) : undefined;
   const kind = kindForCode(code, Boolean(err.userCancelled));
 
   return {

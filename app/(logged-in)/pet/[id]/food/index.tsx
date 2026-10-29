@@ -1,13 +1,11 @@
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import PetFoodProfileCard from "@/components/ui/pet/PetFoodProfileCard";
-import { ProSoftPaywallCard } from "@/components/pro/ProSoftPaywallCard";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
 import { useDeletePetFoodMutation, usePetDetailsQuery } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
 import type { PetFood } from "@/types/database";
@@ -38,7 +36,6 @@ export default function PetFoodManagerScreen() {
   const { data: details, isLoading } = usePetDetailsQuery(petId ?? null);
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const deleteMut = useDeletePetFoodMutation(petId ?? "");
-  const { canAddAnotherOrUpgrade, isPro, isProfileReady } = useProGateNavigation();
 
   const sortedFoods = useMemo(() => {
     if (!details?.foods) return [];
@@ -126,16 +123,14 @@ export default function PetFoodManagerScreen() {
             : "Tap a food to view its details."}
         </Text>
 
-        {canEditFood && (!isProfileReady || isPro || sortedFoods.length === 0) ? (
+        {canEditFood ? (
           <Pressable
             style={({ pressed }) => [
               styles.addBtn,
               pressed && styles.addBtnPressed,
             ]}
             onPress={() =>
-              canAddAnotherOrUpgrade(sortedFoods.length, () =>
-                router.push(`/(logged-in)/pet/${petId}/food/new` as Href),
-              )
+              router.push(`/(logged-in)/pet/${petId}/food/new` as Href)
             }
           >
             <MaterialCommunityIcons
@@ -192,12 +187,6 @@ export default function PetFoodManagerScreen() {
             ))}
           </View>
         )}
-
-        {canEditFood && isProfileReady && !isPro && sortedFoods.length >= 1 ? (
-          <View style={styles.softPaywallWrap}>
-            <ProSoftPaywallCard kind="food" petName={details.name} />
-          </View>
-        ) : null}
       </ScrollView>
     </View>
   );

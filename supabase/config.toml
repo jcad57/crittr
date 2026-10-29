@@ -23,6 +23,10 @@ verify_jwt = false
 [functions.serve-medical-record-file]
 verify_jwt = false
 
+# Service-only cleanup worker; authenticates MEDICAL_RECORD_CLEANUP_AUTH inside.
+[functions.cleanup-medical-record-storage]
+verify_jwt = false
+
 [functions.submit-feedback]
 verify_jwt = false
 

@@ -12,7 +12,7 @@ async function load({ skipMigrations = [], beforeMigration } = {}) {
  CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.role',true),'') $$;
  CREATE TABLE auth.users (id uuid PRIMARY KEY, email text, raw_user_meta_data jsonb DEFAULT '{}', raw_app_meta_data jsonb DEFAULT '{}', encrypted_password text, created_at timestamptz DEFAULT now());
  CREATE TABLE auth.identities (id uuid, user_id uuid, provider text, identity_data jsonb);
- CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean);
+ CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean, file_size_limit bigint);
  CREATE TABLE storage.objects (id uuid DEFAULT gen_random_uuid(), bucket_id text, name text, owner uuid);
  ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
  CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql AS $$ SELECT string_to_array($1,'/') $$;

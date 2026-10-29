@@ -5,41 +5,24 @@
 
 export type ProSoftPaywallKind =
   | "pets"
-  | "food"
-  | "medications"
-  | "vaccinations"
   | "records"
   | "coCare"
   | "crittrAi";
 
 export const PRO_PAYWALL_HEADLINE = "Take better care of the pets you love.";
 
+export const FREE_TIER_SUMMARY =
+  "Free includes 3 pets, 1 co-carer per pet, and unlimited activity logs, foods, medications, and vaccinations.";
+
 export const PRO_PAYWALL_BENEFITS: {
   icon: "heart-outline" | "paw" | "clipboard-text-outline" | "weather-sunny";
   title: string;
   subtitle: string;
 }[] = [
-  {
-    icon: "heart-outline",
-    title: "Care for your pets together",
-    subtitle: "Invite someone you trust so everyone can stay on the same page.",
-  },
-  {
-    icon: "paw",
-    title: "Keep every pet in one place",
-    subtitle: "Routines and care for the whole household, together.",
-  },
-  {
-    icon: "clipboard-text-outline",
-    title: "Keep their care organized",
-    subtitle:
-      "Meals, medications, vaccinations, and records alongside their history.",
-  },
-  {
-    icon: "weather-sunny",
-    title: "A calmer Crittr",
-    subtitle: "Focus on your pet without ads or interruptions.",
-  },
+  { icon: "paw", title: "Unlimited pets", subtitle: "Add every companion, beyond the 3 pets included on Free." },
+  { icon: "heart-outline", title: "Unlimited co-carers", subtitle: "Invite more than 1 co-carer per pet. They can join on Free." },
+  { icon: "clipboard-text-outline", title: "Medical record storage", subtitle: "Upload and organize documents, photos, and insurance files." },
+  { icon: "weather-sunny", title: "CrittrAI", subtitle: "Ask care questions with your pet’s saved profile as context." },
 ];
 
 const FALLBACK_PET = "your pet";
@@ -59,22 +42,7 @@ export function softPaywallCopy(
     case "pets":
       return {
         title: "Bring the whole family",
-        body: "Keep every pet’s routine and care in one place — so no one gets left out.",
-      };
-    case "food":
-      return {
-        title: "Keep every meal and treat in one place",
-        body: `Save the foods ${pet} actually eats, so logging a meal is quick when life is busy.`,
-      };
-    case "medications":
-      return {
-        title: "Track more medications",
-        body: `More meds means more opportunities to forget! Stay on track with ${pet}'s medications.`,
-      };
-    case "vaccinations":
-      return {
-        title: "Keep the full record together",
-        body: `Keep ${pet}’s complete vaccination history in one place, ready when you need it.`,
+        body: "Free includes 3 pets, including memorialized pets. Upgrade to Crittr Pro to add unlimited pets.",
       };
     case "records":
       return {
@@ -84,7 +52,7 @@ export function softPaywallCopy(
     case "coCare":
       return {
         title: "Care is better together",
-        body: `Have fewer "did we..?" moments by inviting someone to help share ${pet}’s routine. You can do that with Crittr Pro!`,
+        body: `Free includes 1 co-carer per pet. Upgrade to Crittr Pro to invite unlimited co-carers for ${pet}. Pending invites reserve a spot.`,
       };
     case "crittrAi":
       return {
@@ -104,7 +72,7 @@ export function milestoneCelebrationCopy(
     body: `You’ve logged ${activityCount} ${
       activityCount === 1 ? "activity" : "activities"
     } for ${pet} this month.`,
-    invite: `Keep the care going — invite someone you trust to help share ${pet}’s routine with Crittr Pro.`,
+    invite: `Keep the care going — share ${pet}’s routine with 1 co-carer on Free, or invite unlimited co-carers with Crittr Pro.`,
   };
 }
 
@@ -114,7 +82,7 @@ export const PRO_ONBOARDING_COPY = {
   welcomeCta: "Let's get started",
   cocareTitle: "Care is better together.",
   cocareLead:
-    "Invite someone you trust to help keep your pet’s routine on track.",
+    "Invite your care team with unlimited co-carers for every pet. They can join on Free.",
   cocareCta: "Set up co-care",
   cocareSkip: "Maybe later",
   expand: {
@@ -127,11 +95,6 @@ export const PRO_ONBOARDING_COPY = {
       title: "Keep important records close",
       lead: "Store documents right alongside their care history.",
       cta: "Upload a record",
-    },
-    medications: {
-      title: "Keep every treatment organized",
-      lead: "Save each medication so doses are easier to follow.",
-      cta: "Add a medication",
     },
     crittrAi: {
       title: "Meet CrittrAI",

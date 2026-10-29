@@ -118,6 +118,7 @@ export {
   useDeletePetMedicalRecordMutation,
   useUpdatePetMedicalRecordTitleMutation,
   useUploadMedicalRecordFileMutation,
+  useUploadMedicalRecordFilesMutation,
 } from "../mutations/usePetMedicalRecordMutations";
 export {
   useDeletePetInsuranceFileMutation,

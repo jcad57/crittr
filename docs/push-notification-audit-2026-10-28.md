@@ -15,6 +15,44 @@ At activation, zero owners/devices had completed the new care setup; mobile
 source changes must be shipped or reloaded and opened before devices use the
 new reminder system. Physical iOS/Android presentation remains unverified.
 
+## Co-carer follow-up: missing owner time zone
+
+A reported 6:30 PM Central meal for a shared pet never entered reminder
+generation because the primary owner's saved care time zone was null. The
+co-carer's latest TestFlight device was correctly registered in server mode;
+the primary owner's older registration was still in local mode. Preferences,
+membership and push access were enabled. Missing owner time-zone setup blocked
+the entire pet, rather than just the owner.
+
+After the user confirmed Central time, the missing owner setting was repaired
+to `America/Chicago`, including its pet projection. The ordinary minute worker
+generated the missed meal within its catch-up window and Expo accepted one
+delivery to the registered co-carer. No app rebuild is required for that data
+repair. Older local-mode devices still need to open the updated app so their
+native reminders are canceled before server delivery is enabled.
+
+Additional regression coverage confirms that multiple opted-in co-carers,
+including view-only carers and carers with multiple devices, receive due alerts
+even when the owner has no registered device or has opted out of that category.
+Recipient opt-outs remain independent. The client setup status now explicitly
+reports paused shared-pet reminders when an owner's time zone is missing,
+instead of reporting an entirely successful setup. That diagnostic change
+ships with the next client bundle.
+
+At the final live check, both the owner and co-carer had one active server-mode
+device and an `America/Chicago` care time zone. At the user's explicit request,
+a single title-only `Test` notification was queued for each of the two updated,
+opted-in registrations. Legacy-device jobs were removed within the insertion
+transaction before becoming visible to the dispatcher. Expo accepted both test
+pushes without errors. Exact TestFlight build numbers are not stored; updated
+reminder registration is the available targeting signal. Provider acceptance
+does not by itself confirm iOS displayed a banner.
+
+Follow-up verification: 18 targeted reminder/database tests passed, including
+the new multi-carer and incomplete-setup cases; TypeScript and targeted ESLint
+also passed. The live time-zone repair is effective with the existing updated
+TestFlight app. Only the clearer setup diagnostic needs a later client bundle.
+
 ## Agreed behavior
 
 | Category | Timing | Preference |

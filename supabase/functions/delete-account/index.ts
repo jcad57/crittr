@@ -153,10 +153,11 @@ Deno.serve(async (req: Request) => {
     const petIds = (ownedPets ?? []).map((p: { id: string }) => p.id);
 
     if (petIds.length > 0) {
-      const { data: med } = await supabaseAdmin
-        .from("pet_medical_record_uploads")
-        .select("storage_path")
-        .in("pet_id", petIds);
+      const { data: med, error: medError } = await supabaseAdmin
+        .from("pet_medical_record_files")
+        .select("storage_path, pet_medical_records!inner(pet_id)")
+        .in("pet_medical_records.pet_id", petIds);
+      if (medError) throw medError;
       const medPaths = (med ?? [])
         .map((r: { storage_path: string }) => r.storage_path)
         .filter(Boolean);

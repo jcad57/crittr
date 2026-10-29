@@ -15,7 +15,6 @@ import {
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import {
   buildPetFoodPayload,
   isPetFoodFormValid,
@@ -32,7 +31,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -75,7 +73,6 @@ export default function EditPetFoodScreen() {
   const canManageFood = useCanPerformAction(petId, "can_manage_food");
   const insertMut = useInsertPetFoodMutation(petId ?? "");
   const updateMut = useUpdatePetFoodMutation(petId ?? "");
-  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const existing = !isNew
     ? details?.foods.find((f) => f.id === foodIdParam)
@@ -162,21 +159,6 @@ export default function EditPetFoodScreen() {
     router,
   ]);
 
-  useLayoutEffect(() => {
-    if (!isNew || !details) return;
-    if (canManageFood !== true) return;
-    if (!isProfileReady) return;
-    if ((details.foods?.length ?? 0) >= 1 && !isPro) {
-      replaceWithUpgrade();
-    }
-  }, [
-    isNew,
-    details,
-    isPro,
-    isProfileReady,
-    replaceWithUpgrade,
-    canManageFood,
-  ]);
 
   if (isLoading && !details) {
     return (

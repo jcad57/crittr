@@ -11,9 +11,8 @@ import {
   type Profile,
 } from "@/types/database";
 
-/** Shown when the invitee tries to accept without active Pro (matches RLS on `pet_co_carers`). */
-export const CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE =
-  "Crittr Pro is required to co-care. Upgrade to accept this invitation.";
+export const CO_CARE_LIMIT_MESSAGE =
+  "Free includes 1 co-carer per pet. The pet owner needs Crittr Pro to add more.";
 
 export const CO_CARE_INVITE_UNAVAILABLE_MESSAGE =
   "This invitation is no longer available. Ask the pet owner to send a new invite.";
@@ -21,7 +20,9 @@ export const CO_CARE_INVITE_UNAVAILABLE_MESSAGE =
 const CO_CARE_INVITE_VALIDATION_MESSAGES: Record<string, string> = {
   email_required: "Enter an email address to send an invite.",
   not_owner: "You can only invite co-carers for pets you own.",
-  inviter_not_pro: "Crittr Pro is required to invite co-carers.",
+  co_carer_limit: CO_CARE_LIMIT_MESSAGE,
+  self_invite: "You already own this pet.",
+  already_co_carer: "This person is already a co-carer for this pet.",
 };
 
 function messageForCoCareInviteValidation(code: string | undefined): string {
@@ -80,7 +81,6 @@ export async function sendCoCareInvite(
 ): Promise<{
   invite: CoCarerInvite;
   isRegistered: boolean;
-  inviteeNeedsPro: boolean;
   /** Present only when the invitee has no account yet. */
   inviteEmailSent?: boolean;
 }> {
@@ -96,9 +96,6 @@ export async function sendCoCareInvite(
   if (!verdict?.ok) {
     throw new Error(messageForCoCareInviteValidation(verdict?.code));
   }
-
-  const validationCode = verdict.code ?? "";
-  const inviteeNeedsPro = validationCode === "registered_needs_pro";
 
   let invitedUserId: string | null = null;
   const { data: authLookup, error: lookupError } = await supabase.rpc(
@@ -131,7 +128,7 @@ export async function sendCoCareInvite(
   if (error) throw error;
 
   // In-app notifications for registered invitees: DB trigger
-  // `notify_co_carer_invite_after_insert` (handles Pro vs non‑Pro).
+  // `notify_co_carer_invite_after_insert` (Free and Pro invitees can accept).
 
   let inviteEmailSent: boolean | undefined;
   if (!invitedUserId) {
@@ -172,7 +169,6 @@ export async function sendCoCareInvite(
   return {
     invite: invite as CoCarerInvite,
     isRegistered: !!invitedUserId,
-    inviteeNeedsPro: !!invitedUserId && inviteeNeedsPro,
     inviteEmailSent,
   };
 }
@@ -251,14 +247,6 @@ export async function acceptInvite(
 
   if (fetchErr) throw fetchErr;
   if (!invite) throw new Error(CO_CARE_INVITE_UNAVAILABLE_MESSAGE);
-
-  const { data: accepterHasPro, error: proErr } = await supabase.rpc(
-    "user_has_crittr_pro",
-  );
-  if (proErr) throw proErr;
-  if (!accepterHasPro) {
-    throw new Error(CO_CARE_ACCEPT_NEEDS_PRO_MESSAGE);
-  }
 
   const { data: petId, error: acceptError } = await supabase.rpc(
     "accept_co_care_invite",

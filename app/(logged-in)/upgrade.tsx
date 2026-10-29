@@ -1,420 +1,81 @@
-import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
-import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
-import { useProPricingQuery } from "@/hooks/queries";
-import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { trackPaywallViewed } from "@/lib/analytics";
-import { resolveClientIsCrittrPro } from "@/lib/crittrPro";
-import {
-  detectExistingCrittrProEntitlement,
-  ProPurchaseException,
-  restoreProPurchases,
-  waitForProActivation,
-} from "@/lib/iap/checkout";
-import {
-  clientHasUnlockedPro,
-  getCrittrProClientState,
-} from "@/lib/iap/crittrProClientState";
-import { PRO_ACTIVATION_UI_WATCHDOG_MS } from "@/lib/iap/proActivation";
-import { PLAY_REDEEM_URL, storeAccountLabel } from "@/lib/iap/storeTerms";
-import { suppressProCelebrationsUntil } from "@/lib/proEngagementPersistence";
-import { queryClient } from "@/lib/query/client";
-import { proPricingQueryKey } from "@/lib/query/keys";
-import { styles } from "@/screen-styles/upgrade.styles";
-import { useAuthStore } from "@/stores/authStore";
-import { Colors } from "@/theme/colors";
-import { postPurchaseHref } from "@/utils/proUpgradePaths";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import type { Href } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
 import Purchases from "react-native-purchases";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-type BillingPeriod = "annual" | "monthly";
+import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { ProTierCard } from "@/components/screens/upgrade/ProTierCard";
+import { ProFlowPage, ProLink, ProNotice, flowStyles } from "@/components/pro/flow/ProFlowUi";
+import { PRO_PRICING_FALLBACK } from "@/constants/proPricingFallback";
+import { useProPricingQuery } from "@/hooks/queries";
+import { trackPaywallViewed } from "@/lib/analytics";
+import { detectExistingCrittrProEntitlement } from "@/lib/iap/checkout";
+import { clientHasUnlockedPro } from "@/lib/iap/crittrProClientState";
+import { PLAY_REDEEM_URL } from "@/lib/iap/storeTerms";
+import { suppressProCelebrationsUntil } from "@/lib/proEngagementPersistence";
+import { useAuthStore } from "@/stores/authStore";
+import { sessionGeneration } from "@/lib/sessionGeneration";
+import { Colors } from "@/theme/colors";
 
 export default function UpgradeScreen() {
   const router = useRouter();
-  const { push, replace } = useNavigationCooldown();
-  const refreshProfileOnly = useAuthStore((s) => s.refreshProfileOnly);
-  const insets = useSafeAreaInsets();
-  const { height: windowH } = useWindowDimensions();
-  const [activatingExisting, setActivatingExisting] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const params = useLocalSearchParams<{
-    fromOnboarding?: string;
-    returnTo?: string;
-    billing?: string;
-    source?: string;
-  }>();
-  const [billingChoice, setBillingChoice] = useState<{
-    requested: string | undefined;
-    value: BillingPeriod;
-  } | null>(null);
-  const billing: BillingPeriod =
-    billingChoice && billingChoice.requested === params.billing
-      ? billingChoice.value
-      : params.billing === "monthly"
-        ? "monthly"
-        : "annual";
-  const setBilling = (value: BillingPeriod) =>
-    setBillingChoice({ requested: params.billing, value });
-  const fromOnboarding =
-    params.fromOnboarding === "1" || params.fromOnboarding === "true";
-
-  const { data: pricingData } = useProPricingQuery();
-  const pricing = pricingData ?? PRO_PRICING_FALLBACK;
+  const params = useLocalSearchParams<{ fromOnboarding?: string; returnTo?: string; billing?: string; source?: string }>();
+  const [billing, setBilling] = useState<"annual" | "monthly">(params.billing === "monthly" ? "monthly" : "annual");
+  const [checkingExisting, setCheckingExisting] = useState(true);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  const pricingQuery = useProPricingQuery();
+  const pricing = pricingQuery.data ?? PRO_PRICING_FALLBACK;
+  const returnTo = params.returnTo;
+  const fromOnboarding = params.fromOnboarding === "1" || params.fromOnboarding === "true";
 
   useEffect(() => {
-    trackPaywallViewed({
-      billing,
-      source:
-        params.source === "website"
-          ? "website"
-          : fromOnboarding
-            ? "onboarding"
-            : params.returnTo || "upgrade",
-    });
-    // Paywall impression is once per visit, not per billing toggle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /**
-   * Paywall preflight: if RevenueCat already reports Crittr Pro for this
-   * signed-in user (promo redeemed outside the app, profile column lagging
-   * the SDK, etc.), sync that onto the `profiles` entitlement mirror and skip
-   * the paywall. Apple/Google remain the purchase authority; RevenueCat
-   * `crittr_pro` is the entitlement aggregator; CustomerInfo is what the rest
-   * of the client UI gates on.
-   *
-   * This effect is mount-only. Putting `activatingExisting` (or `profile`)
-   * in the dependency list re-ran cleanup as soon as the overlay appeared,
-   * set `cancelled`, skipped `setActivatingExisting(false)` in `finally`,
-   * and left the spinner up forever.
-   */
-  useEffect(() => {
-    const client = getCrittrProClientState();
-    if (
-      resolveClientIsCrittrPro(
-        client.customerInfoObserved,
-        client.entitlement,
-        useAuthStore.getState().profile,
-      )
-    ) {
-      return;
+    trackPaywallViewed({ billing, source: params.source === "website" ? "website" : fromOnboarding ? "onboarding" : returnTo || "upgrade" });
+    const generation = sessionGeneration();
+    let active = true;
+    mounted.current = true;
+    if (clientHasUnlockedPro()) {
+      router.replace({ pathname: "/(logged-in)/pro-checkout", params: { billing, action: "check", ...(returnTo ? { returnTo } : {}) } });
+      return () => { active = false; mounted.current = false; };
     }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const detect = await detectExistingCrittrProEntitlement();
-        if (cancelled || !detect.hasCrittrPro) return;
-        setActivatingExisting(true);
-        let didNavigate = false;
-        const watchdog = setTimeout(() => {
-          if (cancelled || didNavigate) return;
-          if (clientHasUnlockedPro()) {
-            didNavigate = true;
-            replace(postPurchaseHref(params.returnTo));
-            return;
-          }
-          setActivatingExisting(false);
-        }, PRO_ACTIVATION_UI_WATCHDOG_MS);
-        try {
-          await waitForProActivation({
-            purchaseCustomerInfo: detect.customerInfo,
-            source: "paywall",
-          });
-          if (cancelled) return;
-          void useAuthStore.getState().refreshProfileOnly();
-          const returnTo = params.returnTo;
-          replace(postPurchaseHref(returnTo));
-          didNavigate = true;
-        } catch {
-          if (cancelled) return;
-          if (clientHasUnlockedPro()) {
-            void useAuthStore.getState().refreshProfileOnly();
-            replace(postPurchaseHref(params.returnTo));
-            didNavigate = true;
-            return;
-          }
-          /* fall through — the user can still tap "Restore purchases" manually. */
-        } finally {
-          clearTimeout(watchdog);
-          if (!didNavigate) setActivatingExisting(false);
-        }
-      } catch {
-        /* SDK errors are non-fatal; the paywall just stays visible. */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // Mount-only: see comment above.
+    void detectExistingCrittrProEntitlement().then((result) => {
+      if (!active || !mounted.current || generation !== sessionGeneration() || !result.hasCrittrPro) return;
+      router.replace({ pathname: "/(logged-in)/pro-checkout", params: { billing, action: "check", ...(returnTo ? { returnTo } : {}) } });
+    }).catch(() => { /* A failed preflight must not prevent reviewing plans. */ })
+      .finally(() => { if (active && mounted.current) setCheckingExisting(false); });
+    return () => { active = false; mounted.current = false; };
+    // Capture this visit's intent once; toggling a plan must not repeat preflight.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const scrollCompact = windowH < 720;
-
-  const goToDashboard = async () => {
-    await refreshProfileOnly();
+  const leave = useCallback(() => {
     const uid = useAuthStore.getState().session?.user?.id;
-    if (fromOnboarding && uid) {
-      void suppressProCelebrationsUntil(uid, Date.now() + 24 * 60 * 60 * 1000);
-    }
-    replace("/(logged-in)/dashboard" as Href);
-  };
+    if (fromOnboarding && uid) void suppressProCelebrationsUntil(uid, Date.now() + 24 * 60 * 60 * 1000).catch(() => {});
+    if (!fromOnboarding && router.canGoBack()) router.back();
+    else router.replace("/(logged-in)/(tabs)/dashboard");
+  }, [fromOnboarding, router]);
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    void goToDashboard();
-  };
-
-  const onRestore = useCallback(async () => {
-    if (restoring || activatingExisting) return;
-    setRestoring(true);
+  const checkout = (action?: "restore") => router.replace({ pathname: "/(logged-in)/pro-checkout", params: { billing, ...(returnTo ? { returnTo } : {}), ...(action ? { action } : {}) } });
+  const onPromo = async () => {
+    const generation = sessionGeneration();
+    setPromoError(null);
     try {
-      const result = await restoreProPurchases();
-      if (!result.hasCrittrPro) {
-        Alert.alert(
-          "Nothing to restore",
-          `We couldn't find an active Crittr Pro subscription on this account. If you recently subscribed, make sure this device is signed in to the ${storeAccountLabel()} used for the original purchase.`,
-        );
-        return;
-      }
-      setActivatingExisting(true);
-      try {
-        await waitForProActivation({
-          purchaseCustomerInfo: result.customerInfo,
-          source: "restore",
-        });
-        void refreshProfileOnly();
-        void queryClient.invalidateQueries({ queryKey: proPricingQueryKey });
-        replace(postPurchaseHref(params.returnTo));
-      } finally {
-        setActivatingExisting(false);
-      }
-    } catch (e) {
-      if (e instanceof ProPurchaseException && e.userCancelled) return;
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Restore failed", msg);
-    } finally {
-      setRestoring(false);
+      if (Platform.OS === "ios") await Purchases.presentCodeRedemptionSheet();
+      else await WebBrowser.openBrowserAsync(PLAY_REDEEM_URL);
+      if (!mounted.current || generation !== sessionGeneration()) return;
+      const found = await detectExistingCrittrProEntitlement();
+      if (mounted.current && generation === sessionGeneration() && found.hasCrittrPro) router.replace({ pathname: "/(logged-in)/pro-checkout", params: { billing, action: "check", ...(returnTo ? { returnTo } : {}) } });
+    } catch {
+      if (mounted.current) setPromoError("We couldn’t open code redemption. Check your connection and try again.");
     }
-  }, [
-    restoring,
-    activatingExisting,
-    refreshProfileOnly,
-    params.returnTo,
-    replace,
-  ]);
-
-  /**
-   * `presentCodeRedemptionSheet` is iOS-only. Play has no in-app equivalent,
-   * so Android users go to the Play redeem page; the entitlement lands back in
-   * the app through the RevenueCat sync on resume.
-   */
-  const onPromoCode = useCallback(async () => {
-    try {
-      if (Platform.OS === "ios") {
-        await Purchases.presentCodeRedemptionSheet();
-        return;
-      }
-      await WebBrowser.openBrowserAsync(PLAY_REDEEM_URL);
-    } catch (e) {
-      if (__DEV__) console.warn("[upgrade] redeem code", e);
-    }
-  }, []);
-
-  return (
-    <LinearGradient
-      colors={GRADIENT_COLORS}
-      locations={GRADIENT_LOCATIONS}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={styles.gradient}
-    >
-      <View
-        style={[
-          styles.topBar,
-          { paddingTop: insets.top + 8, paddingHorizontal: 20 },
-        ]}
-      >
-        <View style={styles.topBarInner}>
-          <View style={styles.topTitleWrap} pointerEvents="none">
-            <Text style={styles.topTierNameCentered} numberOfLines={1}>
-              Crittr Pro
-            </Text>
-          </View>
-          <View style={styles.topBarRow}>
-            <Pressable
-              style={styles.backInRow}
-              onPress={handleBack}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <MaterialCommunityIcons
-                name="chevron-left"
-                size={26}
-                color={Colors.gray900}
-              />
-            </Pressable>
-            <View style={styles.goProInline}>
-              <MaterialCommunityIcons
-                name="star-four-points"
-                size={14}
-                color={Colors.orange}
-              />
-              <Text style={styles.goProInlineText}>Go Pro</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.cardScroll}
-        contentContainerStyle={[
-          styles.cardScrollContent,
-          {
-            paddingTop: 12,
-            paddingBottom: Math.max(insets.bottom, 12) + 8,
-          },
-        ]}
-        showsVerticalScrollIndicator={scrollCompact}
-        bounces={scrollCompact}
-      >
-        <ProTierCard
-          pricing={pricing}
-          billing={billing}
-          onBillingChange={setBilling}
-          onCta={() => {
-            const q = new URLSearchParams();
-            q.set("billing", billing);
-            if (params.returnTo) q.set("returnTo", params.returnTo);
-            push(`/(logged-in)/pro-checkout?${q.toString()}` as Href);
-          }}
-          showNoThanks={fromOnboarding}
-          onNoThanks={goToDashboard}
-        />
-
-        <View style={upgradeFooter.row}>
-          <Pressable
-            style={({ pressed }) => [
-              upgradeFooter.linkBtn,
-              pressed && upgradeFooter.linkBtnPressed,
-            ]}
-            onPress={onRestore}
-            disabled={restoring || activatingExisting}
-            accessibilityRole="button"
-            accessibilityLabel="Restore previous purchases"
-          >
-            <Text style={upgradeFooter.linkText}>
-              {restoring ? "Restoring…" : "Restore purchases"}
-            </Text>
-          </Pressable>
-          <Text style={upgradeFooter.dot}>·</Text>
-          <Pressable
-            style={({ pressed }) => [
-              upgradeFooter.linkBtn,
-              pressed && upgradeFooter.linkBtnPressed,
-            ]}
-            onPress={() => void onPromoCode()}
-            disabled={activatingExisting}
-            accessibilityRole="button"
-            accessibilityLabel="Redeem a promo code"
-          >
-            <Text style={upgradeFooter.linkText}>Redeem promo code</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-
-      {activatingExisting ? (
-        <View style={upgradeFooter.activatingOverlay} pointerEvents="auto">
-          <View style={upgradeFooter.activatingCard}>
-            <ActivityIndicator color={Colors.orange} />
-            <Text style={upgradeFooter.activatingText}>
-              Activating Crittr Pro…
-            </Text>
-          </View>
-        </View>
-      ) : null}
-    </LinearGradient>
-  );
+  };
+  return <ProFlowPage onBack={leave} compactFooter footer={<>
+    {promoError ? <ProNotice message={promoError} /> : null}
+    <OrangeButton onPress={() => checkout()} disabled={!pricing.resolved || checkingExisting} loading={checkingExisting}>{pricing.resolved ? `Continue with ${billing}` : "Loading prices…"}</OrangeButton>
+    <Text style={[flowStyles.finePrint, { fontSize: 11, lineHeight: 14 }]}>{pricing.resolved && pricing[billing].trial ? `${pricing[billing].trial?.durationLabel} free trial, then ${pricing[billing].formatted}/${billing === "annual" ? "year" : "month"}. ` : `Billed ${billing === "annual" ? "annually" : "monthly"}. `}Cancel anytime.</Text>
+    <View style={{ flexDirection: "row", justifyContent: "center", flexWrap: "wrap" }}><ProLink compact onPress={() => checkout("restore")}>Restore purchases</ProLink><ProLink compact onPress={() => router.push("/(logged-in)/terms-of-service")}>Terms</ProLink><ProLink compact onPress={() => router.push("/(logged-in)/privacy-policy")}>Privacy</ProLink><ProLink compact onPress={() => void onPromo()}>Redeem code</ProLink></View>
+  </>} refreshing={checkingExisting ? <ActivityIndicator size="small" color={Colors.orange} /> : undefined}>
+    <ProTierCard pricing={pricing} billing={billing} onBillingChange={setBilling} onCta={() => checkout()} busy={checkingExisting} showCta={false} />
+    {!pricing.resolved && !pricingQuery.isFetching ? <View style={{ marginTop: 12, gap: 4 }}><ProNotice title="Prices aren’t available yet" message="Connect to the store to load current prices and any trial you’re eligible for." tone="info" /><ProLink onPress={() => void pricingQuery.refetch()}>Reload prices</ProLink></View> : null}
+  </ProFlowPage>;
 }
-
-/**
- * Neutral black/grey wash — same luminance steps as before, no blue slate undertone.
- */
-const GRADIENT_COLORS = [
-  "#0f0f0f",
-  "#171717",
-  "#1a1a1a",
-  "#2e2d2d", // mid “lift” band (neutral grey)
-  "#1a1a1a",
-  "#171717",
-  "#0f0f0f",
-] as const;
-
-const GRADIENT_LOCATIONS = [0, 0.15, 0.35, 0.52, 0.68, 0.86, 1] as const;
-
-const upgradeFooter = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  linkBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-  },
-  linkBtnPressed: {
-    opacity: 0.6,
-  },
-  linkText: {
-    color: "#f5f5f7",
-    fontSize: 14,
-    fontWeight: "500",
-    textDecorationLine: "underline",
-  },
-  dot: {
-    color: "#9a9a9c",
-    fontSize: 14,
-  },
-  activatingOverlay: {
-    ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  activatingCard: {
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 12,
-    minWidth: 220,
-  },
-  activatingText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#111",
-  },
-});

@@ -1,3 +1,5 @@
+import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
+import { useTierLimitGate } from "@/hooks/useTierLimitGate";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -42,6 +44,8 @@ export default function PetInviteCareScreen() {
   const { push, replace, router } = useNavigationCooldown();
   const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
   const insets = useSafeAreaInsets();
+  const { canInviteCoCarerOrUpgrade } = useTierLimitGate();
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const {
     data: details,
@@ -150,9 +154,9 @@ export default function PetInviteCareScreen() {
         }
       >
         <Text style={styles.lead}>
-          Invite someone by email to help care for {name}. Co-care requires Crittr
-          Pro for you and for them before they can accept. You choose their access
-          on the next screen.
+          Invite someone by email to help care for {name}. Free includes 1 co-carer
+          per pet; Crittr Pro unlocks unlimited co-carers. Pending invites reserve
+          a spot. The person you invite can join on Free.
         </Text>
 
         {/* Pending invites */}
@@ -249,14 +253,17 @@ export default function PetInviteCareScreen() {
         ]}
       >
         <OrangeButton
-          onPress={() =>
-            push(`/(logged-in)/pet/${petId}/invite-co-carer`)
-          }
+          onPress={() => void canInviteCoCarerOrUpgrade(
+            petId,
+            () => push(`/(logged-in)/pet/${petId}/invite-co-carer`),
+            () => setShowPaywall(true),
+          )}
           accessibilityLabel={`Invite someone to care for ${name}`}
         >
           Invite someone to care for {name}
         </OrangeButton>
       </View>
+      <ProSoftPaywallSheet visible={showPaywall} kind="coCare" petName={name} onClose={() => setShowPaywall(false)} />
     </View>
   );
 }

@@ -1,15 +1,15 @@
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import {
-  getAuthFlowColumnOuterWidth,
-  getResponsiveWindow,
-} from "@/lib/responsiveUi";
+  openLocalMedicalRecord,
+  saveLocalMedicalRecord,
+  shareLocalMedicalRecord,
+} from "@/services/medicalRecordFileActions";
 import { Colors } from "@/theme/colors";
 import { Font } from "@/theme/typography";
+import { medicalRecordPreviewKind } from "@/utils/medicalRecordFiles";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import * as Sharing from "expo-sharing";
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,75 +19,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-
-function parentDirectoryFileUri(fileUri: string): string {
-  const trimmed = fileUri.replace(/\/$/, "");
-  const slash = trimmed.lastIndexOf("/");
-  if (slash <= "file:".length) return trimmed;
-  return `${trimmed.slice(0, slash)}/`;
-}
-
-function isRenderableImage(
-  mimeType: string | null | undefined,
-  fileUri: string,
-): boolean {
-  if (mimeType?.trim().startsWith("image/")) return true;
-  const path = fileUri.split("?")[0].toLowerCase();
-  return /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(path);
-}
-
-/** Types WKWebView / Android WebView can usually render from a local file URI */
-function canPreviewInWebView(
-  mimeType: string | null | undefined,
-  fileUri: string,
-): boolean {
-  const m = mimeType?.trim().toLowerCase() ?? "";
-  if (m.includes("pdf")) return true;
-  if (m.startsWith("text/html")) return true;
-  if (m.startsWith("text/plain")) return true;
-  const path = fileUri.split("?")[0].toLowerCase();
-  return /\.(pdf|html|htm|txt)$/i.test(path);
-}
-
-/** Centers content vertically when space allows; scrolls on short viewports */
-function PreviewFallbackPanel({ children }: { children: ReactNode }) {
-  const { width, height } = useWindowDimensions();
-  const rw = getResponsiveWindow(width, height);
-  const columnMax = getAuthFlowColumnOuterWidth(width);
-  const gutter = rw.shortestSide < 360 ? 14 : rw.shortestSide < 400 ? 18 : 24;
-
-  return (
-    <ScrollView
-      style={styles.fallbackScroll}
-      contentContainerStyle={[
-        styles.fallbackScrollContent,
-        {
-          paddingHorizontal: gutter,
-          paddingVertical: rw.shortestSide < 520 ? 20 : 32,
-        },
-      ]}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.fallbackColumn, { maxWidth: columnMax }]}>
-        {children}
-      </View>
-    </ScrollView>
-  );
-}
 
 type Props = {
   visible: boolean;
   loading: boolean;
-  /** Local `file://` URI after download; ignored while loading */
   localUri: string | null;
-  /** From storage metadata — used to choose image vs inline document preview */
   mimeType?: string | null;
+  filename: string;
   onClose: () => void;
 };
 
@@ -96,64 +38,52 @@ export default function MedicalRecordFilePreviewModal({
   loading,
   localUri,
   mimeType,
+  filename,
   onClose,
 }: Props) {
-  const [docPreviewFailed, setDocPreviewFailed] = useState(false);
-  const { width, height } = useWindowDimensions();
-  const rw = getResponsiveWindow(width, height);
-
-  const showImagePreview =
-    Boolean(localUri) && isRenderableImage(mimeType, localUri ?? "");
-
-  const showWebPreview =
-    Boolean(localUri) &&
-    !showImagePreview &&
-    canPreviewInWebView(mimeType, localUri ?? "");
-
-  const readAccessUrl = useMemo(() => {
-    if (!localUri || Platform.OS !== "ios") return undefined;
-    return parentDirectoryFileUri(localUri);
-  }, [localUri]);
-
-  const docIconSize = rw.isTablet ? 72 : rw.shortestSide < 340 ? 48 : 56;
-  const hintFontSize =
-    rw.breakpoint === "expanded" ? 17 : rw.shortestSide < 340 ? 14 : 15;
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const [action, setAction] = useState<"save" | "share" | "open" | null>(null);
+  const actionGuard = useRef(false);
+  const kind = medicalRecordPreviewKind(filename, mimeType, Platform.OS);
 
   useEffect(() => {
-    setDocPreviewFailed(false);
-  }, [localUri]);
+    setPreviewFailed(false);
+  }, [localUri, visible]);
 
-  useEffect(() => {
-    if (!visible) setDocPreviewFailed(false);
-  }, [visible]);
-
-  const openWithShareSheet = useCallback(async () => {
-    if (!localUri) return;
+  const runAction = async (next: "save" | "share" | "open") => {
+    if (!localUri || loading || actionGuard.current) return;
+    actionGuard.current = true;
+    setAction(next);
     try {
-      if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert(
-          "Sharing unavailable",
-          "Sharing isn’t available on this device.",
+      if (next === "save") {
+        const saved = await saveLocalMedicalRecord(
+          localUri,
+          filename,
+          mimeType,
         );
-        return;
+        if (saved)
+          Alert.alert(
+            "Document saved",
+            "A copy was saved in the folder you selected.",
+          );
+      } else if (next === "share") {
+        await shareLocalMedicalRecord(localUri, mimeType);
+      } else {
+        await openLocalMedicalRecord(localUri, filename, mimeType);
       }
-      await Sharing.shareAsync(localUri, {
-        mimeType: mimeType?.trim() || undefined,
-        dialogTitle: "Open document",
-      });
-    } catch (e) {
+    } catch (error) {
       Alert.alert(
-        "Could not open document",
-        e instanceof Error ? e.message : "Try again in a moment.",
+        `Could not ${next} document`,
+        error instanceof Error ? error.message : "Please try again.",
       );
+    } finally {
+      actionGuard.current = false;
+      setAction(null);
     }
-  }, [localUri, mimeType]);
+  };
 
-  const shareHint = docPreviewFailed
-    ? "This file couldn’t be shown in the app. Open it with another app instead."
-    : Platform.OS === "ios"
-      ? "This file type can be opened from the share sheet (Preview, Files, etc.)."
-      : "This file type can be opened from the share menu.";
+  const actionsDisabled = loading || !localUri || action !== null;
+  const readAccess = localUri?.slice(0, localUri.lastIndexOf("/") + 1);
 
   return (
     <Modal
@@ -162,186 +92,254 @@ export default function MedicalRecordFilePreviewModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView
-        style={styles.safe}
-        edges={["top", "bottom", "left", "right"]}
-      >
-        <View style={styles.toolbar}>
-          <Pressable
-            onPress={onClose}
-            hitSlop={12}
-            style={({ pressed }) => [
-              styles.doneBtn,
-              pressed && styles.donePressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Close preview"
-          >
-            <Text style={styles.doneLabel}>Done</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.body}>
-          {loading ? (
-            <PreviewFallbackPanel>
-              <ActivityIndicator size="large" color={Colors.orange} />
-              <Text
-                style={[
-                  styles.hint,
-                  {
-                    fontSize: hintFontSize,
-                    lineHeight: Math.round(hintFontSize * 1.42),
-                  },
-                ]}
-              >
-                Loading document…
+      {/* A native Modal has its own window; measure its safe area independently. */}
+      <SafeAreaProvider>
+        <SafeAreaView
+          style={styles.safe}
+          edges={["top", "bottom", "left", "right"]}
+        >
+          <View style={styles.toolbar}>
+            <View style={styles.heading}>
+              <Text style={styles.title}>Document</Text>
+              <Text style={styles.filename} numberOfLines={2}>
+                {filename}
               </Text>
-            </PreviewFallbackPanel>
-          ) : localUri && showImagePreview ? (
-            <Image
-              source={{ uri: localUri }}
-              style={styles.imagePreview}
-              contentFit="contain"
-              transition={150}
-            />
-          ) : localUri && showWebPreview && !docPreviewFailed ? (
-            <WebView
-              key={localUri}
-              source={{ uri: localUri }}
-              style={styles.webview}
-              originWhitelist={["*"]}
-              allowFileAccess
-              allowFileAccessFromFileURLs
-              allowingReadAccessToURL={readAccessUrl}
-              scrollEnabled
-              showsVerticalScrollIndicator
-              nestedScrollEnabled
-              onError={() => setDocPreviewFailed(true)}
-              onHttpError={(e) => {
-                if (e.nativeEvent.statusCode >= 400) {
-                  setDocPreviewFailed(true);
-                }
-              }}
-            />
-          ) : localUri ? (
-            <PreviewFallbackPanel>
+            </View>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close document viewer"
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed && styles.pressed,
+              ]}
+            >
               <MaterialCommunityIcons
-                name="file-document-outline"
-                size={docIconSize}
-                color={Colors.textSecondary}
+                name="close"
+                size={22}
+                color={Colors.textPrimary}
               />
-              <Text
-                style={[
-                  styles.hint,
-                  {
-                    fontSize: hintFontSize,
-                    lineHeight: Math.round(hintFontSize * 1.42),
-                  },
-                ]}
-              >
-                {shareHint}
+              <Text style={styles.closeLabel}>Close</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.body}>
+            {loading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color={Colors.orange} />
+                <Text style={styles.hint} accessibilityLiveRegion="polite">
+                  Loading document…
+                </Text>
+              </View>
+            ) : localUri && !previewFailed && kind === "image" ? (
+              <Image
+                source={{ uri: localUri }}
+                style={styles.preview}
+                contentFit="contain"
+                accessibilityLabel={filename}
+                onError={() => setPreviewFailed(true)}
+              />
+            ) : localUri && !previewFailed && kind === "web" ? (
+              <WebView
+                key={localUri}
+                source={{ uri: localUri }}
+                style={styles.preview}
+                // Route every navigation through the strict callback below;
+                // an excluded origin would otherwise be opened by the OS.
+                originWhitelist={["*"]}
+                allowFileAccess
+                allowingReadAccessToURL={
+                  Platform.OS === "ios" ? readAccess : undefined
+                }
+                javaScriptEnabled={false}
+                domStorageEnabled={false}
+                allowFileAccessFromFileURLs={false}
+                allowUniversalAccessFromFileURLs={false}
+                setSupportMultipleWindows={false}
+                onShouldStartLoadWithRequest={({ url }) =>
+                  url.split("#")[0] === localUri.split("#")[0]
+                }
+                onError={() => setPreviewFailed(true)}
+                onContentProcessDidTerminate={() => setPreviewFailed(true)}
+                onRenderProcessGone={() => setPreviewFailed(true)}
+                onFileDownload={() => setPreviewFailed(true)}
+              />
+            ) : (
+              <ScrollView contentContainerStyle={styles.fallback}>
+                <MaterialCommunityIcons
+                  name="file-document-outline"
+                  size={64}
+                  color={Colors.textSecondary}
+                />
+                <Text style={styles.hint}>
+                  {localUri
+                    ? previewFailed
+                      ? "This preview couldn’t be displayed. Open the document in another app, save a copy, or share it below."
+                      : "Open this document in another app, save a copy, or share it below."
+                    : "This document couldn’t be loaded. Close the viewer and try again."}
+                </Text>
+                {localUri ? (
+                  <OrangeButton
+                    onPress={() => void runAction("open")}
+                    disabled={actionsDisabled}
+                    loading={action === "open"}
+                  >
+                    Open in another app
+                  </OrangeButton>
+                ) : null}
+              </ScrollView>
+            )}
+          </View>
+
+          <View style={styles.footer}>
+            <View style={styles.actions}>
+              {(["save", "share"] as const).map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => void runAction(name)}
+                  disabled={actionsDisabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${name === "save" ? "Save" : "Share"} document`}
+                  accessibilityState={{
+                    disabled: actionsDisabled,
+                    busy: action === name,
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    actionsDisabled && styles.disabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  {action === name ? (
+                    <ActivityIndicator size="small" color={Colors.orange} />
+                  ) : (
+                    <MaterialCommunityIcons
+                      name={
+                        name === "save" ? "download-outline" : "export-variant"
+                      }
+                      size={22}
+                      color={Colors.orange}
+                    />
+                  )}
+                  <Text style={styles.actionLabel}>
+                    {name === "save" ? "Save" : "Share"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {Platform.OS === "ios" && localUri && !loading ? (
+              <Text style={styles.saveHint}>
+                To save a copy, choose Save to Files in the system sheet.
               </Text>
-              <OrangeButton
-                onPress={openWithShareSheet}
-                style={styles.shareBtn}
-              >
-                Open or share document
-              </OrangeButton>
-            </PreviewFallbackPanel>
-          ) : (
-            <PreviewFallbackPanel>
-              <Text
-                style={[
-                  styles.hint,
-                  {
-                    fontSize: hintFontSize,
-                    lineHeight: Math.round(hintFontSize * 1.42),
-                  },
-                ]}
-              >
-                Could not load preview.
-              </Text>
-            </PreviewFallbackPanel>
-          )}
-        </View>
-      </SafeAreaView>
+            ) : null}
+          </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
+  safe: { flex: 1, backgroundColor: Colors.cream },
   toolbar: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    gap: 12,
+    padding: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.gray200,
     backgroundColor: Colors.cream,
     flexShrink: 0,
+    zIndex: 1,
   },
-  doneBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 8,
+  heading: { flex: 1, minWidth: 0 },
+  title: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 17,
+    color: Colors.textPrimary,
+  },
+  filename: {
+    fontFamily: Font.uiRegular,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 3,
+  },
+  closeButton: {
+    minHeight: 48,
     paddingHorizontal: 12,
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 12,
+    backgroundColor: Colors.white,
   },
-  donePressed: {
-    opacity: 0.7,
+  closeLabel: {
+    fontFamily: Font.uiSemiBold,
+    fontSize: 15,
+    color: Colors.textPrimary,
   },
-  doneLabel: {
+  pressed: { opacity: 0.7 },
+  body: { flex: 1, minHeight: 0, backgroundColor: Colors.white },
+  preview: { flex: 1, width: "100%", backgroundColor: Colors.white },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 20,
+  },
+  fallback: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 20,
+  },
+  hint: {
+    fontFamily: Font.uiRegular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 480,
+  },
+  footer: {
+    flexShrink: 0,
+    padding: 12,
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.gray200,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 560,
+  },
+  actionButton: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    padding: 12,
+  },
+  actionLabel: {
     fontFamily: Font.uiSemiBold,
     fontSize: 16,
     color: Colors.textPrimary,
   },
-  body: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    minHeight: 0,
-  },
-  fallbackScroll: {
-    flex: 1,
-    width: "100%",
-  },
-  fallbackScrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fallbackColumn: {
-    width: "100%",
-    alignSelf: "center",
-    alignItems: "center",
-    gap: 16,
-  },
-  imagePreview: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: Colors.white,
-  },
-  webview: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: Colors.white,
-  },
-  hint: {
+  disabled: { opacity: 0.45 },
+  saveHint: {
     fontFamily: Font.uiRegular,
+    fontSize: 12,
     color: Colors.textSecondary,
     textAlign: "center",
-    width: "100%",
-    maxWidth: "100%",
-  },
-  shareBtn: {
-    alignSelf: "stretch",
-    width: "100%",
-    marginTop: 8,
-    maxWidth: "100%",
   },
 });

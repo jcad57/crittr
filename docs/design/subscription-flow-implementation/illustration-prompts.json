@@ -1,0 +1,26 @@
+{
+  "tool": "built-in imagegen",
+  "transparent_background": true,
+  "illustrations": [
+    {
+      "name": "companions",
+      "ref": "/Users/jcadeichmann/Desktop/Screenshot 2026-10-28 at 7.25.39 PM.png",
+      "prompt": "Create a production mobile-app illustration asset for Crittr from the attached design reference. Isolate ONLY the illustration described below, no phone frame, no UI, no lettering, no brand wordmark, no price, no card. Match the warm, charming hand-drawn illustration style: confident thin uneven black ink outlines, subtly textured soft flat watercolor color fills, warm golden dog, fluffy white cat, small peach accents. Crisp clean silhouette on a genuinely TRANSPARENT background, no cream/white rectangle, no background blobs (the app draws its own blobs), no drop shadow, no decorative large surrounding shapes. Artwork tightly fills the canvas but preserve every ear, paw and tail without clipping. Same character identity as the reference. Render the exact happy golden retriever and smaller white cat shoulder-to-shoulder from the top of this reference, waist-up/bust view, retriever taller on left and cat nestled on right, a tiny peach heart and 3 short black hand-drawn rays around them. Landscape canvas. Preserve the composition of this reference's hero artwork."
+    },
+    {
+      "name": "getting-ready",
+      "ref": "/Users/jcadeichmann/Desktop/Screenshot 2026-10-28 at 7.29.41 PM.png",
+      "prompt": "Create a production mobile-app illustration asset for Crittr from the attached design reference. Isolate ONLY the illustration described below, no phone frame, no UI, no lettering, no brand wordmark, no price, no card. Match the warm, charming hand-drawn illustration style: confident thin uneven black ink outlines, subtly textured soft flat watercolor color fills, warm golden dog, fluffy white cat, small peach accents. Crisp clean silhouette on a genuinely TRANSPARENT background, no cream/white rectangle, no background blobs (the app draws its own blobs), no drop shadow, no decorative large surrounding shapes. Artwork tightly fills the canvas but preserve every ear, paw and tail without clipping. Same character identity as the reference. Render the seated full-body golden dog and fluffy white cat from this reference's hero illustration: dog left, cat right, touching shoulders, peaceful smiles, closed eyes, paws visible, a small outlined heart near upper right, few short hand-drawn rays. Landscape canvas, full subjects, no background blob."
+    },
+    {
+      "name": "pending",
+      "ref": "/Users/jcadeichmann/Desktop/Screenshot 2026-10-28 at 7.33.22 PM.png",
+      "prompt": "Create a production mobile-app illustration asset for Crittr from the attached design reference. Isolate ONLY the illustration described below, no phone frame, no UI, no lettering, no brand wordmark, no price, no card. Match the warm, charming hand-drawn illustration style: confident thin uneven black ink outlines, subtly textured soft flat watercolor color fills, warm golden dog, fluffy white cat, small peach accents. Crisp clean silhouette on a genuinely TRANSPARENT background, no cream/white rectangle, no background blobs (the app draws its own blobs), no drop shadow, no decorative large surrounding shapes. Artwork tightly fills the canvas but preserve every ear, paw and tail without clipping. Same character identity as the reference. Render only the pending-payment illustration from the THIRD phone in this reference: one sweet golden retriever lying down with its head resting on its front paws, gentle patient expression, simple black outline clock above and slightly to its right with clock hands but no text/numbers. Landscape canvas. No lavender circle/blob. Isolated transparent artwork."
+    },
+    {
+      "name": "receipt",
+      "ref": "/Users/jcadeichmann/Desktop/Screenshot 2026-10-28 at 7.33.22 PM.png",
+      "prompt": "Create a production mobile-app illustration asset for Crittr from the attached design reference. Isolate ONLY the illustration described below, no phone frame, no UI, no lettering, no brand wordmark, no price, no card. Match the warm, charming hand-drawn illustration style: confident thin uneven black ink outlines, subtly textured soft flat watercolor color fills, warm golden dog, fluffy white cat, small peach accents. Crisp clean silhouette on a genuinely TRANSPARENT background, no cream/white rectangle, no background blobs (the app draws its own blobs), no drop shadow, no decorative large surrounding shapes. Artwork tightly fills the canvas but preserve every ear, paw and tail without clipping. Same character identity as the reference. Render only the restore-purchase receipt illustration from the FOURTH phone in this reference: a slightly tilted paper receipt, black hand-drawn wavy/torn edges, small black paw print at its top and 4 short black ink horizontal receipt lines and tiny dot details, three hand-drawn spark/ray marks around the receipt. Minimal black ink on pale warm-white receipt paper; background outside paper fully transparent. Landscape canvas. No aqua blob."
+    }
+  ]
+}

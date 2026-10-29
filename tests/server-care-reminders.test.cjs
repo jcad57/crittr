@@ -5,6 +5,56 @@ const { loadTS } = require("./load-typescript.cjs");
 const { schedulePlan, pet, food } = require("./care-plan-fixture.cjs");
 const planner = loadTS("supabase/functions/_shared/careReminderPlan.ts", { "../../../utils/buildSchedulePlan.ts": schedulePlan });
 
+test("all opted-in co-carers get due reminders without an owner device, including view-only carers and multiple devices", async (t) => {
+  const db = await load(); t.after(() => db.close());
+  const owner = "11111111-1111-4111-8111-111111111111";
+  const carers = ["22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444"];
+  const as = (id, role = "authenticated") => db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub','${id}',false); SELECT set_config('request.jwt.claim.role','${role}',false); SET ROLE ${role};`);
+  const scalar = async (sql, args = []) => Object.values((await db.query(sql, args)).rows[0])[0];
+  for (const id of [owner, ...carers]) {
+    await db.exec("RESET ROLE");
+    await db.query("INSERT INTO auth.users(id,email) VALUES($1,$2)", [id, `${id}@example.invalid`]);
+    await as(id, "service_role");
+    await db.query("UPDATE profiles SET crittr_pro_active=true,crittr_pro_until=NULL,crittr_pro_last_synced_at=now(),subscription_environment='promotional' WHERE id=$1", [id]);
+  }
+  await db.exec("RESET ROLE; UPDATE care_reminder_config SET enabled=true");
+  await as(owner);
+  const petId = await scalar("INSERT INTO pets(owner_id,name) VALUES($1,'Shared pet') RETURNING id", [owner]);
+  const foodId = await scalar("INSERT INTO pet_foods(pet_id,brand,is_treat) VALUES($1,'Meal',false) RETURNING id", [petId]);
+  const portionId = await scalar("INSERT INTO pet_food_portions(pet_food_id,feed_time,sort_order) VALUES($1,'18:30',0) RETURNING id", [foodId]);
+  await as(owner, "service_role");
+  for (const id of carers) await db.query("INSERT INTO pet_co_carers(pet_id,user_id,invited_by,permissions) VALUES($1,$2,$3,'{}')", [petId, id, owner]);
+  for (const [index, id] of carers.entries()) {
+    await as(id);
+    await db.query("SELECT initialize_care_time_zone('America/Chicago')");
+    const tokens = index === 0 ? ["first-phone", "first-tablet"] : [`carer-${index}`];
+    for (const token of tokens) {
+      await db.query("SELECT register_expo_push_token($1)", [`ExpoPushToken[${token}]`]);
+      await db.query("SELECT activate_device_care_reminders($1)", [`ExpoPushToken[${token}]`]);
+    }
+  }
+  await as(carers[0]);
+  assert.equal((await db.query("SELECT care_reminder_status()")).rows[0].care_reminder_status.missing_owner_time_zones, 1);
+  await as(owner, "service_role");
+  assert.equal((await db.query("SELECT * FROM care_reminder_inputs()")).rows.length, 0, "the owner's zone cannot be guessed from a co-carer's device");
+  await db.query("UPDATE profiles SET care_time_zone='America/Chicago',notify_meals_treats=false WHERE id=$1", [owner]);
+  await db.query("UPDATE profiles SET notify_co_care_activities=false WHERE id=$1", [carers[1]]);
+  await db.query("UPDATE profiles SET notify_meals_treats=false WHERE id=$1", [carers[2]]);
+  await db.exec("UPDATE user_expo_push_devices SET care_reminders_enabled_at=now()-interval '1 day'");
+  const source = (await db.query("SELECT * FROM care_reminder_inputs()")).rows[0].care_reminder_inputs;
+  const date = await scalar("SELECT to_char(now() AT TIME ZONE 'America/Chicago','YYYY-MM-DD')");
+  const due = await scalar("SELECT to_char(now()-interval '1 minute','YYYY-MM-DD\"T\"HH24:MI:SSOF')");
+  const reminders = [{ local_date: date, source_kind: "food_portion", source_id: portionId, source_slot: "", reminder_key: "due", scheduled_at: due, category: "notify_meals_treats", title: "Meal reminder", body: "Time for a meal", href: "/(logged-in)/add-activity" }];
+  await db.query("SELECT enqueue_due_care_reminders($1,$2,$3)", [petId, source.version, reminders]);
+  await db.query("SELECT enqueue_due_care_reminders($1,$2,$3)", [petId, source.version, reminders]);
+  const jobs = (await db.query("SELECT * FROM claim_notification_push_deliveries()")).rows;
+  assert.equal(jobs.length, 3, "two devices for the first co-carer and one for the second");
+  assert.ok(jobs.every((j) => j.deliverable && j.data.type === "care_task_due"));
+  assert.deepEqual([...new Set(jobs.map((j) => j.data.recipient_user_id))].sort(), carers.slice(0, 2));
+  assert.equal(await scalar("SELECT count(*) FROM user_expo_push_devices WHERE user_id=$1", [owner]), 0, "delivery does not require an owner device");
+  assert.equal(await scalar("SELECT count(*) FROM notifications WHERE user_id=$1 AND type='care_task_due'", [carers[2]]), 0, "a meal opt-out is honored independently of co-care activity updates");
+});
+
 test("the server deduplicates reminders per task/device and suppresses shared completed tasks before enqueue and before send", async (t) => {
   const db = await load(); t.after(() => db.close());
   const owner = "11111111-1111-4111-8111-111111111111", carer = "22222222-2222-4222-8222-222222222222";

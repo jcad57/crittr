@@ -99,7 +99,7 @@ function setupFixture(options = {}) {
         calls.push(name);
         if (options.failed) return { error: Error("offline") };
         if (options.changed) generation++;
-        return { data: { enabled: options.enabled !== false, time_zone: "America/Chicago", missing_owner_time_zones: 0 } };
+        return { data: { enabled: options.enabled !== false, time_zone: "America/Chicago", missing_owner_time_zones: options.missingOwnerTimeZones ?? 0 } };
       },
     } },
     "react-native": { Platform: { OS: "ios" } },
@@ -116,6 +116,13 @@ test("server setup removes every legacy reminder before this device can enable r
   await f.module.syncCrittrReminderNotifications("user");
   assert.deepEqual(f.cancelled, ["crittr-old"]);
   assert.equal(f.module.getReminderScheduleStatus().enabled, true);
+});
+test("partial shared-pet setup is reported instead of claiming all reminders are ready", async () => {
+  const f = setupFixture({ missingOwnerTimeZones: 1 });
+  await f.module.syncCrittrReminderNotifications("user");
+  assert.equal(f.module.getReminderScheduleStatus().enabled, true, "other configured pets must keep receiving reminders");
+  assert.equal(f.module.getReminderScheduleStatus().missingOwnerTimeZones, 1);
+  assert.match(f.module.getReminderScheduleStatus().error, /shared-pet reminders are paused/);
 });
 test("failed or unactivated rollout preserves installed reminders and exposes a setup error", async () => {
   for (const options of [{ failed: true }, { enabled: false }]) {

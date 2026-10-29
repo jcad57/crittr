@@ -14,8 +14,6 @@ import RecordsNavCard, {
   type RecordsNavItem,
 } from "@/components/ui/pet/RecordsNavCard";
 import VaccinationAttentionRow from "@/components/ui/vaccination/VaccinationAttentionRow";
-import { ProSoftPaywallSheet } from "@/components/pro/ProSoftPaywallSheet";
-import type { ProSoftPaywallKind } from "@/constants/proCopy";
 import { Colors } from "@/theme/colors";
 import {
   petDetailsQueryKey,
@@ -27,7 +25,6 @@ import {
 import { useCanPerformAction, usePetRole } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { useUserDateTimePrefs } from "@/hooks/useUserDateTimePrefs";
 import { vaccinationNeedsAttention } from "@/utils/healthTraffic";
 import { formatPetFoodPortionSubline, isTreatFood } from "@/utils/petFood";
@@ -79,10 +76,6 @@ export default function PetProfilePage() {
   const canEditProfile = useCanPerformAction(id, "can_edit_pet_profile");
   const canManageFood = useCanPerformAction(id, "can_manage_food");
   const canManageMeds = useCanPerformAction(id, "can_manage_medications");
-  const { runWithProOrUpgrade } = useProGateNavigation();
-  const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
-    null,
-  );
 
   const sortedFoodsForProfile = useMemo(() => {
     if (!details?.foods) return [];
@@ -194,10 +187,7 @@ export default function PetProfilePage() {
       isCoCarer,
       push,
       onCoCarePress: () => {
-        void runWithProOrUpgrade(
-          () => push(`/(logged-in)/pet/${profile.id}/invite-care` as Href),
-          () => setSoftPaywall("coCare"),
-        );
+        push(`/(logged-in)/pet/${profile.id}/invite-care` as Href);
       },
       handleLeaveCoCare,
     });
@@ -208,7 +198,6 @@ export default function PetProfilePage() {
     isCoCarer,
     roleLoading,
     handleLeaveCoCare,
-    runWithProOrUpgrade,
   ]);
 
   if (isLoading) {
@@ -396,12 +385,6 @@ export default function PetProfilePage() {
           </>
         ) : null}
       </ScrollView>
-      <ProSoftPaywallSheet
-        visible={softPaywall != null}
-        kind={softPaywall}
-        petName={profile.name}
-        onClose={() => setSoftPaywall(null)}
-      />
     </View>
   );
 }

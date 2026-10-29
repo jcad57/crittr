@@ -6,7 +6,7 @@ const { load } = require("./database.cjs");
 test("scoped billing installer is repeatable, preserves pet policies/data and supports the later full rollout", async (t) => {
   const baseline = "20261026120000_subscription_reliability.sql";
   const db = await load({
-    skipMigrations: [baseline, "20261026123000_co_care_integrity.sql"],
+    skipMigrations: [baseline, "20261026123000_co_care_integrity.sql", "20261028160000_revised_free_pro_tiers.sql"],
   });
   t.after(() => db.close());
   const id = "22222222-2222-4222-8222-222222222222";

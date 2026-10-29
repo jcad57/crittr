@@ -32,6 +32,7 @@ import {
   startQueryCachePersistence,
 } from "@/lib/query/persistence";
 import { secureStorage } from "@/lib/secureStorage";
+import { clearMedicalRecordPreviewCache } from "@/lib/medicalRecordPreviewCache";
 import {
   advanceSessionGeneration,
   sessionGeneration,
@@ -220,6 +221,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
   const clearAuxiliarySessionState = (preserveReminderUserId?: string) => {
     void cancelCrittrScheduledNotifications(preserveReminderUserId).catch((error) => console.warn("[notifications] clear schedule", error));
     advanceSessionGeneration();
+    void clearMedicalRecordPreviewCache().catch(() => {});
     hydrateInFlight = null;
     syncSessionFromSupabaseInFlight = null;
     useActivityFormStore.getState().reset();

@@ -22,7 +22,7 @@ export function useWebsiteUpgradeIntent() {
   useEffect(() => {
     if (!userId || hydrating || needsOnboarding || !rootKey) return;
     // Never interrupt checkout, an entitlement activation, or pet creation.
-    if (/pro-checkout|welcome-to-pro|add-pet/.test(pathname)) return;
+    if (/pro-checkout|welcome-to-pro|make-pro-yours|add-pet/.test(pathname)) return;
     let active = true;
     let inFlight = false;
     const generation = sessionGeneration();

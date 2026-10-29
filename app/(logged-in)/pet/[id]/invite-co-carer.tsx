@@ -1,3 +1,6 @@
+import { useTierLimitGate } from "@/hooks/useTierLimitGate";
+import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { CO_CARE_LIMIT_MESSAGE } from "@/services/coCare";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
 import PetNavAvatar from "@/components/ui/PetNavAvatar";
@@ -10,7 +13,7 @@ import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { DEFAULT_CO_CARE_PERMISSIONS, type CoCarePermissions } from "@/types/database";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -29,6 +32,22 @@ export default function InviteCoCarerScreen() {
   const petId = Array.isArray(rawId) ? rawId[0] : rawId;
   const { replace, router } = useNavigationCooldown();
   const insets = useSafeAreaInsets();
+  const { canInviteCoCarerOrUpgrade } = useTierLimitGate();
+  const { replaceWithUpgrade, goToUpgrade } = useProGateNavigation();
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  useFocusEffect(useCallback(() => {
+    if (!petId) return;
+    let active = true;
+    setAccessChecked(false);
+    setCheckingAccess(true);
+    void canInviteCoCarerOrUpgrade(
+      petId,
+      () => { if (active) setAccessChecked(true); },
+      () => { if (active) replaceWithUpgrade(); },
+    ).finally(() => { if (active) setCheckingAccess(false); });
+    return () => { active = false; };
+  }, [petId, canInviteCoCarerOrUpgrade, replaceWithUpgrade]));
   const scrollInsetBottom = useFloatingNavScrollInset();
 
   const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
@@ -53,36 +72,47 @@ export default function InviteCoCarerScreen() {
       Alert.alert("Email required", "Enter an email address to send an invite.");
       return;
     }
-    sendInvite.mutate(
+    if (!petId) return;
+    void canInviteCoCarerOrUpgrade(petId, () => sendInvite.mutate(
       { email: trimmed, permissions: perms },
       {
-        onSuccess: ({ isRegistered, inviteeNeedsPro, inviteEmailSent }) => {
-          const message = inviteeNeedsPro
-            ? "They'll get an in-app notification with a link to upgrade to Crittr Pro. After they upgrade, they can accept the invite from Notifications."
-            : isRegistered
+        onSuccess: ({ isRegistered, inviteEmailSent }) => {
+          const message = isRegistered
               ? "They'll see a notification in the app."
               : inviteEmailSent === false
                 ? "Your invite was saved in Crittr, but we couldn't send the invitation email. Ask them to download the app and sign up with this email so they see the invite, or try sending again later."
-                : "We'll email them an invitation to join Crittr. They'll need Crittr Pro to accept co-care.";
-          const emailFailed =
-            !isRegistered &&
-            !inviteeNeedsPro &&
-            inviteEmailSent === false;
+                : "We'll email them an invitation to join Crittr. They can accept on Free.";
+          const emailFailed = !isRegistered && inviteEmailSent === false;
           Alert.alert(emailFailed ? "Invite saved" : "Invite sent", message, [
             { text: "OK", onPress: () => router.back() },
           ]);
         },
         onError: (err) => {
+          if (err.message === CO_CARE_LIMIT_MESSAGE) {
+            goToUpgrade();
+            return;
+          }
           Alert.alert("Error", err.message ?? "Failed to send invite.");
         },
       },
-    );
-  }, [email, perms, sendInvite, router]);
+    ));
+  }, [email, perms, sendInvite, router, petId, canInviteCoCarerOrUpgrade, goToUpgrade]);
 
-  if (detailsLoading || !details || !petId) {
+  if (detailsLoading || !details || !petId || !accessChecked) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={Colors.orange} />
+        {detailsLoading || checkingAccess ? (
+          <ActivityIndicator size="large" color={Colors.orange} />
+        ) : petId ? (
+          <>
+            <Text>Connect to the internet to check your co-care limit.</Text>
+            <OrangeButton onPress={() => {
+              setCheckingAccess(true);
+              void canInviteCoCarerOrUpgrade(petId, () => setAccessChecked(true), replaceWithUpgrade)
+                .finally(() => setCheckingAccess(false));
+            }}>Try again</OrangeButton>
+          </>
+        ) : null}
       </View>
     );
   }
@@ -114,9 +144,9 @@ export default function InviteCoCarerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          You and the person you invite both need Crittr Pro. Choose their email
-          and what they can do for {petName}. These settings apply as soon as they
-          accept.
+          Free includes 1 co-carer per pet; Crittr Pro unlocks unlimited co-carers.
+          They can accept on Free. Choose their email and what they can do for
+          {petName}. These settings apply as soon as they accept.
         </Text>
 
         <Text style={styles.sectionLabel}>EMAIL</Text>

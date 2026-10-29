@@ -26,7 +26,10 @@ import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { styles } from "@/screen-styles/pet/[id]/medical-records.styles";
 import type { ParseMedicalRecordResult } from "@/services/medicalRecordParser";
-import { defaultTitleFromFileName } from "@/services/petMedicalRecords";
+import {
+  defaultTitleFromFileName,
+  randomUploadId,
+} from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import { Colors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -86,9 +89,13 @@ export default function PetMedicalRecordsScreen() {
   const createMut = useCreatePetMedicalRecordWithFilesMutation(petId ?? "");
   const parseMut = useParseMedicalRecordMutation();
   const applyScanMut = useApplyMedicalRecordScanMutation(petId ?? "");
-  const { isPro, isProfileReady, runWithProOrUpgrade } = useProGateNavigation();
+  const { isPro, isProfileReady, runWithProOrUpgrade, goToUpgrade } =
+    useProGateNavigation();
 
   const [addOpen, setAddOpen] = useState(false);
+  const retryRecordIdRef = useRef<string | undefined>(undefined);
+  const createdRecordIdRef = useRef<string | null>(null);
+  const upgradeAfterDismissRef = useRef(false);
   /** Set on successful create; applied in `onFullyDismissed` so the scan sheet opens after the add modal unmounts (iOS modal stacking). */
   const scanPromptRecordIdRef = useRef<string | null>(null);
   /** Record id waiting on the user's "scan this?" decision. Cleared when they accept/decline. */
@@ -108,10 +115,21 @@ export default function PetMedicalRecordsScreen() {
   const pendingReviewResultRef = useRef<ParseMedicalRecordResult | null>(null);
 
   const onAddModalFullyDismissed = useCallback(() => {
+    retryRecordIdRef.current = undefined;
+    if (upgradeAfterDismissRef.current) {
+      upgradeAfterDismissRef.current = false;
+      goToUpgrade();
+      return;
+    }
+    const createdId = createdRecordIdRef.current;
+    createdRecordIdRef.current = null;
+    if (createdId && petId) {
+      push(`/(logged-in)/pet/${petId}/medical-records/${createdId}` as Href);
+    }
     const id = scanPromptRecordIdRef.current;
     scanPromptRecordIdRef.current = null;
     if (id) setPendingScanRecordId(id);
-  }, []);
+  }, [petId, push, goToUpgrade]);
 
   const onScanPromptFullyDismissed = useCallback(() => {
     const pending = pendingReviewResultRef.current;
@@ -124,7 +142,16 @@ export default function PetMedicalRecordsScreen() {
   const onCreateSubmit = useCallback(
     async (payload: { recordName?: string; pending: PendingMedicalFile[] }) => {
       if (!petId || !userId) return;
+      const allowed = await runWithProOrUpgrade(
+        () => {},
+        () => {
+          upgradeAfterDismissRef.current = true;
+          setAddOpen(false);
+        },
+      );
+      if (!allowed) return;
       const files = payload.pending.map((p) => ({
+        fileId: p.key,
         localUri: p.asset.uri,
         originalFilename: p.asset.name,
         mimeType: p.asset.mimeType,
@@ -133,10 +160,12 @@ export default function PetMedicalRecordsScreen() {
       const recordTitle =
         payload.recordName?.trim() ||
         defaultTitleFromFileName(files[0]!.originalFilename);
+      retryRecordIdRef.current ??= randomUploadId();
       const created = await createMut.mutateAsync({
         userId,
         recordTitle,
         files,
+        existingRecordId: retryRecordIdRef.current,
       });
       if (ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN) {
         scanPromptRecordIdRef.current =
@@ -146,10 +175,10 @@ export default function PetMedicalRecordsScreen() {
       }
       setAddOpen(false);
       if (!ENABLE_MEDICAL_RECORD_CRITTR_AI_SCAN && created?.id && petId) {
-        push(`/(logged-in)/pet/${petId}/medical-records/${created.id}` as Href);
+        createdRecordIdRef.current = created.id;
       }
     },
-    [createMut, petId, userId, canApplyScanResults, push],
+    [createMut, petId, userId, canApplyScanResults, runWithProOrUpgrade],
   );
 
   const handleAcceptScan = useCallback(async () => {
@@ -250,8 +279,8 @@ export default function PetMedicalRecordsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Upload and store all your pet&apos;s important medical documents here. You
-          can also share these documents with your vet.
+          Upload and store all your pet&apos;s important medical documents here.
+          You can also share these documents with your vet.
         </Text>
 
         {permLoading ? (
@@ -313,16 +342,7 @@ export default function PetMedicalRecordsScreen() {
         onFullyDismissed={onAddModalFullyDismissed}
         mode="create"
         isSubmitting={createMut.isPending}
-        onSubmit={async (payload) => {
-          try {
-            await onCreateSubmit(payload);
-          } catch (e) {
-            Alert.alert(
-              "Could not create record",
-              e instanceof Error ? e.message : "Please try again.",
-            );
-          }
-        }}
+        onSubmit={onCreateSubmit}
       />
 
       <ScanRecordPromptSheet

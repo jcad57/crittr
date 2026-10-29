@@ -16,7 +16,6 @@ import {
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { usePetScopedAfterSwitchPet } from "@/hooks/usePetScopedAfterSwitchPet";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
 import { styles } from "@/screen-styles/pet/[id]/medications/[medicationId].styles";
 import { Colors } from "@/theme/colors";
 import { getErrorMessage } from "@/utils/errorMessage";
@@ -38,7 +37,6 @@ import { useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -75,7 +73,6 @@ export default function EditPetMedicationScreen() {
 
   const insertMut = useInsertMedicationMutation(petId ?? "");
   const updateMut = useUpdateMedicationMutation(petId ?? "");
-  const { isPro, isProfileReady, replaceWithUpgrade } = useProGateNavigation();
 
   const [name, setName] = useState("");
   const [dosages, setDosages] = useState<MedicationDosageDraft[]>([]);
@@ -170,21 +167,6 @@ export default function EditPetMedicationScreen() {
     router,
   ]);
 
-  useLayoutEffect(() => {
-    if (!isNew || !details) return;
-    if (canManageMedications !== true) return;
-    if (!isProfileReady) return;
-    if ((details.medications?.length ?? 0) >= 1 && !isPro) {
-      replaceWithUpgrade();
-    }
-  }, [
-    isNew,
-    details,
-    isPro,
-    isProfileReady,
-    replaceWithUpgrade,
-    canManageMedications,
-  ]);
 
   if (isLoading && !details) {
     return (

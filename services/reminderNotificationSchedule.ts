@@ -84,8 +84,12 @@ export async function syncCrittrReminderNotifications(userId: string, _prefs?: N
     // feeding alerts and generic nudges, so the two pipelines cannot both fire.
     await cancelInstalledCrittrNotifications();
     if (!current()) return;
+    const missingOwnerTimeZones = status.missing_owner_time_zones ?? 0;
     publish({ userId, enabled: permission === Notifications.PermissionStatus.GRANTED,
-      timeZone: status.time_zone ?? null, missingOwnerTimeZones: status.missing_owner_time_zones ?? 0, error: null });
+      timeZone: status.time_zone ?? null, missingOwnerTimeZones,
+      error: missingOwnerTimeZones > 0
+        ? "Some shared-pet reminders are paused because the primary owner's care time zone is missing. The owner needs to open the updated app to finish setup."
+        : null });
   } catch (error) {
     if (current()) publish({ userId, enabled: false, timeZone: null, missingOwnerTimeZones: 0,
       error: error instanceof Error ? error.message : "Reminder setup failed. Refresh setup to retry." });

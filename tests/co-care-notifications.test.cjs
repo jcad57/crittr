@@ -32,7 +32,7 @@ test("registered Free and Pro invitees get an inbox row and a push job per devic
     const invite = await scalar("INSERT INTO co_carer_invites(pet_id,invited_by,invited_user_id,email) VALUES($1,$2,$3,'invite-carer@example.invalid') RETURNING id", [pet, owner, carer]);
     await as(carer);
     const notification = (await db.query("SELECT * FROM notifications WHERE data->>'invite_id'=$1", [invite])).rows[0];
-    assert.equal(notification.type, hasPro ? "co_care_invite" : "co_care_invite_requires_pro");
+    assert.equal(notification.type, "co_care_invite");
     assert.equal(notification.user_id, carer);
     await as(owner, "service_role");
     const jobs = (await db.query("SELECT * FROM claim_co_care_invite_push_deliveries()" )).rows;

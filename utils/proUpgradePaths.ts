@@ -23,3 +23,10 @@ export function postPurchaseHref(returnTo?: string | null): Href {
   if (returnTo === "settings") return "/(logged-in)/settings";
   return "/(logged-in)/welcome-to-pro";
 }
+
+/** New purchases always celebrate before optional Pro setup, preserving the final destination. */
+export function proWelcomeHref(returnTo?: string | null): Href {
+  const suffix = returnTo === "subscriptions" || returnTo === "settings"
+    ? `?returnTo=${returnTo}` : "";
+  return `/(logged-in)/welcome-to-pro${suffix}` as Href;
+}

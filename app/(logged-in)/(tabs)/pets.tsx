@@ -5,7 +5,7 @@ import { Colors } from "@/theme/colors";
 import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
 import { usePetsQuery } from "@/hooks/queries";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
-import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useTierLimitGate } from "@/hooks/useTierLimitGate";
 import { isPetActiveForDashboard } from "@/utils/petParticipation";
 import { sortPetsByCreatedAt } from "@/utils/petSort";
 import type { PetWithRole } from "@/types/database";
@@ -27,30 +27,20 @@ export default function PetsScreen() {
   const insets = useSafeAreaInsets();
   const scrollInsetBottom = useFloatingNavScrollInset();
   const { push } = useNavigationCooldown();
-  const { runWithProOrUpgrade } = useProGateNavigation();
+  const { canAddPetOrUpgrade } = useTierLimitGate();
   const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
     null,
   );
   const { data, isLoading } = usePetsQuery();
   const dbPets: PetWithRole[] | undefined = data;
-  const livingOwnedPetCount = useMemo(() => {
-    if (!dbPets) return 0;
-    return dbPets.filter(
-      (p) => p.role === "owner" && isPetActiveForDashboard(p),
-    ).length;
-  }, [dbPets]);
   const goToAddPet = useCallback(() => {
-    if (livingOwnedPetCount === 0) {
-      push("/(logged-in)/add-pet" as Href);
-      return;
-    }
-    void runWithProOrUpgrade(
+    void canAddPetOrUpgrade(
       () => {
         push("/(logged-in)/add-pet" as Href);
       },
       () => setSoftPaywall("pets"),
     );
-  }, [livingOwnedPetCount, runWithProOrUpgrade, push]);
+  }, [canAddPetOrUpgrade, push]);
   const ordered = useMemo(() => {
     if (!dbPets?.length) return [];
     const sorted = sortPetsByCreatedAt(dbPets);

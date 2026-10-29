@@ -1,162 +1,34 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import OrangeButton from "@/components/ui/buttons/OrangeButton";
+import { OrganicSurface, ProBenefitGrid, ProLink } from "@/components/pro/flow/ProFlowUi";
 import { Colors } from "@/theme/colors";
-import { Font, MAIN_SCREEN_TITLE_SIZE } from "@/theme/typography";
-import { PRO_ONBOARDING_COPY } from "@/constants/proCopy";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Font } from "@/theme/typography";
 
-export type ProOnboardingStep = "welcome" | "cocare" | "expand" | "done";
-export type ProOnboardingExpandKind =
-  | "addPet"
-  | "records"
-  | "medications"
-  | "crittrAi";
-
-type Props = {
-  step: ProOnboardingStep;
-  expandKind: ProOnboardingExpandKind | null;
-  petName: string | null;
-  onWelcomeContinue: () => void;
-  welcomeBusy?: boolean;
-  onCocare: () => void;
-  onCocareSkip: () => void;
-  onExpand: () => void;
-  onExpandSkip: () => void;
-  onDone: () => void;
-};
-
-export function ProOnboardingView({
-  step,
-  expandKind,
-  petName,
-  onWelcomeContinue,
-  welcomeBusy,
-  onCocare,
-  onCocareSkip,
-  onExpand,
-  onExpandSkip,
-  onDone,
-}: Props) {
-  if (step === "welcome") {
-    return (
-      <View style={styles.body}>
-        <Text style={styles.title}>{PRO_ONBOARDING_COPY.welcomeTitle}</Text>
-        <Text style={styles.lead}>{PRO_ONBOARDING_COPY.welcomeLead}</Text>
-        <OrangeButton
-          onPress={onWelcomeContinue}
-          style={styles.cta}
-          disabled={welcomeBusy}
-          loading={welcomeBusy}
-        >
-          {PRO_ONBOARDING_COPY.welcomeCta}
-        </OrangeButton>
-      </View>
-    );
-  }
-
-  if (step === "cocare") {
-    return (
-      <View style={styles.body}>
-        <Text style={styles.title}>{PRO_ONBOARDING_COPY.cocareTitle}</Text>
-        <Text style={styles.lead}>{PRO_ONBOARDING_COPY.cocareLead}</Text>
-        <OrangeButton onPress={onCocare} style={styles.cta}>
-          {PRO_ONBOARDING_COPY.cocareCta}
-        </OrangeButton>
-        <Pressable
-          onPress={onCocareSkip}
-          style={({ pressed }) => [
-            styles.skip,
-            pressed && styles.skipPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={PRO_ONBOARDING_COPY.cocareSkip}
-        >
-          <Text style={styles.skipText}>{PRO_ONBOARDING_COPY.cocareSkip}</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (step === "expand" && expandKind) {
-    const copy = PRO_ONBOARDING_COPY.expand[expandKind];
-    return (
-      <View style={styles.body}>
-        <Text style={styles.title}>{copy.title}</Text>
-        <Text style={styles.lead}>{copy.lead}</Text>
-        <OrangeButton onPress={onExpand} style={styles.cta}>
-          {copy.cta}
-        </OrangeButton>
-        <Pressable
-          onPress={onExpandSkip}
-          style={({ pressed }) => [
-            styles.skip,
-            pressed && styles.skipPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={PRO_ONBOARDING_COPY.expandSkip}
-        >
-          <Text style={styles.skipText}>{PRO_ONBOARDING_COPY.expandSkip}</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.body}>
-      <Text style={styles.title}>{PRO_ONBOARDING_COPY.doneTitle}</Text>
-      <Text style={styles.lead}>{PRO_ONBOARDING_COPY.doneLead(petName)}</Text>
-      <OrangeButton onPress={onDone} style={styles.cta}>
-        {PRO_ONBOARDING_COPY.doneCta}
-      </OrangeButton>
+/** Welcome is intentionally one step; the CTA opens the full Pro action hub. */
+export function ProOnboardingView({ onContinue, onSkip }: { onContinue: () => void; onSkip: () => void }) {
+  const { height } = useWindowDimensions();
+  const compact = height < 900;
+  return <View style={styles.body}>
+    <View style={styles.confetti} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {[{ x: "4%", y: 24, c: Colors.orange }, { x: "15%", y: 0, c: "#BCA0D5" }, { x: "37%", y: 10, c: "#B8C58E" }, { x: "61%", y: 7, c: "#CFB6DC" }, { x: "79%", y: 1, c: Colors.orange }, { x: "94%", y: 26, c: "#B8C58E" }].map((dot, i) => <View key={i} style={{ position: "absolute", left: dot.x as `${number}%`, top: dot.y, width: 7, height: 9, borderRadius: 4, backgroundColor: dot.c, transform: [{ rotate: `${i * 19}deg` }] }} />)}
     </View>
-  );
+    <OrganicSurface variant="hero" color={Colors.featureDark} style={[styles.hero, compact && { paddingTop: 20, paddingBottom: 23, gap: 8 }]}>
+      <View style={[styles.paw, compact && { width: 64, height: 64, borderRadius: 32 }]}><MaterialCommunityIcons name="paw" size={41} color={Colors.white} /></View>
+      <Text style={[styles.title, compact && { fontSize: 33, lineHeight: 37 }]}>Welcome to{'\n'}Crittr Pro.</Text>
+      <Text style={styles.lead}>More room for every pet{"\n"}and everyone who loves them.</Text>
+    </OrganicSurface>
+    <View style={[styles.benefits, compact && { marginVertical: 15 }]}><ProBenefitGrid iconsOnly /></View>
+    <OrangeButton onPress={onContinue}>Let’s get started</OrangeButton>
+    <ProLink onPress={onSkip}>Set up later</ProLink>
+  </View>;
 }
-
-export const proOnboardingStyles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    justifyContent: "center",
-  },
-  body: {
-    width: "100%",
-  },
-  title: {
-    fontFamily: Font.displayBold,
-    fontSize: MAIN_SCREEN_TITLE_SIZE,
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: 12,
-  },
-  lead: {
-    fontFamily: Font.uiRegular,
-    fontSize: 17,
-    lineHeight: 26,
-    color: Colors.textSecondary,
-    marginBottom: 28,
-  },
-  cta: {
-    alignSelf: "stretch",
-  },
-  skip: {
-    alignSelf: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  skipPressed: {
-    opacity: 0.7,
-  },
-  skipText: {
-    fontFamily: Font.uiSemiBold,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
+const styles = StyleSheet.create({
+  body: { flex: 1, justifyContent: "center", paddingTop: 12, paddingBottom: 10 },
+  confetti: { height: 28, marginHorizontal: 8 },
+  hero: { paddingHorizontal: 22, paddingTop: 24, paddingBottom: 28, alignItems: "center", gap: 10 },
+  paw: { width: 75, height: 75, borderRadius: 38, backgroundColor: Colors.orange, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  title: { fontFamily: Font.displayBold, fontSize: 36, lineHeight: 40, color: Colors.warmWhite, textAlign: "center", letterSpacing: -0.7 },
+  lead: { fontFamily: Font.uiRegular, color: "#E9E3DB", fontSize: 16, lineHeight: 22, textAlign: "center" },
+  benefits: { marginVertical: 21 },
 });
-
-const styles = proOnboardingStyles;

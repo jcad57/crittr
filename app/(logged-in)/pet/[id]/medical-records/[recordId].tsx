@@ -15,22 +15,20 @@ import {
   usePetDetailsQuery,
   usePetMedicalRecordDetailQuery,
   useUpdatePetMedicalRecordTitleMutation,
-  useUploadMedicalRecordFileMutation,
+  useUploadMedicalRecordFilesMutation,
 } from "@/hooks/queries";
 import { useCanPerformAction } from "@/hooks/useCanPerformAction";
 import { useFloatingNavScrollInset } from "@/hooks/useFloatingNavScrollInset";
 import { useNavigationCooldown } from "@/hooks/useNavigationCooldown";
 import { useProGateNavigation } from "@/hooks/useProGateNavigation";
+import { useMedicalRecordPreview } from "@/hooks/useMedicalRecordPreview";
 import { styles } from "@/screen-styles/pet/[id]/medical-records/[recordId].styles";
-import {
-  downloadMedicalRecordFileForOpening,
-  shareMedicalRecordFile,
-} from "@/services/petMedicalRecords";
+import { shareMedicalRecordFile } from "@/services/petMedicalRecords";
 import { useAuthStore } from "@/stores/authStore";
 import type { PetMedicalRecordFile } from "@/types/database";
 import { getErrorMessage } from "@/utils/errorMessage";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -47,7 +45,7 @@ export default function EditMedicalRecordScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const scrollInsetBottom = useFloatingNavScrollInset();
-  const { replace, router } = useNavigationCooldown();
+  const { router } = useNavigationCooldown();
   const userId = useAuthStore((s) => s.session?.user?.id);
 
   // const onPetSwitch = usePetScopedAfterSwitchPet(petId, replace);
@@ -68,14 +66,14 @@ export default function EditMedicalRecordScreen() {
   } = usePetMedicalRecordDetailQuery(recordId);
 
   const canManage = useCanPerformAction(petId, "can_manage_pet_records");
-  const { runWithProOrUpgrade } = useProGateNavigation();
+  const { isPro, runWithProOrUpgrade } = useProGateNavigation();
   const [softPaywall, setSoftPaywall] = useState<ProSoftPaywallKind | null>(
     null,
   );
 
   const updateTitleMut = useUpdatePetMedicalRecordTitleMutation(petId ?? "");
   const deleteRecordMut = useDeletePetMedicalRecordMutation(petId ?? "");
-  const uploadFileMut = useUploadMedicalRecordFileMutation(
+  const uploadFileMut = useUploadMedicalRecordFilesMutation(
     petId ?? "",
     recordId ?? "",
   );
@@ -86,9 +84,18 @@ export default function EditMedicalRecordScreen() {
 
   const [titleDraft, setTitleDraft] = useState("");
   const [addOpen, setAddOpen] = useState(false);
-  const [filePreviewUri, setFilePreviewUri] = useState<string | null>(null);
-  const [filePreviewMime, setFilePreviewMime] = useState<string | null>(null);
-  const [filePreviewLoading, setFilePreviewLoading] = useState(false);
+  const upgradeAfterDismissRef = useRef(false);
+  const onAddFullyDismissed = useCallback(() => {
+    if (upgradeAfterDismissRef.current) {
+      upgradeAfterDismissRef.current = false;
+      setSoftPaywall("records");
+    }
+  }, []);
+  const {
+    preview,
+    open: openFile,
+    close: closeFilePreview,
+  } = useMedicalRecordPreview(recordId);
   const [sharingFileId, setSharingFileId] = useState<string | null>(null);
 
   const record = detail?.record;
@@ -103,30 +110,6 @@ export default function EditMedicalRecordScreen() {
       router.back();
     }
   }, [record, petId, router]);
-
-  const openFile = useCallback(async (file: PetMedicalRecordFile) => {
-    setFilePreviewLoading(true);
-    setFilePreviewUri(null);
-    setFilePreviewMime(file.mime_type ?? null);
-    try {
-      const localUri = await downloadMedicalRecordFileForOpening(file);
-      setFilePreviewUri(localUri);
-    } catch (e) {
-      setFilePreviewMime(null);
-      Alert.alert(
-        "Could not open file",
-        e instanceof Error ? e.message : "Try again in a moment.",
-      );
-    } finally {
-      setFilePreviewLoading(false);
-    }
-  }, []);
-
-  const closeFilePreview = useCallback(() => {
-    setFilePreviewUri(null);
-    setFilePreviewMime(null);
-    setFilePreviewLoading(false);
-  }, []);
 
   const handleShareFile = useCallback(async (file: PetMedicalRecordFile) => {
     setSharingFileId(file.id);
@@ -191,29 +174,49 @@ export default function EditMedicalRecordScreen() {
       return;
     }
     if (t === record?.title) return;
-    updateTitleMut.mutate(
-      { recordId, title: t },
-      {
-        onError: (e) => Alert.alert("Couldn't save", getErrorMessage(e)),
+    void runWithProOrUpgrade(
+      () => {
+        updateTitleMut.mutate(
+          { recordId, title: t },
+          {
+            onError: (e) => Alert.alert("Couldn't save", getErrorMessage(e)),
+          },
+        );
       },
+      () => setSoftPaywall("records"),
     );
-  }, [recordId, titleDraft, record?.title, updateTitleMut]);
+  }, [
+    recordId,
+    titleDraft,
+    record?.title,
+    updateTitleMut,
+    runWithProOrUpgrade,
+  ]);
 
   const onAddFilesSubmit = useCallback(
     async (payload: { pending: PendingMedicalFile[] }) => {
       if (!petId || !userId || !recordId) return;
-      for (const p of payload.pending) {
-        await uploadFileMut.mutateAsync({
-          userId,
+      const allowed = await runWithProOrUpgrade(
+        () => {},
+        () => {
+          upgradeAfterDismissRef.current = true;
+          setAddOpen(false);
+        },
+      );
+      if (!allowed) return;
+      await uploadFileMut.mutateAsync({
+        userId,
+        files: payload.pending.map((p) => ({
+          fileId: p.key,
           localUri: p.asset.uri,
           originalFilename: p.asset.name,
           mimeType: p.asset.mimeType,
           fileSizeBytes: p.asset.size,
-        });
-      }
+        })),
+      });
       setAddOpen(false);
     },
-    [petId, recordId, uploadFileMut, userId],
+    [petId, recordId, uploadFileMut, userId, runWithProOrUpgrade],
   );
 
   const scrollContentMinHeight = useMemo(() => {
@@ -237,7 +240,7 @@ export default function EditMedicalRecordScreen() {
     );
   }
 
-  if (isError || !record) {
+  if (isError || !record || record.pet_id !== petId) {
     return (
       <View style={[styles.centered, { paddingHorizontal: 24 }]}>
         <Text style={styles.missing}>This record could not be loaded.</Text>
@@ -294,7 +297,7 @@ export default function EditMedicalRecordScreen() {
               style={[styles.titleInput, !canEdit && styles.inputDisabled]}
               value={titleDraft}
               onChangeText={setTitleDraft}
-              editable={canEdit}
+              editable={canEdit && isPro}
               placeholder="Title"
               placeholderTextColor={Colors.gray500}
             />
@@ -355,28 +358,21 @@ export default function EditMedicalRecordScreen() {
       </KeyboardAwareScrollView>
 
       <MedicalRecordFilePreviewModal
-        visible={filePreviewLoading || filePreviewUri !== null}
-        loading={filePreviewLoading}
-        localUri={filePreviewUri}
-        mimeType={filePreviewMime}
+        visible={preview !== null}
+        loading={preview?.loading ?? false}
+        localUri={preview?.localUri ?? null}
+        mimeType={preview?.file.mime_type}
+        filename={preview?.file.original_filename ?? "Document"}
         onClose={closeFilePreview}
       />
 
       <MedicalRecordAddFilesModal
         visible={addOpen}
         onClose={() => setAddOpen(false)}
+        onFullyDismissed={onAddFullyDismissed}
         mode="addFiles"
         isSubmitting={uploadFileMut.isPending}
-        onSubmit={async (payload) => {
-          try {
-            await onAddFilesSubmit(payload);
-          } catch (e) {
-            Alert.alert(
-              "Upload failed",
-              e instanceof Error ? e.message : "Please try again.",
-            );
-          }
-        }}
+        onSubmit={onAddFilesSubmit}
       />
       <ProSoftPaywallSheet
         visible={softPaywall != null}

@@ -15,9 +15,6 @@ const KIND_ICONS: Record<
   ComponentProps<typeof MaterialCommunityIcons>["name"]
 > = {
   pets: "paw",
-  food: "food-outline",
-  medications: "pill",
-  vaccinations: "needle",
   records: "file-document-outline",
   coCare: "heart-outline",
   crittrAi: "creation",

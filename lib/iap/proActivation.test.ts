@@ -5,7 +5,7 @@ import {
   PRO_ACTIVATION_PAYWALL_WAIT_MS,
   resolveProActivationWaitMs,
 } from "./proActivation.ts";
-import { postPurchaseHref } from "../../utils/proUpgradePaths.ts";
+import { postPurchaseHref, proWelcomeHref } from "../../utils/proUpgradePaths.ts";
 
 describe("resolveProActivationWaitMs", () => {
   it("does not block the UI when RevenueCat already unlocked Pro after purchase", () => {
@@ -72,5 +72,13 @@ describe("postPurchaseHref", () => {
       postPurchaseHref("subscriptions"),
       "/(logged-in)/subscriptions",
     );
+  });
+});
+
+describe("proWelcomeHref", () => {
+  it("celebrates new purchases before returning to settings or subscription management", () => {
+    assert.equal(proWelcomeHref("settings"), "/(logged-in)/welcome-to-pro?returnTo=settings");
+    assert.equal(proWelcomeHref("subscriptions"), "/(logged-in)/welcome-to-pro?returnTo=subscriptions");
+    assert.equal(proWelcomeHref("https://unexpected.invalid"), "/(logged-in)/welcome-to-pro");
   });
 });

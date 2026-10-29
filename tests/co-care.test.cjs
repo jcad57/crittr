@@ -12,7 +12,7 @@ const carer = "22222222-2222-4222-8222-222222222222";
 const stranger = "33333333-3333-4333-8333-333333333333";
 
 test("acceptance repair works on the deployed schema without co-care integrity triggers", async (t) => {
-  const db = await load({ skipMigrations: [billing, sharing, repair] });
+  const db = await load({ skipMigrations: [billing, sharing, repair, "20261028160000_revised_free_pro_tiers.sql"] });
   t.after(() => db.close());
   const scalar = async (sql, args = []) => Object.values((await db.query(sql, args)).rows[0])[0];
   const as = (id, role = "authenticated") => db.exec(
@@ -129,9 +129,9 @@ test("notification acceptance sends the named invite parameter and propagates RP
       assert.equal(inserts[0].row.type, "co_care_accepted");
       assert.equal(analytics.length, 1);
     }
-    assert.equal(calls[1].name, "accept_co_care_invite");
-    assert.equal(calls[1].args.target_invite, "invite");
-    assert.equal(Object.keys(calls[1].args).length, 1);
+    assert.equal(calls[0].name, "accept_co_care_invite");
+    assert.equal(calls[0].args.target_invite, "invite");
+    assert.equal(Object.keys(calls[0].args).length, 1);
   }
 });
 
@@ -252,7 +252,7 @@ test("invite channel uses membership lookup: email for new users, inbox/push for
       });
       const result = await sendCoCareInvite("pet", "owner", "  Carer@Example.Invalid  ");
       assert.equal(result.isRegistered, registered);
-      assert.equal(result.inviteeNeedsPro, needsPro);
+      assert.equal(result.inviteeNeedsPro, undefined);
       assert.equal(inserts[0].table, "co_carer_invites");
       assert.equal(inserts[0].row.invited_user_id, registered ? "carer" : null);
       assert.equal(inserts[0].row.email, "carer@example.invalid");
